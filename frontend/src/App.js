@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
-import RegistrationPage from './components/LandingPage/Registration';
+//import RegistrationPage from './components/LandingPage/Registration';
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout'; 
 import FacultyLayout from './components/FacultyDashboard/FacultyLayout'; // <-- UPDATED IMPORT
