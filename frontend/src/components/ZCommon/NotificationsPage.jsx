@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './NotificationsPage.css'; // New CSS file for this page
+import '../ZCommon/Utility.css';
 import LoggedInHeader from './LoggedInHeader';
 import Footer from './Footer';
 

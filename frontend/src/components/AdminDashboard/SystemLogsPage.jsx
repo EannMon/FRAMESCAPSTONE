@@ -70,7 +70,6 @@ const SystemLogsPage = () => {
         <div className="system-logs-container">
             {/* Header and filters are now OUTSIDE the card */}
             <div className="logs-header">
-                <h1 className="logs-main-title">System Logs</h1>
                 <div className="logs-filters">
                     <select className="logs-filter-select">
                         <option>All Levels</option>

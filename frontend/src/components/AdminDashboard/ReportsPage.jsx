@@ -93,7 +93,6 @@ const ReportsPage = () => {
 
     return (
         <div className="reports-container">
-            <h1 className="reports-main-title">Reports & Analytics</h1>
 
             {/* Top Report Type Cards */}
             <div className="reports-card-grid">

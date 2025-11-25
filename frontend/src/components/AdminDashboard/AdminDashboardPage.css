@@ -1,53 +1,52 @@
 /* =========================================== */
 /* 4. Dashboard View Styles */
 /* =========================================== */
-.dashboard-content-grid {
+.admin-dashboard-content-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     gap: 30px;
     padding-left: 30px;
 }
-.summary-cards-container {
+.admin-summary-cards-container {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 30px;
 }
-.summary-card { display: flex; align-items: center; padding: 20px; }
-.summary-icon-container { width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.5em; margin-right: 15px; }
-.summary-icon-container.alert-bg { background-color: #f7a39b; color: #dc3545; } /* RED */
-.summary-icon-container.users-bg-red { background-color: #f8d7da; color: #dc3545; } /* RED */
-.summary-icon-container.cameras-bg { background-color: #a7e0aa; color: #28a745; }
-.summary-icon-container.attendance-bg { background-color: #d8c7f0; color: #6f42c1; }
-.summary-content { display: flex; flex-direction: column; }
-.summary-title { font-size: 0.9em; color: #888; margin-bottom: 5px; }
-.summary-value { font-size: 1.6em; font-weight: 700; color: #333; margin-bottom: 3px; }
-.summary-sub-value { font-size: 0.85em; font-weight: 500; }
+.admin-summary-card { display: flex; align-items: center; padding: 20px; }
+.admin-summary-icon-container { width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.5em; margin-right: 15px; }
+.admin-summary-icon-container.alert-bg { background-color: #f7a39b; color: #dc3545; } /* RED */
+.admin-summary-icon-container.users-bg-red { background-color: #f8d7da; color: #dc3545; } /* RED */
+.admin-summary-icon-container.cameras-bg { background-color: #a7e0aa; color: #28a745; }
+.admin-summary-icon-container.attendance-bg { background-color: #d8c7f0; color: #6f42c1; }
+.admin-summary-content { display: flex; flex-direction: column; }
+.admin-summary-title { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+.admin-summary-value { font-size: 1.6em; font-weight: 700; color: #333; margin-bottom: 3px; }
+.admin-summary-sub-value { font-size: 0.85em; font-weight: 500; }
 
 /* =========================================== */
 /* 5. Room Availability Styles (*** NEW VIBE ***) */
 /* =========================================== */
-.room-availability-card { 
+.admin-room-availability-card { 
     grid-column: 1 / -1; 
     padding: 0; 
 }
-.room-availability-header { 
+.admin-room-availability-header { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
     padding: 20px 25px; 
-    border-bottom: 1px solid #eee; 
 }
-.room-availability-header h3 { 
+.admin-room-availability-header h3 { 
     margin: 0; 
     font-size: 1.2em; 
     font-weight: 600; 
 }
-.room-availability-actions { 
+.admin-room-availability-actions { 
     display: flex; 
     align-items: center; 
 }
-.building-selector { /* Re-using this class name */
+.admin-building-selector { /* Re-using this class name */
     padding: 8px 12px; 
     border: 1px solid #ccc; 
     border-radius: 5px; 
@@ -55,7 +54,7 @@
     font-size: 0.9em; 
 }
 
-.room-box-container {
+.admin-room-box-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -66,7 +65,7 @@
 }
 
 /* New Room Box Card Style */
-.room-box-card {
+.admin-room-box-card {
     flex-basis: 400px;
     flex-grow: 1;
     max-width: 500px;
@@ -80,15 +79,15 @@
 }
 
 /* The colored border on the left */
-.room-box-card.available {
+.admin-room-box-card.available {
     border-left: 5px solid #28a745; /* Green */
 }
-.room-box-card.in-use {
+.admin-room-box-card.in-use {
     border-left: 5px solid #dc3545; /* Red */
 }
 
 /* Top row with Title and Camera Status */
-.room-box-top-row {
+.admin-room-box-top-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -97,14 +96,14 @@
     border-bottom: 1px solid #eee;
 }
 
-.room-box-title {
+.admin-room-box-title {
     font-size: 1.3em;
     font-weight: 600;
     color: #333;
     margin: 0;
 }
 
-.room-camera-status {
+.admin-room-camera-status {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -113,17 +112,17 @@
     padding: 5px 10px;
     border-radius: 6px;
 }
-.room-camera-status.online {
+.admin-room-camera-status.online {
     color: #28a745;
     background-color: #e6f7ec;
 }
-.room-camera-status.offline {
+.admin-room-camera-status.offline {
     color: #dc3545;
     background-color: #fde8e8;
 }
 
 /* Main status area with big icon */
-.room-box-main-status {
+.admin-room-box-main-status {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -132,27 +131,27 @@
     padding: 40px 20px;
     text-align: center;
 }
-.room-box-main-status i {
+.admin-room-box-main-status i {
     font-size: 3.5em; /* Big icon */
 }
-.room-box-main-status span {
+.admin-room-box-main-status span {
     font-size: 1.5em;
     font-weight: 700;
 }
 
 /* Main status icon/text colors */
-.room-box-card.available .room-box-main-status i,
-.room-box-card.available .room-box-main-status span {
+.admin-room-box-card.available .admin-room-box-main-status i,
+.admin-room-box-card.available .admin-room-box-main-status span {
     color: #28a745;
 }
-.room-box-card.in-use .room-box-main-status i,
-.room-box-card.in-use .room-box-main-status span {
+.admin-room-box-card.in-use .admin-room-box-main-status i,
+.admin-room-box-card.in-use .admin-room-box-main-status span {
     color: #dc3545;
 }
 
 
 /* Legend Styles */
-.room-availability-legend { 
+.admin-room-availability-legend { 
     display: flex; 
     justify-content: center; 
     flex-wrap: wrap; 
@@ -160,69 +159,69 @@
     border-top: 1px solid #eee; 
     background-color: #f8f9fa; 
 }
-.legend-item { 
+.admin-legend-item { 
     display: flex; 
     align-items: center; 
     margin: 5px 15px; 
     font-size: 0.9em; 
     color: #555; 
 }
-.legend-color-box { 
+.admin-legend-color-box { 
     width: 12px; 
     height: 12px; 
     border-radius: 3px; 
     margin-right: 8px; 
     border: 1px solid rgba(0,0,0,0.1); 
 }
-.legend-color-box.available-bg { background-color: #28a745; }
-.legend-color-box.in-use-bg { background-color: #dc3545; }
+.admin-legend-color-box.available-bg { background-color: #28a745; }
+.admin-legend-color-box.in-use-bg { background-color: #dc3545; }
 /* Removed old camera legend items */
 
 
 /* =========================================== */
 /* 6. Recent Alerts & System Status */
 /* =========================================== */
-.recent-alerts { grid-column: span 6; display: flex; flex-direction: column; }
-.recent-alerts h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.4em; }
-.alerts-list { flex-grow: 1; display: flex; flex-direction: column; }
-.alert-item { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
-.alert-item:last-child { border-bottom: none; }
-.alert-type { width: 8px; height: 8px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; }
-.alert-type.red { background-color: #dc3545; }
-.alert-type.yellow { background-color: #ffc107; }
-.alert-type.green { background-color: #28a745; }
-.alert-details { flex-grow: 1; }
-.alert-description { font-size: 0.95em; color: #333; margin-bottom: 3px; }
-.alert-time { font-size: 0.8em; color: #888; }
-.alert-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: 600; color: white; margin-left: 15px; flex-shrink: 0; }
+.admin-recent-alerts { grid-column: span 6; display: flex; flex-direction: column; }
+.admin-recent-alerts h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.4em; }
+.admin-alerts-list { flex-grow: 1; display: flex; flex-direction: column; }
+.admin-alert-item { display: flex; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
+.admin-alert-item:last-child { border-bottom: none; }
+.admin-alert-type { width: 8px; height: 8px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; }
+.admin-alert-type.red { background-color: #dc3545; }
+.admin-alert-type.yellow { background-color: #ffc107; }
+.admin-alert-type.green { background-color: #28a745; }
+.admin-alert-details { flex-grow: 1; }
+.admin-alert-description { font-size: 0.95em; color: #333; margin-bottom: 3px; }
+.admin-alert-time { font-size: 0.8em; color: #888; }
+.admin-alert-status { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: 600; color: white; margin-left: 15px; flex-shrink: 0; }
 
-.system-status { grid-column: span 6; display: flex; flex-direction: column; }
-.system-status h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.4em; }
-.status-list { flex-grow: 1; display: flex; flex-direction: column; }
-.status-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
-.status-item:last-child { border-bottom: none; }
-.status-details { flex-grow: 1; }
-.status-component { font-size: 0.95em; color: #333; margin-bottom: 3px; font-weight: 500; }
-.status-percentage { font-size: 0.85em; color: #888; }
-.status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: 600; color: white; margin-left: 15px; flex-shrink: 0; }
+.admin-system-status { grid-column: span 6; display: flex; flex-direction: column; }
+.admin-system-status h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.4em; }
+.admin-status-list { flex-grow: 1; display: flex; flex-direction: column; }
+.admin-status-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
+.admin-status-item:last-child { border-bottom: none; }
+.admin-status-details { flex-grow: 1; }
+.admin--component { font-size: 0.95em; color: #333; margin-bottom: 3px; font-weight: 500; }
+.admin-status-percentage { font-size: 0.85em; color: #888; }
+.admin-status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: 600; color: white; margin-left: 15px; flex-shrink: 0; }
 
 /* =========================================== */
 /* 10. Media Queries (Responsiveness) */
 /* =========================================== */
 @media (max-width: 1200px) {
-    .dashboard-content-grid { grid-template-columns: 1fr; }
-    .recent-alerts, .system-status { grid-column: 1 / -1; }
+    .admin-dashboard-content-grid { grid-template-columns: 1fr; }
+    .admin-recent-alerts, .system-status { grid-column: 1 / -1; }
 }
 
 @media (max-width: 768px) {
-    .room-availability-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-    .room-availability-actions { width: 100%; }
-    .building-selector { width: 100%; }
+    .admin-room-availability-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .admin-room-availability-actions { width: 100%; }
+    .admin-building-selector { width: 100%; }
 }
 
 @media (max-width: 480px) {
     /* Stack summary cards */
-    .summary-cards-container {
+    .admin-summary-cards-container {
         grid-template-columns: 1fr;
     }
 }

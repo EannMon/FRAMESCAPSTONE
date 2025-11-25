@@ -6,15 +6,15 @@ import './AdminDashboardPage.css'; // Use the page-specific CSS
 // ===========================================
 
 const SummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass }) => (
-  <div className="card summary-card">
-    <div className={`summary-icon-container ${iconBgClass}`}>
+  <div className="card admin-summary-card">
+    <div className={`admin-summary-icon-container ${iconBgClass}`}>
       <i className={iconClass}></i>
     </div>
-    <div className="summary-content">
-      <div className="summary-title">{title}</div>
-      <div className="summary-value">{value}</div>
+    <div className="admin-summary-content">
+      <div className="admin-summary-title">{title}</div>
+      <div className="admin-summary-value">{value}</div>
       {subValue && (
-        <div className="summary-sub-value" style={{ color: subValueColor }}>
+        <div className="admin-summary-sub-value" style={{ color: subValueColor }}>
           {subValue}
         </div>
       )}
@@ -24,7 +24,7 @@ const SummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgC
 
 const SummaryCards = () => {
   return (
-    <div className="summary-cards-container">
+    <div className="admin-summary-cards-container">
       <SummaryCard 
         iconClass="fas fa-bell" 
         title="Active Alerts" 
@@ -94,15 +94,15 @@ const RoomBox = ({ room }) => {
     const cameraClass = isCameraOnline ? "online" : "offline";
 
     return (
-        <div className={`room-box-card ${availabilityClass}`}>
-            <div className="room-box-top-row">
-                <h4 className="room-box-title">{room.name}</h4>
-                <div className={`room-camera-status ${cameraClass}`}>
+        <div className={`admin-room-box-card ${availabilityClass}`}>
+            <div className="admin-room-box-top-row">
+                <h4 className="admin-room-box-title">{room.name}</h4>
+                <div className={`admin-room-camera-status ${cameraClass}`}>
                     <i className={cameraIcon}></i>
                     <span>{cameraText}</span>
                 </div>
             </div>
-            <div className="room-box-main-status">
+            <div className="admin-room-box-main-status">
                 <i className={availabilityIcon}></i>
                 <span>{availabilityText}</span>
             </div>
@@ -115,12 +115,12 @@ const RoomAvailability = () => {
     const [selectedView, setSelectedView] = useState('both');
 
     return (
-        <div className="card room-availability-card">
-            <div className="room-availability-header">
+        <div className="card admin-room-availability-card">
+            <div className="admin-room-availability-header">
                 <h3>Room Availability</h3>
-                <div className="room-availability-actions">
+                <div className="admin-room-availability-actions">
                     <select 
-                        className="building-selector" 
+                        className="admin-building-selector" 
                         value={selectedView}
                         onChange={(e) => setSelectedView(e.target.value)}
                     >
@@ -131,7 +131,7 @@ const RoomAvailability = () => {
                 </div>
             </div>
 
-            <div className="room-box-container">
+            <div className="admin-room-box-container">
                 {/* Conditionally render room boxes based on state */}
                 {(selectedView === 'both' || selectedView === 'room1') && (
                     <RoomBox room={roomData.room1} />
@@ -141,10 +141,10 @@ const RoomAvailability = () => {
                 )}
             </div>
 
-            <div className="room-availability-legend">
+            <div className="admin-room-availability-legend">
                 {/* Removed camera offline/online, as it's in the card now */}
-                <div className="legend-item"><span className="legend-color-box available-bg"></span> Room Available</div>
-                <div className="legend-item"><span className="legend-color-box in-use-bg"></span> Room In Use</div>
+                <div className="admin-legend-item"><span className="admin-legend-color-box available-bg"></span> Room Available</div>
+                <div className="admin-legend-item"><span className="admin-legend-color-box in-use-bg"></span> Room In Use</div>
             </div>
         </div>
     );
@@ -156,23 +156,23 @@ const RoomAvailability = () => {
 
 
 const AlertItem = ({ type, description, location, time, status, statusColor }) => (
-  <div className="alert-item">
-    <span className={`alert-type ${type}`}></span>
-    <div className="alert-details">
-      <div className="alert-description">
+  <div className="admin-alert-item">
+    <span className={`admin-alert-type ${type}`}></span>
+    <div className="admin-alert-details">
+      <div className="admin-alert-description">
         <strong>{description}</strong> - {location}
       </div>
-      <div className="alert-time">{time}</div>
+      <div className="admin-alert-time">{time}</div>
     </div>
-    <span className="alert-status" style={{ backgroundColor: statusColor }}>{status}</span>
+    <span className="admin-alert-status" style={{ backgroundColor: statusColor }}>{status}</span>
   </div>
 );
 
 const RecentAlerts = () => {
   return (
-    <div className="card recent-alerts">
+    <div className="card admin-recent-alerts">
       <h3>Recent Alerts</h3>
-      <div className="alerts-list">
+      <div className="admin-alerts-list">
         <AlertItem type="red" description="Unauthorized access attempt" location="Building C" time="2 min ago" status="Active" statusColor="#dc3545" />
         <AlertItem type="yellow" description="System maintenance scheduled" location="Building A" time="15 min ago" status="Investigating" statusColor="#ffc107" />
         <AlertItem type="green" description="High occupancy detected" location="Library" time="1 hour ago" status="Resolved" statusColor="#28a745" />
@@ -182,20 +182,20 @@ const RecentAlerts = () => {
 };
 
 const StatusItem = ({ component, percentage, status, statusColor }) => (
-  <div className="status-item">
-    <div className="status-details">
-      <div className="status-component">{component}</div>
-      <div className="status-percentage">{percentage}</div>
+  <div className="admin-status-item">
+    <div className="admin-status-details">
+      <div className="admin-status-component">{component}</div>
+      <div className="admin-status-percentage">{percentage}</div>
     </div>
-    <span className="status-badge" style={{ backgroundColor: statusColor }}>{status}</span>
+    <span className="admin-status-badge" style={{ backgroundColor: statusColor }}>{status}</span>
   </div>
 );
 
 const SystemStatus = () => {
   return (
-    <div className="card system-status">
+    <div className="card admin-system-status">
       <h3>System Status</h3>
-      <div className="status-list">
+      <div className="admin-status-list">
         <StatusItem component="Facial Recognition Engine" percentage="Uptime: 99.9%" status="Online" statusColor="#28a745" />
         <StatusItem component="Gesture Control Module" percentage="Uptime: 98.7%" status="Online" statusColor="#28a745" />
         <StatusItem component="Database Cluster" percentage="Uptime: 100%" status="Online" statusColor="#28a745" />
@@ -209,7 +209,7 @@ const SystemStatus = () => {
 // --- Main Dashboard Page ---
 const AdminDashboardPage = () => {
   return (
-    <div className="dashboard-content-grid">
+    <div className="admin-dashboard-content-grid">
       <SummaryCards />
       <RoomAvailability /> {/* <-- UPDATED COMPONENT */}
       <RecentAlerts />

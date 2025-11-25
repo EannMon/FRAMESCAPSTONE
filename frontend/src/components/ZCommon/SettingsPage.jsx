@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './SettingsPage.css'; // New CSS file for this page
+import '../ZCommon/Utility.css';
 import LoggedInHeader from './LoggedInHeader';
 import Footer from './Footer'; // <-- 1. IMPORT FOOTER
 

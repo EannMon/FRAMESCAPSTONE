@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom'; // Import NavLink and Outlet
 import './StudentLayout.css'; // New CSS file for the layout
+import '../ZCommon/Utility.css'; // Global utility styles
 import LoggedInHeader from '../ZCommon/LoggedInHeader';
 
 // --- PLACEHOLDERS (UPDATE THESE PATHS) ---
@@ -24,7 +25,7 @@ const studentUser = {
 // 1. Student Sidebar Component (Updated for Routing)
 // ===========================================
 const StudentSidebar = () => {
-    // --- EDITED: Removed old items, added "Schedule" ---
+    // Nav items updated to reflect the new, simplified structure
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
@@ -53,7 +54,7 @@ const StudentSidebar = () => {
                             >
                                 <i className={item.icon}></i>
                                 <span>{item.name}</span>
-                            </NavLink>
+                             </NavLink>
                         </li>
                     ))}
                 </ul>

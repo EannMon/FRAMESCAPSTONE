@@ -1,9 +1,9 @@
 /* Attendance.css - Attendance Management Page Styles */
 
 .attendance-management {
-    padding: 24px;
     background: #f5f5f5;
     min-height: 100vh;
+    padding-left: 30px;
 }
 
 /* Header Section */
@@ -12,13 +12,6 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
-}
-
-.attendance-header h2 {
-    font-size: 28px;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
 }
 
 .attendance-actions {
@@ -44,7 +37,6 @@
 }
 
 .attendance-stat-card:hover {
-    transform: translateY(-4px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
@@ -98,7 +90,6 @@
 
 .today-class-item:hover {
     background: #f0f1f3;
-    transform: translateX(4px);
 }
 
 .today-class-item.upcoming {
@@ -331,7 +322,6 @@
 
 .trend-item:hover {
     background: #f0f1f3;
-    transform: translateX(4px);
 }
 
 .trend-label {

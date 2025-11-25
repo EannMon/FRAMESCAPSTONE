@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import './FacultyLayout.css';
+import '../ZCommon/Utility.css'; // Global utility styles
 import LoggedInHeader from '../ZCommon/LoggedInHeader';
 
 // --- PLACEHOLDERS (UPDATE THESE PATHS) ---
@@ -21,10 +22,10 @@ const facultyUser = {
 };
 
 // ===========================================
-// 1. Faculty Sidebar Component (Updated for Routing)
+// 1. Faculty Sidebar Component
 // ===========================================
 const FacultySidebar = () => {
-    // Nav items updated to reflect the new, simplified structure
+    // Nav items updated to reflect the correct flat routing paths
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/faculty-classes' },
@@ -34,19 +35,18 @@ const FacultySidebar = () => {
 
     return (
         <aside className="faculty-sidebar">
-            <div className="faculty-sidebar-toggle">
-                <i className="fas fa-bars"></i>
-            </div>
             <div className="faculty-role-tag">
                 Faculty Member
             </div>
+
             <nav className="faculty-nav">
-                <ul>
-                    {navItems.map((item) => (
+             <ul>
+                {navItems.map((item) => (
                         <li key={item.name}>
-                            <NavLink 
-                                to={item.to} 
-                                end={item.to === '/faculty-dashboard'} // Only match dashboard exactly
+                            <NavLink
+                                to={item.to}
+                                // Use 'end' to prevent the parent path from staying active
+                                end={item.to === '/faculty-dashboard'}
                                 className={({ isActive }) => isActive ? 'active' : ''}
                             >
                                 <i className={item.icon}></i>
@@ -57,7 +57,7 @@ const FacultySidebar = () => {
                     ))}
                 </ul>
             </nav>
-            <div className="sidebar-footer">
+        <div className="sidebar-footer">
                 SmartCampus v2.1.0
             </div>
         </aside>
@@ -74,7 +74,7 @@ const FacultyLayout = () => {
             <LoggedInHeader theme={facultyTheme} user={facultyUser} />
             <div className="dashboard-body">
                 <FacultySidebar />
-                <div className="main-content-area">
+                 <div className="main-content-area">
                     {/* All child pages will render here */}
                     <Outlet />
                 </div>

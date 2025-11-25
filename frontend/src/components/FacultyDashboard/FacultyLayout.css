@@ -1,5 +1,5 @@
 /* =========================================== */
-/* 1. Global Faculty Layout */
+/* 1. Global Dashboard Layout (Copied from Admin) */
 /* =========================================== */
 .dashboard-container {
     min-height: 100vh;
@@ -16,48 +16,97 @@
     flex-grow: 1;
     padding-left: 250px; /* Space for fixed sidebar */
     padding-top: 30px;    /* Standardized padding */
-    padding-right: 30px;   /* Standardized padding */
-    padding-bottom: 30px;  /* Standardized padding */
-}
-
-/* Base card styling (for pages to use) */
-.card {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    padding: 25px;
-    border: 1px solid #e0e0e0;
+    padding-right: 30px;  /* Standardized padding */
+    padding-bottom: 30px; /* Standardized padding */
 }
 
 /* =========================================== */
-/* 2. Faculty Sidebar (Red Theme) */
+/* 2. Faculty Sidebar Styles (Copied & Prefixed from Admin) */
 /* =========================================== */
 .faculty-sidebar {
     width: 250px;
     position: fixed;
-    top: 65px; /* <-- START BELOW FIXED HEADER */
+    top: 65px;
     left: 0;
     bottom: 0;
     background-color: #ffffff;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     padding: 20px 0;
     z-index: 1000;
+    border-right: 1px solid #f0f0f0;
 }
 
-.faculty-sidebar-toggle { display: none; font-size: 1.2em; padding: 0 20px; cursor: pointer; }
-.faculty-role-tag { background-color: #f8d7da; color: #dc3545; font-weight: 600; font-size: 0.9em; padding: 6px 12px; border-radius: 6px; margin: 0 20px 20px 20px; text-align: center; } /* RED THEME */
-.faculty-nav ul { list-style: none; padding: 0; margin: 0; }
-.faculty-nav li { cursor: pointer; }
-.faculty-nav a { display: flex; align-items: center; padding: 12px 20px; color: #555; text-decoration: none; font-weight: 500; transition: all 0.2s ease; border-left: 4px solid transparent; }
-.faculty-nav a i { margin-right: 15px; font-size: 1.1em; width: 20px; text-align: center; }
-/* Use NavLink's .active class */
-.faculty-nav a.active { background-color: #f8d7da; color: #dc3545; border-left-color: #dc3545; font-weight: 600; } /* RED THEME */
-.faculty-nav a:hover:not(.active) { background-color: #f0f2f5; color: #333; }
-.faculty-nav .notification-badge { margin-left: auto; background-color: #dc3545; color: white; font-size: 0.75em; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
-.sidebar-footer { margin-top: auto; padding: 20px; font-size: 0.8em; color: #aaa; text-align: center; }
+.faculty-sidebar-toggle {
+    display: none; /* Hide toggle button by default */
+}
 
+.faculty-role-tag {
+    background-color: #fbe9e7; /* Light red */
+    color: #dc3545; /* Dark red */
+    font-weight: 600;
+    font-size: 0.9em;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 10px 20px 20px 20px; /* Added top margin */
+    text-align: center;
+}
+
+.faculty-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 15px;
+}
+.faculty-nav li {
+    cursor: pointer;
+    margin-bottom: 5px;
+}
+.faculty-nav a {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: #555;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-radius: 8px; /* Rounded corners for links */
+}
+.faculty-nav a i {
+    margin-right: 15px;
+    font-size: 1.1em;
+    width: 20px;
+    text-align: center;
+}
+
+/* NavLink applies the .active class automatically */
+.faculty-nav a.active {
+    background-color: #dc3545; /* Solid Red */
+    color: #ffffff; /* White text */
+    font-weight: 600;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3); /* Red shadow */
+}
+.faculty-nav a:hover:not(.active) {
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+.faculty-nav .notification-badge {
+    margin-left: auto;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.75em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+.sidebar-footer {
+    margin-top: auto;
+    padding: 20px;
+    font-size: 0.8em;
+    color: #aaa;
+    text-align: center;
+}
 
 /* =========================================== */
 /* 3. Media Queries (Responsiveness) */
@@ -75,18 +124,32 @@
         flex-direction: row;
         align-items: center;
         padding: 10px 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         z-index: 999;
     }
-    .faculty-sidebar-toggle { display: block; }
-    .faculty-role-tag, .sidebar-footer, .faculty-nav { display: none; }
-    
+    .faculty-sidebar-toggle {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 1.2em;
+        cursor: pointer;
+        color: #333;
+        padding: 5px;
+    }
+    .faculty-role-tag,
+    .sidebar-footer,
+    .faculty-nav {
+        display: none;
+    }
+
     .main-content-area {
         padding-left: 0;
         padding: 20px;
     }
 }
+
 @media (max-width: 480px) {
-    .main-content-area { padding: 15px; }
-    .card { padding: 15px; }
+    .main-content-area {
+        padding: 15px;
+    }
 }

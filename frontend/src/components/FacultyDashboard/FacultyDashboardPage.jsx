@@ -1,6 +1,7 @@
 // Dashboard.jsx - Dashboard Page Component
 import React from 'react';
 import './FacultyDashboardPage.css';
+import '../ZCommon/Utility.css';
 
 // Summary Card Component
 const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass }) => (

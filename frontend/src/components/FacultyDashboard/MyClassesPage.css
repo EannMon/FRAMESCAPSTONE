@@ -1,27 +1,23 @@
-/* MyClasses.css - My Classes Page Styles */
+/* =========================================== */
+/* 5. Faculty My Classes Page Styles */
+/* =========================================== */
 
-.my-classes-container {
-    padding: 24px;
-    background: #f5f5f5;
-    min-height: 100vh;
-}
-
-.my-classes-container h2 {
-    font-size: 28px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 24px;
+.faculty-my-classes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    padding-left: 30px;
 }
 
 /* Classes Grid Layout */
-.classes-grid-enhanced {
+.faculty-classes-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
 }
 
 /* Class Card Styles */
-.class-card-enhanced {
+.faculty-class-card {
     background: white;
     border-radius: 12px;
     padding: 24px;
@@ -30,22 +26,25 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    border-left: 4px solid #A62525;
+    border-left: 4px solid #dc3545; /* Red Theme */
+}
+.faculty-class-card.card {
+    /* Use base card styles defined in FacultyLayout.css */
+    padding: 24px;
 }
 
-.class-card-enhanced:hover {
-    transform: translateY(-4px);
+.faculty-class-card:hover {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* Class Card Header */
-.class-card-header {
+.faculty-class-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
 }
 
-.class-card-header h3 {
+.faculty-class-header h3 {
     font-size: 20px;
     font-weight: 600;
     color: #333;
@@ -53,7 +52,7 @@
     flex: 1;
 }
 
-.class-options-btn {
+.faculty-class-options-btn {
     background: transparent;
     border: none;
     color: #999;
@@ -64,31 +63,35 @@
     transition: all 0.2s;
 }
 
-.class-options-btn:hover {
+.faculty-class-options-btn:hover {
     background: #f0f0f0;
-    color: #333;
+    color: #dc3545; /* Red Theme */
 }
 
 /* Class Code Badge */
-.class-code {
+.faculty-class-code-wrapper {
+    align-self: flex-start;
+}
+.faculty-class-code {
     display: inline-block;
     padding: 6px 12px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #dc3545; /* Red Theme */
     color: white;
     font-size: 13px;
     font-weight: 600;
     border-radius: 6px;
-    align-self: flex-start;
 }
 
 /* Class Details */
-.class-details {
+.faculty-class-details {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed #eee;
 }
 
-.class-detail-item {
+.faculty-class-detail-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -96,55 +99,53 @@
     color: #666;
 }
 
-.class-detail-item i {
+.faculty-class-detail-item i {
     width: 18px;
-    color: #A62525;
+    color: #dc3545; /* Red Theme for icons */
     font-size: 14px;
 }
 
-.class-detail-item span {
-    flex: 1;
-}
-
 /* Class Attendance Summary */
-.class-attendance-summary {
+.faculty-class-attendance-summary {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px;
+    padding: 16px 0;
     background: #f8f9fa;
     border-radius: 8px;
     margin-top: 8px;
+    padding: 10px 15px; /* Adjust padding */
+    border: 1px solid #eee;
 }
 
-.attendance-label {
+.faculty-attendance-label {
     font-size: 13px;
     font-weight: 600;
     color: #666;
 }
 
-.attendance-percentage {
+.faculty-attendance-percentage {
     font-size: 24px;
     font-weight: 700;
 }
 
-.attendance-percentage.green {
+.faculty-attendance-percentage.green {
     color: #28a745;
 }
 
-.attendance-percentage.orange {
+.faculty-attendance-percentage.orange {
     color: #ffc107;
 }
 
-.attendance-percentage.red {
+.faculty-attendance-percentage.red {
     color: #dc3545;
 }
 
 /* Take Attendance Button */
-.take-attendance-btn {
+.faculty-take-attendance-btn {
     width: 100%;
     padding: 12px;
-    background: #A62525;
+    background: #dc3545; /* Red Theme */
     color: white;
     border: none;
     border-radius: 8px;
@@ -156,60 +157,32 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
+    margin-top: 10px;
 }
 
-.take-attendance-btn:hover {
-    background: #8a1f1f;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(166, 37, 37, 0.3);
-}
-
-.take-attendance-btn:active {
-    transform: translateY(0);
-}
-
-.take-attendance-btn i {
-    font-size: 16px;
+.faculty-take-attendance-btn:hover {
+    background: #b02a37;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
-    .classes-grid-enhanced {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    }
-}
-
 @media (max-width: 768px) {
-    .my-classes-container {
-        padding: 16px;
-    }
-
-    .classes-grid-enhanced {
+    .faculty-classes-grid {
         grid-template-columns: 1fr;
         gap: 16px;
     }
-
-    .class-card-enhanced {
+    .faculty-class-card {
         padding: 20px;
     }
-
-    .my-classes-container h2 {
-        font-size: 24px;
-    }
-}
-
-@media (max-width: 480px) {
-    .class-card-header h3 {
+    .faculty-class-header h3 {
         font-size: 18px;
     }
-
-    .class-attendance-summary {
+    .faculty-class-attendance-summary {
         flex-direction: column;
         gap: 8px;
         text-align: center;
     }
-
-    .attendance-percentage {
-        font-size: 20px;
+    .faculty-take-attendance-btn {
+        font-size: 14px;
     }
 }

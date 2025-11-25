@@ -7,7 +7,6 @@ const FacultyAttendancePage = () => {
         <div className="attendance-management">
             {/* Header */}
             <div className="attendance-header">
-                <h2>Attendance Management</h2>
                 <div className="attendance-actions">
                     <button className="schedule-button view-button">
                         <i className="fas fa-file-export"></i> Export Report

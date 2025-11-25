@@ -66,7 +66,6 @@ const ApplicationPage = () => {
       {/* Filter Bar */}
       <div className="app-filter-bar">
         <div className="app-filter-left">
-          <span className="filter-by-label">Filter by</span>
           <select className="app-filter-select">
             <option>All</option>
             <option>Faculty</option>
