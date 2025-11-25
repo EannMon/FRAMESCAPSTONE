@@ -1,0 +1,285 @@
+/* Registration.css - Updated UI */
+
+.registration-page-wrapper {
+    background-color: #f4f6f8;
+    min-height: 100vh;
+    padding-bottom: 100px; /* Space sa dulo */
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- UPDATED HEADER --- */
+.reg-header {
+    background-color: #dc3545; /* Admin Red */
+    padding: 15px 50px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    
+    /* CHANGE: Ito ang magpapahiwalay sa kanila (Left & Right) */
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.reg-header .logo span {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer; /* Para alam nilang napipindot pabalik ng Home */
+}
+
+/* Style para sa Right Side text (Need Help?) */
+.header-right-link {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.header-right-link:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+/* Registration.css - Improved Footer Spacing */
+
+.reg-footer {
+    width: 100%;
+    max-width: 800px;
+    margin: 40px auto 0;
+    padding: 30px 40px; /* Mas malaking padding sa loob */
+    box-sizing: border-box;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f9f9f9; /* Light gray bg para distinct sa form */
+    border-radius: 0 0 12px 12px; /* Optional: round bottom corners */
+    
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between; /* Hiwalay: Left & Right */
+    align-items: flex-start;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.footer-left, .footer-right {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Alignments */
+.footer-left { text-align: left; }
+.footer-right { text-align: right; }
+
+/* TITLES (Technological University... / Contact Us) */
+.footer-content strong {
+    color: #333; /* Darker text for title */
+    font-size: 1rem;
+    margin-bottom: 12px; /* Space sa ilalim ng Title */
+    display: block;
+    font-weight: 700;
+}
+
+/* INFO LINES (Address, Phone, Email) */
+.footer-content span {
+    display: block;
+    padding-bottom: 8px; /* ITO YUNG REQUEST MO: Padding sa bawat info */
+    line-height: 1.5; /* Mas maaliwalas na spacing ng letters */
+}
+
+/* ICONS */
+.footer-content i {
+    color: #dc3545;
+    margin-right: 5px;
+    margin-left: 5px;
+}
+
+/* COPYRIGHT SECTION */
+.footer-copyright {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 10px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd; /* Putol-putol na linya sa separator */
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 650px) {
+    .footer-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 30px; /* Space pag nagpatong sila sa mobile */
+    }
+    .footer-left, .footer-right {
+        align-items: center;
+        text-align: center;
+        width: 100%;
+    }
+    /* Sa mobile, tanggalin ang padding sa right side items para gitna tignan */
+    .footer-right span {
+        padding-bottom: 10px;
+    }
+}
+.registration-container {
+    width: 100%;
+    max-width: 850px; /* Konting lapad para sa steps */
+    margin: 40px auto 0;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.form-card {
+    background: white;
+    padding: 50px 40px; /* Mas malaking padding sa loob */
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    position: relative; /* Para sa Cancel button positioning */
+}
+
+/* Registration.css */
+
+.cancel-reg-btn {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    
+    /* Solid Red Background */
+    background-color: #dc3545; 
+    
+    /* White Text */
+    color: white; 
+    
+    border: none;
+    
+    /* Square na may smooth edges */
+    border-radius: 6px; 
+    
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space sa pagitan ng X icon at text */
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3); /* Konting shadow para umangat */
+}
+
+/* Darker Red pag tinutok ang mouse */
+.cancel-reg-btn:hover {
+    background-color: #bb2d3b; 
+    transform: translateY(-1px); /* Konting galaw pag hover */
+}
+
+.page-title {
+    text-align: center;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+/* --- STEPS UI (HIWA-HIWALAY) --- */
+.signup-step-indicators {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 40px;
+    gap: 60px; /* Eto yung nagpapalayo sa kanila (Hiwa-hiwalay) */
+    position: relative;
+}
+
+/* Connecting Line (Optional: Pwede mong tanggalin kung gusto mo circles lang) */
+.signup-step-indicators::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 20%; /* Adjust line start */
+    right: 20%; /* Adjust line end */
+    height: 2px;
+    background: #eee;
+    z-index: 0;
+    transform: translateY(-50%);
+}
+
+.step-circle {
+    width: 45px; /* Mas malaking bilog */
+    height: 45px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #ddd; /* Gray border default */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    color: #999;
+    font-size: 1.1rem;
+    z-index: 1; /* Nasa ibabaw ng line */
+    transition: all 0.3s;
+}
+
+.step-circle.active {
+    background: #dc3545; /* Red Active */
+    border-color: #dc3545;
+    color: white;
+    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3); /* Glow effect */
+}
+
+/* Form Layout */
+.signup-step {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .signup-step { grid-template-columns: 1fr; }
+    .signup-step-indicators { gap: 30px; } /* Mas dikit sa mobile para kasya */
+    .signup-step-indicators::before { left: 10%; right: 10%; }
+}
+
+/* BIRTHDAY DROPDOWN STYLE */
+.birthday-wrapper {
+    display: flex;
+    gap: 10px; /* Space sa pagitan ng Month, Day, Year */
+    width: 100%;
+}
+
+.birthday-select {
+    flex: 1; /* Equal width silang tatlo */
+    padding: 12px 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #333;
+}
+
+/* RED FOCUS & HOVER */
+.birthday-select:hover {
+    border-color: #dc3545; /* Red Border pag tinutok mouse */
+}
+
+.birthday-select:focus {
+    outline: none;
+    border-color: #dc3545; /* Red Border pag nagta-type/select */
+    box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1); /* Red Glow */
+}

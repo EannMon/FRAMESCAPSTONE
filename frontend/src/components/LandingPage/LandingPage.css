@@ -3,10 +3,12 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #333;
     line-height: 1.6;
-    background-color: #f8f9fa; /* Ensure page has a light bg */
+    background-color: #f8f9fa;
 }
 
-/* --- Header Styling (* EDITED *) --- */
+/* =================================== */
+/* --- HEADER --- */
+/* =================================== */
 .header {
     display: flex;
     justify-content: space-between;
@@ -16,13 +18,10 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     width: 100%;
     box-sizing: border-box; 
-    /* This header's height is approx 65px. We use this value below. */
-
-    /* EDITED: Make header fixed to the top */
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1001; /* Ensure it's above content, but below auth panel */
+    z-index: 1001;
 }
 
 .logo {
@@ -30,7 +29,7 @@
     align-items: center;
     font-size: 1.5em;
     font-weight: 700;
-    color: #dc3545; /* RED */
+    color: #dc3545;
 }
 
 .logo-icon {
@@ -45,14 +44,12 @@
     font-weight: 500;
 }
 
-/* --- EDITED: Converted .login-link from <a> to <button> --- */
 .login-link {
-    /* Was 'color: #333;' */
     background: none;
     border: none;
     cursor: pointer;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Inherit font */
-    font-size: 1em; /* Match link style */
+    font-family: inherit;
+    font-size: 1em;
     font-weight: 500;
     color: #333;
     margin-left: 20px;
@@ -62,27 +59,27 @@
     color: #dc3545;
 }
 
-/* --- EDITED: Converted .get-started-button from <a> to <button> --- */
 .get-started-button {
-    background-color: #dc3545; /* RED */
+    background-color: #dc3545;
     color: white;
     padding: 8px 15px;
     border-radius: 5px;
     transition: background-color 0.3s;
-    /* Added button-specific resets */
     border: none;
     cursor: pointer;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Inherit font */
+    font-family: inherit;
     font-size: 1em;
     font-weight: 500;
     margin-left: 20px;
 }
 
 .get-started-button:hover {
-    background-color: #b02a37; /* RED hover */
+    background-color: #b02a37;
 }
 
-/* --- Hero Section Styling (* EDITED *) --- */
+/* =================================== */
+/* --- HERO SECTION --- */
+/* =================================== */
 .hero-section {
     position: relative;
     height: 100vh; 
@@ -91,29 +88,24 @@
     background-position: center;
     display: flex;
     align-items: center;
-    /* EDITED: Changed padding-top to margin-top. This fixes the overscroll issue. */
     margin-top: 65px;
-    /* padding-top: 65px; */
 }
-
 
 .hero-title {
     font-size: 4em;
     font-weight: 900;
     margin-bottom: 20px;
-    color: white; /* Default for "FRA" */
-    /* Inner shadow for depth */
+    color: white;
     text-shadow: 
-        -1px -1px 0 rgba(0,0,0,0.2), /* top-left */
-        1px -1px 0 rgba(0,0,0,0.2),  /* top-right */
-        -1px 1px 0 rgba(0,0,0,0.2),  /* bottom-left */
-        1px 1px 0 rgba(0,0,0,0.2),   /* bottom-right */
-        inset 0 0 10px rgba(0,0,0,0.3); /* Inner shadow effect */
-    /* You might need to adjust filter: drop-shadow for a more outer shadow feel if desired */
+        -1px -1px 0 rgba(0,0,0,0.2),
+        1px -1px 0 rgba(0,0,0,0.2),
+        -1px 1px 0 rgba(0,0,0,0.2),
+        1px 1px 0 rgba(0,0,0,0.2),
+        inset 0 0 10px rgba(0,0,0,0.3);
 }
 
 .hero-title-red {
-    color: #dc3545; /* RED for "MES" */
+    color: #dc3545;
 }
 
 .hero-overlay {
@@ -122,16 +114,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    /* Your new gradient */
     background: linear-gradient(to right, rgba(121, 0, 12, 0.3), rgba(121, 0, 12, 0.3)); 
 }
 
-/* --- EDITED: Hero Content --- */
 .hero-content { 
     position: relative;
     z-index: 10;
     max-width: 600px;
-    /* 4. REMOVED top: 150px; to fix "excess space" */
     top: 150px;
     color: white;
     padding-left: 50px;
@@ -165,30 +154,24 @@
     border: none;
 }
 
-.cta-buttons i {
-    margin-right: 8px;
-}
+.cta-buttons i { margin-right: 8px; }
 
 .cta-primary {
-    background-color: #dc3545; /* RED */
+    background-color: #dc3545;
     color: white;
 }
-
-.cta-primary:hover {
-    background-color: #b02a37; /* RED hover */
-}
+.cta-primary:hover { background-color: #b02a37; }
 
 .cta-secondary {
     background-color: transparent;
     color: white;
     border: 2px solid white;
 }
+.cta-secondary:hover { background-color: rgba(255, 255, 255, 0.1); }
 
-.cta-secondary:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* --- Features Section Styling --- */
+/* =================================== */
+/* --- FEATURES SECTION --- */
+/* =================================== */
 .features-section {
     padding: 50px 50px;
     text-align: center;
@@ -228,8 +211,8 @@
 .icon-container {
     width: 60px;
     height: 60px;
-    background-color: #fbe9e7; /* Light RED */
-    color: #dc3545; /* RED icon */
+    background-color: #fbe9e7;
+    color: #dc3545;
     border-radius: 50%;
     display: flex;
     justify-content: center;
@@ -249,89 +232,321 @@
     font-size: 0.95em;
 }
 
-/* --- Media Queries --- */
+/* Media Queries */
 @media (max-width: 992px) {
-    .features-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 576px) {
-    .header {
-        padding: 10px 20px;
-    }
-    .hero-content {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-    .hero-content h1 {
-        font-size: 3em;
-    }
-    .features-section {
-        padding: 50px 20px;
-    }
-    .features-grid {
-        grid-template-columns: 1fr;
-    }
+    .header { padding: 10px 20px; }
+    .hero-content { padding-left: 20px; padding-right: 20px; }
+    .hero-content h1 { font-size: 3em; }
+    .features-section { padding: 50px 20px; }
+    .features-grid { grid-template-columns: 1fr; }
 }
 
 /* =================================== */
-/* --- NEW: Auth Slider Styles --- */
+/* ====== AUTH OVERLAYS (LOGIN & SIGNUP) ====== */
 /* =================================== */
+
+/* 1. GENERAL OVERLAY (Dark Background) */
+/* This applies to both Login and Signup overlays to ensure they center */
 .auth-slider-overlay {
     position: fixed;
-    /* EDITED: Start below the header. Adjust 65px if your header height changes. */
-    top: 65px; 
+    top: 0;
     left: 0;
-    width: 100%;
-    /* EDITED: Fill remaining height */
-    height: calc(100% - 65px); 
-    /* EDITED: Removed background dimming */
-    /* background-color: rgba(0, 0, 0, 0.5); */
-    background-color: transparent;
-    z-index: 2000;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.55); /* Dimmed Background */
+    backdrop-filter: blur(4px); /* Blur Effect */
+    
+    /* FLEXBOX CENTERING - Crucial for both modals */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    z-index: 3000;
+    padding: 20px;
+    box-sizing: border-box;
+    
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease;
-    
-    /* This makes it so you can click "through" the overlay */
-    /* but the panel itself will catch clicks. */
-    pointer-events: none; 
 }
 
 .auth-slider-overlay.visible {
     visibility: visible;
     opacity: 1;
-    pointer-events: auto; /* Can be clicked to close */
+    pointer-events: auto;
 }
 
-.auth-panel {
-    position: fixed;
-    /* EDITED: Start below the header */
-    top: 65px; 
-    right: -450px; /* Start off-screen */
+/* =================================== */
+/* ====== LOGIN SPECIFIC STYLES ====== */
+/* =================================== */
+
+/* The White Login Card */
+.auth-panel.login-panel {
+    /* Positioning Reset */
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    
+    /* Dimensions */
     width: 100%;
-    max-width: 450px;
-    /* EDITED: Fill remaining height */
-    height: calc(100% - 65px); 
-    background-color: white;
-    /* EDITED: Removed shadow to make it look connected to header */
-    /* box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1); */
-    border-left: 1px solid #eee; /* Added a subtle border instead of shadow */
-    z-index: 2001;
-    transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    max-width: 450px; /* Constrain width */
+    height: auto;     /* Fit content */
+    max-height: 90vh;
+    
+    /* Visuals */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    
+    /* Animation */
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+    
+    display: block; /* Ensure it behaves like a block/card */
+    overflow: hidden;
+}
+
+/* Animation when visible */
+.auth-slider-overlay.login-overlay.visible .auth-panel.login-panel {
+    transform: scale(1);
+}
+
+/* Container inside Login Panel */
+.auth-panel.login-panel .auth-form-container {
+    padding: 40px;
+    padding-top: 40px; /* Reset top padding */
+    height: auto;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+/* Red Line under "Welcome Back" */
+.login-panel .auth-form-title::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background-color: #dc3545;
+    margin: 15px auto 20px;
+}
+
+/* =================================== */
+/* ====== SIGNUP SPECIFIC STYLES ===== */
+/* =================================== */
+
+/* The White Signup/Role Card */
+.signup-panel {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+    max-height: 90vh;
+    
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    padding: 40px;
+    
+    overflow-y: auto;
+    animation: modalPopUp 0.3s ease-out forwards;
+}
+
+@keyframes modalPopUp {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* =================================== */
+/* ====== FORM ELEMENTS (SHARED) ===== */
+/* =================================== */
+
+.auth-form-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.auth-title-highlight { color: #dc3545; }
+
+.role-selection-subtitle {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.role-cards-grid-auth {
     display: flex;
     flex-direction: column;
-    
-    /* Clicks on the panel itself will work */
-    pointer-events: auto; 
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
-.auth-panel.visible {
-    right: 0; /* Slide in */
+.role-card-auth {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+    text-align: center;
 }
 
-/* REMOVED .auth-close-button styles */
+.role-card-auth:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #dc3545;
+}
+
+.role-icon-auth {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    color: #dc3545;
+}
+
+.role-card-auth h3 {
+    font-size: 1.2rem;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+.role-card-auth p {
+    font-size: 0.85rem;
+    color: #777;
+    margin: 0;
+}
+
+/* Inputs */
+.auth-form-group {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.auth-form-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.auth-form-input {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Prevents overflow */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-form-input:focus {
+    outline: none;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+}
+
+.auth-password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.auth-password-wrapper .auth-form-input {
+    padding-right: 45px;
+}
+
+.auth-password-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    color: #aaa;
+    cursor: pointer;
+}
+
+.auth-options-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    font-size: 0.9rem;
+}
+
+.auth-checkbox-group {
+    display: flex;
+    align-items: center;
+    color: #555;
+}
+
+.auth-checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #dc3545;
+}
+
+.auth-forgot-link {
+    color: #dc3545;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-submit-button {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    background-color: #dc3545;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.auth-submit-button:hover { background-color: #b02a37; }
+
+.auth-switch-prompt {
+    text-align: center;
+    margin-top: 30px;
+    color: #555;
+    font-size: 0.95rem;
+}
+
+.auth-switch-prompt span {
+    color: #dc3545;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (max-width: 576px) {
+    .auth-panel.login-panel, .signup-panel {
+        width: 90%;
+        padding: 20px;
+    }
+}
+
+/* Optional: Close Button (X) style kung gusto mo maglagay sa future */
+.login-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #999;
+    cursor: pointer;
+}
 
 .auth-form-container {
     padding: 40px;
@@ -671,111 +886,152 @@
 /* ====== FIXED AUTH OVERLAY/MODAL ====== */
 /* =================================== */
 
-/* Fullscreen overlay (dim + blur background) */
-.auth-slider-overlay {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 3000;
-    padding: 40px; /* 👈 Adds breathing space around the panel */
-  transition: opacity 0.3s ease;
-  opacity: 0;
-}
-/* ======= Login: Slide-in Panel (Old Style) ======= */
+//* =================================== */
+/* ====== FIXED: LOGIN CENTER MODAL ====== */
+/* =================================== */
+
+/* 1. The Dark Overlay (Background) */
 .auth-slider-overlay.login-overlay {
-  position: fixed;
-  top: 65px; 
-  left: 0;
-  width: 100%;
-  height: calc(100% - 65px); 
-  background-color: transparent;
-  z-index: 2000;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-  pointer-events: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.55); /* Dimmed Background */
+    backdrop-filter: blur(4px); /* Blur Effect */
+    
+    /* FLEXBOX CENTERING - This centers the box */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    z-index: 3000; 
+    padding: 20px;
+    box-sizing: border-box;
+    
+    /* Hidden state */
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none; /* Important so it doesn't block clicks when hidden */
 }
 
+/* Visible state */
 .auth-slider-overlay.login-overlay.visible {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
 }
 
-/* Login Panel - Slides in from right */
+/* 2. The White Login Box (Card Style) */
 .auth-panel.login-panel {
-  position: fixed;
-  top: 65px; 
-  right: -450px; /* Start off-screen */
-  width: 100%;
-  max-width: 450px;
-  height: calc(100% - 65px); 
-  background-color: white;
-  border-left: 1px solid #eee;
-  z-index: 2001;
-  transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
-  
+    /* RESET POSITIONING - Override old styles */
+    position: relative !important; 
+    top: auto !important; 
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    
+    /* Size & Shape */
+    width: 100%;
+    max-width: 450px; 
+    height: auto;
+    max-height: 90vh;
+    
+    background: white;
+    border-radius: 12px; 
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    border: none; 
+    
+    /* Initial Animation State */
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+    
+    /* Reset Flex properties */
+    display: block; 
 }
 
-.auth-panel.login-panel.visible {
-  right: 3rem; /* Slide in */
+/* Animation when visible */
+/* Note: We use the parent's visible class to trigger child animation */
+.auth-slider-overlay.login-overlay.visible .auth-panel.login-panel {
+    transform: scale(1);
 }
 
-.auth-form-container {
-  padding: 40px;
-  padding-top: 60px;
-  overflow-y: hidden;
-  height: 100%;
-  flex: 1;
-  background-color: white; /* 👈 ensures scrollbar gutter stays white */
+/* Content Padding */
+.auth-panel.login-panel .auth-form-container {
+    padding: 40px;
+    height: auto;
+    overflow-y: visible; /* Let content flow naturally */
 }
 
 /* Signup: Centered Modal Overlay */
 /* === CLEAN SIGNUP MODAL RESET === */
-.signup-overlay {
-  all: unset; /* 💥 removes all inherited styles */
-  position: fixed;
-  top: 65px; /* right below header */
-  left: 0;
-  bottom: 65px;
-  width: 100%;
-  height: calc(100% - 100px);
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start; /* top alignment */
-  padding-top: 40px; /* space below header */
-  overflow-y:scroll;
-  z-index: 3000;
+/* =================================== */
+/* ====== FIXED: ROLE SELECTION MODAL ====== */
+/* =================================== */
+
+/* 1. The Dark Overlay Background */
+.auth-slider-overlay.signup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;  /* Full Viewport Width */
+    height: 100vh; /* Full Viewport Height */
+    background-color: rgba(0, 0, 0, 0.55); /* Dimmed background */
+    backdrop-filter: blur(4px); /* Optional: Blur effect */
+    
+    /* FLEXBOX CENTERING - Ito ang solusyon sa "Gap" */
+    display: flex;
+    justify-content: center; /* Gitna horizontally */
+    align-items: center;     /* Gitna vertically (May space na sa taas at baba) */
+    
+    z-index: 3000;
+    padding: 20px; /* Safe padding para di dumikit sa gilid pag mobile */
+    box-sizing: border-box;
+    
+    /* REMOVED: overflow-y para mawala ang double scrollbar */
+    visibility: visible; 
+    opacity: 1;
 }
 
-.signup-overlay.visible {
-  display: flex;
-}
-
+/* 2. The White Box (Modal) */
 .signup-panel {
-  all: unset; /* 💥 start fresh, no inherited panel styles */
-  top: 2rem;
-  bottom: 2rem;
-  position: relative;
-  width: 700px;
-  max-width: calc(100% - 40px);
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
-  padding: 40px 50px;
-  z-index: 3001;
-  box-sizing: border-box;
+    /* Reset old positioning styles */
+    position: relative; 
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    
+    /* Dimensions */
+    width: 100%;
+    max-width: 500px; /* Tamang lapad lang para sa Role Selection */
+    height: auto;     /* Height: Auto lang para yumakap sa content (di sasagad sa baba) */
+    max-height: 90vh; /* Maximum height para di lumampas sa screen */
+    
+    /* Visuals */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    padding: 40px;
+    
+    /* Scroll inside ONLY if needed (e.g. sobrang liit ng phone screen) */
+    overflow-y: auto; 
+    
+    /* Smooth Animation */
+    animation: modalPopUp 0.3s ease-out forwards;
+}
+
+/* Optional: Animation para smooth ang paglabas */
+@keyframes modalPopUp {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 
@@ -918,172 +1174,6 @@
   color: #555;
   white-space: nowrap;
 }
-
-/* Birthday Wrapper 
-.birthday-wrapper {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1.2fr;
-  gap: 10px;
-}
-
-.birthday-select,
-.birthday-input {
-  width: 100%;
-  padding: 12px 10px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  box-sizing: border-box;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: inherit;
-}
-
-.birthday-select:focus,
-.birthday-input:focus {
-  outline: none;
-  border-color: #dc3545;
-  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
-} */
-
-/* ======= Class Registration (Step 3) ======= 
-.class-registration-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 25px;
-  margin-bottom: 30px;
-  min-height: 400px;
-}
-
-.column-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #dc3545;
-}
-
-.course-pool-column,
-.my-classes-column {
-  display: flex;
-  flex-direction: column;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e9ecef;
-}
-
-.course-list,
-.selected-courses-list {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 450px;
-}
-
-.course-item {
-  margin-bottom: 12px;
-  padding: 10px;
-  background-color: white;
-  border-radius: 5px;
-  border: 1px solid #e9ecef;
-  transition: all 0.2s;
-}
-
-.course-item:hover {
-  border-color: #dc3545;
-  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
-}
-
-.course-checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  gap: 10px;
-  width: 100%;
-}
-
-.course-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #dc3545;
-  flex-shrink: 0;
-}
-
-.course-code {
-  font-weight: 600;
-  color: #dc3545;
-  min-width: 80px;
-  font-size: 0.9rem;
-}
-
-.course-name {
-  color: #555;
-  font-size: 0.9rem;
-  flex: 1;
-}
-
-.selected-course-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  margin-bottom: 10px;
-  background-color: white;
-  border-radius: 5px;
-  border: 2px solid #dc3545;
-  transition: all 0.2s;
-}
-
-.selected-course-item:hover {
-  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2);
-}
-
-.selected-course-code {
-  font-weight: 600;
-  color: #dc3545;
-  min-width: 80px;
-  font-size: 0.9rem;
-}
-
-.selected-course-name {
-  color: #333;
-  font-size: 0.9rem;
-  flex: 1;
-}
-
-.remove-course-btn {
-  background: none;
-  border: none;
-  color: #dc3545;
-  font-size: 1.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  padding: 0 8px;
-  line-height: 1;
-  transition: all 0.2s;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.remove-course-btn:hover {
-  background-color: #dc3545;
-  color: white;
-  transform: scale(1.1);
-}
-
-.no-selection {
-  text-align: center;
-  color: #999;
-  font-style: italic;
-  padding: 40px 20px;
-  margin: 0;
-} */
-
 /* ======= Information Summary (Step 4) ======= */
 .summary-section {
   background-color: #f8f9fa;
@@ -1197,10 +1287,6 @@
     right: 10%;
   }
 
-  /*.birthday-wrapper {
-    grid-template-columns: 1fr;
-  } */
-
   /* Override the default flex column for TUPM ID (Edited 1) */
     .tupm-id-wrapper {
         flex-direction: row; /* Keep inline layout */
@@ -1225,4 +1311,42 @@
   .selected-courses-list {
     max-height: 300px;
   }
+}
+
+/* Registration.css */
+
+/* ... existing styles ... */
+
+/* Wrapper para sa City at Zip Code */
+.city-zip-wrapper {
+    display: flex;
+    gap: 15px; /* Space sa pagitan ng City at Zip */
+    align-items: flex-start;
+}
+
+.city-part {
+    flex: 1; /* Kakainin ng City yung natitirang space */
+}
+
+.zip-part {
+    width: 110px; /* Fixed na maliit na width para sa Zip Code */
+}
+
+/* Override labels inside custom wrapper if needed */
+.city-zip-wrapper label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+/* Reuse input styles inside wrapper */
+.city-zip-wrapper input {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
 }
