@@ -1,20 +1,62 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // <--- WAG KALIMUTAN ITO SA TAAS!
+import { Link } from 'react-router-dom';
 import './LandingPage.css';
 import heroImageUrl from '../../assets/images/TUP_Background.jpg'; // Make sure tama path mo dito
 
 // LandingPage.jsx
 
-// === LOGIN COMPONENT (Now a Centered Modal) ===
+// === LOGIN COMPONENT ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
+    const navigate = useNavigate();
+    
+    // States for inputs
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState(''); // Para sa notification if mali
+
+    const handleLogin = async () => {
+        try {
+            setErrorMessage(''); // Clear previous errors
+
+            const response = await axios.post('http://localhost:5000/login', {
+                email: email,
+                password: password
+            });
+
+            if (response.data.message === "Login Successful") {
+                // 1. Save user data to Local Storage (Para maretrieve sa FacultyLayout)
+                localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+
+                // 2. Check role and Redirect
+                const userRole = response.data.user.role;
+                
+                alert(`Welcome back, ${response.data.user.firstName}!`);
+
+                if (userRole === 'faculty') {
+                    navigate('/faculty-dashboard');
+                } else if (userRole === 'student') {
+                    // navigate('/student-dashboard'); // Next time natin gawin to
+                    alert("Student Dashboard coming soon!");
+                } else {
+                    navigate('/admin-dashboard');
+                }
+            }
+
+        } catch (error) {
+            console.error("Login Error:", error);
+            // Dito lalabas yung error message galing sa database (User not found / Incorrect password)
+            setErrorMessage(error.response?.data?.error || "Something went wrong. Try again.");
+        }
+    };
+
     return (
         <>
-            {/* Overlay Background (Clicking here closes the modal) */}
             <div 
                 className={`auth-slider-overlay login-overlay ${isOpen ? 'visible' : ''}`} 
                 onClick={onClose}
             >
-                {/* White Panel Box (Clicking here DOES NOT close modal) */}
                 <div 
                     className={`auth-panel login-panel ${isOpen ? 'visible' : ''}`} 
                     onClick={(e) => e.stopPropagation()} 
@@ -22,15 +64,33 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                     <div className="auth-form-container">
                         <h2 className="auth-form-title">Welcome <span className="auth-title-highlight">Back!</span></h2>
                         
-                        {/* Input fields */}
+                        {/* ERROR NOTIFICATION */}
+                        {errorMessage && (
+                            <div style={{ color: 'red', marginBottom: '10px', textAlign: 'center', background: '#ffe6e6', padding: '5px', borderRadius: '5px' }}>
+                                <i className="fas fa-exclamation-circle"></i> {errorMessage}
+                            </div>
+                        )}
+
                         <div className="auth-form-group">
                             <label className="auth-form-label">Email</label>
-                            <input className="auth-form-input" type="email" placeholder="example@tup.edu.ph"/>
+                            <input 
+                                className="auth-form-input" 
+                                type="email" 
+                                placeholder="example@tup.edu.ph"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
                         </div>
                         <div className="auth-form-group">
                             <label className="auth-form-label">Password</label>
                             <div className="auth-password-wrapper">
-                                <input className="auth-form-input" type="password" placeholder="••••••••"/>
+                                <input 
+                                    className="auth-form-input" 
+                                    type="password" 
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
                                 <i className="auth-password-icon fas fa-eye"></i>
                             </div>
                         </div>
@@ -42,7 +102,8 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                             <a href="#" className="auth-forgot-link">Forgot Password?</a>
                         </div>
 
-                        <button className="auth-submit-button">Log In</button>
+                        {/* CHANGE BUTTON TO CALL HANDLELOGIN */}
+                        <button className="auth-submit-button" onClick={handleLogin}>Log In</button>
                         
                         <p className="auth-switch-prompt">
                             Don't have an account? <span onClick={onSwitchToSignup}>Sign Up</span>
@@ -108,9 +169,9 @@ const HeroSection = ({ setPanel }) => (
         {/* --- DITO KO BINALIK YUNG BUTTONS MO --- */}
         <div className="cta-buttons">
           {/* Access Portal: Opens the Role Selection Modal */}
-          <button onClick={() => setPanel('signup')} className="cta-primary">
+           <Link to="/select-role" className="cta-primary">
             <i className="fas fa-lock"></i> Access Portal
-          </button>
+          </Link>
           
           {/* Watch Demo: Restored Visual Only */}
           <button className="cta-secondary">

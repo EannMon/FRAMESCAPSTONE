@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
+import RoleSelection from './components/RoleSelection/RoleSelection';
 //import RegistrationPage from './components/LandingPage/Registration';
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout'; 
@@ -41,7 +42,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           {/* Ito yung bagong route na maghahandle ng registration based sa role */}
         <Route path="/register/:role" element={<RegistrationPage />} />
-          <Route path="/register/:role" element={<RegistrationPage />} />
+          <Route path="/select-role" element={<RoleSelection />} />
 
           {/* --- Admin Routes (using AdminLayout) --- */}
           <Route element={<AdminLayout />}>

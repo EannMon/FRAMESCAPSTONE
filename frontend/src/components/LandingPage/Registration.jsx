@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';  // <--- DITO MO ISINGIT (Line 3 or 4)
 import './LandingPage.css'; 
 import './Registration.css'; 
-
+// --- Import Role Selection ---
+import RoleSelection from './components/RoleSelection/RoleSelection';
 // --- HELPER DATA FOR BIRTHDAY ---
 const months = [
   "January", "February", "March", "April", "May", "June",
@@ -123,7 +125,31 @@ const [formData, setFormData] = useState({
   // Handlers
   const handleNext = () => setStep(prev => prev + 1);
   const handleBack = () => setStep(prev => prev - 1);
-  const handleFinish = () => { alert("Done!"); navigate('/'); };
+  
+  // DITO MO IPALIT YUNG BAGO:
+  const handleFinish = async () => {
+    try {
+        // Prepare Data Payload
+        const payload = {
+            ...formData,
+            password: password,
+            role: role // galing sa useParams
+        };
+
+        // Send to Backend (Port 5000)
+        // Note: Siguraduhin na running yung backend terminal mo habang tinatry ito
+        const response = await axios.post('http://localhost:5000/register', payload);
+
+        if (response.data.message) {
+            alert("SUCCESS! 🎉 Data saved to Database!");
+            navigate('/');
+        }
+    } catch (error) {
+        console.error("Error registering:", error);
+        // Show exact error from backend if available
+        alert("Registration Failed: " + (error.response?.data?.error || error.message));
+    }
+  };
 
   // Camera Logic
   useEffect(() => {
@@ -213,16 +239,16 @@ const [formData, setFormData] = useState({
                                 <input type="text" value={formData.lastName} onChange={e=>setFormData({...formData, lastName: e.target.value})} />
                             </div>
 
-                            {/* Row 2: Middle Initial & Birthday (Red Calendar) */}
+                            {/* Row 2: Middle Name & Birthday */}
                             <div className="auth-form-group">
-                                <label>Middle Initial</label>
+                                <label>Middle Name</label> {/* Pinalitan ko na Label */}
                                 <input 
                                     type="text" 
-                                    maxLength="2" 
-                                    placeholder=" "
-                                    value={formData.middleInitial} 
-                                    onChange={e=>setFormData({...formData, middleInitial: e.target.value})} 
-                                    style={{textTransform: 'uppercase'}} 
+                                    // Tinanggal ko na ang maxLength="2"
+                                    placeholder="Optional"
+                                    value={formData.middleName} 
+                                    onChange={e => setFormData({ ...formData, middleName: e.target.value })} 
+                                    style={{ textTransform: 'capitalize' }} // Ito ang magpapalaki ng First Letter visual
                                 />
                             </div>
                             

@@ -1,24 +1,18 @@
-import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import './FacultyLayout.css';
 import '../ZCommon/Utility.css'; // Global utility styles
 import LoggedInHeader from '../ZCommon/LoggedInHeader';
 
-// --- PLACEHOLDERS (UPDATE THESE PATHS) ---
-const FACULTY_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=F';
+// --- FALLBACK ONLY (Gagamitin lang kapag walang picture sa Database) ---
+const DEFAULT_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=No+Img';
 
-// --- THEME & USER DEFINITION (RED THEME) ---
+// --- THEME DEFINITION (RED THEME) ---
 const facultyTheme = {
     primary: '#A62525', // Primary Red
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
-};
-
-const facultyUser = {
-    name: 'Dr. Sarah Johnson',
-    avatar: FACULTY_AVATAR,
-    notifications: 2
 };
 
 // ===========================================
@@ -40,8 +34,8 @@ const FacultySidebar = () => {
             </div>
 
             <nav className="faculty-nav">
-             <ul>
-                {navItems.map((item) => (
+                <ul>
+                    {navItems.map((item) => (
                         <li key={item.name}>
                             <NavLink
                                 to={item.to}
@@ -57,24 +51,65 @@ const FacultySidebar = () => {
                     ))}
                 </ul>
             </nav>
-        <div className="sidebar-footer">
+            <div className="sidebar-footer">
                 SmartCampus v2.1.0
             </div>
         </aside>
     );
 };
 
-
 // ===========================================
 // 2. Main FacultyLayout Component (The Parent)
 // ===========================================
 const FacultyLayout = () => {
+    const navigate = useNavigate();
+    
+    // Initial State (Placeholder muna habang naglo-load)
+    const [user, setUser] = useState({
+        name: 'Loading...',
+        avatar: DEFAULT_AVATAR, 
+        notifications: 0
+    });
+
+    useEffect(() => {
+        // 1. Retrieve data from Local Storage (Galing sa Login)
+        const storedUser = localStorage.getItem('currentUser');
+
+        if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            
+            // 2. CHECK ROLE (Security)
+            // Kung student ang nag-login pero pinuntahan ang /faculty-dashboard, sipain palabas!
+            if (parsedUser.role !== 'faculty') {
+                alert("Access Denied: This area is for Faculty members only.");
+                navigate('/'); // Redirect to login
+                return;
+            }
+
+            // 3. SET USER DATA FROM DB
+            // Dito natin papalitan ang placeholder ng tunay na picture!
+            setUser({
+                name: `${parsedUser.firstName} ${parsedUser.lastName}`, // Combine names
+                
+                // LOGIC: Kung may laman si parsedUser.avatar, yun ang gamitin. Kung wala, fallback.
+                avatar: parsedUser.avatar ? parsedUser.avatar : DEFAULT_AVATAR,
+                
+                notifications: 3 // Mock notification muna
+            });
+        } else {
+            // Kung walang nakalogin, ibalik sa login page
+            navigate('/');
+        }
+    }, [navigate]);
+
     return (
         <div className="dashboard-container">
-            <LoggedInHeader theme={facultyTheme} user={facultyUser} />
+            {/* Pass the DYNAMIC user object (with DB image) to the Header */}
+            <LoggedInHeader theme={facultyTheme} user={user} />
+            
             <div className="dashboard-body">
                 <FacultySidebar />
-                 <div className="main-content-area">
+                <div className="main-content-area">
                     {/* All child pages will render here */}
                     <Outlet />
                 </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './LandingPage.css'; 
 import './Registration.css'; 
 
@@ -123,7 +124,27 @@ const [formData, setFormData] = useState({
   // Handlers
   const handleNext = () => setStep(prev => prev + 1);
   const handleBack = () => setStep(prev => prev - 1);
-  const handleFinish = () => { alert("Done!"); navigate('/'); };
+  const handleFinish = async () => {
+    try {
+        // Prepare Data Payload
+        const payload = {
+            ...formData,
+            password: password,
+            role: role // galing sa useParams
+        };
+
+        // Send to Backend (Port 5000)
+        const response = await axios.post('http://localhost:5000/register', payload);
+
+        if (response.data.message) {
+            alert("SUCCESS! 🎉 Data saved to Database!");
+            navigate('/');
+        }
+    } catch (error) {
+        console.error("Error registering:", error);
+        alert("Registration Failed: " + (error.response?.data?.error || error.message));
+    }
+  };
 
   // Camera Logic
   useEffect(() => {
@@ -443,8 +464,7 @@ const [formData, setFormData] = useState({
                     <>
                         <h3 className="step-title">Step 4: Review & Password</h3>
                         <div className="summary-section">
-                            <div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleInitial}. {formData.lastName}</span></div>
-                            <div className="summary-item"><span className="summary-label">Birthday:</span> <span>{formData.birthday}</span></div>
+<div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleName} {formData.lastName}</span></div>                            <div className="summary-item"><span className="summary-label">Birthday:</span> <span>{formData.birthday}</span></div>
                             <div className="summary-item"><span className="summary-label">Role:</span> <span style={{textTransform:'capitalize'}}>{role}</span></div>
                             <div className="summary-item"><span className="summary-label">Address:</span> <span>{formData.streetNumber} {formData.streetName}, {formData.barangay}, {formData.city}</span></div>
                         </div>
