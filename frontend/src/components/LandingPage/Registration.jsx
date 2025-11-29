@@ -37,6 +37,10 @@ const RegistrationPage = () => {
   const streamRef = useRef(null);
   const [faceCapture, setFaceCapture] = useState(null);
 
+  // Add these states inside RegistrationPage component
+  const [faceValid, setFaceValid] = useState(false); // Green box indicator
+  const [isValidating, setIsValidating] = useState(false); // Loading spinner
+
 const [formData, setFormData] = useState({
     firstName: '', 
     lastName: '', 
@@ -128,14 +132,22 @@ const [formData, setFormData] = useState({
   
   // DITO MO IPALIT YUNG BAGO:
   const handleFinish = async () => {
+    if (!faceCapture || !faceValid) {
+        alert("Please capture a valid face photo first!");
+        return; // Stop function here
+    }
+
     try {
         // Prepare Data Payload
         const payload = {
             ...formData,
             password: password,
-            role: role // galing sa useParams
+            role: role, // galing sa useParams
+            faceCapture: faceCapture
         };
 
+        console.log("Sending Payload:", payload);
+        
         // Send to Backend (Port 5000)
         // Note: Siguraduhin na running yung backend terminal mo habang tinatry ito
         const response = await axios.post('http://localhost:5000/register', payload);
@@ -154,6 +166,25 @@ const [formData, setFormData] = useState({
   // Camera Logic
   useEffect(() => {
     const startCamera = async () => {
+    
+    // 1. SECURITY CHECK: Face
+    if (!faceCapture || !faceValid) {
+        alert("Please capture a valid face photo first!");
+        return; 
+    }
+
+    // 2. VALIDATION CHECK: Birthday (ETO ANG KULANG MO)
+    if (!formData.birthday) {
+        alert("Please select your Birthday!");
+        return;
+    }
+
+    // 3. OPTIONAL: Check other required fields
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+        alert("Please fill in all required fields (Name, Email).");
+        return;
+    }
+    
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
@@ -170,14 +201,44 @@ const [formData, setFormData] = useState({
     return () => { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
   }, [step]);
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    
     if (video && canvas) {
+        // 1. Draw image to canvas
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
-        setFaceCapture(canvas.toDataURL('image/png'));
+        
+        // 2. Get Data URL
+        const imageSrc = canvas.toDataURL('image/png');
+        setFaceCapture(imageSrc); // Show preview temporarily
+        
+        // 3. Send to Backend for Validation
+        setIsValidating(true); // Start loading
+        setFaceValid(false);   // Reset validity
+
+        try {
+            const response = await axios.post('http://localhost:5000/validate-face', {
+                faceCapture: imageSrc
+            });
+
+            if (response.data.valid) {
+                setFaceValid(true); // Show Green Box
+                // alert("Face Detected! ✅"); // Optional alert
+            } else {
+                setFaceValid(false);
+                alert("⚠️ " + response.data.message);
+                setFaceCapture(null); // Clear image if invalid so user tries again
+            }
+        } catch (error) {
+            console.error("Validation Error:", error);
+            alert("Server error during face validation.");
+            setFaceCapture(null);
+        } finally {
+            setIsValidating(false); // Stop loading
+        }
     }
   };
 
@@ -454,14 +515,50 @@ const [formData, setFormData] = useState({
                         <h3 className="step-title">Step 3: Face Capture</h3>
                         <div className="camera-capture-section">
                             <div className="camera-preview">
-                                <video ref={videoRef} playsInline muted className="camera-video" />
+                                {/* Show Video only if no capture yet */}
+                                {!faceCapture && (
+                                    <video ref={videoRef} playsInline muted className="camera-video" />
+                                )}
+                                
                                 <canvas ref={canvasRef} style={{display: 'none'}} />
+                                
+                                {/* Show Captured Image with Validation Border */}
+                                {faceCapture && (
+                                    <div className="captured-image-container" style={{position: 'relative'}}>
+                                        <img 
+                                            src={faceCapture} 
+                                            alt="captured" 
+                                            className="captured-image"
+                                            style={{
+                                                border: faceValid ? '5px solid #28a745' : '5px solid #dc3545', // GREEN if valid, RED if checking
+                                                borderRadius: '8px'
+                                            }} 
+                                        />
+                                        {/* Status Label Overlay */}
+                                        {isValidating && <div className="validation-overlay">🔍 Checking Face...</div>}
+                                        {faceValid && <div className="validation-overlay success">✅ Face Detected</div>}
+                                    </div>
+                                )}
                             </div>
+
                             <div className="camera-actions">
-                                <button className="auth-submit-button" onClick={handleCapture}>Capture</button>
-                                <button className="auth-back-button" onClick={()=>setFaceCapture(null)}>Reset</button>
+                                {/* Hide Capture button if already captured and valid */}
+                                {!faceValid && (
+                                    <button className="auth-submit-button" onClick={handleCapture} disabled={isValidating}>
+                                        {isValidating ? 'Processing...' : 'Capture Face'}
+                                    </button>
+                                )}
+                                
+                                {/* Show Retake/Reset button */}
+                                {faceCapture && (
+                                    <button className="auth-back-button" onClick={() => {
+                                        setFaceCapture(null);
+                                        setFaceValid(false);
+                                    }}>
+                                        Retake
+                                    </button>
+                                )}
                             </div>
-                            {faceCapture && <img src={faceCapture} alt="captured" className="captured-image" />}
                         </div>
                     </>
                 )}

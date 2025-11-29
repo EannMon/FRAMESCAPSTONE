@@ -1,0 +1,14 @@
+# Huwag isama ang Venv ng Python
+venv/
+__pycache__/
+*.pyc
+
+# Huwag isama ang Node Modules ng React
+node_modules/
+build/
+dist/
+.env
+
+# Iba pa
+.DS_Store
+.vscode/
