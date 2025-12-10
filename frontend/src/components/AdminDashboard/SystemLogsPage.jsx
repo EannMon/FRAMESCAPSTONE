@@ -1,26 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './SystemLogsPage.css'; // New CSS file for this page
 
 // ===========================================
 // Reusable Status Tag Component
 // ===========================================
-
-/**
- * Reusable status tags for the table (e.g., "ERROR", "INFO")
- */
 const LogStatusTag = ({ text, colorClass }) => (
     <span className={`log-status-tag ${colorClass}`}>{text}</span>
 );
 
-
 // ===========================================
 // Main System Logs Page Component
 // ===========================================
-
 const SystemLogsPage = () => {
-
     // Mock data for the logs table
-    const logs = [
+    const logsData = [
         {
             timestamp: "2025-11-13 10:30:01",
             level: "ERROR",
@@ -65,33 +58,63 @@ const SystemLogsPage = () => {
         }
     ];
 
+    const [logs, setLogs] = useState(logsData);
+    const [searchValue, setSearchValue] = useState("");
+    const [levelFilter, setLevelFilter] = useState("All Levels");
+    const [serviceFilter, setServiceFilter] = useState("All Services");
+
+    // Filtered logs based on search and dropdown filters
+    const filteredLogs = logs.filter((log) => {
+        const levelMatch = levelFilter === "All Levels" || log.level === levelFilter;
+        const serviceMatch = serviceFilter === "All Services" || log.service === serviceFilter;
+        const searchMatch =
+            log.timestamp.toLowerCase().includes(searchValue.toLowerCase()) ||
+            log.service.toLowerCase().includes(searchValue.toLowerCase()) ||
+            log.message.toLowerCase().includes(searchValue.toLowerCase());
+        return levelMatch && serviceMatch && searchMatch;
+    });
+
     return (
-        // New container to match other pages
         <div className="system-logs-container">
-            {/* Header and filters are now OUTSIDE the card */}
+            {/* Header and filters */}
             <div className="logs-header">
                 <div className="logs-filters">
-                    <select className="logs-filter-select">
+                    <select
+                        className="logs-filter-select"
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value)}
+                    >
                         <option>All Levels</option>
                         <option>ERROR</option>
                         <option>WARN</option>
                         <option>INFO</option>
                         <option>DEBUG</option>
                     </select>
-                    <select className="logs-filter-select">
+                    <select
+                        className="logs-filter-select"
+                        value={serviceFilter}
+                        onChange={(e) => setServiceFilter(e.target.value)}
+                    >
                         <option>All Services</option>
                         <option>AuthService</option>
                         <option>RecognitionEngine</option>
                         <option>CameraService</option>
+                        <option>GestureControl</option>
+                        <option>ApplicationService</option>
                     </select>
                     <div className="logs-search-bar">
                         <i className="fas fa-search"></i>
-                        <input type="text" placeholder="Search logs..." />
+                        <input
+                            type="text"
+                            placeholder="Search logs..."
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                        />
                     </div>
                 </div>
             </div>
-            
-            {/* The card now only contains the table */}
+
+            {/* Logs table */}
             <div className="card logs-table-card">
                 <div className="logs-table-container">
                     <table className="logs-table">
@@ -104,14 +127,27 @@ const SystemLogsPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {logs.map((log, index) => (
-                                <tr key={index}>
-                                    <td className="log-timestamp">{log.timestamp}</td>
-                                    <td><LogStatusTag text={log.level} colorClass={log.levelColor} /></td>
-                                    <td className="log-service">{log.service}</td>
-                                    <td className="log-message">{log.message}</td>
+                            {filteredLogs.length > 0 ? (
+                                filteredLogs.map((log, index) => (
+                                    <tr key={index}>
+                                        <td className="log-timestamp">{log.timestamp}</td>
+                                        <td>
+                                            <LogStatusTag
+                                                text={log.level}
+                                                colorClass={log.levelColor}
+                                            />
+                                        </td>
+                                        <td className="log-service">{log.service}</td>
+                                        <td className="log-message">{log.message}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" style={{ textAlign: "center", padding: "20px", color: "#888" }}>
+                                        No logs found.
+                                    </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

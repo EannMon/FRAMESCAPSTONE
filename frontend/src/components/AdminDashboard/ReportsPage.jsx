@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import './ReportsPage.css'; // New CSS file for this page
+import './ReportsPage.css';
 
 // ===========================================
-// Report Data Catalog
+// Report Data Catalog (Static Config)
 // ===========================================
-// All requested reports organized by category
 const reportCatalog = {
     attendance: {
         icon: 'fa-users',
@@ -46,18 +45,18 @@ const reportCatalog = {
     },
 };
 
-// --- Reusable Components (Used in JSX) ---
+// ===========================================
+// Reusable Sub-Components
+// ===========================================
 
 const ReportTag = ({ text, colorClass }) => (
     <span className={`report-tag ${colorClass}`}>{text}</span>
 );
+
 const StatusTag = ({ text, colorClass }) => (
     <span className={`status-tag ${colorClass}`}>{text}</span>
 );
 
-/**
- * A reusable card for the top grid
- */
 const ReportTypeCard = ({ category, onOpen }) => (
     <div className="card report-type-card" onClick={() => onOpen(category)}>
         <div className={`report-type-icon ${category.color}-bg`}>
@@ -71,22 +70,19 @@ const ReportTypeCard = ({ category, onOpen }) => (
     </div>
 );
 
-
 // ===========================================
-// Report Detail Popup Component (Complex Filtering)
+// 1. Report GENERATOR Modal
 // ===========================================
-
-const ReportDetailModal = ({ category, onClose }) => {
+const ReportGeneratorModal = ({ category, onClose }) => {
     const [selectedType, setSelectedType] = useState(category.types[0]);
-    const [targetType, setTargetType] = useState('all'); // State for primary filter: all, individual, section
-    const [searchQuery, setSearchQuery] = useState(''); // State for name/section search
+    const [targetType, setTargetType] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const isUserFilter = ['individual-student', 'individual-faculty'].includes(targetType);
     const isSectionFilter = targetType === 'section';
 
     const renderUserSearch = () => {
         if (!isUserFilter && !isSectionFilter) return null;
-
         const placeholder = isSectionFilter
             ? "Search section code (e.g., CS101, MATH201)"
             : `Search ${targetType.split('-')[1]} name or ID...`;
@@ -113,15 +109,13 @@ const ReportDetailModal = ({ category, onClose }) => {
                     <h2>{category.title} Generator</h2>
                     <button onClick={onClose} className="modal-close-btn">&times;</button>
                 </div>
-                
                 <div className="modal-body-grid">
-                    {/* Left Column: Report Type Selection */}
                     <div className="report-type-list-wrapper">
                         <h3>Report Types</h3>
                         <div className="report-type-list">
                             {category.types.map(type => (
-                                <div 
-                                    key={type.name} 
+                                <div
+                                    key={type.name}
                                     className={`report-type-item ${selectedType.name === type.name ? 'selected' : ''}`}
                                     onClick={() => setSelectedType(type)}
                                 >
@@ -131,23 +125,12 @@ const ReportDetailModal = ({ category, onClose }) => {
                             ))}
                         </div>
                     </div>
-
-                    {/* Right Column: Filters and Generation */}
                     <div className="report-filter-panel">
                         <h3>Generate: {selectedType.name}</h3>
-                        
-                        {/* 1. Target Filter (Required for question 3) */}
                         {selectedType.filterTarget && selectedType.filterTarget.some(target => ['organization', 'user', 'section'].includes(target)) && (
                             <div className="filter-group">
                                 <label>Target Scope</label>
-                                <select 
-                                    className="filter-select" 
-                                    value={targetType} 
-                                    onChange={(e) => {
-                                        setTargetType(e.target.value);
-                                        setSearchQuery(''); // Reset search when scope changes
-                                    }}
-                                >
+                                <select className="filter-select" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
                                     <option value="all">All Users/Organization</option>
                                     <option value="faculty">All Faculty</option>
                                     <option value="students">All Students</option>
@@ -157,11 +140,7 @@ const ReportDetailModal = ({ category, onClose }) => {
                                 </select>
                             </div>
                         )}
-
-                        {/* 2. Dynamic Search Input (Conditionally rendered) */}
                         {renderUserSearch()}
-                        
-                        {/* 3. Date Range Filter */}
                         <div className="filter-group">
                             <label>Date Range</label>
                             <div className="filter-group-row">
@@ -169,8 +148,6 @@ const ReportDetailModal = ({ category, onClose }) => {
                                 <input type="date" className="filter-select" defaultValue="2025-11-30" />
                             </div>
                         </div>
-                        
-                        {/* 4. Export Format */}
                         <div className="filter-group">
                             <label>Export Format</label>
                             <select className="filter-select">
@@ -179,11 +156,61 @@ const ReportDetailModal = ({ category, onClose }) => {
                                 <option>CSV (.csv)</option>
                             </select>
                         </div>
-
                         <button className="generate-report-btn-modal">
                             <i className="fas fa-magic"></i> Generate Report
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ===========================================
+// 2. Report VIEWER Modal
+// ===========================================
+const ReportViewModal = ({ report, onClose }) => {
+    if (!report) return null;
+
+    return (
+        <div className="report-modal-overlay" style={{ zIndex: 2000 }}>
+            <div className="report-modal-content" style={{ maxWidth: '500px', height: 'auto' }}>
+                <div className="modal-header">
+                    <h2>Report Details</h2>
+                    <button onClick={onClose} className="modal-close-btn">&times;</button>
+                </div>
+                <div style={{ padding: '20px' }}>
+                    <div style={{ marginBottom: '15px' }}>
+                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px', color: '#666' }}>Report Name</label>
+                        <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{report.name}</div>
+                    </div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px', color: '#666' }}>Type</label>
+                        <ReportTag text={report.type} colorClass={report.typeColor} />
+                    </div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px', color: '#666' }}>Date Range</label>
+                        <div>{report.date}</div>
+                    </div>
+                    <div style={{ marginBottom: '25px' }}>
+                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px', color: '#666' }}>Status</label>
+                        <StatusTag text={report.status} colorClass={report.statusColor} />
+                    </div>
+                    
+                    <button 
+                        onClick={onClose}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            background: '#f3f4f6',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                        }}
+                    >
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -196,15 +223,53 @@ const ReportDetailModal = ({ category, onClose }) => {
 // ===========================================
 
 const ReportsPage = () => {
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
+    // Modal States
+    const [generatorModalOpen, setGeneratorModalOpen] = useState(false);
+    const [selectedGeneratorCategory, setSelectedGeneratorCategory] = useState(null);
+    const [viewReportData, setViewReportData] = useState(null);
 
-    const handleOpenModal = (categoryKey) => {
-        setSelectedCategory(reportCatalog[categoryKey]);
-        setModalOpen(true);
+    // Filter States (Defaulted to "All")
+    const [frequencyFilter, setFrequencyFilter] = useState("All");
+    const [categoryFilter, setCategoryFilter] = useState("All");
+
+    // --- Action Handlers ---
+
+    const handleOpenGenerator = (categoryKey) => {
+        setSelectedGeneratorCategory(reportCatalog[categoryKey]);
+        setGeneratorModalOpen(true);
     };
 
-    // Mock data for the recent reports table
+    // 1️⃣ Download Logic
+    const handleDownload = (e, report) => {
+        e.stopPropagation();
+        const blob = new Blob(
+            [`FAKE REPORT CONTENT\n\nName: ${report.name}\nDate: ${report.date}\nGenerated: ${new Date().toISOString()}`], 
+            { type: 'application/pdf' }
+        );
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'report.pdf'); 
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    };
+
+    // 2️⃣ View Logic
+    const handleView = (e, report) => {
+        e.stopPropagation();
+        setViewReportData(report);
+    };
+
+    // 3️⃣ Direct Share Logic (Email Only)
+    const handleShareEmail = (e, report) => {
+        e.stopPropagation();
+        // Opens default email client with pre-filled subject/body
+        window.location.href = `mailto:?subject=Sharing Report: ${report.name}&body=Check out this report generated on ${report.date}.`;
+    };
+
+    // Mock Data
     const recentReports = [
         {
             name: "Weekly Attendance Summary",
@@ -213,7 +278,8 @@ const ReportsPage = () => {
             date: "Nov 15-21, 2024",
             generated: "2 hours ago",
             status: "Ready",
-            statusColor: "green"
+            statusColor: "green",
+            frequency: "Weekly"
         },
         {
             name: "Security Incident Report",
@@ -222,7 +288,8 @@ const ReportsPage = () => {
             date: "Nov 1-21, 2024",
             generated: "1 day ago",
             status: "Ready",
-            statusColor: "green"
+            statusColor: "green",
+            frequency: "Monthly"
         },
         {
             name: "Facility Usage Analytics",
@@ -231,19 +298,27 @@ const ReportsPage = () => {
             date: "Oct 2024",
             generated: "3 days ago",
             status: "Ready",
-            statusColor: "green"
+            statusColor: "green",
+            frequency: "Monthly"
         },
     ];
 
+    // Filter Logic
+    const filteredReports = recentReports.filter(report => {
+        const matchesFrequency = frequencyFilter === "All" || report.frequency === frequencyFilter;
+        const matchesCategory = categoryFilter === "All" || report.type === categoryFilter;
+        return matchesFrequency && matchesCategory;
+    });
+
     return (
         <div className="reports-container">
-            {/* Top Report Type Cards */}
+            {/* Top Cards */}
             <div className="reports-card-grid">
                 {Object.keys(reportCatalog).map(key => (
                     <ReportTypeCard
                         key={key}
                         category={reportCatalog[key]}
-                        onOpen={() => handleOpenModal(key)}
+                        onOpen={() => handleOpenGenerator(key)}
                     />
                 ))}
             </div>
@@ -253,16 +328,29 @@ const ReportsPage = () => {
                 <div className="recent-reports-header">
                     <h2>Generated Reports</h2>
                     <div className="recent-reports-filters">
-                        <select>
-                            <option>Weekly</option>
-                            <option>Monthly</option>
-                            <option>Semester</option>
+                        
+                        {/* Frequency Filter */}
+                        <select
+                            value={frequencyFilter}
+                            onChange={(e) => setFrequencyFilter(e.target.value)}
+                        >
+                            <option value="All">All Frequencies</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Semester">Semester</option>
                         </select>
-                        <select>
-                            <option>General</option>
-                            <option>Attendance</option>
-                            <option>Security</option>
+
+                        {/* Category Filter */}
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                        >
+                            <option value="All">All Categories</option>
+                            <option value="Attendance">Attendance</option>
+                            <option value="Security">Security</option>
+                            <option value="Usage">Usage</option>
                         </select>
+
                         <button className="export-all-button">
                             <i className="fas fa-upload"></i> Export All
                         </button>
@@ -281,31 +369,74 @@ const ReportsPage = () => {
                                 <th>Actions</th>
                             </tr>
                         </thead>
+
                         <tbody>
-                            {recentReports.map((report, index) => (
-                                <tr key={index}>
-                                    <td>{report.name}</td>
-                                    <td><ReportTag text={report.type} colorClass={report.typeColor} /></td>
-                                    <td>{report.date}</td>
-                                    <td>{report.generated}</td>
-                                    <td><StatusTag text={report.status} colorClass={report.statusColor} /></td>
-                                    <td>
-                                        <button className="action-button download-button"><i className="fas fa-download"></i></button>
-                                        <button className="action-button view-button"><i className="fas fa-eye"></i></button>
-                                        <button className="action-button share-button"><i className="fas fa-share-alt"></i></button>
+                            {filteredReports.length > 0 ? (
+                                filteredReports.map((report, index) => (
+                                    <tr key={index}>
+                                        <td>{report.name}</td>
+                                        <td><ReportTag text={report.type} colorClass={report.typeColor} /></td>
+                                        <td>{report.date}</td>
+                                        <td>{report.generated}</td>
+                                        <td><StatusTag text={report.status} colorClass={report.statusColor} /></td>
+                                        <td>
+                                            <div className="action-buttons-wrapper">
+                                                
+                                                {/* Download */}
+                                                <button 
+                                                    className="action-button download-button" 
+                                                    title="Download PDF"
+                                                    onClick={(e) => handleDownload(e, report)}
+                                                >
+                                                    <i className="fas fa-download"></i>
+                                                </button>
+
+                                                {/* View */}
+                                                <button 
+                                                    className="action-button view-button" 
+                                                    title="View Details"
+                                                    onClick={(e) => handleView(e, report)}
+                                                >
+                                                    <i className="fas fa-eye"></i>
+                                                </button>
+
+                                                {/* Share (Direct Email) */}
+                                                <button 
+                                                    className="action-button share-button"
+                                                    title="Share via Email"
+                                                    onClick={(e) => handleShareEmail(e, report)}
+                                                >
+                                                    <i className="fas fa-share-alt"></i>
+                                                </button>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#777" }}>
+                                        No reports found.
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Modal Renderer */}
-            {modalOpen && selectedCategory && (
-                <ReportDetailModal 
-                    category={selectedCategory} 
-                    onClose={() => setModalOpen(false)} 
+            {/* Generators & Viewers */}
+            {generatorModalOpen && selectedGeneratorCategory && (
+                <ReportGeneratorModal
+                    category={selectedGeneratorCategory}
+                    onClose={() => setGeneratorModalOpen(false)}
+                />
+            )}
+
+            {viewReportData && (
+                <ReportViewModal
+                    report={viewReportData}
+                    onClose={() => setViewReportData(null)}
                 />
             )}
         </div>
