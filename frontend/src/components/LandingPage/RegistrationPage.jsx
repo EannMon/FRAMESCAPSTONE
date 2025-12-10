@@ -234,8 +234,17 @@ const [formData, setFormData] = useState({
         
       <Header user={null} setPanel={() => navigate('/')} />
 
-        <div className="registration-container">
+
+       <div className="registration-container">
+
             <div className="form-card">
+                <button 
+                        type="button"
+                        className="return-btn"
+                        onClick={() => navigate(-1)}
+                    >
+                        <i className="fas fa-arrow-left"></i> Back
+                    </button>
                 
                 {/* TOP LEFT BACK BUTTON (Steps 2-4) */}
                 {step > 1 && (

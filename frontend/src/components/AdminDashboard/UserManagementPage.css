@@ -198,6 +198,35 @@
 .action-button:hover i { color: #dc3545; } /* RED */
 .action-button.delete-button:hover i { color: #dc3545; } /* RED */
 
+.add-user-dropdown-wrapper {
+    position: relative;
+}
+
+.add-user-dropdown {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
+    width: 160px;
+}
+
+.add-user-dropdown button {
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.add-user-dropdown button:hover {
+    background: #f0f0f0;
+}
 
 /* =========================================== */
 /* 10. Media Queries (Responsiveness) */

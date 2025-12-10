@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from "react-router-dom";
 import './UserManagementPage.css';
 
 const UserManagementPage = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const initialUsers = [
         { name: "Admin User", email: "admin@university.edu", role: "Admin", roleColor: "red", department: "IT Services", faceStatus: "Registered", statusColor: "green", lastActive: "5 min ago" },
         { name: "Dr. Sarah Johnson", email: "sarah.johnson@university.edu", role: "Faculty", roleColor: "green", department: "Computer Science", faceStatus: "Registered", statusColor: "green", lastActive: "2 hours ago" },
@@ -13,8 +17,8 @@ const UserManagementPage = () => {
     const [roleFilter, setRoleFilter] = useState("All Roles");
 
     const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [showAddUserDropdown, setShowAddUserDropdown] = useState(false);
 
-    // Registration-like form state
     const [newUser, setNewUser] = useState({
         name: "",
         email: "",
@@ -25,6 +29,12 @@ const UserManagementPage = () => {
         faceStatus: "Pending"
     });
 
+    useEffect(() => {
+        if (location.state?.newUser) {
+            setUsers(prev => [...prev, location.state.newUser]);
+        }
+    }, [location.state]);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewUser(prev => ({ ...prev, [name]: value }));
@@ -33,7 +43,6 @@ const UserManagementPage = () => {
     const handleAddUser = (e) => {
         e.preventDefault();
 
-        // Simple validation (password match)
         if (newUser.password !== newUser.confirmPassword) {
             alert("Passwords do not match");
             return;
@@ -67,6 +76,11 @@ const UserManagementPage = () => {
         return matchesRole && matchesSearch;
     });
 
+    const goToRegistration = (role) => {
+        setShowAddUserDropdown(false);
+        navigate(`/register/${role}`);
+    };
+
     return (
         <div className="user-management-container">
             <div className="user-summary-cards">
@@ -87,6 +101,7 @@ const UserManagementPage = () => {
             <div className="card user-list-card">
                 <div className="user-list-header">
                     <h2>All Users</h2>
+
                     <div className="user-list-actions">
                         <div className="user-search-bar">
                             <i className="fas fa-search"></i>
@@ -97,6 +112,7 @@ const UserManagementPage = () => {
                                 onChange={(e) => setSearchValue(e.target.value)}
                             />
                         </div>
+
                         <select
                             className="user-role-filter"
                             value={roleFilter}
@@ -107,9 +123,27 @@ const UserManagementPage = () => {
                             <option>Faculty</option>
                             <option>Student</option>
                         </select>
-                        <button className="user-list-button add-user-button" onClick={() => setShowAddUserModal(true)}>
-                            <i className="fas fa-plus"></i> Add User
-                        </button>
+
+                        {/* ADD USER DROPDOWN BUTTON */}
+                        <div className="add-user-dropdown-wrapper">
+                            <button
+                                className="user-list-button add-user-button"
+                                onClick={() => setShowAddUserDropdown(prev => !prev)}
+                            >
+                                <i className="fas fa-plus"></i> Add User
+                            </button>
+
+                            {showAddUserDropdown && (
+                                <div className="add-user-dropdown">
+                                    <button onClick={() => goToRegistration("student")}>
+                                        Register Student
+                                    </button>
+                                    <button onClick={() => goToRegistration("faculty")}>
+                                        Register Faculty
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -124,6 +158,7 @@ const UserManagementPage = () => {
                             <th>Actions</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         {filteredUsers.length > 0 ? (
                             filteredUsers.map((user, index) => (
@@ -158,6 +193,7 @@ const UserManagementPage = () => {
                 </table>
             </div>
 
+            {/* ORIGINAL MODAL (unchanged, still works if needed) */}
             {showAddUserModal && (
                 <div className="modal-backdrop" onClick={() => setShowAddUserModal(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>

@@ -201,6 +201,38 @@
 .tupm-serial-input {
     flex: 1;
 }
+/* Back button INSIDE the form */
+.return-btn {
+    background: none;
+    border: none;
+
+    color: #d22f49;
+    font-size: 14px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 5px 0 10px 0;
+
+    margin-bottom: 10px;
+    align-self: flex-start;
+
+    transition: 0.2s ease;
+}
+
+.return-btn i {
+    font-size: 15px;
+}
+
+.return-btn:hover {
+    color: #b71e3a;
+    transform: translateX(-2px);
+    text-decoration: underline;
+}
 
 /* =========================================== */
 /* CAMERA & SUMMARY SECTIONS */
