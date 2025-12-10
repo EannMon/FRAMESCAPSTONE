@@ -1,0 +1,145 @@
+/* DeptHeadManagePage.css */
+
+.dept-mgmt-container {
+    padding: 0 10px;
+}
+
+/* Header */
+.mgmt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.mgmt-header h2 { margin: 0 0 5px 0; color: #333; }
+
+.dept-badge {
+    background-color: #fbe9e7;
+    color: #A62525;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.header-actions { display: flex; gap: 10px; }
+
+.mgmt-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.mgmt-btn.primary { background-color: #A62525; color: white; }
+.mgmt-btn.primary:hover { background-color: #8a1f1f; transform: translateY(-2px); }
+
+.mgmt-btn.outline { background-color: white; border: 1px solid #ddd; color: #666; }
+.mgmt-btn.outline:hover { border-color: #A62525; color: #A62525; }
+
+/* Layout Grid */
+.mgmt-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr; /* 75% Table, 25% Logs */
+    gap: 20px;
+}
+
+/* Card Style */
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+}
+
+/* Table Styles */
+.mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.mgmt-table th { text-align: left; padding: 15px; background: #f8f9fa; color: #666; font-size: 0.9rem; }
+.mgmt-table td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
+
+.code-pill {
+    background: #e3f2fd; color: #0d47a1; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
+}
+
+.course-desc { font-weight: 600; color: #333; }
+.course-cat { color: #888; display: block; margin-top: 2px; }
+
+.assigned-pill {
+    background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;
+}
+.unassigned-text { color: #999; font-style: italic; font-size: 0.9rem; }
+
+/* Actions */
+.action-row { display: flex; gap: 8px; }
+.icon-action {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid #eee; background: white; cursor: pointer; color: #666; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.icon-action:hover { background: #f0f0f0; }
+.icon-action.assign:hover { color: #007bff; border-color: #007bff; }
+.icon-action.delete:hover { color: #dc3545; border-color: #dc3545; }
+
+/* Logs Section */
+.logs-list {
+    display: flex; flex-direction: column; gap: 15px; max-height: 400px; overflow-y: auto;
+}
+.log-item { display: flex; gap: 12px; align-items: flex-start; }
+.log-icon {
+    width: 30px; height: 30px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.8rem;
+}
+.log-details { display: flex; flex-direction: column; }
+.log-action { font-size: 0.9rem; color: #333; font-weight: 500; }
+.log-meta { font-size: 0.75rem; color: #999; }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;
+}
+.modal-content-box {
+    background: white; width: 450px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-header h3 { margin: 0; color: #A62525; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; color: #555; }
+.form-group input, .form-group select {
+    width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none;
+}
+.form-group input:focus, .form-group select:focus { border-color: #A62525; }
+.form-row { display: flex; gap: 15px; }
+.form-group.half { flex: 1; }
+
+.submit-btn.full {
+    width: 100%; background: #A62525; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;
+}
+.submit-btn.full:hover { background: #8a1f1f; }
+
+/* Assign Faculty List */
+.faculty-select-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+.faculty-option-btn {
+    display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%;
+}
+.faculty-option-btn:hover { background: #fff5f5; border-color: #A62525; }
+.fac-avatar {
+    width: 35px; height: 35px; background: #A62525; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;
+}
+.fac-info { flex: 1; display: flex; flex-direction: column; }
+.fac-name { font-weight: 600; color: #333; font-size: 0.95rem; }
+.fac-status { font-size: 0.75rem; font-weight: 600; }
+.fac-status.green { color: #28a745; }
+.fac-status.red { color: #dc3545; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .mgmt-layout { grid-template-columns: 1fr; }
+    .logs-section { order: -1; margin-bottom: 20px; }
+}

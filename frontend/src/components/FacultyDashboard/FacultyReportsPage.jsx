@@ -1,216 +1,177 @@
-// Reports.jsx - Reports Page Component
-import React from 'react';
+import React, { useState } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './FacultyReportsPage.css';
 
 const FacultyReportsPage = () => {
-    return (
-        <div className="faculty-reports-container">
-            <div className="faculty-reports-header">
-                <button className="faculty-schedule-button faculty-monitor-button">
-                    <i className="fas fa-plus"></i> Generate New Report
+    // --- STATES ---
+    const [viewMode, setViewMode] = useState('main'); // 'main' | 'preview'
+    const [selectedReport, setSelectedReport] = useState(null);
+
+    // --- MOCK DATA ---
+    const recentReports = [
+        { id: 1, title: "CS101 Attendance Summary", date: "Nov 15, 2024", size: "2.4 MB", type: "PDF", status: "Ready" },
+        { id: 2, title: "Weekly Class Performance", date: "Nov 13, 2024", size: "1.8 MB", type: "Excel", status: "Ready" },
+        { id: 3, title: "Student Risk Analysis", date: "Nov 10, 2024", size: "3.1 MB", type: "PDF", status: "Ready" },
+        { id: 4, title: "Data Structures Log", date: "Nov 08, 2024", size: "1.5 MB", type: "Excel", status: "Archived" },
+    ];
+
+    const previewData = [
+        { name: "Terana, Angelica", id: "2021-001", rate: "98%", status: "Excellent" },
+        { name: "Llana, Elena", id: "2021-002", rate: "95%", status: "Good" },
+        { name: "Calingal, Karl", id: "2021-003", rate: "88%", status: "Average" },
+        { name: "Lungay, Emmanuel", id: "2021-004", rate: "92%", status: "Good" },
+    ];
+
+    // --- HANDLERS ---
+    const handleViewReport = (report) => {
+        setSelectedReport(report);
+        setViewMode('preview');
+    };
+
+    const handleBack = () => {
+        setViewMode('main');
+        setSelectedReport(null);
+    };
+
+    const handleDownloadPDF = (title = "Report") => {
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text(title.toUpperCase(), 105, 20, null, null, "center");
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+
+        const rows = previewData.map(d => [d.name, d.id, d.rate, d.status]);
+        autoTable(doc, {
+            head: [["Student Name", "ID", "Attendance", "Status"]],
+            body: rows,
+            startY: 40,
+            theme: 'grid',
+            headStyles: { fillColor: [166, 37, 37] } // Red Theme
+        });
+        doc.save(`${title.replace(/ /g, "_")}.pdf`);
+    };
+
+    // --- RENDERERS ---
+
+    // VIEW A: MAIN DASHBOARD
+    const renderMainView = () => (
+        <div className="fade-in">
+            {/* Header Action Only (No Title) */}
+            <div className="reports-top-bar">
+                <div className="spacer"></div> {/* Pushes button to right */}
+                <button className="rep-btn primary" onClick={() => handleDownloadPDF("Custom_Report")}>
+                    <i className="fas fa-plus"></i> Create Custom Report
                 </button>
             </div>
 
-            {/* Quick Stats */}
-            <div className="faculty-reports-stats-grid">
-                <div className="faculty-report-stat-card">
-                    <div className="faculty-stat-icon-wrapper red">
-                        <i className="fas fa-file-alt"></i>
-                    </div>
-                    <div className="faculty-stat-content">
-                        <div className="faculty-stat-value">24</div>
-                        <div className="faculty-stat-label">Total Reports</div>
-                    </div>
+            {/* Stats Grid */}
+            <div className="rep-stats-grid">
+                <div className="rep-stat-card">
+                    <div className="stat-icon red"><i className="fas fa-file-alt"></i></div>
+                    <div><div className="stat-val">24</div><div className="stat-lbl">Total Reports</div></div>
                 </div>
-                <div className="faculty-report-stat-card">
-                    <div className="faculty-stat-icon-wrapper blue">
-                        <i className="fas fa-clock"></i>
-                    </div>
-                    <div className="faculty-stat-content">
-                        <div className="faculty-stat-value">3</div>
-                        <div className="faculty-stat-label">Pending</div>
-                    </div>
+                <div className="rep-stat-card">
+                    <div className="stat-icon blue"><i className="fas fa-clock"></i></div>
+                    <div><div className="stat-val">3</div><div className="stat-lbl">Pending</div></div>
                 </div>
-                <div className="faculty-report-stat-card">
-                    <div className="faculty-stat-icon-wrapper green">
-                        <i className="fas fa-check-circle"></i>
-                    </div>
-                    <div className="faculty-stat-content">
-                        <div className="faculty-stat-value">21</div>
-                        <div className="faculty-stat-label">Completed</div>
-                    </div>
+                <div className="rep-stat-card">
+                    <div className="stat-icon green"><i className="fas fa-check-circle"></i></div>
+                    <div><div className="stat-val">21</div><div className="stat-lbl">Completed</div></div>
                 </div>
-                <div className="faculty-report-stat-card">
-                    <div className="faculty-stat-icon-wrapper orange">
-                        <i className="fas fa-download"></i>
-                    </div>
-                    <div className="faculty-stat-content">
-                        <div className="faculty-stat-value">156</div>
-                        <div className="stat-label">Downloads</div>
-                    </div>
+                <div className="rep-stat-card">
+                    <div className="stat-icon orange"><i className="fas fa-download"></i></div>
+                    <div><div className="stat-val">156</div><div className="stat-lbl">Downloads</div></div>
                 </div>
             </div>
 
-            {/* Report Types */}
-            <div className="faculty-card">
-                <h3>Generate Report</h3>
-                <div className="faculty-report-types-grid">
-                    <div className="faculty-report-type-card">
-                        <div className="faculty-report-type-icon">
-                            <i className="fas fa-users"></i>
+            {/* Quick Actions */}
+            <div className="rep-card">
+                <h3>Quick Generate</h3>
+                <div className="rep-types-grid">
+                    {[
+                        { icon: "fas fa-users", title: "Attendance", desc: "Class logs summary" },
+                        { icon: "fas fa-user-graduate", title: "Performance", desc: "Student analytics" },
+                        { icon: "fas fa-calendar-week", title: "Weekly", desc: "7-day overview" },
+                        { icon: "fas fa-file-excel", title: "Raw Data", desc: "Export to Excel" }
+                    ].map((item, idx) => (
+                        <div key={idx} className="rep-type-item">
+                            <div className="type-icon"><i className={item.icon}></i></div>
+                            <h4>{item.title}</h4>
+                            <p>{item.desc}</p>
+                            <button className="rep-btn outline small" onClick={() => handleDownloadPDF(item.title)}>
+                                Generate
+                            </button>
                         </div>
-                        <h4>Attendance Report</h4>
-                        <p>Generate detailed attendance reports for your classes</p>
-                        <button className="faculty-generate-report-btn">
-                            <i className="fas fa-chart-bar"></i> Generate
-                        </button>
-                    </div>
-
-                    <div className="faculty-report-type-card">
-                        <div className="faculty-report-type-icon">
-                            <i className="fas fa-user-graduate"></i>
-                        </div>
-                        <h4>Student Performance</h4>
-                        <p>View individual student attendance and participation</p>
-                        <button className="faculty-generate-report-btn">
-                            <i className="fas fa-chart-bar"></i> Generate
-                        </button>
-                    </div>
-
-                    <div className="faculty-report-type-card">
-                        <div className="faculty-report-type-icon">
-                            <i className="fas fa-calendar-week"></i>
-                        </div>
-                        <h4>Weekly Summary</h4>
-                        <p>Get weekly attendance summary across all classes</p>
-                        <button className="faculty-generate-report-btn">
-                            <i className="fas fa-chart-bar"></i> Generate
-                        </button>
-                    </div>
-
-                    <div className="faculty-report-type-card">
-                        <div className="faculty-report-type-icon">
-                            <i className="fas fa-file-excel"></i>
-                        </div>
-                        <h4>Custom Export</h4>
-                        <p>Export custom data in Excel or PDF format</p>
-                        <button className="faculty-generate-report-btn">
-                            <i className="fas fa-chart-bar"></i> Generate
-                        </button>
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Recent Reports */}
-            <div className="faculty-card">
+            {/* Recent Reports List */}
+            <div className="rep-card">
                 <h3>Recent Reports</h3>
-                <div className="faculty-recent-reports-list">
-                    <div className="faculty-report-item">
-                        <div className="faculty-report-icon">
-                            <i className="fas fa-file-pdf"></i>
+                <div className="rep-list">
+                    {recentReports.map((report) => (
+                        <div key={report.id} className="rep-list-item">
+                            <div className="rep-file-icon">
+                                <i className={`fas ${report.type === 'PDF' ? 'fa-file-pdf text-red' : 'fa-file-excel text-green'}`}></i>
+                            </div>
+                            <div className="rep-info">
+                                <div className="rep-name">{report.title}</div>
+                                <div className="rep-meta">{report.date} • {report.size}</div>
+                            </div>
+                            <div className="rep-actions">
+                                <button className="icon-action" title="View" onClick={() => handleViewReport(report)}>
+                                    <i className="fas fa-eye"></i>
+                                </button>
+                                <button className="icon-action" title="Download" onClick={() => handleDownloadPDF(report.title)}>
+                                    <i className="fas fa-download"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div className="faculty-report-info">
-                            <div className="faculty-report-name">CS101 Attendance - November 2024</div>
-                            <div className="faculty-report-meta">Generated on Nov 15, 2024 • 2.4 MB</div>
-                        </div>
-                        <div className="faculty-report-actions">
-                            <button className="faculty-icon-btn" title="Download">
-                                <i className="fas fa-download"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="View">
-                                <i className="fas fa-eye"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="Share">
-                                <i className="fas fa-share-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="faculty-report-item">
-                        <div className="faculty-report-icon">
-                            <i className="fas fa-file-excel"></i>
-                        </div>
-                        <div className="faculty-report-info">
-                            <div className="faculty-report-name">All Classes Weekly Summary</div>
-                            <div className="faculty-report-meta">Generated on Nov 13, 2024 • 1.8 MB</div>
-                        </div>
-                        <div className="faculty-report-actions">
-                            <button className="faculty-icon-btn" title="Download">
-                                <i className="fas fa-download"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="View">
-                                <i className="fas fa-eye"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="Share">
-                                <i className="fas fa-share-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="faculty-report-item">
-                        <div className="faculty-report-icon">
-                            <i className="fas fa-file-pdf"></i>
-                        </div>
-                        <div className="faculty-report-info">
-                            <div className="faculty-report-name">Student Performance Analysis</div>
-                            <div className="faculty-report-meta">Generated on Nov 10, 2024 • 3.1 MB</div>
-                        </div>
-                        <div className="faculty-report-actions">
-                            <button className="faculty-icon-btn" title="Download">
-                                <i className="fas fa-download"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="View">
-                                <i className="fas fa-eye"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="Share">
-                                <i className="fas fa-share-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="faculty-report-item">
-                        <div className="faculty-report-icon">
-                            <i className="fas fa-file-excel"></i>
-                        </div>
-                        <div className="faculty-report-info">
-                            <div className="faculty-report-name">Data Structures Attendance</div>
-                            <div className="faculty-report-meta">Generated on Nov 8, 2024 • 1.5 MB</div>
-                        </div>
-                        <div className="faculty-report-actions">
-                            <button className="faculty-icon-btn" title="Download">
-                                <i className="fas fa-download"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="View">
-                                <i className="fas fa-eye"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="Share">
-                                <i className="fas fa-share-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="faculty-report-item">
-                        <div className="faculty-report-icon">
-                            <i className="fas fa-file-pdf"></i>
-                        </div>
-                        <div className="faculty-report-info">
-                            <div className="faculty-report-name">Semester Overview Report</div>
-                            <div className="faculty-report-meta">Generated on Nov 1, 2024 • 4.2 MB</div>
-                        </div>
-                        <div className="faculty-report-actions">
-                            <button className="faculty-icon-btn" title="Download">
-                                <i className="fas fa-download"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="View">
-                                <i className="fas fa-eye"></i>
-                            </button>
-                            <button className="faculty-icon-btn" title="Share">
-                                <i className="fas fa-share-alt"></i>
-                            </button>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
+        </div>
+    );
+
+    // VIEW B: PREVIEW MODE
+    const renderPreviewView = () => (
+        <div className="fade-in">
+            <div className="preview-toolbar">
+                <button className="rep-btn outline" onClick={handleBack}>
+                    <i className="fas fa-arrow-left"></i> Back
+                </button>
+                <button className="rep-btn primary" onClick={() => handleDownloadPDF(selectedReport.title)}>
+                    <i className="fas fa-download"></i> Download PDF
+                </button>
+            </div>
+
+            <div className="preview-paper">
+                <div className="paper-head">
+                    <h2>{selectedReport.title}</h2>
+                    <p>Status: <span className="status-tag">{selectedReport.status}</span></p>
+                </div>
+                <table className="rep-table">
+                    <thead>
+                        <tr><th>Student Name</th><th>ID Number</th><th>Attendance</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {previewData.map((d, i) => (
+                            <tr key={i}>
+                                <td>{d.name}</td><td>{d.id}</td><td>{d.rate}</td>
+                                <td><span className={`status-dot ${d.status === 'Average' ? 'orange' : 'green'}`}></span> {d.status}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="faculty-reports-container">
+            {viewMode === 'main' ? renderMainView() : renderPreviewView()}
         </div>
     );
 };

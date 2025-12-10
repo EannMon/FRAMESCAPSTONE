@@ -8,6 +8,7 @@ import AdminLayout from './components/AdminDashboard/AdminLayout';
 import FacultyLayout from './components/FacultyDashboard/FacultyLayout'; // <-- UPDATED IMPORT
 import StudentLayout from './components/StudentDashboard/StudentLayout'; // <-- UPDATED IMPORT
 
+
 // --- Import Admin Pages ---
 import AdminDashboardPage from './components/AdminDashboard/AdminDashboardPage'; 
 import UserManagementPage from './components/AdminDashboard/UserManagementPage';
@@ -20,6 +21,7 @@ import FacultyDashboardPage from './components/FacultyDashboard/FacultyDashboard
 import MyClassesPage from './components/FacultyDashboard/MyClassesPage'; // <-- NEW
 import FacultyAttendancePage from './components/FacultyDashboard/FacultyAttendancePage'; // <-- NEW
 import FacultyReportsPage from './components/FacultyDashboard/FacultyReportsPage'; // <-- NEW
+import DeptHeadManagePage from './components/FacultyDashboard/DeptHeadManagePage';
 
 // --- Import Student Pages ---
 import StudentDashboardPage from './components/StudentDashboard/StudentDashboardPage';
@@ -57,6 +59,8 @@ function App() {
             <Route path="/faculty-classes" element={<MyClassesPage />} />
             <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
             <Route path="/faculty-reports" element={<FacultyReportsPage />} />
+            <Route path="/faculty-dept-management" element={<DeptHeadManagePage />} />
+            
           </Route>
           
           {/* --- Student Routes (using StudentLayout) --- */}

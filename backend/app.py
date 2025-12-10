@@ -1,3 +1,25 @@
+import os
+
+# --- 🛠️ CRITICAL FIX FOR INTEL GPU CRASH ---
+# Ito ang pipigil sa "vpg-compute-neo" error
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+# --- Ngayon pa lang i-import ang iba ---
+import cv2
+import mysql.connector
+import numpy as np
+import base64
+import pickle
+import json
+import bcrypt
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from db_config import DB_CONFIG
+from deepface import DeepFace  # DeepFace must be imported AFTER setting os.environ
+
+# ... (rest of your code) ...
+
 import cv2
 import mysql.connector
 import numpy as np
@@ -12,7 +34,7 @@ from db_config import DB_CONFIG
 from deepface import DeepFace
 
 # --- 1. SETUP MODELS ---
-MODEL_NAME = "VGG-Face"
+MODEL_NAME = "SFace"
 DETECTOR_BACKEND = "opencv"
 
 print("⏳ Initializing DeepFace Models...")

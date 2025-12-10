@@ -11,3 +11,9 @@ pass
 
 karl@gmail.com student
 pass
+
+aiai@gmail.com facultysamplereg
+123
+
+rose@gmail.com
+123

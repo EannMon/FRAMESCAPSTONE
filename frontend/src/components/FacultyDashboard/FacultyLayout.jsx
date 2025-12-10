@@ -1,56 +1,62 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import './FacultyLayout.css';
-import '../ZCommon/Utility.css'; // Global utility styles
-import Header from '../ZCommon/Header';
+import './FacultyLayout.css'; 
+import '../ZCommon/Utility.css'; 
+import LoggedInHeader from '../ZCommon/Header'; // <-- TAMA
 
-// --- FALLBACK ONLY (Gagamitin lang kapag walang picture sa Database) ---
 const DEFAULT_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=No+Img';
 
-// --- THEME DEFINITION (RED THEME) ---
 const facultyTheme = {
-    primary: '#A62525', // Primary Red
+    primary: '#A62525', 
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
 
-// ===========================================
-// 1. Faculty Sidebar Component
-// ===========================================
-const FacultySidebar = () => {
-    // Nav items updated to reflect the correct flat routing paths
+const FacultySidebar = ({ user }) => {
+    // --- LOGIC: Check if user is a Department Head ---
+    // Tinitingnan nito kung ang faculty_status sa database ay "Head" o "Department Head"
+    const isDeptHead = user.faculty_status === 'Head' || user.faculty_status === 'Department Head';
+
+    // Base Navigation Items (Lahat ng Faculty meron nito)
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/faculty-classes' },
         { name: 'Attendance', icon: 'fas fa-user-check', to: '/faculty-attendance' },
-        { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports', notification: 2 },
+        { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports' },
     ];
+
+    // CONDITIONAL: Idagdag lang ang tab na 'to kung Dept Head siya
+    if (isDeptHead) {
+        navItems.push({ 
+            name: 'Department Mgmt', 
+            icon: 'fas fa-university', 
+            to: '/faculty-dept-management' 
+        });
+    }
 
     return (
         <aside className="faculty-sidebar">
+            {/* Dynamic Role Tag */}
             <div className="faculty-role-tag">
-                Faculty Member
+                {isDeptHead ? "Department Head" : "Faculty Member"}
             </div>
 
             <nav className="faculty-nav">
                 <ul>
                     {navItems.map((item) => (
                         <li key={item.name}>
-                            <NavLink
-                                to={item.to}
-                                // Use 'end' to prevent the parent path from staying active
-                                end={item.to === '/faculty-dashboard'}
-                                className={({ isActive }) => isActive ? 'active' : ''}
-                            >
+                            <NavLink to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
                                 <i className={item.icon}></i>
                                 <span>{item.name}</span>
-                                {item.notification && <span className="notification-badge">{item.notification}</span>}
                             </NavLink>
                         </li>
                     ))}
                 </ul>
             </nav>
+
+            {/* Tinanggal na natin ang Demo Checkbox dito */}
+
             <div className="sidebar-footer">
                 SmartCampus v2.1.0
             </div>
@@ -58,59 +64,47 @@ const FacultySidebar = () => {
     );
 };
 
-// ===========================================
-// 2. Main FacultyLayout Component (The Parent)
-// ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
-    
-    // Initial State (Placeholder muna habang naglo-load)
-    const [user, setUser] = useState({
-        name: 'Loading...',
-        avatar: DEFAULT_AVATAR, 
-        notifications: 0
+    // Initialize user state. Include 'faculty_status' default.
+    const [user, setUser] = useState({ 
+        name: 'Loading...', 
+        avatar: DEFAULT_AVATAR,
+        faculty_status: 'Regular' // Default to Regular
     });
 
     useEffect(() => {
-        // 1. Retrieve data from Local Storage (Galing sa Login)
         const storedUser = localStorage.getItem('currentUser');
-
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
             
-            // 2. CHECK ROLE (Security)
-            // Kung student ang nag-login pero pinuntahan ang /faculty-dashboard, sipain palabas!
-            if (parsedUser.role !== 'faculty') {
-                alert("Access Denied: This area is for Faculty members only.");
-                navigate('/'); // Redirect to login
+            // Safety Check: Faculty lang ang pwede dito
+            if (parsedUser.role && parsedUser.role.toLowerCase() !== 'faculty') {
+                navigate('/'); 
                 return;
             }
 
-            // 3. SET USER DATA FROM DB
-            // Dito natin papalitan ang placeholder ng tunay na picture!
+            // Set User Data including the specific faculty_status form DB
             setUser({
-                name: `${parsedUser.firstName} ${parsedUser.lastName}`, // Combine names
-                
-                // LOGIC: Kung may laman si parsedUser.avatar, yun ang gamitin. Kung wala, fallback.
-                avatar: parsedUser.avatar ? parsedUser.avatar : DEFAULT_AVATAR,
-                
-                notifications: 3 // Mock notification muna
+                ...parsedUser, // Kunin lahat ng info galing DB (firstName, lastName, faculty_status, etc.)
+                name: `${parsedUser.firstName} ${parsedUser.lastName}`,
+                avatar: parsedUser.avatar || DEFAULT_AVATAR,
+                faculty_status: parsedUser.faculty_status || 'Regular' 
             });
         } else {
-            // Kung walang nakalogin, ibalik sa login page
             navigate('/');
         }
     }, [navigate]);
 
     return (
         <div className="dashboard-container">
-            {/* Pass the DYNAMIC user object (with DB image) to the Header */}
-            <Header theme={facultyTheme} user={user} />
+            <LoggedInHeader theme={facultyTheme} user={user} />
             
             <div className="dashboard-body">
-                <FacultySidebar />
+                {/* Ipasa ang user data sa Sidebar para ma-check ang role */}
+                <FacultySidebar user={user} />
+                
                 <div className="main-content-area">
-                    {/* All child pages will render here */}
                     <Outlet />
                 </div>
             </div>

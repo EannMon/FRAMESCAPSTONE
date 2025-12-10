@@ -1,11 +1,10 @@
-// Dashboard.jsx - Dashboard Page Component
+// FILE: FacultyDashboardPage.jsx
 import React from 'react';
 import './FacultyDashboardPage.css';
 import '../ZCommon/Utility.css';
 
-// Summary Card Component
 const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass }) => (
-    <div className="card summary-card">
+    <div className="summary-card">
         <div className={`summary-icon-container ${iconBgClass}`}>
             <i className={iconClass}></i>
         </div>
@@ -21,7 +20,6 @@ const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, 
     </div>
 );
 
-// Summary Cards Section
 const FacultySummaryCards = () => (
     <div className="summary-cards-container">
         <FacultySummaryCard 
@@ -29,169 +27,70 @@ const FacultySummaryCards = () => (
             title="Today's Classes" 
             value="5" 
             subValue="2 upcoming" 
-            subValueColor="#1a73e8" 
-            iconBgClass="f-classes-bg" 
+            subValueColor="#dc3545" 
+            iconBgClass="f-icon-red" /* Uses #f8d7da bg */
         />
         <FacultySummaryCard 
             iconClass="fas fa-user-check" 
             title="Attendance Rate" 
             value="87%" 
             subValue="+3% vs last week" 
-            subValueColor="#28a745" 
-            iconBgClass="f-attendance-bg" 
+            subValueColor="#198754" 
+            iconBgClass="f-icon-green" /* Uses #a7e0aa bg */
         />
         <FacultySummaryCard 
             iconClass="fas fa-users" 
             title="Total Students" 
             value="156" 
             subValue="Across 3 courses" 
-            subValueColor="#555" 
-            iconBgClass="f-students-bg" 
+            subValueColor="#6f42c1" 
+            iconBgClass="f-icon-purple" /* Uses #d8c7f0 bg */
         />
         <FacultySummaryCard 
             iconClass="fas fa-bell" 
-            title="Pending Alerts" 
+            title="Alerts" 
             value="2" 
             subValue="Requires attention" 
             subValueColor="#dc3545" 
-            iconBgClass="f-alerts-bg" 
+            iconBgClass="f-icon-alert" /* Uses #f7a39b bg (Darker Salmon) */
         />
     </div>
 );
 
-// Schedule Item Component
-const ScheduleItem = ({ time, title, details, showMonitor }) => (
-    <div className="schedule-item">
-        <div className="schedule-time-dot">
-            <span className="dot"></span>
-            <span className="time">{time}</span>
-        </div>
-        <div className="schedule-details">
-            <span className="schedule-title">{title}</span>
-            <span className="schedule-meta">{details}</span>
-        </div>
-        <div className="schedule-actions">
-            <button className="schedule-button view-button">
-                <i className="fas fa-eye"></i> View
-            </button>
-            {showMonitor && (
-                <button className="schedule-button monitor-button">
-                    <i className="fas fa-video"></i> Monitor
-                </button>
-            )}
-        </div>
-    </div>
-);
+// ... (Rest of your component: RecentAttendance, ClassroomAlerts)
+// Use the exact same RecentAttendance and ClassroomAlerts code provided previously.
 
-// Today's Schedule Section
-const TodaySchedule = () => (
-    <div className="card today-schedule">
-        <h3>Today's Schedule</h3>
-        <div className="schedule-list">
-            <ScheduleItem 
-                time="09:00 - 10:30" 
-                title="Computer Science 101" 
-                details="Room A-205 • 32 students" 
-                showMonitor={false} 
-            />
-            <ScheduleItem 
-                time="11:00 - 12:30" 
-                title="Data Structures" 
-                details="Room B-301 • 28 students" 
-                showMonitor={false} 
-            />
-            <ScheduleItem 
-                time="02:00 - 03:30" 
-                title="Algorithms" 
-                details="Room A-205 • 25 students" 
-                showMonitor={true} 
-            />
-            <ScheduleItem 
-                time="04:00 - 05:30" 
-                title="Software Engineering" 
-                details="Lab C-102 • 30 students" 
-                showMonitor={true} 
-            />
-        </div>
-    </div>
-);
-
-// Attendance Item Component
-const AttendanceItem = ({ title, time, ratio, percent, percentColor }) => (
-    <div className="attendance-item">
-        <div className="attendance-details">
-            <span className="attendance-title">{title}</span>
-            <span className="attendance-time">{time}</span>
-        </div>
-        <div className="attendance-stats">
-            <span className="attendance-ratio">{ratio}</span>
-            <span className="attendance-percent" style={{ color: percentColor }}>{percent}</span>
-        </div>
-    </div>
-);
-
-// Recent Attendance Section
 const RecentAttendance = () => (
-    <div className="card recent-attendance">
+    <div className="recent-attendance">
         <h3>Recent Attendance</h3>
-        <AttendanceItem 
-            title="Computer Science 101" 
-            time="Today, 9:00 AM" 
-            ratio="30/32" 
-            percent="94%" 
-            percentColor="#28a745" 
-        />
-        <AttendanceItem 
-            title="Data Structures" 
-            time="Yesterday, 11:00 AM" 
-            ratio="26/28" 
-            percent="93%" 
-            percentColor="#28a745" 
-        />
-        <AttendanceItem 
-            title="Algorithms" 
-            time="Yesterday, 2:00 PM" 
-            ratio="22/25" 
-            percent="88%" 
-            percentColor="#ffc107" 
-        />
+        {/* Placeholder Content */}
+        <div style={{padding: '10px 0', borderBottom: '1px solid #eee'}}>
+            <div style={{display:'flex', justifyContent:'space-between'}}>
+                <strong>Computer Science 101</strong>
+                <span style={{color:'green', fontWeight:'bold'}}>94%</span>
+            </div>
+            <small style={{color:'#888'}}>Today, 9:00 AM</small>
+        </div>
     </div>
 );
 
-// Classroom Alerts Section
 const ClassroomAlerts = () => (
-    <div className="card classroom-alerts">
-        <h3>Classroom Alerts</h3>
-        <div className="alert-item">
-            <span className="alert-type yellow"></span>
-            <div className="alert-details">
-                <div className="alert-description"><strong>High occupancy in Room A-205</strong></div>
-                <div className="alert-time">15 min ago</div>
-            </div>
-        </div>
-        <div className="alert-item">
-            <span className="alert-type blue"></span>
-            <div className="alert-details">
-                <div className="alert-description"><strong>New student registered for CS 101</strong></div>
-                <div className="alert-time">1 hour ago</div>
-            </div>
-        </div>
-        <div className="alert-item">
-            <span className="alert-type green"></span>
-            <div className="alert-details">
-                <div className="alert-description"><strong>Perfect attendance recorded</strong></div>
-                <div className="alert-time">2 hours ago</div>
+    <div className="classroom-alerts">
+        <h3>Alerts</h3>
+        <div style={{display:'flex', gap:'10px', padding:'10px 0'}}>
+            <div style={{width:'8px', height:'8px', borderRadius:'50%', background:'#ffc107', marginTop:'6px'}}></div>
+            <div>
+                <div style={{fontSize:'0.95em'}}><strong>High occupancy in Room A-205</strong></div>
+                <div style={{fontSize:'0.8em', color:'#888'}}>15 min ago</div>
             </div>
         </div>
     </div>
 );
 
-// Main Dashboard Component
 const FacultyDashboardPage = () => {
     return (
         <div className="faculty-content-grid">
             <FacultySummaryCards />
-            <TodaySchedule />
             <RecentAttendance />
             <ClassroomAlerts />
         </div>
