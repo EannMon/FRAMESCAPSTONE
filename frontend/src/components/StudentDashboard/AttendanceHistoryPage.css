@@ -1,368 +1,158 @@
-/* --- Attendance History View --- */
+/* AttendanceHistoryPage.css - Cloned from Admin ReportsPage.css */
 
-.attendance-history-view {
+.reports-container {
     display: flex;
     flex-direction: column;
-    gap: 30px; /* Gap between header, summary, and main card */
+    gap: 30px;
     padding-left: 30px;
 }
 
-.attendance-header {
-    justify-content: space-between;
-    align-items: center;
-    display: block; /* Changed from flex to block */
-    margin-bottom: 10px;
-}
-
-
-.attendance-header h2 {
-    font-size: 1.8em;
-    font-weight: 700;
-    color: #333;
-    margin: 0;
-}
-
-/* Ensure header actions align horizontally with space */
-.header-actions {
-    display: flex;
-    flex-wrap: wrap; /* Allows wrapping on smaller screens */
-    gap: 10px;
-    align-items: center;
-}
-
-/* Styles for all select elements (Time Period, Report Type, Subject) */
-.semester-select, 
-.report-type-select, 
-.subject-select {
-    padding: 8px 15px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    background-color: white;
-    font-size: 0.95em;
-    cursor: pointer;
-    outline: none;
-    height: 38px; /* Match button height */
-}
-
-.report-type-select {
-    min-width: 250px; /* Ensure space for longer report names */
-}
-
-.subject-select {
-    min-width: 180px; /* Space for subject name */
-}
-
-
-/* Updated style for export button */
-.export-button { 
-    color: #A62525;
-    border: none #A62525;
-    border-radius: 8px; /* Updated radius */
-    padding: 8px 15px;
-    font-size: 0.95em;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    height: 38px;
-    white-space: nowrap; /* Prevent text wrapping */
-    flex-shrink: 0;
-}
-
-.export-button i {
-    margin-right: 8px;
-    color: #A62525; 
-}
-
-/* --- Summary Cards Container --- */
-.attendance-summary-container {
+.reports-card-grid {
     display: grid;
-    /* Uses 1fr grid columns to take up all available space */
-    grid-template-columns: repeat(3, 1fr); 
-    gap: 20px; 
+    /* Responsive Grid: Mag-aadjust base sa laki ng screen */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
 }
 
-.attendance-summary-card {
-    /* Uses base card styles */
-    text-align: center;
-    padding: 25px;
-    border: 1px solid #e0e0e0; 
-    border-radius: 8px; 
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    position: relative; 
-    overflow: hidden; 
-}
-
-/* Specific Top Highlight Bars for Summary Cards */
-.attendance-summary-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 5px; 
-}
-/* Container para sa buong row ng filters at button */
-.report-controls-row {
+.report-type-card {
+    padding: 20px;
+    text-align: left; /* Mas maganda left align pag marami */
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: white;
     display: flex;
-    justify-content: space-between; 
+    flex-direction: column;
+    height: 100%; /* Uniform height */
+}
+.report-type-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.report-type-icon {
+    width: 45px; 
+    height: 45px; 
+    border-radius: 10px;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 1.4em; 
+    margin-bottom: 12px; 
+    color: white;
+}
+/* Colors */
+.blue-bg { background-color: #3b82f6; }
+.red-bg { background-color: #dc3545; }
+.purple-bg { background-color: #8b5cf6; }
+
+.report-type-title { 
+    font-size: 1.1em; 
+    font-weight: 700; 
+    margin-bottom: 5px; 
+    color: #333;
+}
+
+.report-type-description { 
+    font-size: 0.85em; 
+    color: #666; 
+    line-height: 1.4;
+}
+
+.active-card {
+    border-color: #A62525 !important; /* FRAMES Red */
+    background-color: #fff9f9;
+    box-shadow: 0 4px 12px rgba(166, 37, 37, 0.15);
+}
+
+.view-reports-button {
+    width: 100%; padding: 10px; background-color: #f5f6fa;
+    border: none; border-radius: 6px; color: #555; font-weight: 600; cursor: pointer;
+}
+.view-reports-button:hover { background-color: #e0e0e0; }
+
+/* AttendanceHistoryPage.css */
+
+.reports-header-section {
+    background-color: white;
+    padding: 20px 25px;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.report-selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.report-selector-group label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.big-select {
+    min-width: 300px;
+    padding: 10px;
+    font-size: 1em;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #333;
+}
+.big-select:focus {
+    border-color: #A62525;
+}
+
+.report-description-box {
+    flex-grow: 1;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #A62525;
+    display: flex;
     align-items: center;
     gap: 15px;
-    flex-wrap: wrap; 
-    margin-bottom: 5px; 
+    color: #555;
 }
 
-/* Group para sa mga dropdowns lang - pinipigilan nito ang pagkakagulo */
-.report-filters {
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    flex-wrap: nowrap; /* Forces selects to stay on one line */
-    flex-grow: 1; 
+.report-description-box i {
+    font-size: 1.5em;
+    color: #A62525;
 }
 
-/* Common style para sa lahat ng dropdown */
-.app-select {
-    appearance: none; 
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding: 8px 30px 8px 15px; 
-    border: 1px solid #dcdcdc; 
-    border-radius: 8px; 
-    background-color: white;
-    font-size: 0.95em;
-    cursor: pointer;
-    outline: none;
-    height: 38px;
-    transition: border-color 0.2s;
-    color: #333;
-    flex-grow: .5; /* Importante: Pigilan ang pagliit */
-   
-    /* Arrow icon */
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%20197.6l-143.2%2090.8c-2.4%201.6-5.4%201.6-7.8%200L5.4%20197.6c-4.4-2.8-5.7-8.6-2.9-13.1l15.1-23.7c2.8-4.4%208.6-5.7%2013.1-2.9L146.2%20227.6c2.4%201.6%205.4%201.6%207.8%200l115.5-70.1c4.4-2.8%2010.3-1.5%2013.1%202.9l15.1%2023.7c2.9%204.4%201.5%2010.3-2.9%2013.1z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px;
+/* Rest of table styles remain same... */
+
+/* Table Section */
+.recent-reports-card { padding: 0; }
+.recent-reports-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 25px; border-bottom: 1px solid #eee;
+}
+.recent-reports-header h2 { margin: 0; font-size: 1.3em; }
+
+.recent-reports-filters { display: flex; gap: 15px; }
+.recent-reports-filters select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+
+.export-all-button {
+    background-color: #dc3545; color: white; border: none; padding: 8px 15px;
+    border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
 
-.app-select:hover { border-color: #a0a0a0; }
-.app-select:focus { border-color: #007bff; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); }
-
-/* Update specific widths */
-.semester-select { width: 130px; min-width: unset; }
-.report-type-select { width: 240px; min-width: unset; }
-.subject-select { width: 180px; min-width: unset; }
-/* Color definitions for the top highlight bars */
-.attendance-summary-card:nth-child(1)::before { background-color: #4CAF50; } 
-.attendance-summary-card:nth-child(2)::before { background-color: #2196F3; } 
-.attendance-summary-card:nth-child(3)::before { background-color: #F44336; } 
-
-.summary-value {
-    font-size: 2.5em;
-    font-weight: 800;
-    margin-bottom: 5px;
-    margin-top: 15px; 
+.reports-table-container { width: 100%; overflow-x: auto; }
+.recent-reports-table { width: 100%; border-collapse: collapse; }
+.recent-reports-table th, .recent-reports-table td {
+    padding: 15px 25px; text-align: left; border-bottom: 1px solid #eee;
 }
+.recent-reports-table th { background-color: #f9f9f9; font-weight: 600; color: #555; }
 
-/* Specific Text Colors */
-.green-text { color: #4CAF50; }
-.blue-text { color: #2196F3; }
-.red-text { color: #F44336; }
-
-.summary-title {
-    font-size: 1em;
-    color: #333;
-    font-weight: 600;
-}
-
-.summary-subtitle {
-    font-size: 0.85em;
-    margin-top: 5px;
-    font-weight: 500;
-}
-
-
-/* --- Course-wise Attendance Section --- */
-.course-attendance-section {
-    padding: 25px; 
-}
-
-.course-attendance-section h3 {
-    margin-top: 0;
-    font-size: 1.2em;
-    font-weight: 600;
-    margin-bottom: 20px;
-    padding-bottom: 15px; 
-    border-bottom: 1px solid #eee;
-}
-
-.course-list {
-    display: flex;
-    flex-direction: column;
-}
-
-.course-attendance-item {
-    /* Grid structure: [Details] [Bar Container] [Percentage] */
-    display: grid;
-    grid-template-columns: 1fr 200px 60px; 
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #eee;
-}
-
-/* NEW: Styles for making the rows clickable and adding a hover effect */
-.clickable-course {
-    transition: background-color 0.15s ease;
-}
-
-.clickable-course:hover {
-    background-color: #f7f7f7; /* Light grey background on hover */
-    cursor: pointer;
-}
-
-.clickable-course:active {
-    background-color: #eee; /* Darker on click down */
-}
-/* END NEW */
-
-.course-attendance-item:last-child {
-    border-bottom: none;
-}
-
-.course-details {
-    display: flex;
-    flex-direction: column;
-}
-
-.course-title {
-    font-weight: 600;
-    font-size: 1.05em;
-    color: #333;
-    margin-bottom: 2px;
-}
-
-.course-meta {
-    font-size: 0.85em;
-    color: #777;
-}
-
-.attendance-bar-container {
-    height: 10px;
-    background-color: #f0f0f0;
-    border-radius: 5px;
-    margin: 0 15px; 
-    overflow: hidden;
-}
-
-.attendance-bar {
-    height: 100%;
-    transition: width 0.5s ease;
-    border-radius: 5px;
-}
-
-.attendance-percentage {
-    font-weight: 700;
-    font-size: 1.1em;
-    text-align: right;
-    width: 60px; 
-    flex-shrink: 0; 
-}
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background-color: white;
-    padding: 30px;
-    border-radius: 8px;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.modal-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-}
-
-.modal-content th, .modal-content td {
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-
-.close-modal-btn {
-    margin-top: 20px;
-    padding: 8px 15px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-/* --- Responsive Adjustments --- */
-@media (max-width: 992px) {
-    .attendance-summary-container {
-        grid-template-columns: 1fr; /* Stack on smaller screens */
-        gap: 20px;
-    }
-}
-
-@media (max-width: 768px) {
-    .attendance-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-    .header-actions {
-        /* This ensures the selects and button stack vertically on small screens */
-        flex-direction: column;
-        width: 100%;
-        gap: 10px;
-    }
-    .semester-select, .report-type-select, .subject-select, .export-button {
-        flex-grow: 1;
-        width: 160px; 
-        min-width: unset;
-        box-sizing: border-box; 
-    }
-    .course-attendance-item {
-        grid-template-columns: 1fr 60px; 
-        gap: 10px;
-        padding: 10px 0;
-    }
-    .attendance-bar-container {
-        display: none; /* Hide bar on small screens */
-    }
-    .report-controls-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-        width: 100%;
-    }
-    
-    .report-filters {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-        flex-wrap: wrap; 
-    }
-
-    .semester-select, 
-    .report-type-select, 
-    .subject-select, 
-    .export-button {
-        width: 100%; 
-        min-width: unset;
-    }
-}
+.log-status-tag { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+.log-status-tag.green { background-color: #e6f7ec; color: #28a745; }
+.log-status-tag.red { background-color: #fde8e8; color: #dc3545; }

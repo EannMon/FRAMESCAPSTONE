@@ -120,4 +120,4 @@ const StudentLayout = () => {
     );
 };
 
-export default StudentLayout;
+export default StudentLayout;   

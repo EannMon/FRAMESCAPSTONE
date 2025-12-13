@@ -29,30 +29,14 @@
 .welcome-info { flex-grow: 1; }
 .welcome-info h3 { margin: 0 0 5px 0; font-size: 1.4em; }
 .welcome-info p { margin: 0; color: #555; }
-.status-tag.yellow {
-    background-color: #fff8e6;
-    color: #ffc107;
+
+.status-tag.green {
+    background-color: #e6f7ec;
+    color: #28a745;
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 0.9em;
     font-weight: 500;
-}
-.complete-registration-button {
-    background-color: #dc3545; /* RED THEME */
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 10px 18px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.95em;
-    transition: background-color 0.2s;
-}
-.complete-registration-button:hover {
-    background-color: #c82333; /* Darker Red */
 }
 
 .student-summary-cards-container {
@@ -79,7 +63,7 @@
 .summary-icon-container.s-attendance-bg { background-color: #a7e0aa; color: #28a745; }
 .summary-icon-container.s-courses-bg { background-color: #d8c7f0; color: #6f42c1; }
 .summary-icon-container.s-access-bg { background-color: #a4cbf4; color: #1a73e8; }
-.summary-icon-container.s-notifications-bg { background-color: #f7a39b; color: #dc3545; } /* RED THEME */
+.summary-icon-container.s-notifications-bg { background-color: #f7a39b; color: #dc3545; }
 
 .student-summary-card .summary-value {
     font-size: 2.2em;
@@ -92,49 +76,112 @@
     color: #777;
 }
 
-/* TodayClasses styles are removed and will go in SchedulePage.css */
+/* =========================================== */
+/* 4. NEW SPLIT ROW LAYOUT (Live Status + History) */
+/* =========================================== */
 
-.student-recent-attendance { grid-column: span 6; }
-.student-notifications { grid-column: span 6; }
-.student-recent-attendance h3, .student-notifications h3 { margin-top: 0; margin-bottom: 20px; }
+.dashboard-split-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Half-Half */
+    gap: 30px;
+}
+
+.live-status-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.live-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.live-header h3 { margin: 0; font-size: 1.2em; color: #333; }
+
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+}
+
+.blink-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% { opacity: 0.5; }
+}
+
+.live-body {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 30px;
+}
+
+.room-display {
+    text-align: center;
+}
+
+.room-icon {
+    font-size: 3em;
+    margin-bottom: 15px;
+    transition: color 0.3s ease;
+}
+
+.room-info h4 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.room-info p {
+    margin: 5px 0 0;
+    color: #777;
+}
+
+/* Update Recent Attendance to take full height */
+.student-recent-attendance {
+    height: 100%;
+}
+
+.student-recent-attendance h3 { margin-top: 0; margin-bottom: 20px; }
 
 .student-attendance-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
 .student-attendance-item:last-child { border-bottom: none; }
 .attendance-day { display: block; font-weight: 500; font-size: 1.05em; }
 .attendance-time { font-size: 0.9em; color: #777; }
-.attendance-percent { font-size: 1.1em; font-weight: 600; padding: 5px 10px; border-radius: 6px; }
-
-.student-notification-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
-.student-notification-item:last-child { border-bottom: none; }
-.alert-type { width: 8px; height: 8px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; }
-.alert-type.red { background-color: #dc3545; }
-.alert-type.yellow { background-color: #ffc107; }
-.alert-type.green { background-color: #28a745; }
-.alert-details { flex-grow: 1; }
-.alert-description { font-size: 0.95em; color: #333; margin-bottom: 3px; }
-.alert-time { font-size: 0.8em; color: #888; }
-
-/* =========================================== */
-/* 4. Other Student View Styles */
-/* =========================================== */
-.profile-container h2, .attendance-container h2, 
-.access-container h2, .notifications-container h2,
-.help-container h2 { margin-top: 0; }
-
+.attendance-percent { font-size: 0.9em; font-weight: 600; padding: 5px 10px; border-radius: 6px; }
 
 /* =========================================== */
 /* 5. Media Queries (Responsiveness) */
 /* =========================================== */
 @media (max-width: 1200px) {
     .student-content-grid { grid-template-columns: 1fr; }
-    .student-recent-attendance, .student-notifications { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+    .dashboard-split-row {
+        grid-template-columns: 1fr; /* Stack on mobile */
+    }
 }
 @media (max-width: 768px) {
     .student-summary-cards-container { grid-template-columns: 1fr 1fr; }
     .welcome-banner { flex-direction: column; align-items: flex-start; gap: 15px; }
-    .complete-registration-button { width: 100%; justify-content: center; padding: 12px; }
 }
 @media (max-width: 480px) {
     .student-summary-cards-container { grid-template-columns: 1fr; }
-    .student-recent-attendance, .student-notifications { grid-column: 1 / -1; }
 }
