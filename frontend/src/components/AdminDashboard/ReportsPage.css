@@ -6,7 +6,10 @@
     display: flex;
     flex-direction: column;
     gap: 30px;
-    padding-left: 30px;
+    /* FIX 1: Gumamit ng mas maliit at pantay na padding para sa maximum width */
+    padding: 20px 25px; 
+    width: 100%; 
+    box-sizing: border-box;
 }
 
 .reports-main-title {
@@ -39,7 +42,7 @@
 .report-type-icon {
     width: 60px;
     height: 60px;
-    border-radius: 12px; /* Rounded square from image */
+    border-radius: 12px; 
     display: flex;
     align-items: center;
     justify-content: center;
@@ -258,7 +261,7 @@
     background-color: #b02a37;
 }
 
-/* --- Table Styles (From ReportsTable.css) --- */
+/* --- Table Styles (Modified for tightness) --- */
 .recent-reports-card {
     padding: 0; 
 }
@@ -312,32 +315,42 @@
 
 .reports-table-container {
     width: 100%;
-    overflow-x: auto;
+    /* FINAL SOLUTION: Enable horizontal scrolling as backup */
+    overflow-x: auto; 
 }
 
 .recent-reports-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 900px;
+    /* Binaba sa 800px min-width. Ang pagpapaiksi ng JSX headers ang magpapakasya rito. */
+    min-width: 800px; 
+    
 }
 
 .recent-reports-table th, .recent-reports-table td {
-    padding: 15px 25px;
+    /* FIX 4: Reduce padding aggressively to save space */
+    padding: 20px 20px; 
     text-align: left;
     border-bottom: 1px solid #eee;
     vertical-align: middle;
-    white-space: nowrap;
+    white-space: nowrap; 
+    font-size: 0.9em; 
 }
 
 .recent-reports-table th {
-    background-color: #fcfcfc;
-    font-size: 0.85em;
-    color: #777;
-    text-transform: uppercase;
-    font-weight: 600;
+    /* Make header text smaller */
+    font-size: 0.8em; 
 }
 
-/* --- Tag Styles (Used in Table) --- */
+/* FIX 5: Ensure action buttons do not wrap and always appear on the right */
+.recent-reports-table .action-buttons-wrapper {
+    display: flex;
+    white-space: nowrap; 
+    min-width: 100px; 
+    flex-shrink: 0; 
+}
+
+/* --- Tag Styles --- */
 .report-tag {
     padding: 4px 10px;
     border-radius: 15px;
@@ -372,6 +385,80 @@
 .action-button:hover {
     color: #dc3545; /* Red hover */
 }
+/* ============================= */
+/* Preview Toolbar (View Report) */
+/* ============================= */
+
+.preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.preview-toolbar-left,
+.preview-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.preview-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+/* Back Button */
+.back-btn {
+    background: #f3f4f6;
+    color: #000000;
+}
+
+.back-btn:hover {
+    background: #e5e7eb;
+}
+
+/* Download PDF Button */
+.download-btn {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.download-btn i {
+    font-size: 15px;
+}
+
+.download-btn:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .preview-toolbar {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .preview-toolbar-left,
+    .preview-toolbar-right {
+        justify-content: center;
+    }
+
+    .preview-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
 
 /* --- Responsive Modal Adjustments --- */
 @media (max-width: 992px) {
@@ -403,5 +490,9 @@
     .recent-reports-filters select, .export-all-button {
         width: 100%;
         box-sizing: border-box;
+    }
+    /* FIX 6: Alisin ang padding sa reports-container sa mobile para mas makahinga */
+    .reports-container {
+        padding: 15px;
     }
 }
