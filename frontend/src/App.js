@@ -33,6 +33,9 @@ import MyProfilePage from './components/ZCommon/MyProfilePage';
 import HelpSupportPage from './components/ZCommon/HelpSupportPage';
 import SettingsPage from './components/ZCommon/SettingsPage';
 import NotificationsPage from './components/ZCommon/NotificationsPage';
+// ... existing imports ...
+
+import DeptHeadReportsPage from './components/FacultyDashboard/DeptHeadReportsPage'; // <--- ADD THIS LINE
 
 function App() {
   return (
@@ -60,6 +63,9 @@ function App() {
             <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
             <Route path="/faculty-reports" element={<FacultyReportsPage />} />
             <Route path="/faculty-dept-management" element={<DeptHeadManagePage />} />
+            
+            {/* ADD THIS LINE BELOW: */}
+            <Route path="/faculty-dept-reports" element={<DeptHeadReportsPage />} />
             
           </Route>
           

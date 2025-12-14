@@ -128,3 +128,14 @@
         padding: 20px;
     }
 }
+
+/* Special Style for Dept Head Links */
+.nav-item.dept-head-link {
+    border-left: 4px solid #A62525;
+    background-color: #fff5f5; /* Light Red BG */
+    margin-top: 5px;
+}
+
+.nav-item.dept-head-link i {
+    color: #A62525;
+}
