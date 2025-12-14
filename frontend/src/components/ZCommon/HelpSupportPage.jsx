@@ -1,24 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './HelpSupportPage.css'; // New CSS file
+import './HelpSupportPage.css'; 
 import Header from '../ZCommon/Header';
-import Footer from './Footer'; // Import the universal footer
+import Footer from './Footer'; 
 
-// --- Mock theme and user for standalone pages ---
-// (In a real app, this would come from a global context)
+// --- Theme Definition ---
 const redTheme = {
-    primary: '#A62525', // Primary Red
+    primary: '#A62525', 
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
-
-const mockUser = {
-    name: 'User',
-    avatar: 'https://placehold.co/100x100/f8d7da/dc3545?text=U', // Placeholder avatar
-    notifications: 0 
-};
-// -------------------------------------------------
 
 // --- FAQ Data ---
 const faqData = [
@@ -62,19 +54,28 @@ const FaqItem = ({ item, isOpen, onClick }) => {
 // --- Main Help & Support Page Component ---
 const HelpSupportPage = () => {
     const navigate = useNavigate();
-    const [openFaq, setOpenFaq] = useState(null); // State to manage which accordion item is open
+    const [openFaq, setOpenFaq] = useState(null); 
+
+    // --- FIX: GET REAL USER FROM STORAGE ---
+    // This ensures the Header shows the logged-in user's Name & Red Avatar
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    });
 
     const handleBack = () => {
-        navigate(-1); // Go back to the previous page
+        navigate(-1); 
     };
 
     const handleFaqClick = (index) => {
-        setOpenFaq(openFaq === index ? null : index); // Toggle open/closed
+        setOpenFaq(openFaq === index ? null : index); 
     };
 
     return (
         <>
-            <Header theme={redTheme} user={mockUser} />
+            {/* Pass the real user here. If null (not logged in), Header shows Login buttons. */}
+            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            
             <div className="help-page-container">
                 <div className="help-header-bar">
                     <button onClick={handleBack} className="help-back-button">
@@ -97,7 +98,7 @@ const HelpSupportPage = () => {
                             <i className="fas fa-book-open"></i>
                         </div>
                         <h3>User Guide</h3>
-                        <p>Stop-by-step tutorials and guides</p>
+                        <p>Step-by-step tutorials and guides</p>
                     </div>
                 </div>
 

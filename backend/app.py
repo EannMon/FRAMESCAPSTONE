@@ -5,21 +5,6 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-# --- Ngayon pa lang i-import ang iba ---
-import cv2
-import mysql.connector
-import numpy as np
-import base64
-import pickle
-import json
-import bcrypt
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from db_config import DB_CONFIG
-from deepface import DeepFace  # DeepFace must be imported AFTER setting os.environ
-
-# ... (rest of your code) ...
-
 import cv2
 import mysql.connector
 import numpy as np
@@ -32,6 +17,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db_config import DB_CONFIG
 from deepface import DeepFace
+from datetime import datetime
 
 # --- 1. SETUP MODELS ---
 MODEL_NAME = "SFace"
@@ -572,6 +558,467 @@ def get_attendance_history(user_id):
         logs = cursor.fetchall()
         return jsonify(logs)
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==========================================
+# API: FACULTY DASHBOARD STATS
+# ==========================================
+@app.route('/api/faculty/dashboard-stats/<int:user_id>', methods=['GET'])
+def get_faculty_dashboard_stats(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Today's Classes Count
+        today_name = datetime.now().strftime('%A')
+        cursor.execute("""
+            SELECT COUNT(*) as count 
+            FROM ClassSchedule 
+            WHERE faculty_id = %s AND day_of_week = %s
+        """, (user_id, today_name))
+        today_classes = cursor.fetchone()['count']
+
+        # 2. Total Students Handled
+        # (Count distinct students in sections handled by this faculty)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT u.user_id) as count
+            FROM User u
+            JOIN ClassSchedule cs ON u.section = cs.section
+            WHERE cs.faculty_id = %s AND u.role = 'student'
+        """, (user_id,))
+        total_students = cursor.fetchone()['count']
+
+        # 3. Overall Attendance Rate (Last 30 Days)
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_logs,
+                (SELECT COUNT(*) * 4 FROM ClassSchedule WHERE faculty_id = %s) as expected_logs
+            FROM EventLog e
+            JOIN ClassSchedule cs ON e.schedule_id = cs.schedule_id
+            WHERE cs.faculty_id = %s 
+            AND e.event_type = 'attendance_in'
+            AND e.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        """, (user_id, user_id))
+        att_data = cursor.fetchone()
+        
+        att_rate = 0
+        if att_data['expected_logs'] and att_data['expected_logs'] > 0:
+            att_rate = round((att_data['total_logs'] / att_data['expected_logs']) * 100)
+
+        # 4. Recent Attendance Logs (Last 5)
+        cursor.execute("""
+            SELECT 
+                s.subject_code, 
+                s.subject_description, 
+                DATE_FORMAT(e.timestamp, '%h:%i %p') as time,
+                e.confidence_score as rate -- Using confidence as a proxy for 'rate' visually for now
+            FROM EventLog e
+            JOIN ClassSchedule cs ON e.schedule_id = cs.schedule_id
+            JOIN Subjects s ON cs.course_code = s.subject_code
+            WHERE cs.faculty_id = %s AND e.event_type = 'attendance_in'
+            ORDER BY e.timestamp DESC LIMIT 5
+        """, (user_id,))
+        recent_logs = cursor.fetchall()
+
+        return jsonify({
+            "today_classes": today_classes,
+            "total_students": total_students,
+            "attendance_rate": att_rate,
+            "recent_attendance": recent_logs,
+            "alerts": 0 # Placeholder for now
+        })
+
+    except Exception as e:
+        print(f"Dashboard Stats Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==========================================
+# API: FACULTY ATTENDANCE MODULE
+# ==========================================
+
+# 1. Get Faculty Schedule & Stats (FIXED)
+@app.route('/api/faculty/schedule/<int:user_id>', methods=['GET'])
+def get_faculty_schedule(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        today_name = datetime.now().strftime('%A')
+        
+        # SQL Query: Removed the commented-out line causing the 500 Error
+        sql = """
+            SELECT 
+                cs.schedule_id, 
+                cs.course_code, 
+                s.subject_description as title,
+                cs.section,
+                cs.start_time, 
+                cs.end_time, 
+                cs.day_of_week,
+                cm.room_name
+            FROM ClassSchedule cs
+            JOIN Subjects s ON cs.course_code = s.subject_code
+            LEFT JOIN CameraManagement cm ON cs.camera_id = cm.camera_id
+            WHERE cs.faculty_id = %s
+        """
+        
+        cursor.execute(sql, (user_id,))
+        classes = cursor.fetchall()
+
+        # Calculate Stats for each class
+        for cls in classes:
+            # 1. Total Students in this Section
+            cursor.execute("SELECT COUNT(*) as count FROM User WHERE section = %s AND role = 'student'", (cls['section'],))
+            total_res = cursor.fetchone()
+            total_students = total_res['count'] if total_res else 0
+            
+            # 2. Present Students Today (Linked by schedule_id)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT user_id) as count 
+                FROM EventLog 
+                WHERE schedule_id = %s 
+                AND DATE(timestamp) = CURDATE() 
+                AND event_type = 'attendance_in'
+            """, (cls['schedule_id'],))
+            present_res = cursor.fetchone()
+            present_count = present_res['count'] if present_res else 0
+
+            # 3. Calculate Rate
+            rate = 0
+            if total_students > 0:
+                rate = round((present_count / total_students) * 100)
+            
+            cls['rate'] = rate
+            cls['total_students'] = total_students
+            cls['present_count'] = present_count
+
+            # 4. Determine Status
+            cls['status'] = 'upcoming' 
+            if cls['day_of_week'] == today_name:
+                if present_count > 0: cls['status'] = 'ongoing'
+                if present_count == total_students and total_students > 0: cls['status'] = 'completed'
+
+        return jsonify(classes)
+
+    except Exception as e:
+        print(f"Sched Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 2. Get Specific Class Attendance List
+@app.route('/api/faculty/class-details/<int:schedule_id>', methods=['GET'])
+def get_class_details(schedule_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Get Section Name first
+        cursor.execute("SELECT section FROM ClassSchedule WHERE schedule_id = %s", (schedule_id,))
+        sched_data = cursor.fetchone()
+        if not sched_data: return jsonify([])
+        section = sched_data['section']
+
+        # 2. Get All Students in Section
+        sql_students = """
+            SELECT user_id, tupm_id, firstName, lastName, 'Absent' as status, '--:--' as timeIn
+            FROM User 
+            WHERE section = %s AND role = 'student'
+            ORDER BY lastName
+        """
+        cursor.execute(sql_students, (section,))
+        students = cursor.fetchall()
+
+        # 3. Check Attendance for Today
+        sql_logs = """
+            SELECT user_id, DATE_FORMAT(timestamp, '%h:%i %p') as time_in, remarks 
+            FROM EventLog 
+            WHERE schedule_id = %s AND DATE(timestamp) = CURDATE() AND event_type = 'attendance_in'
+        """
+        cursor.execute(sql_logs, (schedule_id,))
+        logs = cursor.fetchall()
+
+        # Map logs to students
+        log_map = {log['user_id']: log for log in logs}
+
+        for student in students:
+            uid = student['user_id']
+            if uid in log_map:
+                student['status'] = 'Present'
+                student['timeIn'] = log_map[uid]['time_in']
+                student['remarks'] = log_map[uid]['remarks'] or 'On Time'
+            else:
+                student['remarks'] = 'No Record'
+
+        return jsonify(students)
+
+    except Exception as e:
+        print(f"Details Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# ==========================================
+# API: DEPARTMENT HEAD REPORTS
+# ==========================================
+
+# 1. Faculty Performance Summary
+@app.route('/reports/faculty-summary', methods=['GET'])
+def get_faculty_summary_report():
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Connection Failed"}), 500
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Complex Query: Get Faculty Name, Count their Classes, Count their Lates/Absences
+        sql = """
+            SELECT 
+                u.user_id,
+                CONCAT(u.firstName, ' ', u.lastName) as name,
+                COUNT(DISTINCT cs.course_code) as subject_load,
+                
+                -- Calculate Attendance % (Present / Total Scheduled Sessions)
+                -- Note: This is a simplified calculation for now
+                ROUND(
+                    (SELECT COUNT(*) FROM EventLog e 
+                     WHERE e.user_id = u.user_id 
+                     AND e.event_type = 'attendance_in'
+                     AND e.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    ) * 100.0 / 
+                    GREATEST(1, (SELECT COUNT(*) * 4 FROM ClassSchedule s WHERE s.faculty_id = u.user_id)) 
+                , 1) as attendance_rate,
+
+                -- Count Lates (Assuming 'remarks' column stores 'Late')
+                (SELECT COUNT(*) FROM EventLog e 
+                 WHERE e.user_id = u.user_id 
+                 AND e.event_type = 'attendance_in' 
+                 AND e.remarks LIKE '%Late%') as lates
+
+            FROM User u
+            LEFT JOIN ClassSchedule cs ON u.user_id = cs.faculty_id
+            WHERE u.role = 'faculty'
+            GROUP BY u.user_id
+        """
+        cursor.execute(sql)
+        report = cursor.fetchall()
+        
+        # Add interpretation (Remarks) based on data
+        for row in report:
+            rate = float(row['attendance_rate'] or 0)
+            if rate >= 95: row['remarks'] = 'Excellent'
+            elif rate >= 85: row['remarks'] = 'Good'
+            else: row['remarks'] = 'Needs Review'
+            
+            row['attendance_rate'] = f"{rate}%"
+
+        return jsonify(report), 200
+    except Exception as e:
+        print(f"Report Error: {e}")
+        return jsonify([]), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 2. Room Utilization Report
+@app.route('/reports/room-occupancy', methods=['GET'])
+def get_room_occupancy_report():
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "DB Connection Failed"}), 500
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Query: Get Room Info + Calculated Usage
+        sql = """
+            SELECT 
+                cm.camera_id,
+                cm.room_name,
+                cm.capacity,
+                
+                -- Mock Peak Hour logic (Real logic requires massive historical processing)
+                '10:00 AM' as peak_hour, 
+
+                -- Calculate Utilization (Active Logs / Capacity)
+                -- (For now, we count distinct people seen in the last hour)
+                ROUND(
+                    (SELECT COUNT(DISTINCT user_id) FROM EventLog e 
+                     WHERE e.camera_id = cm.camera_id 
+                     AND e.timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                    ) * 100.0 / NULLIF(cm.capacity, 0)
+                , 1) as utilization
+
+            FROM CameraManagement cm
+        """
+        cursor.execute(sql)
+        report = cursor.fetchall()
+
+        # Add Status Logic
+        for row in report:
+            util = float(row['utilization'] or 0)
+            if util > 100: row['status'] = 'Overcrowded'
+            elif util < 30: row['status'] = 'Underutilized'
+            else: row['status'] = 'Normal'
+            
+            row['utilization'] = f"{util}%"
+
+        return jsonify(report), 200
+    except Exception as e:
+        print(f"Report Error: {e}")
+        return jsonify([]), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# ==========================================
+# API: DEPT HEAD MANAGEMENT (Curriculum & Schedule)
+# ==========================================
+
+# 1. GET ALL MANAGEMENT DATA (Subjects + Schedule + Faculty + Rooms)
+@app.route('/api/dept/management-data', methods=['GET'])
+def get_management_data():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # A. Fetch All Subjects & their Schedules
+        sql_courses = """
+            SELECT 
+                s.subject_id,
+                s.subject_code,
+                s.subject_description as name,
+                s.units,
+                cs.schedule_id,
+                cs.section,
+                cs.day_of_week,
+                cs.start_time,
+                cs.end_time,
+                cm.room_name,
+                CONCAT(u.firstName, ' ', u.lastName) as assigned_faculty,
+                u.user_id as faculty_id
+            FROM Subjects s
+            LEFT JOIN ClassSchedule cs ON s.subject_code = cs.course_code
+            LEFT JOIN User u ON cs.faculty_id = u.user_id
+            LEFT JOIN CameraManagement cm ON cs.camera_id = cm.camera_id
+            ORDER BY s.created_at DESC
+        """
+        cursor.execute(sql_courses)
+        courses = cursor.fetchall()
+
+        # Format Schedule String for UI
+        for c in courses:
+            if c['day_of_week'] and c['start_time']:
+                c['schedule'] = f"{c['day_of_week']} {c['start_time']} - {c['end_time']}"
+            else:
+                c['schedule'] = None
+
+        # B. Fetch Active Faculty List
+        cursor.execute("SELECT user_id, CONCAT(firstName, ' ', lastName) as name FROM User WHERE role = 'faculty'")
+        faculty = cursor.fetchall()
+
+        # C. Fetch Available Rooms
+        cursor.execute("SELECT camera_id, room_name FROM CameraManagement")
+        rooms = cursor.fetchall()
+
+        return jsonify({
+            "courses": courses,
+            "faculty": faculty,
+            "rooms": rooms
+        })
+
+    except Exception as e:
+        print(f"Mgmt Data Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 2. CREATE NEW SUBJECT
+@app.route('/api/dept/create-subject', methods=['POST'])
+def create_subject():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        sql = """
+            INSERT INTO Subjects (subject_code, subject_description, units)
+            VALUES (%s, %s, %s)
+        """
+        cursor.execute(sql, (data['code'], data['name'], data['units']))
+        conn.commit()
+        return jsonify({"message": "Subject created successfully"}), 201
+    except mysql.connector.Error as err:
+        if err.errno == 1062:
+            return jsonify({"error": "Subject Code already exists"}), 409
+        return jsonify({"error": str(err)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 3. ASSIGN FACULTY (Creates a Schedule Entry)
+@app.route('/api/dept/assign-faculty', methods=['POST'])
+def assign_faculty():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Check if schedule exists for this subject
+        if data.get('schedule_id'):
+            # Update existing
+            sql = "UPDATE ClassSchedule SET faculty_id = %s WHERE schedule_id = %s"
+            cursor.execute(sql, (data['faculty_id'], data['schedule_id']))
+        else:
+            # Create new schedule entry for this subject
+            sql = "INSERT INTO ClassSchedule (course_code, faculty_id, section) VALUES (%s, %s, 'Section 1')"
+            cursor.execute(sql, (data['subject_code'], data['faculty_id']))
+            
+        conn.commit()
+        return jsonify({"message": "Faculty assigned"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 4. ASSIGN ROOM & SCHEDULE
+@app.route('/api/dept/assign-room', methods=['POST'])
+def assign_room():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Get Camera ID from Room Name
+        cursor.execute("SELECT camera_id FROM CameraManagement WHERE room_name = %s", (data['room_name'],))
+        room = cursor.fetchone()
+        if not room: return jsonify({"error": "Room not found"}), 404
+        camera_id = room[0]
+
+        if data.get('schedule_id'):
+            # Update existing
+            sql = """
+                UPDATE ClassSchedule 
+                SET camera_id = %s, day_of_week = %s, start_time = %s, end_time = %s 
+                WHERE schedule_id = %s
+            """
+            vals = (camera_id, data['day'], data['start_time'], data['end_time'], data['schedule_id'])
+            cursor.execute(sql, vals)
+        else:
+            # Create new
+            sql = """
+                INSERT INTO ClassSchedule (course_code, camera_id, day_of_week, start_time, end_time, section) 
+                VALUES (%s, %s, %s, %s, %s, 'Section 1')
+            """
+            vals = (data['subject_code'], camera_id, data['day'], data['start_time'], data['end_time'])
+            cursor.execute(sql, vals)
+
+        conn.commit()
+        return jsonify({"message": "Room assigned"}), 200
+    except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()

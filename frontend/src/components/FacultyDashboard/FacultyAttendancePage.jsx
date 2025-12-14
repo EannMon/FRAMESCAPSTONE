@@ -1,187 +1,207 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios'; // Import Axios
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './FacultyAttendancePage.css';
-
-// --- MOCK DATA: STUDENTS (Shared Data) ---
-const mockStudentsData = [
-    { id: "2021-001", name: "Terana, Angelica L.", timeIn: "08:55 AM", status: "Present", remarks: "On Time" },
-    { id: "2021-002", name: "Llana, Elena J.", timeIn: "09:00 AM", status: "Present", remarks: "On Time" },
-    { id: "2021-003", name: "Calingal, Karl Rico C.", timeIn: "09:15 AM", status: "Late", remarks: "15m Late" },
-    { id: "2021-004", name: "Lungay, Emmanuel M.", timeIn: "08:45 AM", status: "Present", remarks: "Early" },
-    { id: "2021-005", name: "Dela Cruz, Juan P.", timeIn: "--:--", status: "Absent", remarks: "No Excuse" },
-    { id: "2021-006", name: "Santos, Maria C.", timeIn: "09:05 AM", status: "Late", remarks: "Traffic" },
-];
 
 const FacultyAttendancePage = () => {
     // --- STATES ---
     const [viewMode, setViewMode] = useState('main'); // 'main' or 'details'
     const [selectedClass, setSelectedClass] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [loading, setLoading] = useState(true);
 
-    // --- MOCK DATA: CLASSES ---
-    const todayClasses = [
-        { id: 1, title: "Computer Science 101", code: "CS101", time: "09:00 - 10:30", room: "Room A-205", rate: 95, status: "completed" },
-        { id: 2, title: "Data Structures", code: "CS201", time: "11:00 - 12:30", room: "Room B-301", rate: 90, status: "completed" },
-        { id: 3, title: "Algorithms", code: "CS301", time: "02:00 - 03:30", room: "Room A-205", rate: 88, status: "ongoing" },
-        { id: 4, title: "Software Engineering", code: "CS401", time: "04:00 - 05:30", room: "Lab C-102", rate: 92, status: "upcoming" },
-    ];
+    // --- DATA STATES ---
+    const [myClasses, setMyClasses] = useState([]);
+    const [studentList, setStudentList] = useState([]);
+    const [user, setUser] = useState(null);
 
-    const historyData = [
-        { date: "Today", class: "Computer Science 101", time: "09:00 AM", present: 30, absent: 2, rate: 94 },
-        { date: "Today", class: "Data Structures", time: "11:00 AM", present: 26, absent: 2, rate: 93 },
-        { date: "Nov 13", class: "Algorithms", time: "02:00 PM", present: 22, absent: 3, rate: 88 },
-    ];
+    // --- 1. INITIAL LOAD ---
+    useEffect(() => {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            fetchSchedule(parsedUser.user_id || parsedUser.id);
+        }
+    }, []);
 
-    // --- HANDLERS ---
-
-    // 1. Open Class Details (Student List)
-    const handleViewDetails = (cls) => {
-        setSelectedClass(cls);
-        setViewMode('details');
+    // --- 2. FETCH SCHEDULE (API) ---
+    const fetchSchedule = async (userId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            setMyClasses(response.data);
+            setLoading(false);
+        } catch (error) {
+            console.error("Error loading schedule:", error);
+            setLoading(false);
+        }
     };
 
-    // 2. Back to Dashboard
+    // --- 3. FETCH CLASS DETAILS (API) ---
+    const handleViewDetails = async (cls) => {
+        setSelectedClass(cls);
+        setLoading(true);
+        try {
+            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.schedule_id}`);
+            setStudentList(response.data);
+            setViewMode('details');
+        } catch (error) {
+            console.error("Error loading students:", error);
+            alert("Could not load student list.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- HANDLERS ---
     const handleBack = () => {
         setViewMode('main');
         setSelectedClass(null);
+        setStudentList([]);
     };
 
-    // 3. Export Single Class Report
+    // Export Single Class Report
     const handleClassExport = () => {
         const doc = new jsPDF();
         doc.setFontSize(16);
         doc.text("CLASS ATTENDANCE REPORT", 14, 20);
         
         doc.setFontSize(11);
-        doc.text(`Subject: ${selectedClass.title} (${selectedClass.code})`, 14, 30);
-        doc.text(`Time: ${selectedClass.time}`, 14, 36);
-        doc.text(`Room: ${selectedClass.room}`, 14, 42);
+        doc.text(`Subject: ${selectedClass.title} (${selectedClass.course_code})`, 14, 30);
+        doc.text(`Section: ${selectedClass.section}`, 14, 36);
+        doc.text(`Time: ${selectedClass.start_time} - ${selectedClass.end_time}`, 14, 42);
         doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 48);
 
-        const tableRows = mockStudentsData.map(s => [s.name, s.id, s.timeIn, s.status, s.remarks]);
+        const tableRows = studentList.map(s => [
+            `${s.lastName}, ${s.firstName}`, 
+            s.tupm_id, 
+            s.timeIn, 
+            s.status, 
+            s.remarks
+        ]);
         
         autoTable(doc, {
             head: [["Student Name", "ID", "Time In", "Status", "Remarks"]],
             body: tableRows,
             startY: 55,
             theme: 'grid',
-            headStyles: { fillColor: [166, 37, 37] } // Red
+            headStyles: { fillColor: [166, 37, 37] } 
         });
 
-        doc.save(`${selectedClass.code}_Report.pdf`);
+        doc.save(`${selectedClass.course_code}_${selectedClass.section}_Report.pdf`);
     };
 
-    // 4. Global Export (All Subjects)
+    // Global Export (All Subjects)
     const handleGlobalExport = () => {
         const doc = new jsPDF();
         doc.text("OVERALL ATTENDANCE SUMMARY", 14, 20);
-        const tableRows = todayClasses.map(cls => [cls.title, cls.code, cls.room, `${cls.rate}%`, cls.status.toUpperCase()]);
-        autoTable(doc, { head: [["Subject", "Code", "Room", "Avg Rate", "Status"]], body: tableRows, startY: 30, headStyles: { fillColor: [166, 37, 37] } });
+        const tableRows = myClasses.map(cls => [
+            cls.title, 
+            cls.course_code, 
+            cls.room_name || "TBA", 
+            `${cls.rate}%`, 
+            cls.status.toUpperCase()
+        ]);
+        autoTable(doc, { 
+            head: [["Subject", "Code", "Room", "Attendance %", "Status"]], 
+            body: tableRows, 
+            startY: 30, 
+            headStyles: { fillColor: [166, 37, 37] } 
+        });
         doc.save("Global_Attendance_Report.pdf");
     };
 
-    // 5. Master List Export
-    const handleDownloadMasterList = () => {
-        const doc = new jsPDF();
-        doc.text("MASTER STUDENT LIST", 14, 20);
-        // Mock content
-        doc.text("List of all enrolled students...", 14, 30);
-        doc.save("Master_List.pdf");
-    };
-
-    // --- HELPER: Status Badge ---
+    // Helper: Status Badge
     const renderStatusBadge = (status) => {
         if (status === 'completed') return <span className="status-badge-row green"><i className="fas fa-check-circle"></i> Completed</span>;
-        if (status === 'ongoing') return <span className="status-badge-row blue"><i className="fas fa-sync-alt"></i> Ongoing</span>; // Removed fa-spin
+        if (status === 'ongoing') return <span className="status-badge-row blue"><i className="fas fa-sync-alt"></i> Ongoing</span>;
         return <span className="status-badge-row grey"><i className="fas fa-clock"></i> Upcoming</span>;
     };
 
     // --- VIEW 1: MAIN DASHBOARD ---
     const renderMainView = () => (
         <div className="fade-in">
-            {/* Header Actions Only (No Title) */}
             <div className="attendance-header-actions">
                 <button className="schedule-button view-button" onClick={handleGlobalExport}>
                     <i className="fas fa-file-pdf"></i> Export Full Report
                 </button>
-                <button className="schedule-button monitor-button" onClick={handleDownloadMasterList}>
-                    <i className="fas fa-file-download"></i> Download Master List
-                </button>
             </div>
 
-            {/* Statistics */}
+            {/* Statistics based on Real Data */}
             <div className="attendance-stats-grid">
-                <div className="attendance-stat-card"><div className="stat-label">Today</div><div className="stat-value green">94%</div><div className="stat-sub">Average Rate</div></div>
-                <div className="attendance-stat-card"><div className="stat-label">Classes</div><div className="stat-value">4</div><div className="stat-sub">Scheduled Today</div></div>
-                <div className="attendance-stat-card"><div className="stat-label">Absent</div><div className="stat-value red">12</div><div className="stat-sub">Students Today</div></div>
-                <div className="attendance-stat-card"><div className="stat-label">Alerts</div><div className="stat-value orange">8</div><div className="stat-sub">Low Attendance</div></div>
+                <div className="attendance-stat-card">
+                    <div className="stat-label">Total Classes</div>
+                    <div className="stat-value">{myClasses.length}</div>
+                    <div className="stat-sub">Assigned Subjects</div>
+                </div>
+                <div className="attendance-stat-card">
+                    <div className="stat-label">Avg Attendance</div>
+                    <div className="stat-value green">
+                        {myClasses.length > 0 
+                            ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length) 
+                            : 0}%
+                    </div>
+                    <div className="stat-sub">Across all sections</div>
+                </div>
             </div>
 
             {/* Today's Classes */}
             <div className="card">
-                <h3>Today's Classes</h3>
+                <h3>My Class Schedule {loading && "(Loading...)"}</h3>
                 <div className="today-classes-list">
-                    {todayClasses.map((cls) => (
-                        <div key={cls.id} className={`today-class-item ${cls.status}`}>
-                            <div className="class-info">
-                                <h4>{cls.title} <span className="code-tag">{cls.code}</span></h4>
-                                <p>{cls.time} • {cls.room}</p>
-                                {renderStatusBadge(cls.status)}
-                            </div>
-                            
-                            <div className="attendance-visuals">
-                                <div className="class-attendance-rate">{cls.rate}%</div>
-                                <div className="attendance-progress">
-                                    <div className="progress-bar" style={{width: `${cls.rate}%`}}></div>
+                    {myClasses.length > 0 ? (
+                        myClasses.map((cls) => (
+                            <div key={cls.schedule_id} className={`today-class-item ${cls.status}`}>
+                                <div className="class-info">
+                                    <h4>{cls.title} <span className="code-tag">{cls.course_code}</span></h4>
+                                    <p>
+                                        <span style={{fontWeight:'bold', color:'#555'}}>{cls.section}</span> • 
+                                        {cls.day_of_week} {cls.start_time} • {cls.room_name}
+                                    </p>
+                                    {renderStatusBadge(cls.status)}
+                                </div>
+                                
+                                <div className="attendance-visuals">
+                                    <div className="class-attendance-rate">{cls.rate}%</div>
+                                    <div className="attendance-progress">
+                                        <div className="progress-bar" style={{width: `${cls.rate}%`}}></div>
+                                    </div>
+                                    <div style={{fontSize:'0.8em', color:'#888', marginTop:'5px'}}>
+                                        {cls.present_count} / {cls.total_students} Present
+                                    </div>
+                                </div>
+
+                                <div className="class-actions">
+                                    <button className="action-btn view" onClick={() => handleViewDetails(cls)}>
+                                        <i className="fas fa-users"></i> View Students
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="class-actions">
-                                <button className="action-btn view" onClick={() => handleViewDetails(cls)}>
-                                    <i className="fas fa-users"></i> View Students
-                                </button>
-                            </div>
+                        ))
+                    ) : (
+                        <div style={{padding:'20px', textAlign:'center', color:'#888'}}>
+                            No classes assigned yet. Contact the Dept Head.
                         </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Recent History Table */}
-            <div className="card mt-4">
-                <h3>Recent History</h3>
-                <div className="attendance-table-wrapper">
-                    <table className="attendance-table">
-                        <thead><tr><th>Date</th><th>Class</th><th>Time</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead>
-                        <tbody>
-                            {historyData.map((row, index) => (
-                                <tr key={index}>
-                                    <td>{row.date}</td><td>{row.class}</td><td>{row.time}</td><td>{row.present}</td><td>{row.absent}</td>
-                                    <td><span className={`rate-badge ${row.rate >= 90 ? 'green' : 'orange'}`}>{row.rate}%</span></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    )}
                 </div>
             </div>
         </div>
     );
 
-    // --- VIEW 2: STUDENT LIST DETAILS (Similar to My Classes) ---
+    // --- VIEW 2: STUDENT LIST DETAILS ---
     const renderDetailsView = () => (
         <div className="details-view-container fade-in">
-            {/* Back & Header */}
             <div className="details-header">
                 <button className="back-link-btn" onClick={handleBack}>
                     <i className="fas fa-arrow-left"></i> Back to Dashboard
                 </button>
                 <div className="class-details-title">
-                    <h2>{selectedClass.title} <span className="highlight-code">({selectedClass.code})</span></h2>
-                    <p>{selectedClass.time} • {selectedClass.room}</p>
+                    <h2>{selectedClass.title} <span className="highlight-code">({selectedClass.course_code})</span></h2>
+                    <p>{selectedClass.section} • {selectedClass.room_name}</p>
                 </div>
             </div>
 
-            {/* Controls */}
             <div className="details-controls">
                 <input 
                     type="text" 
@@ -195,7 +215,6 @@ const FacultyAttendancePage = () => {
                 </button>
             </div>
 
-            {/* Student Table */}
             <div className="details-table-wrapper">
                 <table className="styled-table">
                     <thead>
@@ -208,24 +227,34 @@ const FacultyAttendancePage = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {mockStudentsData.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase())).map((student) => (
-                            <tr key={student.id}>
-                                <td className="font-bold">{student.name}</td>
-                                <td className="text-muted">{student.id}</td>
+                        {studentList
+                            .filter(s => 
+                                s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                s.firstName.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                            .map((student) => (
+                            <tr key={student.user_id}>
+                                <td className="font-bold">{student.lastName}, {student.firstName}</td>
+                                <td className="text-muted">{student.tupm_id}</td>
                                 <td>{student.timeIn}</td>
                                 <td>
-                                    <span className={`status-badge ${student.status === 'Present' ? 'green' : student.status === 'Late' ? 'orange' : 'red'}`}>
+                                    <span className={`status-badge ${student.status === 'Present' ? 'green' : 'red'}`}>
                                         {student.status}
                                     </span>
                                 </td>
                                 <td>{student.remarks}</td>
                             </tr>
                         ))}
+                        {studentList.length === 0 && (
+                            <tr><td colSpan="5" style={{textAlign:'center', padding:'20px'}}>No students enrolled in this section.</td></tr>
+                        )}
                     </tbody>
                 </table>
             </div>
         </div>
     );
+
+    if (!user) return <div className="loading">Please log in.</div>;
 
     return (
         <div className="attendance-management">

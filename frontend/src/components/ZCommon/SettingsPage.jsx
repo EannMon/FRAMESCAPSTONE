@@ -1,21 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import './SettingsPage.css'; // New CSS file for this page
+import './SettingsPage.css'; 
 import '../ZCommon/Utility.css';
 import Header from '../ZCommon/Header';
-import Footer from './Footer'; // <-- 1. IMPORT FOOTER
+import Footer from './Footer'; 
 
-// --- Mock Theme & User for Header ---
+// --- Theme Definition ---
 const redTheme = {
     primary: '#A62525',
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
-};
-const mockUser = {
-    name: 'Admin User',
-    avatar: 'https://placehold.co/100x100/f8d7da/dc3545?text=A',
-    notifications: 3
 };
 
 // ===========================================
@@ -36,13 +31,34 @@ const ToggleSwitch = ({ label, isToggled, onToggle }) => (
 // ===========================================
 const SettingsPage = () => {
     const navigate = useNavigate();
+
+    // --- FIX: GET REAL USER FROM STORAGE ---
+    // This connects the Settings Page to the real logged-in user
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    });
+
+    // Toggle States (Visual only for now)
+    const [notifications, setNotifications] = useState({
+        email: true,
+        sms: false,
+        push: true
+    });
+
     const handleGoBack = () => {
-        navigate(-1); // Go back one step in history
+        navigate(-1); 
+    };
+
+    const handleToggle = (type) => {
+        setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
     };
 
     return (
         <>
-            <Header theme={redTheme} user={mockUser} />
+            {/* Pass the real user here so the Header avatar is correct */}
+            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            
             <div className="settings-page-container">
                 {/* Top Header Bar */}
                 <div className="settings-header-bar">
@@ -56,15 +72,21 @@ const SettingsPage = () => {
 
                 {/* Settings Grid */}
                 <div className="settings-grid">
+                    
                     {/* Account Settings Card */}
                     <div className="card settings-card">
                         <h3>Account</h3>
                         <p>Manage your account and security settings.</p>
+                        
+                        {/* Link to Profile for editing details */}
                         <Link to="/profile" className="settings-link-button">
                             <span>Go to My Profile</span>
                             <i className="fas fa-arrow-right"></i>
                         </Link>
-                        <button className="settings-action-button">
+
+                        {/* Since we implemented the password modal in MyProfilePage, 
+                            we can redirect there or simply use a button that implies functionality */}
+                        <button className="settings-action-button" onClick={() => navigate('/profile')}>
                             <i className="fas fa-key"></i> Change Password
                         </button>
                         <button className="settings-action-button">
@@ -76,9 +98,21 @@ const SettingsPage = () => {
                     <div className="card settings-card">
                         <h3>Notifications</h3>
                         <p>Control how you receive notifications.</p>
-                        <ToggleSwitch label="Email Notifications" isToggled={true} />
-                        <ToggleSwitch label="SMS Notifications" isToggled={false} />
-                        <ToggleSwitch label="Push Notifications" isToggled={true} />
+                        <ToggleSwitch 
+                            label="Email Notifications" 
+                            isToggled={notifications.email} 
+                            onToggle={() => handleToggle('email')} 
+                        />
+                        <ToggleSwitch 
+                            label="SMS Notifications" 
+                            isToggled={notifications.sms} 
+                            onToggle={() => handleToggle('sms')} 
+                        />
+                        <ToggleSwitch 
+                            label="Push Notifications" 
+                            isToggled={notifications.push} 
+                            onToggle={() => handleToggle('push')} 
+                        />
                     </div>
 
                     {/* Theme Settings Card */}
@@ -108,7 +142,7 @@ const SettingsPage = () => {
                     </div>
                 </div>
             </div>
-            <Footer /> {/* <-- 2. ADD FOOTER */}
+            <Footer />
         </>
     );
 };

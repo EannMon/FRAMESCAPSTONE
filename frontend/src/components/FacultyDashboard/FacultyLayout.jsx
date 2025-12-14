@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import './FacultyLayout.css'; 
 import '../ZCommon/Utility.css'; 
-import LoggedInHeader from '../ZCommon/Header'; 
+import Header from '../ZCommon/Header'; 
 
-const DEFAULT_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=No+Img';
-
+// --- THEME DEFINITION ---
 const facultyTheme = {
     primary: '#A62525', 
     dark: '#c82333',
@@ -13,11 +12,15 @@ const facultyTheme = {
     text: '#FFFFFF'
 };
 
+// ===========================================
+// 1. Faculty Sidebar Component
+// ===========================================
 const FacultySidebar = ({ user }) => {
     // --- LOGIC: Check if user is a Department Head ---
-    // Tinitingnan nito kung ang faculty_status sa database ay "Head" o "Department Head"
-    // Gumamit ng safety check (user?.faculty_status) para hindi mag-crash kung undefined
-    const isDeptHead = user?.faculty_status === 'Head' || user?.faculty_status === 'Department Head';
+    // Checks database field 'faculty_status' OR 'role'
+    const isDeptHead = user?.faculty_status === 'Head' || 
+                       user?.faculty_status === 'Department Head' || 
+                       user?.role === 'dept_head';
 
     // Base Navigation Items
     const navItems = [
@@ -27,7 +30,7 @@ const FacultySidebar = ({ user }) => {
         { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports' },
     ];
 
-    // CONDITIONAL: Idagdag lang ang tab na 'to kung Dept Head siya
+    // CONDITIONAL: Add Dept Management tab if Head
     if (isDeptHead) {
         navItems.push({ 
             name: 'Department Mgmt', 
@@ -63,45 +66,42 @@ const FacultySidebar = ({ user }) => {
     );
 };
 
+// ===========================================
+// 2. Main FacultyLayout Component
+// ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
-    // Initialize user state
-    const [user, setUser] = useState({ 
-        name: 'Loading...', 
-        avatar: DEFAULT_AVATAR,
-        faculty_status: 'Regular', // Default to Regular
-        notifications: 0
+    
+    // --- FIX: GET REAL USER FROM STORAGE ---
+    // We no longer manually construct the object or use a default avatar.
+    // The Header component handles the avatar generation automatically.
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
     });
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            
-            // Safety Check: Faculty lang ang pwede dito (Case Insensitive Fix)
-            if (parsedUser.role && parsedUser.role.toLowerCase() !== 'faculty') {
-                navigate('/'); 
-                return;
-            }
-
-            // Set User Data including the specific faculty_status form DB
-            setUser({
-                ...parsedUser, 
-                name: `${parsedUser.firstName} ${parsedUser.lastName}`,
-                avatar: parsedUser.avatar || DEFAULT_AVATAR,
-                faculty_status: parsedUser.faculty_status || 'Regular' 
-            });
+        if (!user) {
+            navigate('/'); // Redirect if not logged in
         } else {
-            navigate('/');
+            // Optional: Strict Role Check
+            // Allow both 'faculty' and 'dept_head' roles
+            const role = user.role?.toLowerCase();
+            if (role !== 'faculty' && role !== 'dept_head') {
+                navigate('/');
+            }
         }
-    }, [navigate]);
+    }, [user, navigate]);
+
+    if (!user) return null;
 
     return (
         <div className="dashboard-container">
-            <LoggedInHeader theme={facultyTheme} user={user} />
+            {/* Pass real user to Header for correct Red Initials Avatar */}
+            <Header theme={facultyTheme} user={user} />
             
             <div className="dashboard-body">
-                {/* Ipasa ang user data sa Sidebar para ma-check ang role */}
+                {/* Pass user to Sidebar to determine Dept Head status */}
                 <FacultySidebar user={user} />
                 
                 <div className="main-content-area">

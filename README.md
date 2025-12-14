@@ -3,13 +3,13 @@ Admin, Faculty and Student view of the Smart Monitoring System
 
 Sample users
 
-admin@tup.edu.ph admin
+admin@tup.edu.ph 
 pass123
 
-emedq@gmail.com faculty
-pass
+memedq@gmail.co 
+password
 
-karl@gmail.com student
+karl@gmail.com 
 pass
 
 aiai@gmail.com facultysamplereg

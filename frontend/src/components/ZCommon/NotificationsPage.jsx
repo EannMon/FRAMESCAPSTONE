@@ -1,24 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './NotificationsPage.css'; // New CSS file for this page
+import './NotificationsPage.css'; 
 import '../ZCommon/Utility.css';
 import Header from '../ZCommon/Header';
 import Footer from './Footer';
 
-// --- Mock Theme & User for Header ---
+// --- Theme Definition ---
 const redTheme = {
-    primary: '#A62525',
+    primary: '#A62525', 
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
-const mockUser = {
-    name: 'Admin User',
-    avatar: 'https://placehold.co/100x100/f8d7da/dc3545?text=A',
-    notifications: 3 
-};
 
-// --- Mock Notification Data ---
+// --- Mock Notification Data (Kept as static for UI display) ---
 const mockNotifications = [
     { id: 1, icon: 'fas fa-file-alt', text: 'New application received from "Jay Rubert".', time: '15m ago', read: false },
     { id: 2, icon: 'fas fa-user-check', text: 'User "Maam May Garcia" was approved.', time: '1h ago', read: false },
@@ -33,13 +28,23 @@ const mockNotifications = [
 // ===========================================
 const NotificationsPage = () => {
     const navigate = useNavigate();
+
+    // --- FIX: GET REAL USER FROM STORAGE ---
+    // Connects to the logged-in user for correct Header Avatar/Name
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    });
+
     const handleGoBack = () => {
-        navigate(-1); // Go back one step in history
+        navigate(-1); 
     };
 
     return (
         <>
-            <Header theme={redTheme} user={mockUser} />
+            {/* Pass real user to Header */}
+            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            
             <div className="notifications-page-container">
                 {/* Top Header Bar */}
                 <div className="notifications-header-bar">
