@@ -910,11 +910,110 @@ def get_class_details_endpoint(schedule_id):
         conn.close()
 
 # ==========================================
-# API: DEPT HEAD MANAGEMENT (Existing Logic)
+# API: DEPT HEAD MANAGEMENT (Curriculum & Schedule)
 # ==========================================
-# (These were already defined above in your original code, kept here for completeness if referenced)
-# get_faculty_summary_report, get_room_occupancy_report, etc. are already defined above.
 
+# ==========================================
+# FACULTY & DEPT HEAD MANAGEMENT APIs (This was missing)
+# ==========================================
+
+# 1. GET ALL MANAGEMENT DATA
+@app.route('/api/dept/management-data', methods=['GET'])
+def get_management_data():
+    conn = get_db_connection()
+    if not conn: return jsonify({"error": "Database connection failed"}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        sql_courses = """
+            SELECT 
+                s.subject_id, s.subject_code, s.subject_description as name, s.units,
+                cs.schedule_id, cs.section, cs.day_of_week, cs.start_time, cs.end_time, cm.room_name,
+                CONCAT(u.firstName, ' ', u.lastName) as assigned_faculty, u.user_id as faculty_id
+            FROM Subjects s
+            LEFT JOIN ClassSchedule cs ON s.subject_code = cs.course_code
+            LEFT JOIN User u ON cs.faculty_id = u.user_id
+            LEFT JOIN CameraManagement cm ON cs.camera_id = cm.camera_id
+            ORDER BY s.created_at DESC
+        """
+        cursor.execute(sql_courses)
+        courses = cursor.fetchall()
+        for c in courses:
+            c['schedule'] = f"{c['day_of_week']} {c['start_time']} - {c['end_time']}" if c['day_of_week'] else None
+
+        cursor.execute("SELECT user_id, CONCAT(firstName, ' ', lastName) as name FROM User WHERE role = 'faculty'")
+        faculty = cursor.fetchall()
+
+        cursor.execute("SELECT camera_id, room_name FROM CameraManagement")
+        rooms = cursor.fetchall()
+
+        return jsonify({"courses": courses, "faculty": faculty, "rooms": rooms})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 2. CREATE NEW SUBJECT
+@app.route('/api/dept/create-subject', methods=['POST'])
+def create_subject():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO Subjects (subject_code, subject_description, units) VALUES (%s, %s, %s)", 
+                       (data['code'], data['name'], data['units']))
+        conn.commit()
+        return jsonify({"message": "Subject created"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 3. ASSIGN FACULTY
+@app.route('/api/dept/assign-faculty', methods=['POST'])
+def assign_faculty():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if data.get('schedule_id'):
+            cursor.execute("UPDATE ClassSchedule SET faculty_id = %s WHERE schedule_id = %s", (data['faculty_id'], data['schedule_id']))
+        else:
+            cursor.execute("INSERT INTO ClassSchedule (course_code, faculty_id, section) VALUES (%s, %s, 'Section 1')", (data['subject_code'], data['faculty_id']))
+        conn.commit()
+        return jsonify({"message": "Faculty assigned"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+# 4. ASSIGN ROOM
+@app.route('/api/dept/assign-room', methods=['POST'])
+def assign_room():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT camera_id FROM CameraManagement WHERE room_name = %s", (data['room_name'],))
+        room = cursor.fetchone()
+        if not room: return jsonify({"error": "Room not found"}), 404
+        
+        if data.get('schedule_id'):
+            cursor.execute("UPDATE ClassSchedule SET camera_id = %s, day_of_week = %s, start_time = %s, end_time = %s WHERE schedule_id = %s", 
+                           (room[0], data['day'], data['start_time'], data['end_time'], data['schedule_id']))
+        else:
+            cursor.execute("INSERT INTO ClassSchedule (course_code, camera_id, day_of_week, start_time, end_time, section) VALUES (%s, %s, %s, %s, %s, 'Section 1')",
+                           (data['subject_code'], room[0], data['day'], data['start_time'], data['end_time']))
+        conn.commit()
+        return jsonify({"message": "Room assigned"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+        
 # ==========================================
 # API: UPLOAD & PARSE COR (PDF) - DYNAMIC SEARCH FIX
 # ==========================================
