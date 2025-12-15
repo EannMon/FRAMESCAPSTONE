@@ -6,6 +6,7 @@
     flex-direction: column;
     gap: 20px;
     padding-left: 30px;
+    
 }
 
 /* --- Filter Bar --- */
@@ -66,6 +67,8 @@
 /* --- Application List Card --- */
 .app-list-card {
     padding: 0; /* Remove base card padding */
+     width: 98%;
+    margin-right: 10px;
 }
 
 .app-list-header {

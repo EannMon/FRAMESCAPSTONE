@@ -4,11 +4,11 @@ import axios from 'axios';
 import './LandingPage.css';
 import heroImageUrl from '../../assets/images/TUP_Background.jpg';
 import Header from '../ZCommon/Header'; 
-import Footer from '../ZCommon/Footer';   
+import Footer from '../ZCommon/Footer';   
 
 // LandingPage.jsx
 
-// === LOGIN COMPONENT ===
+// === LOGIN COMPONENT (MODIFIED) ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
     
@@ -30,20 +30,37 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
             });
 
             if (response.data.message === "Login Successful") {
-                localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+                const userData = response.data.user;
+                const userRole = userData.role;
+                const verificationStatus = userData.verification_status; // Mula sa backend
 
-                const userRole = response.data.user.role;
-                alert(`Welcome back, ${response.data.user.firstName}!`);
+                // --- NEW VERIFICATION CHECK LOGIC ---
+                if (verificationStatus === 'Verified') {
+                    // HAKBANG 1: VERIFIED - Payagan ang access sa Dashboard
+                    localStorage.setItem('currentUser', JSON.stringify(userData));
+                    alert(`Welcome back, ${userData.firstName}!`);
 
-                if (userRole === 'faculty') {
-                    navigate('/faculty-dashboard');
-                } else if (userRole === 'student') {
-                    navigate('/student-dashboard');
+                    if (userRole === 'admin') {
+                        navigate('/admin-dashboard');
+                    } else if (userRole === 'student') {
+                        navigate('/student-dashboard');
+                    } else if (userRole === 'faculty' || userRole === 'dept_head') {
+                        // Routing for Faculty and Dept Head (as per ClassSchedule table)
+                        navigate('/faculty-dashboard'); 
+                    } 
+                } else if (verificationStatus === 'Pending') {
+                    // HAKBANG 2: PENDING - I-redirect sa Registration page para sa status message
+                    // Gagamitin ang role para sa routing ng RegistrationPage.jsx
+                    navigate(`/register/${userRole}?s=pending`); 
+                } else if (verificationStatus === 'Rejected') {
+                    // HAKBANG 3: REJECTED - I-redirect sa Registration page para sa status message
+                    navigate(`/register/${userRole}?s=rejected`);
                 } else {
-                    navigate('/admin-dashboard');
+                    // Fallback
+                    setErrorMessage("Account status is invalid. Please contact administrator.");
                 }
-            }
 
+            }
         } catch (error) {
             console.error("Login Error:", error);
             setErrorMessage(error.response?.data?.error || "Something went wrong. Try again.");
@@ -159,28 +176,28 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
 // 3. HERO SECTION (UPDATED: Access Portal now opens Login)
 // ==========================================
 const HeroSection = ({ setPanel }) => ( 
-  <section className="hero-section" style={{ backgroundImage: `url(${heroImageUrl})` }}>
-    <div className="hero-overlay">
-      <div className="hero-content">
-        <h1 className="hero-title">FRA<span className="hero-title-red">MES</span></h1>
-        <p>
-          Revolutionary campus security powered by Raspberry Pi, featuring facial recognition, gesture control, and Real-time monitoring for a safer, smarter educational environment.
-        </p>
-        
-        <div className="cta-buttons">
-          {/* UPDATED: Changed from Link to Button calling setPanel('login') */}
-           <button onClick={() => setPanel('login')} className="cta-primary">
-            <i className="fas fa-lock"></i> Access Portal
-          </button>
-          
-          <button className="cta-secondary">
-            <i className="fas fa-play-circle"></i> Watch Demo
-          </button>
-        </div>
+    <section className="hero-section" style={{ backgroundImage: `url(${heroImageUrl})` }}>
+        <div className="hero-overlay">
+            <div className="hero-content">
+                <h1 className="hero-title">FRA<span className="hero-title-red">MES</span></h1>
+                <p>
+                    Revolutionary campus security powered by Raspberry Pi, featuring facial recognition, gesture control, and Real-time monitoring for a safer, smarter educational environment.
+                </p>
+                
+                <div className="cta-buttons">
+                    {/* UPDATED: Changed from Link to Button calling setPanel('login') */}
+                    <button onClick={() => setPanel('login')} className="cta-primary">
+                    <i className="fas fa-lock"></i> Access Portal
+                    </button>
+                    
+                    <button className="cta-secondary">
+                        <i className="fas fa-play-circle"></i> Watch Demo
+                    </button>
+                </div>
 
-      </div>
-    </div>
-  </section>
+            </div>
+        </div>
+    </section>
 );
 
 // ==========================================
@@ -188,42 +205,42 @@ const HeroSection = ({ setPanel }) => (
 // ==========================================
 const FeatureCard = ({ iconClass, title, description }) => (
     <div className="feature-card">
-      <div className="icon-container">
-        <i className={iconClass}></i>
-      </div>
-      <h3>{title}</h3>
-      <p>{description}</p>
+        <div className="icon-container">
+            <i className={iconClass}></i>
+        </div>
+        <h3>{title}</h3>
+        <p>{description}</p>
     </div>
 );
-  
+  
 const FeaturesSection = () => (
     <section className="features-section">
-      <h2>Advanced Features for Campus Security</h2>
-      <p className="features-subtitle">
-        Our comprehensive system combines cutting-edge AI technology with reliable hardware to deliver unparalleled campus monitoring and access control capabilities.
-      </p>
-      <div className="features-grid">
-        <FeatureCard 
-          iconClass="fas fa-user-shield" 
-          title="Facial Recognition" 
-          description="Advanced AI-powered facial recognition for secure access control and automated attendance tracking across campus facilities."
-        />
-        <FeatureCard 
-          iconClass="fas fa-hand-paper" 
-          title="Gesture Control" 
-          description="Intuitive hand gesture controls for contactless interaction with campus systems, enhancing hygiene and user experience."
-        />
-        <FeatureCard 
-          iconClass="fas fa-video" 
-          title="Real-time Monitoring" 
-          description="Continuous surveillance and monitoring of campus activities with instant alerts and comprehensive security coverage."
-        />
-        <FeatureCard 
-          iconClass="fas fa-bell" 
-          title="Emergency Alerts" 
-          description="Instant emergency notification system with automated threat detection and rapid response coordination capabilities."
-        />
-      </div>
+        <h2>Advanced Features for Campus Security</h2>
+        <p className="features-subtitle">
+            Our comprehensive system combines cutting-edge AI technology with reliable hardware to deliver unparalleled campus monitoring and access control capabilities.
+        </p>
+        <div className="features-grid">
+            <FeatureCard 
+                iconClass="fas fa-user-shield" 
+                title="Facial Recognition" 
+                description="Advanced AI-powered facial recognition for secure access control and automated attendance tracking across campus facilities."
+            />
+            <FeatureCard 
+                iconClass="fas fa-hand-paper" 
+                title="Gesture Control" 
+                description="Intuitive hand gesture controls for contactless interaction with campus systems, enhancing hygiene and user experience."
+            />
+            <FeatureCard 
+                iconClass="fas fa-video" 
+                title="Real-time Monitoring" 
+                description="Continuous surveillance and monitoring of campus activities with instant alerts and comprehensive security coverage."
+            />
+            <FeatureCard 
+                iconClass="fas fa-bell" 
+                title="Emergency Alerts" 
+                description="Instant emergency notification system with automated threat detection and rapid response coordination capabilities."
+            />
+        </div>
     </section>
 );
 
@@ -231,34 +248,34 @@ const FeaturesSection = () => (
 // MAIN COMPONENT
 // ==========================================
 const LandingPage = () => {
-  const [panel, setPanel] = useState(null); // 'login' or 'signup'
+    const [panel, setPanel] = useState(null); // 'login' or 'signup'
 
-  return (
-    <>
-      <div className="landing-page">
-        <Header setPanel={setPanel} />
-        <main>
-          {/* Passed setPanel to HeroSection so buttons work */}
-          <HeroSection setPanel={setPanel} />
-          <FeaturesSection />
-        </main>
+    return (
+        <>
+            <div className="landing-page">
+                <Header setPanel={setPanel} />
+                <main>
+                    {/* Passed setPanel to HeroSection so buttons work */}
+                    <HeroSection setPanel={setPanel} />
+                    <FeaturesSection />
+                </main>
 
-        {/* MODALS */}
-        <LoginPanel 
-          isOpen={panel === 'login'} 
-          onClose={() => setPanel(null)} 
-          onSwitchToSignup={() => setPanel('signup')}
-        />
+                {/* MODALS */}
+                <LoginPanel 
+                    isOpen={panel === 'login'} 
+                    onClose={() => setPanel(null)} 
+                    onSwitchToSignup={() => setPanel('signup')}
+                />
 
-        {/* Kept this for 'Get Started' button so new users can choose their role */}
-        <RoleSelectionModal 
-          isOpen={panel === 'signup'} 
-          onClose={() => setPanel(null)}
-        />
-      </div>
-      <Footer />
-    </>
-  );
+                {/* Kept this for 'Get Started' button so new users can choose their role */}
+                <RoleSelectionModal 
+                    isOpen={panel === 'signup'} 
+                    onClose={() => setPanel(null)}
+                />
+            </div>
+            <Footer />
+        </>
+    );
 };
 
 export default LandingPage;

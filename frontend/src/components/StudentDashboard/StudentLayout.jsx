@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Import Axios para sa live notification count
 import './StudentLayout.css';
 import '../ZCommon/Utility.css';
-import Header from '../ZCommon/Header';
+import Header from '../ZCommon/Header'; 
 
 // --- THEME DEFINITION ---
 const studentTheme = {
@@ -55,31 +55,38 @@ const StudentSidebar = () => {
 };
 
 // ===========================================
-// 2. Main StudentLayout Component (Dynamic Version)
+// 2. Main StudentLayout Component (UPDATED with Verification Check)
 // ===========================================
 const StudentLayout = () => {
     const navigate = useNavigate();
     
-    // 1. DYNAMIC STATE (Imbis na hardcoded constant)
-    const [user, setUser] = useState({
-        name: 'Student', // Default habang naglo-load
-        avatar: 'https://placehold.co/100x100/f8d7da/dc3545?text=S',
-        notifications: 0
-    });
+    // NEW STATES: user (for authenticated data) at loading (para sa initial check)
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    // 2. FETCH USER DATA ON MOUNT
+    // 2. FETCH USER DATA & SECURITY CHECK ON MOUNT
     useEffect(() => {
         const loadUserData = async () => {
-            // A. Get Basic Info from LocalStorage (Saved during Login)
             const storedUserJson = localStorage.getItem('currentUser');
             
             if (!storedUserJson) {
-                // Kung walang naka-login, ibalik sa landing page
+                // Walang naka-login, ibalik sa landing page
                 navigate('/');
+                setLoading(false); // End loading for failed attempt
                 return;
             }
 
             const storedUser = JSON.parse(storedUserJson);
+
+            // --- HAKBANG 1: SECURITY CHECK (ADDED) ---
+            if (storedUser.verification_status !== 'Verified') {
+                alert("Access denied. Your account is still pending verification.");
+                // Redirect sa Registration Status page
+                navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
+                setLoading(false); 
+                return;
+            }
+            // --- END SECURITY CHECK ---
 
             // B. (Optional) Fetch Live Notification Count form Backend
             let notifCount = 0;
@@ -91,19 +98,28 @@ const StudentLayout = () => {
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {
                 console.error("Failed to fetch notification count", error);
+                // Patuloy pa rin kahit may error sa notif count
             }
 
             // C. Update State
             setUser({
+                ...storedUser, // Ilagay ang lahat ng user data
                 name: `${storedUser.firstName} ${storedUser.lastName}`,
                 // Gamitin ang avatar galing DB kung meron, or generated one based on Initials
                 avatar: storedUser.avatar || `https://ui-avatars.com/api/?name=${storedUser.firstName}+${storedUser.lastName}&background=f8d7da&color=dc3545`,
                 notifications: notifCount
             });
+            setLoading(false);
         };
 
         loadUserData();
     }, [navigate]);
+
+    // HAKBANG 2: Loading Screen
+    if (loading || !user) {
+        return <div style={{textAlign: 'center', paddingTop: '100px'}}>Loading dashboard...</div>;
+    }
+
 
     return (
         <div className="dashboard-container">
@@ -113,11 +129,14 @@ const StudentLayout = () => {
             <div className="dashboard-body">
                 <StudentSidebar />
                 <div className="main-content-area">
-                    <Outlet />
+                    {/* I-pass ang user object sa Outlet context para magamit sa mga child components */}
+                    <Outlet context={{ user }} /> 
                 </div>
             </div>
+            {/* Tiyakin na ang Footer ay nandiyan pa rin kung saan ito nararapat, bagama't wala sa snippet ninyo */}
+            {/* <Footer /> */} 
         </div>
     );
 };
 
-export default StudentLayout;   
+export default StudentLayout;

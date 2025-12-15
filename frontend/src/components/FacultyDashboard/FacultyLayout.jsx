@@ -4,6 +4,9 @@ import './FacultyLayout.css';
 import '../ZCommon/Utility.css'; 
 import Header from '../ZCommon/Header'; 
 
+// NOTE: Kailangan i-define ang DEFAULT_AVATAR
+const DEFAULT_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=No+Img';
+
 // --- THEME DEFINITION ---
 const facultyTheme = {
     primary: '#A62525', 
@@ -13,11 +16,11 @@ const facultyTheme = {
 };
 
 // ===========================================
-// 1. Faculty Sidebar Component
+// 1. Faculty Sidebar Component (Merged Logic)
 // ===========================================
 const FacultySidebar = ({ user }) => {
     // --- LOGIC: Check if user is a Department Head ---
-    // Checks database field 'faculty_status' OR 'role'
+    // Pinagsama ang lahat ng kondisyon: faculty_status O role
     const isDeptHead = user?.faculty_status === 'Head' || 
                        user?.faculty_status === 'Department Head' || 
                        user?.role === 'dept_head';
@@ -67,41 +70,65 @@ const FacultySidebar = ({ user }) => {
 };
 
 // ===========================================
-// 2. Main FacultyLayout Component
+// 2. Main FacultyLayout Component (Merged Security & Loading)
 // ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
     
-    // --- FIX: GET REAL USER FROM STORAGE ---
-    // We no longer manually construct the object or use a default avatar.
-    // The Header component handles the avatar generation automatically.
-    const [user, setUser] = useState(() => {
-        const stored = localStorage.getItem('currentUser');
-        return stored ? JSON.parse(stored) : null;
-    });
+    // NEW STATES: Loading state at initial user state
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null); 
 
     useEffect(() => {
-        if (!user) {
-            navigate('/'); // Redirect if not logged in
-        } else {
-            // Optional: Strict Role Check
-            // Allow both 'faculty' and 'dept_head' roles
-            const role = user.role?.toLowerCase();
-            if (role !== 'faculty' && role !== 'dept_head') {
-                navigate('/');
+        const storedUser = localStorage.getItem('currentUser');
+        
+        if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            const role = parsedUser.role?.toLowerCase();
+            
+            // --- HAKBANG 1: VERIFICATION STATUS CHECK ---
+            if (parsedUser.verification_status !== 'Verified') {
+                alert("Access denied. Your account is still pending verification.");
+                navigate(`/register/${role}?s=${parsedUser.verification_status.toLowerCase()}`); 
+                setLoading(false); 
+                return; 
             }
-        }
-    }, [user, navigate]);
+            // --- END VERIFICATION CHECK ---
 
-    if (!user) return null;
+            // --- HAKBANG 2: ROLE CHECK ---
+            if (role !== 'faculty' && role !== 'dept_head') {
+                navigate('/'); 
+                setLoading(false);
+                return;
+            }
+
+            // Set User Data (Pinagsama ang data structure para sa sidebar/header)
+            setUser({
+                ...parsedUser, 
+                name: `${parsedUser.firstName} ${parsedUser.lastName}`,
+                avatar: parsedUser.avatar || DEFAULT_AVATAR,
+                faculty_status: parsedUser.faculty_status || 'Regular',
+                notifications: parsedUser.notifications || 0
+            });
+            setLoading(false); 
+
+        } else {
+            navigate('/');
+            setLoading(false); 
+        }
+    }, [navigate]);
+
+    // HAKBANG 3: Loading Screen 
+    if (loading || !user) {
+        return <div style={{textAlign: 'center', paddingTop: '100px'}}>Loading dashboard...</div>;
+    }
 
     return (
         <div className="dashboard-container">
-            {/* Pass real user to Header for correct Red Initials Avatar */}
+            {/* Tiyakin na gumagamit ng tamang Header component */}
             <Header theme={facultyTheme} user={user} />
             
             <div className="dashboard-body">
-                {/* Pass user to Sidebar to determine Dept Head status */}
                 <FacultySidebar user={user} />
                 
                 <div className="main-content-area">

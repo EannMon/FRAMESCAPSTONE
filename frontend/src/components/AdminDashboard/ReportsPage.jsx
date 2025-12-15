@@ -121,25 +121,25 @@ const gestureFrequencyMockData = [
 
 
 // ===========================================
-// Reusable Sub-Components (No Change)
+// Reusable Sub-Components (Only classes inside are changed)
 // ===========================================
 
 const ReportTag = ({ text, colorClass }) => (
-    <span className={`report-tag ${colorClass}`}>{text}</span>
+    <span className={`admin-report-tag ${colorClass}`}>{text}</span>
 );
 
 const StatusTag = ({ text, colorClass }) => (
-    <span className={`status-tag ${colorClass}`}>{text}</span>
+    <span className={`admin-status-tag ${colorClass}`}>{text}</span>
 );
 
 const ReportTypeCard = ({ category, onOpen }) => (
-    <div className="card report-type-card" onClick={() => onOpen(category)}>
-        <div className={`report-type-icon ${category.color}-bg`}>
+    <div className="card admin-report-type-card" onClick={() => onOpen(category)}>
+        <div className={`admin-report-type-icon ${category.color}-bg`}>
             <i className={`fas ${category.icon}`}></i>
         </div>
-        <h3 className="report-type-title">{category.title}</h3>
-        <p className="report-type-description">{category.description}</p>
-        <button className="view-reports-button">
+        <h3 className="admin-report-type-title">{category.title}</h3>
+        <p className="admin-report-type-description">{category.description}</p>
+        <button className="admin-view-reports-button">
             <i className="fas fa-eye"></i> View Reports
         </button>
     </div>
@@ -174,8 +174,8 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
             : `Search ${targetType.split('-')[1]} name or ID...`;
 
         return (
-            <div className="filter-group-row">
-                <div className="filter-search-input">
+            <div className="admin-filter-group-row">
+                <div className="admin-filter-search-input">
                     <i className="fas fa-search"></i>
                     <input
                         type="text"
@@ -204,20 +204,20 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
     };
 
     return (
-        <div className="report-modal-overlay">
-            <div className="report-modal-content">
+        <div className="admin-report-modal-overlay">
+            <div className="admin-report-modal-content">
                 <div className="modal-header">
                     <h2>{category.title} Generator</h2>
                     <button onClick={onClose} className="modal-close-btn">&times;</button>
                 </div>
-                <div className="modal-body-grid">
-                    <div className="report-type-list-wrapper">
+                <div className="admin-modal-body-grid">
+                    <div className="admin-report-type-list-wrapper">
                         <h3>Report Types</h3>
-                        <div className="report-type-list">
+                        <div className="admin-report-type-list">
                             {category.types.map(type => (
                                 <div
                                     key={type.name}
-                                    className={`report-type-item ${selectedType.name === type.name ? 'selected' : ''}`}
+                                    className={`admin-report-type-item ${selectedType.name === type.name ? 'selected' : ''}`}
                                     onClick={() => setSelectedType(type)}
                                 >
                                     <h4>{type.name}</h4>
@@ -226,14 +226,14 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                             ))}
                         </div>
                     </div>
-                    <div className="report-filter-panel">
+                    <div className="admin-report-filter-panel">
                         <h3>Generate: {selectedType.name}</h3>
                         
                         {/* Target Scope */}
                         {selectedType.filterTarget && selectedType.filterTarget.some(target => ['organization', 'user', 'section'].includes(target)) && (
-                            <div className="filter-group">
+                            <div className="admin-filter-group">
                                 <label>Target Scope</label>
-                                <select className="filter-select" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
+                                <select className="admin-filter-select" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
                                     <option value="all">All Users/Organization</option>
                                     <option value="faculty">All Faculty</option>
                                     <option value="students">All Students</option>
@@ -246,9 +246,9 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                         {renderUserSearch()}
                         
                         {/* Frequency Dropdown (NEW) */}
-                        <div className="filter-group">
+                        <div className="admin-filter-group">
                             <label>Frequency</label>
-                            <select className="filter-select" value={frequencyType} onChange={(e) => setFrequencyType(e.target.value)}>
+                            <select className="admin-filter-select" value={frequencyType} onChange={(e) => setFrequencyType(e.target.value)}>
                                 {availableFrequencies.map(freq => (
                                     <option key={freq} value={freq}>{freq}</option>
                                 ))}
@@ -256,18 +256,18 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                         </div>
                         
                         {/* Date Range */}
-                        <div className="filter-group">
+                        <div className="admin-filter-group">
                             <label>Date Range</label>
-                            <div className="filter-group-row">
-                                <input type="date" className="filter-select" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                                <input type="date" className="filter-select" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                            <div className="admin-filter-group-row">
+                                <input type="date" className="admin-filter-select" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                                <input type="date" className="admin-filter-select" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             </div>
                         </div>
                         
                         {/* Export Format */}
-                        <div className="filter-group">
+                        <div className="admin-filter-group">
                             <label>Export Format</label>
-                            <select className="filter-select" value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
+                            <select className="admin-filter-select" value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
                                 <option>PDF (.pdf)</option>
                                 <option>Excel (.xlsx)</option>
                                 <option>CSV (.csv)</option>
@@ -275,7 +275,7 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                         </div>
                         
                         <button 
-                            className="generate-report-btn-modal"
+                            className="admin-generate-report-btn-modal"
                             onClick={handleGenerateClick}
                         >
                             <i className="fas fa-magic"></i> Generate Report
@@ -591,9 +591,9 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
     
     // VIEW A: MAIN DASHBOARD
     const renderMainView = () => (
-        <div className="reports-container">
+        <div className="admin-reports-container">
             {/* Top Cards */}
-            <div className="reports-card-grid">
+            <div className="admin-reports-card-grid">
                 {Object.keys(reportCatalog).map(key => (
                     <ReportTypeCard
                         key={key}
@@ -604,10 +604,10 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
             </div>
 
             {/* Recent Reports Table */}
-            <div className="card recent-reports-card">
-                <div className="recent-reports-header">
+            <div className="card admin-recent-reports-card">
+                <div className="admin-recent-reports-header">
                     <h2>Generated Reports</h2>
-                    <div className="recent-reports-filters">
+                    <div className="admin-recent-reports-filters">
                         
                         {/* Frequency Filter */}
                         <select
@@ -631,14 +631,14 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
                             <option value="Utilization">Usage</option> 
                         </select>
 
-                        <button className="export-all-button">
+                        <button className="admin-export-all-button">
                             <i className="fas fa-upload"></i> Export All
                         </button>
                     </div>
                 </div>
 
-                <div className="reports-table-container">
-                    <table className="recent-reports-table">
+                <div className="admin-reports-table-container">
+                    <table className="admin-recent-reports-table">
                         <thead>
                             <tr>
                                 <th>Report Name</th>
@@ -664,7 +664,7 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
                                                 
                                                 {/* Download */}
                                                 <button 
-                                                    className="action-button download-button" 
+                                                    className="admin-action-button download-button" 
                                                     title="Download PDF"
                                                     onClick={(e) => handleDownload(e, report)}
                                                 >
@@ -673,7 +673,7 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
 
                                                 {/* View */}
                                                 <button 
-                                                    className="action-button view-button" 
+                                                    className="admin-action-button view-button" 
                                                     title="View Details"
                                                     onClick={(e) => handleView(e, report)}
                                                 >
@@ -682,7 +682,7 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
 
                                                 {/* Share (Direct Email) */}
                                                 <button 
-                                                    className="action-button share-button"
+                                                    className="admin-action-button share-button"
                                                     title="Share via Email"
                                                     onClick={(e) => handleShareEmail(e, report)}
                                                 >
@@ -880,7 +880,7 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
             }
 
             return (
-                <table className="rep-table recent-reports-table" style={{ marginTop: '20px' }}>
+                <table className="rep-table admin-recent-reports-table" style={{ marginTop: '20px' }}>
                     <thead>
                         <tr>{head.map((h, i) => <th key={i}>{h}</th>)}</tr>
                     </thead>
@@ -892,25 +892,25 @@ const dateTo = filters.dateTo ? formatDate(filters.dateTo) : 'N/A';
         };
         
         return (
-            <div className="reports-container fade-in">
-        <div className="preview-toolbar">
-            <div className="preview-toolbar-left">
-                <button className="preview-btn back-btn" onClick={handleBack}>
-                    <i className="fas fa-arrow-left"></i>
-                    <span>Back to Reports</span>
-                </button>
-            </div>
+            <div className="admin-reports-container fade-in">
+                <div className="admin-preview-toolbar">
+                    <div className="admin-preview-toolbar-left">
+                        <button className="admin-preview-btn admin-back-btn" onClick={handleBack}>
+                            <i className="fas fa-arrow-left"></i>
+                            <span>Back to Reports</span>
+                        </button>
+                    </div>
 
-            <div className="preview-toolbar-right">
-                <button 
-                    className="preview-btn download-btn"
-                    onClick={(e) => handleDownload(e, selectedReport)}
-                >
-                    <i className="fas fa-file-pdf"></i>
-                    <span>Download PDF</span>
-                </button>
-            </div>
-        </div>
+                    <div className="admin-preview-toolbar-right">
+                        <button 
+                            className="admin-preview-btn admin-download-btn"
+                            onClick={(e) => handleDownload(e, selectedReport)}
+                        >
+                            <i className="fas fa-file-pdf"></i>
+                            <span>Download PDF</span>
+                        </button>
+                    </div>
+                </div>
 
 
                 <div className="preview-paper card">
