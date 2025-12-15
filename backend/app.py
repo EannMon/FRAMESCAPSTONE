@@ -1,3 +1,5 @@
+import pdfplumber # Make sure to import this at the top
+import re
 import os
 
 # --- 🛠️ CRITICAL FIX FOR INTEL GPU CRASH ---
@@ -443,66 +445,66 @@ def get_student_dashboard(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # A. Attendance Rate (Total IN logs / Total Expected - Simplified calculation)
+        # A. Attendance Rate
         cursor.execute("SELECT COUNT(*) as count FROM EventLog WHERE user_id = %s AND event_type = 'attendance_in'", (user_id,))
         total_attendance = cursor.fetchone()['count']
         
-        # B. Enrolled Courses (Get JSON)
+        # B. Enrolled Courses
         cursor.execute("SELECT enrolled_courses FROM User WHERE user_id = %s", (user_id,))
-        courses_json = cursor.fetchone()['enrolled_courses']
-        # Handle if None or String
+        res = cursor.fetchone()
         course_count = 0
-        if courses_json:
-            if isinstance(courses_json, str):
-                courses_json = json.loads(courses_json)
-            course_count = len(courses_json)
+        if res and res['enrolled_courses']:
+            try:
+                courses = json.loads(res['enrolled_courses'])
+                course_count = len(courses)
+            except:
+                course_count = 0
 
         # C. Notifications
         cursor.execute("SELECT * FROM Notification WHERE user_id = %s ORDER BY created_at DESC LIMIT 5", (user_id,))
         notifications = cursor.fetchall()
         
-        # D. Recent Attendance
+        # D. Recent Attendance (FIXED QUERY: JOIN SUBJECTS)
+        # Old: c.course_name -> New: s.subject_description
         cursor.execute("""
-            SELECT e.timestamp, c.course_name, cm.room_name 
+            SELECT e.timestamp, s.subject_description as course_name, cm.room_name 
             FROM EventLog e 
             LEFT JOIN CameraManagement cm ON e.camera_id = cm.camera_id
-            -- NOTE: Simplified join. In reality, join with ClassSchedule based on time.
             LEFT JOIN ClassSchedule c ON c.camera_id = e.camera_id 
+            LEFT JOIN Subjects s ON c.course_code = s.subject_code
             WHERE e.user_id = %s AND e.event_type = 'attendance_in'
             ORDER BY e.timestamp DESC LIMIT 3
         """, (user_id,))
         recent_logs = cursor.fetchall()
 
         return jsonify({
-            "attendance_rate": f"{min(total_attendance * 10, 100)}%", # Dummy calc: 10% per login
+            "attendance_rate": f"{min(total_attendance * 10, 100)}%",
             "enrolled_courses": course_count,
             "notifications": notifications,
             "recent_attendance": recent_logs
         })
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Dashboard Error: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
         conn.close()
 
-# 2. Get Student Schedule (FILTERED BY ENROLLED COURSES)
+# 2. Get Student Schedule
 @app.route('/api/student/schedule/<int:user_id>', methods=['GET'])
 def get_student_schedule(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        # 1. Get Student Section AND Enrolled Courses
+        # Get Section & Enrolled
         cursor.execute("SELECT section, enrolled_courses FROM User WHERE user_id = %s", (user_id,))
         result = cursor.fetchone()
         
-        if not result or not result['section']:
-            return jsonify([]) # No section, no schedule
+        if not result or not result['section']: return jsonify([])
 
         section = result['section']
         enrolled_json = result['enrolled_courses']
         
-        # Parse enrolled courses (handle string or list)
         enrolled_list = []
         if enrolled_json:
             if isinstance(enrolled_json, str):
@@ -510,25 +512,28 @@ def get_student_schedule(user_id):
             else:
                 enrolled_list = enrolled_json
         
-        # 2. Get Schedule for Section BUT Filter by Course Code
-        # Gumamit tayo ng dynamic SQL generation para sa IN clause
-        if not enrolled_list:
-             return jsonify([]) # Enrolled in nothing
+        if not enrolled_list: return jsonify([])
 
         format_strings = ','.join(['%s'] * len(enrolled_list))
         
+        # FIXED QUERY: JOIN SUBJECTS for course_name
         sql = f"""
-            SELECT cs.day_of_week, cs.start_time, cs.end_time, cs.course_name, cm.room_name, cs.course_code
+            SELECT 
+                cs.day_of_week, 
+                cs.start_time, 
+                cs.end_time, 
+                s.subject_description as course_name, 
+                cs.course_code,
+                cm.room_name
             FROM ClassSchedule cs
             LEFT JOIN CameraManagement cm ON cs.camera_id = cm.camera_id
+            JOIN Subjects s ON cs.course_code = s.subject_code
             WHERE cs.section = %s 
-            AND cs.course_code IN ({format_strings}) -- FILTER HERE
+            AND cs.course_code IN ({format_strings})
             ORDER BY cs.start_time
         """
         
-        # Combine section + enrolled list for parameters
         params = [section] + enrolled_list
-        
         cursor.execute(sql, tuple(params))
         schedule = cursor.fetchall()
         
@@ -547,22 +552,36 @@ def get_attendance_history(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        # FIXED QUERY: Added Join for potential future use, mostly getting raw logs
         sql = """
-            SELECT e.timestamp, e.event_type, e.confidence_score, cm.room_name
+            SELECT 
+                e.timestamp, 
+                e.event_type, 
+                e.confidence_score, 
+                cm.room_name,
+                e.remarks,
+                s.subject_description as course_name
             FROM EventLog e
             LEFT JOIN CameraManagement cm ON e.camera_id = cm.camera_id
+            LEFT JOIN ClassSchedule cs ON e.camera_id = cs.camera_id -- Loose mapping via room
+            LEFT JOIN Subjects s ON cs.course_code = s.subject_code
             WHERE e.user_id = %s
             ORDER BY e.timestamp DESC
         """
         cursor.execute(sql, (user_id,))
         logs = cursor.fetchall()
+        
+        # Deduplicate logs if multiple schedules exist for same room (optional cleanup)
+        # For now, raw logs are fine.
+        
         return jsonify(logs)
     except Exception as e:
+        print(f"History Error: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
         conn.close()
-
+        
 
 # ==========================================
 # API: FACULTY DASHBOARD STATS
@@ -984,6 +1003,171 @@ def assign_faculty():
         cursor.close()
         conn.close()
 
+# ==========================================
+# API: UPLOAD & PARSE COR (PDF) - DYNAMIC SEARCH FIX
+# ==========================================
+@app.route('/api/student/upload-cor', methods=['POST'])
+def upload_cor():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    user_id = request.form.get('user_id')
+    
+    if file.filename == '': return jsonify({"error": "No selected file"}), 400
+    if not user_id: return jsonify({"error": "User ID missing"}), 400
+
+    print(f"📄 Processing CoR for User {user_id}...")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        with pdfplumber.open(file) as pdf:
+            first_page = pdf.pages[0]
+            # Crop header to avoid noise
+            top_half = first_page.crop((0, 0, first_page.width, first_page.height * 0.75)) 
+            
+            # Default extraction (most robust for text clustering)
+            table = top_half.extract_table()
+            
+            if not table: return jsonify({"error": "Could not read table."}), 400
+
+            parsed_subjects = []
+            
+            # --- 1. GET USER SECTION ---
+            cursor.execute("SELECT section FROM User WHERE user_id = %s", (user_id,))
+            res = cursor.fetchone()
+            user_section = res[0] if res else 'BSIT-4A'
+
+            for row in table[1:]: 
+                if not row: continue 
+                
+                # Clean row: Remove None and empty strings
+                clean_row = [str(x).replace('\n', ' ').strip() for x in row if x and str(x).strip() != '']
+                
+                # Skip garbage rows
+                if not clean_row or len(clean_row) < 3: continue
+                
+                sub_code = clean_row[0]
+                
+                # Garbage Filter
+                garbage_keywords = ['time:', 'date:', 'page', 'total', 'fee', 'assessment', 'payment', 'balance']
+                if any(k in sub_code.lower() for k in garbage_keywords): continue
+
+                # --- 2. DYNAMIC SEARCH STRATEGY ---
+                # Find the TIME column first (Anchor Point)
+                time_index = -1
+                for i, cell in enumerate(clean_row):
+                    # Check for Time Pattern (e.g., "7:00 AM-9:00 AM")
+                    if ("AM" in cell or "PM" in cell) and ("-" in cell or "–" in cell):
+                        time_index = i
+                        break
+                
+                # Default Values
+                days_raw = "TBA"
+                time_raw = "TBA"
+                section_raw = user_section
+                
+                if time_index != -1:
+                    # FOUND TIME! Now map others relative to it.
+                    time_raw = clean_row[time_index]
+                    
+                    # Day is usually immediately BEFORE Time
+                    if time_index > 0:
+                        days_raw = clean_row[time_index - 1]
+                    
+                    # Section is usually the LAST item
+                    # Check if last item looks like a section (contains 'BS')
+                    if "BS" in clean_row[-1] or "SECTION" in clean_row[-1].upper():
+                        section_raw = clean_row[-1]
+                    elif len(clean_row) > time_index + 1:
+                         # If Room exists, Section might be after Room
+                         section_raw = clean_row[-1]
+                else:
+                    # Fallback: If no Time pattern found, try standard indices
+                    if len(clean_row) >= 7:
+                        days_raw = clean_row[3]
+                        time_raw = clean_row[4]
+                        section_raw = clean_row[6]
+
+                # --- 3. INSERT SUBJECT ---
+                # Extract Title: Everything between Code and (Units/Day)
+                # This is just a placeholder title if dynamic search is complex, usually row[1] is fine
+                sub_title = clean_row[1] 
+                
+                cursor.execute("""
+                    INSERT IGNORE INTO Subjects (subject_code, subject_description, units)
+                    VALUES (%s, %s, 3)
+                """, (sub_code, sub_title))
+
+                # --- 4. SPLIT LOGIC & PARSING ---
+                day_parts = [d.strip() for d in days_raw.split('/') if d.strip()]
+                time_parts = [t.strip() for t in time_raw.split('/') if t.strip()]
+                
+                max_splits = max(len(day_parts), len(time_parts))
+
+                for i in range(max_splits):
+                    current_day_abbr = day_parts[i] if i < len(day_parts) else (day_parts[-1] if day_parts else 'TBA')
+                    current_time_range = time_parts[i] if i < len(time_parts) else (time_parts[-1] if time_parts else 'TBA')
+
+                    # Parse Day
+                    day_map = {
+                        'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'TH': 'Thursday', 'HU': 'Thursday',
+                        'F': 'Friday', 'S': 'Saturday', 'SUN': 'Sunday', 'SU': 'Sunday'
+                    }
+                    clean_key = current_day_abbr.upper().replace('.', '').strip()
+                    full_day = day_map.get(clean_key, current_day_abbr)
+                    if len(full_day) < 3: full_day = 'TBA'
+
+                    # Parse Time
+                    start_time = "TBA"
+                    end_time = "TBA"
+                    clean_range = current_time_range.replace('–', '-') # Fix en-dash
+                    if "-" in clean_range:
+                        t_parts = clean_range.split('-')
+                        if len(t_parts) >= 2:
+                            start_time = t_parts[0].strip()
+                            end_time = t_parts[1].strip()
+
+                    # Find Camera (Optional: Map room from raw if needed, else NULL)
+                    camera_id = None
+
+                    # --- 5. INSERT SCHEDULE ---
+                    check_sql = """
+                        SELECT schedule_id FROM ClassSchedule 
+                        WHERE course_code = %s AND section = %s AND day_of_week = %s AND start_time = %s
+                    """
+                    cursor.execute(check_sql, (sub_code, section_raw, full_day, start_time))
+                    
+                    if not cursor.fetchone():
+                        print(f"   ➕ Adding: {sub_code} | {full_day} | {start_time}-{end_time} | Sec: {section_raw}")
+                        cursor.execute("""
+                            INSERT INTO ClassSchedule 
+                            (course_code, section, day_of_week, start_time, end_time, camera_id, faculty_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, NULL)
+                        """, (sub_code, section_raw, full_day, start_time, end_time, camera_id))
+
+                parsed_subjects.append(sub_code)
+
+            if parsed_subjects:
+                courses_json = json.dumps(list(set(parsed_subjects)))
+                cursor.execute("UPDATE User SET enrolled_courses = %s, section = %s WHERE user_id = %s", (courses_json, section_raw, user_id))
+                
+                notif_msg = f"Schedule generated. {len(set(parsed_subjects))} subjects verified."
+                cursor.execute("INSERT INTO Notification (user_id, icon, message, is_read) VALUES (%s, 'fas fa-file-invoice', %s, FALSE)", (user_id, notif_msg))
+
+            conn.commit()
+            return jsonify({"message": "Schedule generated successfully!", "subjects": parsed_subjects}), 200
+
+    except Exception as e:
+        print(f"❌ CoR Error: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+                     
 # 4. ASSIGN ROOM & SCHEDULE
 @app.route('/api/dept/assign-room', methods=['POST'])
 def assign_room():

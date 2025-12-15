@@ -74,55 +74,42 @@ const AttendanceHistoryPage = () => {
                         }
                     });
                     setUniqueSubjects(subjects);
-
-                    // B. Get Logs & SMART MAPPING (FIXED TIMEZONE ISSUE)
+                    
+                    // B. Get Logs & SMART MAPPING
                     const historyRes = await axios.get(`http://localhost:5000/api/student/history/${storedUser.user_id}`);
                     
                     const mappedLogs = historyRes.data.map(log => {
-                        // FIX: Treat the date string as raw local time to avoid +8hr auto-conversion
-                        // We explicitly construct the date parts
-                        const rawDate = new Date(log.timestamp); 
+                        // 1. Create Date object manually to avoid Timezone Shift
+                        // Assuming timestamp comes as "YYYY-MM-DD HH:MM:SS" from MySQL
+                        const t = log.timestamp.split(/[- :]/);
+                        // Construct date: year, month-1, day, hour, min, sec
+                        const logDate = new Date(t[0], t[1]-1, t[2], t[3], t[4], t[5]);
                         
-                        // Option 1: Force string parsing if format is consistently ISO
-                        // Option 2: Use UTC methods if the offset is consistent.
-                        // BEST APPROACH: Read the hours directly from string if possible, OR rely on getHours but adjust matching.
-                        
-                        const logDay = rawDate.toLocaleDateString('en-US', { weekday: 'long' });
-                        
-                        // Calculate Minutes for matching (0-1440)
-                        const logTimeMins = rawDate.getHours() * 60 + rawDate.getMinutes();
+                        const logDay = logDate.toLocaleDateString('en-US', { weekday: 'long' });
+                        const logTimeMins = logDate.getHours() * 60 + logDate.getMinutes();
 
-                        // FIX: Find class based on Day + Room + Time
-                        // We widen the buffer significantly to catch "Unscheduled" caused by timezone shifts
+                        // 2. Find Class Match
                         const foundClass = schedRes.data.find(cls => {
                             const startMins = parseTimeStr(cls.start_time);
                             const endMins = parseTimeStr(cls.end_time);
                             
-                            // Check strict match
-                            const strictMatch = (
-                                cls.day_of_week === logDay &&
-                                cls.room_name === log.room_name &&
-                                logTimeMins >= (startMins - 60) && // 60 mins before
-                                logTimeMins <= (endMins + 30)      // 30 mins after
-                            );
+                            // Check Day
+                            if (cls.day_of_week !== logDay) return false;
 
-                            // Check "UTC Shifted" match (If browser added 8 hours, we subtract 480 mins to check)
-                            // This handles cases where 1PM shows as 9PM
-                            const adjustedLogMins = logTimeMins - 480; 
-                            const timezoneMatch = (
-                                cls.day_of_week === logDay &&
-                                cls.room_name === log.room_name &&
-                                adjustedLogMins >= (startMins - 60) && 
-                                adjustedLogMins <= (endMins + 30)
-                            );
+                            // Check Room (If room data exists in log)
+                            if (log.room_name && cls.room_name && log.room_name !== cls.room_name) return false;
 
-                            return strictMatch || timezoneMatch;
+                            // Check Time (Buffer: 60 mins before, 60 mins after class starts/ends)
+                            // "Unscheduled" usually happens because the log time is way off the schedule
+                            return (
+                                logTimeMins >= (startMins - 60) && 
+                                logTimeMins <= (endMins + 60)
+                            );
                         });
 
                         return {
                             ...log,
-                            // If found, use Course Name.
-                            mapped_subject: foundClass ? foundClass.course_name : (log.event_type === 'system_alert' ? 'Unauthorized Entry' : 'Unscheduled'),
+                            mapped_subject: foundClass ? foundClass.title : (log.event_type === 'system_alert' ? 'Unauthorized Entry' : 'Unscheduled'),
                             mapped_room: log.room_name
                         };
                     });
