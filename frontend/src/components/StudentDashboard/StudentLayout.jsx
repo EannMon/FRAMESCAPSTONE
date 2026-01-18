@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Import Axios para sa live notification count
+import axios from 'axios'; 
 import './StudentLayout.css';
 import '../ZCommon/Utility.css';
 import Header from '../ZCommon/Header'; 
@@ -55,86 +55,83 @@ const StudentSidebar = () => {
 };
 
 // ===========================================
-// 2. Main StudentLayout Component (UPDATED with Verification Check)
+// 2. Main StudentLayout Component
 // ===========================================
 const StudentLayout = () => {
     const navigate = useNavigate();
     
-    // NEW STATES: user (for authenticated data) at loading (para sa initial check)
+    // State for user data and loading status
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // 2. FETCH USER DATA & SECURITY CHECK ON MOUNT
+    // FETCH USER DATA & SECURITY CHECK
     useEffect(() => {
         const loadUserData = async () => {
             const storedUserJson = localStorage.getItem('currentUser');
             
             if (!storedUserJson) {
-                // Walang naka-login, ibalik sa landing page
                 navigate('/');
-                setLoading(false); // End loading for failed attempt
+                setLoading(false);
                 return;
             }
 
             const storedUser = JSON.parse(storedUserJson);
 
-            // --- HAKBANG 1: SECURITY CHECK (ADDED) ---
+            // --- SECURITY CHECK: VERIFICATION STATUS ---
+            // If the user is logged in but not Verified (e.g., Pending/Rejected), block access.
             if (storedUser.verification_status !== 'Verified') {
                 alert("Access denied. Your account is still pending verification.");
-                // Redirect sa Registration Status page
-                navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
+                // Redirect to a specific status page if you have one, or back to login
+                // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
+                navigate('/'); 
+                localStorage.removeItem('currentUser'); // Force logout
                 setLoading(false); 
                 return;
             }
-            // --- END SECURITY CHECK ---
 
-            // B. (Optional) Fetch Live Notification Count form Backend
+            // --- FETCH LIVE NOTIFICATIONS ---
             let notifCount = 0;
             try {
-                // Re-using the dashboard endpoint to get notification count
+                // Fetch dashboard data to get accurate notification count
                 const response = await axios.get(`http://localhost:5000/api/student/dashboard/${storedUser.user_id}`);
                 const notifs = response.data.notifications || [];
-                // Count unread notifications
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {
                 console.error("Failed to fetch notification count", error);
-                // Patuloy pa rin kahit may error sa notif count
             }
 
-            // C. Update State
+            // --- UPDATE STATE ---
             setUser({
-                ...storedUser, // Ilagay ang lahat ng user data
-                name: `${storedUser.firstName} ${storedUser.lastName}`,
-                // Gamitin ang avatar galing DB kung meron, or generated one based on Initials
-                avatar: storedUser.avatar || `https://ui-avatars.com/api/?name=${storedUser.firstName}+${storedUser.lastName}&background=f8d7da&color=dc3545`,
+                ...storedUser, 
+                // We pass the raw data. The <Header> component will handle generating 
+                // the Red Avatar based on firstName/lastName if avatar is null.
                 notifications: notifCount
             });
+            
             setLoading(false);
         };
 
         loadUserData();
     }, [navigate]);
 
-    // HAKBANG 2: Loading Screen
-    if (loading || !user) {
-        return <div style={{textAlign: 'center', paddingTop: '100px'}}>Loading dashboard...</div>;
+    if (loading) {
+        return <div style={{textAlign: 'center', paddingTop: '100px', color: '#666'}}>Loading dashboard...</div>;
     }
 
+    if (!user) return null;
 
     return (
         <div className="dashboard-container">
-            {/* Pass the DYNAMIC 'user' state to the Header */}
+            {/* Header handles the Avatar and Dropdown logic */}
             <Header theme={studentTheme} user={user} />
             
             <div className="dashboard-body">
                 <StudentSidebar />
                 <div className="main-content-area">
-                    {/* I-pass ang user object sa Outlet context para magamit sa mga child components */}
+                    {/* Pass user context to child pages */}
                     <Outlet context={{ user }} /> 
                 </div>
             </div>
-            {/* Tiyakin na ang Footer ay nandiyan pa rin kung saan ito nararapat, bagama't wala sa snippet ninyo */}
-            {/* <Footer /> */} 
         </div>
     );
 };

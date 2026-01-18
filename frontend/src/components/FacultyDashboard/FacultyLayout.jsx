@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import axios from 'axios'; 
 import './FacultyLayout.css'; 
 import '../ZCommon/Utility.css'; 
 import Header from '../ZCommon/Header'; 
-
-// NOTE: Kailangan i-define ang DEFAULT_AVATAR
-const DEFAULT_AVATAR = 'https://placehold.co/100x100/f8d7da/dc3545?text=No+Img';
 
 // --- THEME DEFINITION ---
 const facultyTheme = {
@@ -16,16 +14,14 @@ const facultyTheme = {
 };
 
 // ===========================================
-// 1. Faculty Sidebar Component (Merged Logic)
+// 1. Faculty Sidebar Component
 // ===========================================
 const FacultySidebar = ({ user }) => {
     // --- LOGIC: Check if user is a Department Head ---
-    // Pinagsama ang lahat ng kondisyon: faculty_status O role
     const isDeptHead = user?.faculty_status === 'Head' || 
                        user?.faculty_status === 'Department Head' || 
                        user?.role === 'dept_head';
 
-    // Base Navigation Items
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/faculty-classes' },
@@ -33,7 +29,6 @@ const FacultySidebar = ({ user }) => {
         { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports' },
     ];
 
-    // CONDITIONAL: Add Dept Management tab if Head
     if (isDeptHead) {
         navItems.push({ 
             name: 'Department Mgmt', 
@@ -44,7 +39,6 @@ const FacultySidebar = ({ user }) => {
 
     return (
         <aside className="faculty-sidebar">
-            {/* Dynamic Role Tag */}
             <div className="faculty-role-tag">
                 {isDeptHead ? "Department Head" : "Faculty Member"}
             </div>
@@ -70,69 +64,78 @@ const FacultySidebar = ({ user }) => {
 };
 
 // ===========================================
-// 2. Main FacultyLayout Component (Merged Security & Loading)
+// 2. Main FacultyLayout Component
 // ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
     
-    // NEW STATES: Loading state at initial user state
-    const [loading, setLoading] = useState(true);
+    // States for user data and loading
     const [user, setUser] = useState(null); 
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            const role = parsedUser.role?.toLowerCase();
+        const loadUserData = async () => {
+            const storedUserJson = localStorage.getItem('currentUser');
             
-            // --- HAKBANG 1: VERIFICATION STATUS CHECK ---
+            if (!storedUserJson) {
+                navigate('/');
+                setLoading(false);
+                return;
+            }
+
+            const parsedUser = JSON.parse(storedUserJson);
+            const role = parsedUser.role?.toLowerCase();
+
+            // --- 1. SECURITY CHECK: VERIFICATION ---
             if (parsedUser.verification_status !== 'Verified') {
                 alert("Access denied. Your account is still pending verification.");
-                navigate(`/register/${role}?s=${parsedUser.verification_status.toLowerCase()}`); 
+                localStorage.removeItem('currentUser'); // Force logout
+                navigate('/'); 
                 setLoading(false); 
                 return; 
             }
-            // --- END VERIFICATION CHECK ---
 
-            // --- HAKBANG 2: ROLE CHECK ---
+            // --- 2. SECURITY CHECK: ROLE ---
             if (role !== 'faculty' && role !== 'dept_head') {
+                alert("Access denied. Authorized for Faculty only.");
                 navigate('/'); 
                 setLoading(false);
                 return;
             }
 
-            // Set User Data (Pinagsama ang data structure para sa sidebar/header)
+            // --- 3. FETCH LIVE STATS (Optional) ---
+            // You can fetch notification counts here if needed, similar to StudentLayout
+            // For now, we assume notifications are inside the user object or handled by Header
+
+            // Set User Data
             setUser({
                 ...parsedUser, 
-                name: `${parsedUser.firstName} ${parsedUser.lastName}`,
-                avatar: parsedUser.avatar || DEFAULT_AVATAR,
-                faculty_status: parsedUser.faculty_status || 'Regular',
-                notifications: parsedUser.notifications || 0
+                // Fix: Remove hardcoded default avatar. 
+                // Let Header generate initials if avatar is null/empty.
+                faculty_status: parsedUser.faculty_status || 'Regular' 
             });
+            
             setLoading(false); 
+        };
 
-        } else {
-            navigate('/');
-            setLoading(false); 
-        }
+        loadUserData();
     }, [navigate]);
 
-    // HAKBANG 3: Loading Screen 
-    if (loading || !user) {
-        return <div style={{textAlign: 'center', paddingTop: '100px'}}>Loading dashboard...</div>;
+    if (loading) {
+        return <div style={{textAlign: 'center', paddingTop: '100px', color: '#666'}}>Loading dashboard...</div>;
     }
+
+    if (!user) return null;
 
     return (
         <div className="dashboard-container">
-            {/* Tiyakin na gumagamit ng tamang Header component */}
             <Header theme={facultyTheme} user={user} />
             
             <div className="dashboard-body">
                 <FacultySidebar user={user} />
                 
                 <div className="main-content-area">
-                    <Outlet />
+                    <Outlet context={{ user }} />
                 </div>
             </div>
         </div>

@@ -36,19 +36,27 @@ const DeptHeadManagePage = () => {
 
     // --- 1. FETCH DATA FROM DB ---
     const fetchManagementData = async () => {
+        setLoading(true);
         try {
             const response = await axios.get('http://localhost:5000/api/dept/management-data');
-            setCourses(response.data.courses);
-            setFacultyList(response.data.faculty);
-            // Extract just the room names for the dropdown
-            setAvailableRooms(response.data.rooms.map(r => r.room_name));
-            if(response.data.rooms.length > 0) {
-                setRoomForm(prev => ({...prev, roomName: response.data.rooms[0].room_name}));
+            if (response.data) {
+                setCourses(response.data.courses || []);
+                setFacultyList(response.data.faculty || []);
+                
+                // Extract just the room names for the dropdown if rooms exist
+                const rooms = response.data.rooms || [];
+                setAvailableRooms(rooms.map(r => r.room_name));
+                
+                if(rooms.length > 0) {
+                    setRoomForm(prev => ({...prev, roomName: rooms[0].room_name}));
+                }
             }
-            setLoading(false);
         } catch (error) {
             console.error("Error fetching data:", error);
-            alert("Failed to load data from server.");
+            // Optional: alert("Failed to load data from server."); 
+            // Suppressed alert on load to prevent spamming if backend is down
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -85,6 +93,7 @@ const DeptHeadManagePage = () => {
     };
 
     const handleAssignTeacher = async (facultyId, facultyName) => {
+        if (!selectedCourse) return;
         try {
             await axios.post('http://localhost:5000/api/dept/assign-faculty', {
                 schedule_id: selectedCourse.schedule_id,
@@ -95,7 +104,8 @@ const DeptHeadManagePage = () => {
             setShowAssignModal(false);
             fetchManagementData();
         } catch (error) {
-            alert("Assignment failed.");
+            console.error("Assignment failed:", error);
+            alert("Assignment failed. Check console for details.");
         }
     };
 
@@ -107,6 +117,8 @@ const DeptHeadManagePage = () => {
 
     const handleAssignRoom = async (e) => {
         e.preventDefault();
+        if (!selectedCourse) return;
+        
         try {
             await axios.post('http://localhost:5000/api/dept/assign-room', {
                 schedule_id: selectedCourse.schedule_id,
@@ -120,7 +132,8 @@ const DeptHeadManagePage = () => {
             setShowRoomModal(false);
             fetchManagementData();
         } catch (error) {
-            alert("Room assignment failed.");
+            console.error("Room assignment failed:", error);
+            alert("Room assignment failed. Check console for details.");
         }
     };
 
@@ -165,7 +178,7 @@ const DeptHeadManagePage = () => {
             <div className="mgmt-layout">
                 {/* TABLE */}
                 <div className="course-list-section card">
-                    <h3>Course Loads & Room Assignments {loading && "(Loading...)"}</h3>
+                    <h3>Course Loads & Room Assignments {loading && <span style={{fontSize:'0.8em', color:'#888'}}>(Refreshing...)</span>}</h3>
                     <div className="table-responsive">
                         <table className="mgmt-table">
                             <thead>
@@ -178,7 +191,7 @@ const DeptHeadManagePage = () => {
                             </thead>
                             <tbody>
                                 {courses.map(course => (
-                                    <tr key={course.subject_code + (course.schedule_id || 'new')}>
+                                    <tr key={course.subject_code + (course.schedule_id || Math.random())}>
                                         <td>
                                             <span className="code-pill">{course.subject_code}</span>
                                             <div className="small-desc">{course.name}</div>
@@ -312,7 +325,11 @@ const DeptHeadManagePage = () => {
                                     value={roomForm.roomName} 
                                     onChange={e => setRoomForm({...roomForm, roomName: e.target.value})}
                                 >
-                                    {availableRooms.map(r => <option key={r} value={r}>{r}</option>)}
+                                    {availableRooms.length > 0 ? (
+                                        availableRooms.map(r => <option key={r} value={r}>{r}</option>)
+                                    ) : (
+                                        <option value="">No rooms available</option>
+                                    )}
                                 </select>
                             </div>
                             <div className="form-group">
