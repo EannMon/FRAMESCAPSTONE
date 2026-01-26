@@ -178,7 +178,7 @@ const UserManagementPage = () => {
                                     <td>{user.lastActive}</td>
                                     <td>
                                         <button className="action-button"><i className="fas fa-pen"></i></button>
-                                        <button className="action-button delete-button"><i className="fas fa-trash"></i></button>
+
                                     </td>
                                 </tr>
                             ))
