@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import './LandingPage.css'; 
-import './RegistrationPage.css'; 
-import Header from '../ZCommon/Header';
-import Footer from '../ZCommon/Footer';
+import './LandingPage.css';
+import './RegistrationPage.css';
+import Header from '../Common/Header';
+import Footer from '../Common/Footer';
 
 // --- HELPER DATA FOR BIRTHDAY ---
 const months = [
@@ -19,16 +19,16 @@ const RegistrationPage = () => {
     const { role } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     // HAKBANG 1 (Step 3.2): Kunin ang status query parameter
     const queryParams = new URLSearchParams(location.search);
-    const status = queryParams.get('s'); 
-    
+    const status = queryParams.get('s');
+
     // Validate role immediately
     useEffect(() => {
         if (role !== 'student' && role !== 'faculty') {
             // Only redirect if there's no status query, otherwise show the status message
-            if (!status) navigate('/'); 
+            if (!status) navigate('/');
         }
     }, [role, navigate, status]);
 
@@ -49,14 +49,14 @@ const RegistrationPage = () => {
     const [isValidating, setIsValidating] = useState(false); // Loading spinner
 
     const [formData, setFormData] = useState({
-        firstName: '', 
-        lastName: '', 
-        middleName: '', 
-        streetNumber: '', streetName: '', barangay: '', city: '', zipCode: '', 
-        tupmYear: '', tupmSerial: '', 
+        firstName: '',
+        lastName: '',
+        middleName: '',
+        streetNumber: '', streetName: '', barangay: '', city: '', zipCode: '',
+        tupmYear: '', tupmSerial: '',
         email: '',
-        contactNumber: '+63 ', 
-        birthday: '', 
+        contactNumber: '+63 ',
+        birthday: '',
         courseCode: '', year: '', section: '', college: '',
         status: '', term: '', facultyStatus: ''
     });
@@ -74,39 +74,39 @@ const RegistrationPage = () => {
     // --- UPDATED COURSE DATA WITH SECTIONS ---
     const availableCourses = [
         // College of Science (COS)
-        { 
-            code: "BSIT", 
-            name: "BS Information Technology", 
-            college: "COS", 
-            sections: ["BSIT-1A", "BSIT-1B", "BSIT-2A", "BSIT-2B", "BSIT-3A", "BSIT-4A", "BSIT-4B"] 
+        {
+            code: "BSIT",
+            name: "BS Information Technology",
+            college: "COS",
+            sections: ["BSIT-1A", "BSIT-1B", "BSIT-2A", "BSIT-2B", "BSIT-3A", "BSIT-4A", "BSIT-4B"]
         },
-        { 
-            code: "BSCS", 
-            name: "BS Computer Science", 
-            college: "COS", 
-            sections: ["BSCS-1A", "BSCS-1B", "BSCS-2A", "BSCS-4A"] 
+        {
+            code: "BSCS",
+            name: "BS Computer Science",
+            college: "COS",
+            sections: ["BSCS-1A", "BSCS-1B", "BSCS-2A", "BSCS-4A"]
         },
-        
+
         // College of Engineering (COE) - REQUESTED
-        { 
-            code: "BSIE", 
-            name: "BS Industrial Engineering", 
-            college: "COE", 
-            sections: ["BSIE-1A", "BSIE-1B", "BSIE-2A", "BSIE-3A", "BSIE-5A"] 
+        {
+            code: "BSIE",
+            name: "BS Industrial Engineering",
+            college: "COE",
+            sections: ["BSIE-1A", "BSIE-1B", "BSIE-2A", "BSIE-3A", "BSIE-5A"]
         },
-        { 
-            code: "BSCE", 
-            name: "BS Civil Engineering", 
-            college: "COE", 
-            sections: ["BSCE-1A", "BSCE-1B", "BSCE-4A", "BSCE-5A"] 
+        {
+            code: "BSCE",
+            name: "BS Civil Engineering",
+            college: "COE",
+            sections: ["BSCE-1A", "BSCE-1B", "BSCE-4A", "BSCE-5A"]
         },
-        
+
         // College of Industrial Education (CIE)
-        { 
-            code: "BSED", 
-            name: "BS Industrial Education", 
-            college: "CIE", 
-            sections: ["BSED-1A", "BSED-2A", "BSED-3A"] 
+        {
+            code: "BSED",
+            name: "BS Industrial Education",
+            college: "CIE",
+            sections: ["BSED-1A", "BSED-2A", "BSED-3A"]
         },
         // ... pwede mo dagdagan pa ibang courses dito
     ];
@@ -121,32 +121,32 @@ const RegistrationPage = () => {
 
     const handleBirthdayChange = (type, value) => {
         let newYear = bYear || currentYear;
-        let newMonth = bMonth || '01'; 
-        let newDay = bDay || '01'; 
-        
+        let newMonth = bMonth || '01';
+        let newDay = bDay || '01';
+
         if (type === 'year') newYear = value;
-        if (type === 'month') newMonth = value; 
-        if (type === 'day') newDay = value.padStart(2, '0'); 
-        
+        if (type === 'month') newMonth = value;
+        if (type === 'day') newDay = value.padStart(2, '0');
+
         setFormData({ ...formData, birthday: `${newYear}-${newMonth}-${newDay}` });
     };
 
     // Handlers
     const handleNext = () => setStep(prev => prev + 1);
     const handleBack = () => setStep(prev => prev - 1);
-    
+
     // HAKBANG 5 (Step 3.3 Revised): Pag-handle ng pag-finish at pag-redirect
     const handleFinish = async () => {
         // 1. SECURITY CHECK: Check kung may picture at valid
         if (!faceCapture || !faceValid) {
             alert("⚠️ Please capture a valid face photo first!");
-            return; 
+            return;
         }
 
         // Add password validation here if needed
         if (password !== retypePassword || password.length < 6) {
-             alert("⚠️ Passwords must match and be at least 6 characters long.");
-             return;
+            alert("⚠️ Passwords must match and be at least 6 characters long.");
+            return;
         }
 
         try {
@@ -155,7 +155,7 @@ const RegistrationPage = () => {
                 ...formData,
                 password: password,
                 role: role,
-                faceCapture: faceCapture 
+                faceCapture: faceCapture
             };
 
             console.log("Sending Payload:", payload); // Para makita mo sa console
@@ -165,16 +165,16 @@ const RegistrationPage = () => {
 
             if (response.data.message) {
                 // SUCCESS: Redirect sa Status Page na may 'pending' flag
-                navigate('/register/status?s=pending'); 
+                navigate('/register/status?s=pending');
             }
         } catch (error) {
             console.error("Error registering:", error);
             // Handling specific MySQL errors from backend
             const errorMsg = error.response?.data?.error || error.message;
             if (errorMsg.includes("Email or TUPM ID already exists.")) {
-                 alert("Registration Failed: Email or TUPM ID already exists.");
+                alert("Registration Failed: Email or TUPM ID already exists.");
             } else {
-                 alert("Registration Failed: " + errorMsg);
+                alert("Registration Failed: " + errorMsg);
             }
         }
     };
@@ -201,26 +201,26 @@ const RegistrationPage = () => {
     const handleCapture = async () => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        
+
         if (video && canvas) {
             // 1. Draw image to canvas
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            
+
             // 2. Get Data URL
             const imageSrc = canvas.toDataURL('image/png');
             setFaceCapture(imageSrc); // Show preview temporarily
-            
+
             // 3. Send to Backend for Validation
             setIsValidating(true); // Start loading
             setFaceValid(false);   // Reset validity
-    
+
             try {
                 const response = await axios.post('http://localhost:5000/validate-face', {
                     faceCapture: imageSrc
                 });
-    
+
                 if (response.data.valid) {
                     setFaceValid(true); // Show Green Box
                 } else {
@@ -240,7 +240,7 @@ const RegistrationPage = () => {
 
     // Filter Courses based on selected College
     const filteredCourses = availableCourses.filter(c => c.college === formData.college);
-    
+
     // Get Sections based on selected Course
     const currentCourseData = availableCourses.find(c => c.code === formData.courseCode);
     const filteredSections = currentCourseData ? currentCourseData.sections : [];
@@ -275,11 +275,11 @@ const RegistrationPage = () => {
                         <i className={iconClass} style={{ fontSize: '3em', color: iconColor, marginBottom: '20px' }}></i>
                         <h2>{title}</h2>
                         <p>{message}</p>
-                        
+
                         <p style={{ marginTop: '30px' }}>
-                            <button 
-                                onClick={() => navigate('/')} 
-                                className="auth-submit-button" 
+                            <button
+                                onClick={() => navigate('/')}
+                                className="auth-submit-button"
                                 style={{ backgroundColor: '#A62525', borderColor: '#A62525' }}
                             >
                                 Return to Login
@@ -291,24 +291,24 @@ const RegistrationPage = () => {
             </div>
         );
     }
-    
+
     // HAKBANG 5: Ipagpatuloy ang pag-render ng registration form kung walang status query
     return (
         <div className="registration-page-wrapper">
-            
+
             <Header user={null} setPanel={() => navigate('/')} />
 
             <div className="registration-container">
 
                 <div className="form-card">
-                    <button 
+                    <button
                         type="button"
                         className="return-btn"
                         onClick={() => navigate(-1)}
                     >
                         <i className="fas fa-arrow-left"></i> Back
                     </button>
-                    
+
                     {/* TOP LEFT BACK BUTTON (Steps 2-4) */}
                     {step > 1 && (
                         <button className="top-back-btn" onClick={handleBack}>
@@ -332,28 +332,28 @@ const RegistrationPage = () => {
                         <>
                             <h3 className="step-title">Step 1: Personal Information</h3>
                             <div className="signup-step">
-                                
+
                                 {/* Row 1: First & Last Name */}
                                 <div className="auth-form-group">
                                     <label>First Name</label>
-                                    <input type="text" value={formData.firstName} onChange={e=>setFormData({...formData, firstName: e.target.value})} />
+                                    <input type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} />
                                 </div>
                                 <div className="auth-form-group">
                                     <label>Last Name</label>
-                                    <input type="text" value={formData.lastName} onChange={e=>setFormData({...formData, lastName: e.target.value})} />
+                                    <input type="text" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} />
                                 </div>
 
                                 {/* Row 2: Middle Name (Full) & Birthday */}
                                 <div className="auth-form-group">
                                     <label>Middle Name</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="Enter middle name"
-                                        value={formData.middleName} 
-                                        onChange={e=>setFormData({...formData, middleName: e.target.value})} 
+                                        value={formData.middleName}
+                                        onChange={e => setFormData({ ...formData, middleName: e.target.value })}
                                     />
                                 </div>
-                                
+
                                 <div className="auth-form-group">
                                     <label>Birthday</label>
                                     <div className="birthday-wrapper">
@@ -377,16 +377,16 @@ const RegistrationPage = () => {
                                 {/* Row 3: Email (Left) & TUPM ID (Right) */}
                                 <div className="auth-form-group">
                                     <label>Email</label>
-                                    <input type="email" value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} />
+                                    <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                                 </div>
 
                                 <div className="auth-form-group">
                                     <label>TUPM ID</label>
                                     <div className="tupm-id-wrapper">
                                         <span className="tupm-prefix">TUPM-</span>
-                                        <input type="text" placeholder="YY" maxLength="2" value={formData.tupmYear} onChange={e=>setFormData({...formData, tupmYear: e.target.value})} className="tupm-year-input"/>
+                                        <input type="text" placeholder="YY" maxLength="2" value={formData.tupmYear} onChange={e => setFormData({ ...formData, tupmYear: e.target.value })} className="tupm-year-input" />
                                         <span className="tupm-sep">-</span>
-                                        <input type="text" placeholder="####" maxLength="4" value={formData.tupmSerial} onChange={e=>setFormData({...formData, tupmSerial: e.target.value})} className="tupm-serial-input"/>
+                                        <input type="text" placeholder="####" maxLength="4" value={formData.tupmSerial} onChange={e => setFormData({ ...formData, tupmSerial: e.target.value })} className="tupm-serial-input" />
                                     </div>
                                 </div>
 
@@ -394,49 +394,49 @@ const RegistrationPage = () => {
                                 {/* Row 4: House No. & Street Name */}
                                 <div className="auth-form-group">
                                     <label>House / Unit No.</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="ex. 123"
-                                        value={formData.streetNumber} 
-                                        onChange={e=>setFormData({...formData, streetNumber: e.target.value})} 
+                                        value={formData.streetNumber}
+                                        onChange={e => setFormData({ ...formData, streetNumber: e.target.value })}
                                     />
                                 </div>
                                 <div className="auth-form-group">
                                     <label>Street Name</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="ex. Ayala Blvd"
-                                        value={formData.streetName} 
-                                        onChange={e=>setFormData({...formData, streetName: e.target.value})} 
+                                        value={formData.streetName}
+                                        onChange={e => setFormData({ ...formData, streetName: e.target.value })}
                                     />
                                 </div>
 
                                 {/* Row 5: Barangay & City */}
                                 <div className="auth-form-group">
                                     <label>Barangay</label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.barangay} 
-                                        onChange={e=>setFormData({...formData, barangay: e.target.value})} 
+                                    <input
+                                        type="text"
+                                        value={formData.barangay}
+                                        onChange={e => setFormData({ ...formData, barangay: e.target.value })}
                                     />
                                 </div>
                                 <div className="auth-form-group">
                                     <label>City / Municipality</label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.city} 
-                                        onChange={e=>setFormData({...formData, city: e.target.value})} 
+                                    <input
+                                        type="text"
+                                        value={formData.city}
+                                        onChange={e => setFormData({ ...formData, city: e.target.value })}
                                     />
                                 </div>
 
                                 {/* Row 6: Zip Code (Solo) */}
                                 <div className="auth-form-group">
                                     <label>Zip Code</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         maxLength="4"
-                                        value={formData.zipCode} 
-                                        onChange={e=>setFormData({...formData, zipCode: e.target.value})} 
+                                        value={formData.zipCode}
+                                        onChange={e => setFormData({ ...formData, zipCode: e.target.value })}
                                     />
                                 </div>
 
@@ -449,15 +449,15 @@ const RegistrationPage = () => {
                         <>
                             <h3 className="step-title">Step 2: {role === 'student' ? 'Program' : 'Department'} Details</h3>
                             <div className="signup-step">
-                                
+
                                 {/* 1. COLLEGE (Full Width) */}
                                 <div className="auth-form-group full-width">
                                     <label>College</label>
-                                    <select 
-                                        value={formData.college} 
+                                    <select
+                                        value={formData.college}
                                         onChange={e => setFormData({
-                                            ...formData, 
-                                            college: e.target.value, 
+                                            ...formData,
+                                            college: e.target.value,
                                             courseCode: '', // Reset course pag nagpalit ng college
                                             section: ''     // Reset section pag nagpalit ng college
                                         })}
@@ -473,9 +473,9 @@ const RegistrationPage = () => {
                                         {/* 2. COURSE (Full Width) */}
                                         <div className="auth-form-group full-width">
                                             <label>Course</label>
-                                            <select 
-                                                value={formData.courseCode} 
-                                                onChange={e=>setFormData({...formData, courseCode: e.target.value, section: ''})} // Reset section pag nagpalit course
+                                            <select
+                                                value={formData.courseCode}
+                                                onChange={e => setFormData({ ...formData, courseCode: e.target.value, section: '' })} // Reset section pag nagpalit course
                                                 disabled={!formData.college} // Disable kung wala pang college
                                             >
                                                 <option value="">Select Course</option>
@@ -488,7 +488,7 @@ const RegistrationPage = () => {
                                         {/* 3. YEAR & SECTION (Side-by-Side) */}
                                         <div className="auth-form-group">
                                             <label>Year Level</label>
-                                            <select value={formData.year} onChange={e=>setFormData({...formData, year: e.target.value})}>
+                                            <select value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })}>
                                                 <option value="">Select Year</option>
                                                 <option value="1">1st Year</option>
                                                 <option value="2">2nd Year</option>
@@ -497,12 +497,12 @@ const RegistrationPage = () => {
                                                 <option value="5">5th Year</option> {/* Added 5th Year */}
                                             </select>
                                         </div>
-                                        
+
                                         <div className="auth-form-group">
                                             <label>Section</label>
-                                            <select 
-                                                value={formData.section} 
-                                                onChange={e=>setFormData({...formData, section: e.target.value})}
+                                            <select
+                                                value={formData.section}
+                                                onChange={e => setFormData({ ...formData, section: e.target.value })}
                                                 disabled={!formData.courseCode} // Disable kung wala pang course
                                             >
                                                 <option value="">Select Section</option>
@@ -516,7 +516,7 @@ const RegistrationPage = () => {
                                         {/* 4. STATUS & TERM (Side-by-Side) - NEW REQUEST */}
                                         <div className="auth-form-group">
                                             <label>Student Status</label>
-                                            <select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})}>
+                                            <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                                                 <option value="">Select Status</option>
                                                 <option value="Regular">Regular</option>
                                                 <option value="Irregular">Irregular</option>
@@ -525,7 +525,7 @@ const RegistrationPage = () => {
 
                                         <div className="auth-form-group">
                                             <label>Current Term</label>
-                                            <select value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})}>
+                                            <select value={formData.term} onChange={e => setFormData({ ...formData, term: e.target.value })}>
                                                 <option value="">Select Term</option>
                                                 <option value="1st">1st Semester</option>
                                                 <option value="2nd">2nd Semester</option>
@@ -539,7 +539,7 @@ const RegistrationPage = () => {
                                 {role === 'faculty' && (
                                     <div className="auth-form-group full-width">
                                         <label>Position</label>
-                                        <select value={formData.facultyStatus} onChange={e=>setFormData({...formData, facultyStatus: e.target.value})}>
+                                        <select value={formData.facultyStatus} onChange={e => setFormData({ ...formData, facultyStatus: e.target.value })}>
                                             <option value="">Select Position</option>
                                             <option value="regular">Regular Faculty</option>
                                             <option value="head">Dept Head</option>
@@ -560,20 +560,20 @@ const RegistrationPage = () => {
                                     {!faceCapture && (
                                         <video ref={videoRef} playsInline muted className="camera-video" />
                                     )}
-                                    
-                                    <canvas ref={canvasRef} style={{display: 'none'}} />
-                                    
+
+                                    <canvas ref={canvasRef} style={{ display: 'none' }} />
+
                                     {/* Show Captured Image with Validation Border */}
                                     {faceCapture && (
-                                        <div className="captured-image-container" style={{position: 'relative'}}>
-                                            <img 
-                                                src={faceCapture} 
-                                                alt="captured" 
+                                        <div className="captured-image-container" style={{ position: 'relative' }}>
+                                            <img
+                                                src={faceCapture}
+                                                alt="captured"
                                                 className="captured-image"
                                                 style={{
                                                     border: faceValid ? '5px solid #28a745' : '5px solid #dc3545', // GREEN if valid, RED if checking
                                                     borderRadius: '8px'
-                                                }} 
+                                                }}
                                             />
                                             {/* Status Label Overlay */}
                                             {isValidating && <div className="validation-overlay">🔍 Checking Face...</div>}
@@ -589,7 +589,7 @@ const RegistrationPage = () => {
                                             {isValidating ? 'Processing...' : 'Capture Face'}
                                         </button>
                                     )}
-                                    
+
                                     {/* Show Retake/Reset button */}
                                     {faceCapture && (
                                         <button className="auth-back-button" onClick={() => {
@@ -609,21 +609,21 @@ const RegistrationPage = () => {
                         <>
                             <h3 className="step-title">Step 4: Review & Password</h3>
                             <div className="summary-section">
-                                <div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleName} {formData.lastName}</span></div> 
+                                <div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleName} {formData.lastName}</span></div>
                                 <div className="summary-item"><span className="summary-label">Birthday:</span> <span>{formData.birthday}</span></div>
-                                <div className="summary-item"><span className="summary-label">Role:</span> <span style={{textTransform:'capitalize'}}>{role}</span></div>
+                                <div className="summary-item"><span className="summary-label">Role:</span> <span style={{ textTransform: 'capitalize' }}>{role}</span></div>
                                 <div className="summary-item"><span className="summary-label">Address:</span> <span>{formData.streetNumber} {formData.streetName}, {formData.barangay}, {formData.city}</span></div>
                             </div>
 
-                            <div className="signup-step" style={{marginTop: '20px'}}>
-                                    <div className="auth-form-group full-width">
-                                        <label>Password</label>
-                                        <input type={showPassword ? "text":"password"} value={password} onChange={e=>setPassword(e.target.value)} />
-                                    </div>
-                                    <div className="auth-form-group full-width">
-                                        <label>Retype Password</label>
-                                        <input type={showRetypePassword ? "text":"password"} value={retypePassword} onChange={e=>setRetypePassword(e.target.value)} />
-                                    </div>
+                            <div className="signup-step" style={{ marginTop: '20px' }}>
+                                <div className="auth-form-group full-width">
+                                    <label>Password</label>
+                                    <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} />
+                                </div>
+                                <div className="auth-form-group full-width">
+                                    <label>Retype Password</label>
+                                    <input type={showRetypePassword ? "text" : "password"} value={retypePassword} onChange={e => setRetypePassword(e.target.value)} />
+                                </div>
                             </div>
                         </>
                     )}

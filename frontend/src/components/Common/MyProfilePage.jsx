@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './MyProfilePage.css';
-import Header from '../ZCommon/Header';
-import '../ZCommon/Utility.css';
+import Header from './Header';
+import './Utility.css';
 import Footer from './Footer';
 
 // ===========================================
@@ -12,13 +12,13 @@ import Footer from './Footer';
 const ProfileField = ({ label, name, value, onChange, type = 'text', isEditing, disabled = false }) => (
     <div className="profile-field">
         <label>{label}</label>
-        <input 
-            type={type} 
+        <input
+            type={type}
             name={name}
-            value={value || ''} 
+            value={value || ''}
             onChange={onChange}
-            disabled={!isEditing || disabled} 
-            className={isEditing && !disabled ? "profile-input-editable" : "profile-input-disabled"} 
+            disabled={!isEditing || disabled}
+            className={isEditing && !disabled ? "profile-input-editable" : "profile-input-disabled"}
         />
     </div>
 );
@@ -110,16 +110,16 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
                     <h3>{step === 1 ? "Verify Identity" : "Create New Password"}</h3>
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
-                
+
                 <div className="modal-body">
                     {error && <div className="error-msg">{error}</div>}
-                    
+
                     {step === 1 ? (
                         <div className="form-group">
                             <label>Enter Current Password</label>
-                            <input 
-                                type="password" 
-                                className="modal-input" 
+                            <input
+                                type="password"
+                                className="modal-input"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
                                 placeholder="••••••••"
@@ -129,8 +129,8 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
                         <>
                             <div className="form-group">
                                 <label>New Password</label>
-                                <input 
-                                    type="password" 
+                                <input
+                                    type="password"
                                     className="modal-input"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
@@ -139,8 +139,8 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
                             </div>
                             <div className="form-group">
                                 <label>Confirm New Password</label>
-                                <input 
-                                    type="password" 
+                                <input
+                                    type="password"
                                     className="modal-input"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -172,11 +172,11 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 // ===========================================
 const MyProfilePage = () => {
     const navigate = useNavigate();
-    
+
     // --- States ---
     const [user, setUser] = useState(() => {
         const stored = localStorage.getItem('currentUser');
-        return stored ? JSON.parse(stored) : null; 
+        return stored ? JSON.parse(stored) : null;
     });
     const [isEditing, setIsEditing] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false); // Modal State
@@ -231,12 +231,12 @@ const MyProfilePage = () => {
         text: '#FFFFFF'
     };
 
-    if (!user) return <div style={{padding:'20px'}}>Please log in again.</div>;
+    if (!user) return <div style={{ padding: '20px' }}>Please log in again.</div>;
 
     return (
         <>
             <Header theme={theme} user={user} />
-            
+
             <div className="profile-page-container">
                 {/* Header */}
                 <div className="profile-header-bar">
@@ -246,13 +246,13 @@ const MyProfilePage = () => {
                         </button>
                         <h1 className="profile-main-title">My Profile</h1>
                     </div>
-                    
+
                     {!isEditing ? (
                         <button className="profile-edit-button" onClick={() => setIsEditing(true)}>
                             <i className="fas fa-pen"></i> Edit Profile
                         </button>
                     ) : (
-                        <div style={{display:'flex', gap:'10px'}}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
                             <button className="profile-cancel-button" onClick={() => setIsEditing(false)}>Cancel</button>
                             <button className="profile-save-button" onClick={handleSave}>
                                 <i className="fas fa-save"></i> Save Changes
@@ -263,16 +263,16 @@ const MyProfilePage = () => {
 
                 {/* Summary Card */}
                 <div className="card profile-summary-card">
-                    <img 
-                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=A62525&color=fff`} 
-                        alt="User Avatar" 
-                        className="profile-avatar" 
+                    <img
+                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=A62525&color=fff`}
+                        alt="User Avatar"
+                        className="profile-avatar"
                     />
                     <div className="profile-summary-info">
                         <h2 className="profile-name">{user.firstName} {user.lastName}</h2>
                         <p className="profile-sub-details">ID: {user.tupm_id}</p>
                         <p className="profile-sub-details">{user.college} - {user.course}</p>
-                        
+
                         {/* --- EDITED: CAPITALIZED STATUS --- */}
                         <div className="profile-status-tag" style={{ textTransform: 'capitalize' }}>
                             <i className="fas fa-check-circle"></i> {user.student_status || user.faculty_status || 'Active'}
@@ -316,7 +316,7 @@ const MyProfilePage = () => {
                         <ProfileField label="Contact Name" name="name" value={user.emergency_contact?.name} onChange={handleEmergencyChange} isEditing={isEditing} />
                         <ProfileField label="Relationship" name="relationship" value={user.emergency_contact?.relationship} onChange={handleEmergencyChange} isEditing={isEditing} />
                         <ProfileField label="Phone Number" name="phone" value={user.emergency_contact?.phone} onChange={handleEmergencyChange} isEditing={isEditing} />
-                         <ProfileField label="Address" name="address" value={user.emergency_contact?.address} onChange={handleEmergencyChange} isEditing={isEditing} />
+                        <ProfileField label="Address" name="address" value={user.emergency_contact?.address} onChange={handleEmergencyChange} isEditing={isEditing} />
                     </div>
                 </div>
 
@@ -339,10 +339,10 @@ const MyProfilePage = () => {
             <Footer />
 
             {/* --- ADDED: PASSWORD MODAL --- */}
-            <PasswordModal 
-                isOpen={isPasswordModalOpen} 
-                onClose={() => setIsPasswordModalOpen(false)} 
-                userId={user.user_id || user.id} 
+            <PasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
+                userId={user.user_id || user.id}
             />
         </>
     );

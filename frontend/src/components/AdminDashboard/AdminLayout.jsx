@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'; 
-import './AdminLayout.css'; 
-import '../ZCommon/Utility.css';
-import Header from '../ZCommon/Header'; 
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import './AdminLayout.css';
+import '../Common/Utility.css';
+import Header from '../Common/Header';
 // TINANGGAL: import UserVerificationPage from './UserVerificationPage'; 
 // Import other required page components here if using conditional rendering
 // import AdminDashboardPage from './AdminDashboardPage'; 
@@ -19,11 +19,11 @@ const adminTheme = {
 // 1. Admin Sidebar Component (MODIFIED)
 // ===========================================
 // Ginawa nating prop ang user para magamit ang data
-const AdminSidebar = ({ user }) => { 
+const AdminSidebar = ({ user }) => {
     // Nav items: TINANGGAL ang 'Verification' link
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/admin-dashboard' },
-        { name: 'Application', icon: 'fas fa-file-alt', to: '/admin-application' }, 
+        { name: 'Application', icon: 'fas fa-file-alt', to: '/admin-application' },
         // TINANGGAL: { name: 'Verification', icon: 'fas fa-user-check', to: '/admin-verification' }, 
         { name: 'User Management', icon: 'fas fa-users', to: '/admin-user-management' },
         { name: 'Reports', icon: 'fas fa-chart-bar', to: '/admin-reports' },
@@ -40,8 +40,8 @@ const AdminSidebar = ({ user }) => {
                 <ul>
                     {navItems.map((item) => (
                         <li key={item.name}>
-                            <NavLink 
-                                to={item.to} 
+                            <NavLink
+                                to={item.to}
                                 className={({ isActive }) => isActive ? 'active' : ''}
                             >
                                 <i className={item.icon}></i>
@@ -60,9 +60,9 @@ const AdminSidebar = ({ user }) => {
 // ===========================================
 const AdminLayout = () => {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null); 
+    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    
+
     // --- SECURITY CHECK ON LOAD (ADDED) ---
     useEffect(() => {
         const storedUser = localStorage.getItem('currentUser');
@@ -76,14 +76,14 @@ const AdminLayout = () => {
         // HAKBANG 1: Check kung Admin
         if (userData.role !== 'admin') {
             alert("Access denied. You are not authorized to view the Admin dashboard.");
-            navigate('/'); 
+            navigate('/');
             return;
         }
-        
+
         // HAKBANG 2: Check kung Verified
         if (userData.verification_status !== 'Verified') {
             alert("Access denied. Your admin account is pending full verification.");
-            navigate(`/register/${userData.role}?s=${userData.verification_status.toLowerCase()}`); 
+            navigate(`/register/${userData.role}?s=${userData.verification_status.toLowerCase()}`);
             return;
         }
 
@@ -98,9 +98,9 @@ const AdminLayout = () => {
     }, [navigate]);
 
     if (loading) {
-        return <div style={{textAlign: 'center', paddingTop: '100px'}}>Loading Admin Panel...</div>;
+        return <div style={{ textAlign: 'center', paddingTop: '100px' }}>Loading Admin Panel...</div>;
     }
-    
+
     // Ang user state ay gagamitin na ngayon sa Header at Sidebar
     return (
         <div className="dashboard-container">

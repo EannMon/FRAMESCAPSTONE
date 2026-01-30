@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './HelpSupportPage.css'; 
-import Header from '../ZCommon/Header';
-import Footer from './Footer'; 
+import './HelpSupportPage.css';
+import Header from './Header';
+import Footer from './Footer';
 
 // --- Theme Definition ---
 const redTheme = {
-    primary: '#A62525', 
+    primary: '#A62525',
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
@@ -54,7 +54,7 @@ const FaqItem = ({ item, isOpen, onClick }) => {
 // --- Main Help & Support Page Component ---
 const HelpSupportPage = () => {
     const navigate = useNavigate();
-    const [openFaq, setOpenFaq] = useState(null); 
+    const [openFaq, setOpenFaq] = useState(null);
 
     // --- FIX: GET REAL USER FROM STORAGE ---
     // This ensures the Header shows the logged-in user's Name & Red Avatar
@@ -64,18 +64,18 @@ const HelpSupportPage = () => {
     });
 
     const handleBack = () => {
-        navigate(-1); 
+        navigate(-1);
     };
 
     const handleFaqClick = (index) => {
-        setOpenFaq(openFaq === index ? null : index); 
+        setOpenFaq(openFaq === index ? null : index);
     };
 
     return (
         <>
             {/* Pass the real user here. If null (not logged in), Header shows Login buttons. */}
             <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
-            
+
             <div className="help-page-container">
                 <div className="help-header-bar">
                     <button onClick={handleBack} className="help-back-button">

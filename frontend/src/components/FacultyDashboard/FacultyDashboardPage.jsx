@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './FacultyDashboardPage.css';
-import '../ZCommon/Utility.css';
+import '../Common/Utility.css';
 
 const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass }) => (
     <div className="summary-card">
@@ -51,40 +51,40 @@ const FacultyDashboardPage = () => {
     }, []);
 
     // --- SUB-COMPONENTS (Defined inside to access 'stats') ---
-    
+
     const FacultySummaryCards = () => (
         <div className="summary-cards-container">
-            <FacultySummaryCard 
-                iconClass="fas fa-calendar-day" 
-                title="Today's Classes" 
-                value={stats.today_classes} 
-                subValue="Scheduled" 
-                subValueColor="#dc3545" 
-                iconBgClass="f-icon-red" 
+            <FacultySummaryCard
+                iconClass="fas fa-calendar-day"
+                title="Today's Classes"
+                value={stats.today_classes}
+                subValue="Scheduled"
+                subValueColor="#dc3545"
+                iconBgClass="f-icon-red"
             />
-            <FacultySummaryCard 
-                iconClass="fas fa-user-check" 
-                title="Attendance Rate" 
-                value={`${stats.attendance_rate}%`} 
-                subValue="Last 30 Days" 
-                subValueColor="#198754" 
-                iconBgClass="f-icon-green" 
+            <FacultySummaryCard
+                iconClass="fas fa-user-check"
+                title="Attendance Rate"
+                value={`${stats.attendance_rate}%`}
+                subValue="Last 30 Days"
+                subValueColor="#198754"
+                iconBgClass="f-icon-green"
             />
-            <FacultySummaryCard 
-                iconClass="fas fa-users" 
-                title="Total Students" 
-                value={stats.total_students} 
-                subValue="Active Enrollees" 
-                subValueColor="#6f42c1" 
-                iconBgClass="f-icon-purple" 
+            <FacultySummaryCard
+                iconClass="fas fa-users"
+                title="Total Students"
+                value={stats.total_students}
+                subValue="Active Enrollees"
+                subValueColor="#6f42c1"
+                iconBgClass="f-icon-purple"
             />
-            <FacultySummaryCard 
-                iconClass="fas fa-bell" 
-                title="Alerts" 
-                value={stats.alerts} 
-                subValue="Requires attention" 
-                subValueColor="#dc3545" 
-                iconBgClass="f-icon-alert" 
+            <FacultySummaryCard
+                iconClass="fas fa-bell"
+                title="Alerts"
+                value={stats.alerts}
+                subValue="Requires attention"
+                subValueColor="#dc3545"
+                iconBgClass="f-icon-alert"
             />
         </div>
     );
@@ -94,16 +94,16 @@ const FacultyDashboardPage = () => {
             <h3>Recent Activity</h3>
             {stats.recent_attendance.length > 0 ? (
                 stats.recent_attendance.map((log, index) => (
-                    <div key={index} style={{padding: '10px 0', borderBottom: '1px solid #eee'}}>
-                        <div style={{display:'flex', justifyContent:'space-between'}}>
+                    <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <strong>{log.subject_code}</strong>
-                            <span style={{color:'green', fontWeight:'bold'}}>Present</span>
+                            <span style={{ color: 'green', fontWeight: 'bold' }}>Present</span>
                         </div>
-                        <small style={{color:'#888'}}>{log.time} • {log.subject_description}</small>
+                        <small style={{ color: '#888' }}>{log.time} • {log.subject_description}</small>
                     </div>
                 ))
             ) : (
-                <div style={{padding:'20px', color:'#888'}}>No recent activity.</div>
+                <div style={{ padding: '20px', color: '#888' }}>No recent activity.</div>
             )}
         </div>
     );
@@ -112,11 +112,11 @@ const FacultyDashboardPage = () => {
         <div className="classroom-alerts">
             <h3>System Alerts</h3>
             {/* Hardcoded example for now, can be connected to real logs later */}
-            <div style={{display:'flex', gap:'10px', padding:'10px 0'}}>
-                <div style={{width:'8px', height:'8px', borderRadius:'50%', background:'#ffc107', marginTop:'6px'}}></div>
+            <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffc107', marginTop: '6px' }}></div>
                 <div>
-                    <div style={{fontSize:'0.95em'}}><strong>System Normal</strong></div>
-                    <div style={{fontSize:'0.8em', color:'#888'}}>All systems operational</div>
+                    <div style={{ fontSize: '0.95em' }}><strong>System Normal</strong></div>
+                    <div style={{ fontSize: '0.8em', color: '#888' }}>All systems operational</div>
                 </div>
             </div>
         </div>

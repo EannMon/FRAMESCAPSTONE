@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import axios from 'axios'; 
+import axios from 'axios';
 import './StudentLayout.css';
-import '../ZCommon/Utility.css';
-import Header from '../ZCommon/Header'; 
+import '../Common/Utility.css';
+import Header from '../Common/Header';
 
 // --- THEME DEFINITION ---
 const studentTheme = {
@@ -35,14 +35,14 @@ const StudentSidebar = () => {
                 <ul>
                     {navItems.map((item) => (
                         <li key={item.name}>
-                            <NavLink 
-                                to={item.to} 
+                            <NavLink
+                                to={item.to}
                                 end={item.to === '/student-dashboard'}
                                 className={({ isActive }) => isActive ? 'active' : ''}
                             >
                                 <i className={item.icon}></i>
                                 <span>{item.name}</span>
-                             </NavLink>
+                            </NavLink>
                         </li>
                     ))}
                 </ul>
@@ -59,7 +59,7 @@ const StudentSidebar = () => {
 // ===========================================
 const StudentLayout = () => {
     const navigate = useNavigate();
-    
+
     // State for user data and loading status
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ const StudentLayout = () => {
     useEffect(() => {
         const loadUserData = async () => {
             const storedUserJson = localStorage.getItem('currentUser');
-            
+
             if (!storedUserJson) {
                 navigate('/');
                 setLoading(false);
@@ -83,9 +83,9 @@ const StudentLayout = () => {
                 alert("Access denied. Your account is still pending verification.");
                 // Redirect to a specific status page if you have one, or back to login
                 // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
-                navigate('/'); 
+                navigate('/');
                 localStorage.removeItem('currentUser'); // Force logout
-                setLoading(false); 
+                setLoading(false);
                 return;
             }
 
@@ -102,12 +102,12 @@ const StudentLayout = () => {
 
             // --- UPDATE STATE ---
             setUser({
-                ...storedUser, 
+                ...storedUser,
                 // We pass the raw data. The <Header> component will handle generating 
                 // the Red Avatar based on firstName/lastName if avatar is null.
                 notifications: notifCount
             });
-            
+
             setLoading(false);
         };
 
@@ -115,7 +115,7 @@ const StudentLayout = () => {
     }, [navigate]);
 
     if (loading) {
-        return <div style={{textAlign: 'center', paddingTop: '100px', color: '#666'}}>Loading dashboard...</div>;
+        return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
     }
 
     if (!user) return null;
@@ -124,12 +124,12 @@ const StudentLayout = () => {
         <div className="dashboard-container">
             {/* Header handles the Avatar and Dropdown logic */}
             <Header theme={studentTheme} user={user} />
-            
+
             <div className="dashboard-body">
                 <StudentSidebar />
                 <div className="main-content-area">
                     {/* Pass user context to child pages */}
-                    <Outlet context={{ user }} /> 
+                    <Outlet context={{ user }} />
                 </div>
             </div>
         </div>
