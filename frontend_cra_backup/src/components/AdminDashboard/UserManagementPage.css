@@ -1,0 +1,255 @@
+/* =========================================== */
+/* 5. User Management View Styles */
+/* =========================================== */
+.user-management-container { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 30px; 
+    padding-left: 30px;
+}
+
+.user-summary-cards { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+    gap: 30px; 
+}
+
+.user-summary-card { 
+    padding: 20px; 
+    text-align: center; /* Center the card content */
+}
+
+.user-summary-value { 
+    font-size: 2.5em; 
+    font-weight: 700; 
+    color: #dc3545; 
+    display: block; 
+    margin-bottom: 5px; 
+} /* RED */
+
+.user-summary-title { 
+    font-size: 1.1em; 
+    color: #555; 
+    margin-bottom: 10px; 
+    display: block; 
+}
+
+.user-summary-change { 
+    font-size: 0.9em; 
+    font-weight: 500; 
+}
+
+.user-summary-change.green { 
+    color: #28a745; 
+}
+
+.user-list-card { 
+    padding: 0; /* Remove base card padding */
+}
+
+.user-list-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 25px 25px 20px 25px; 
+    border-bottom: 1px solid #eee; 
+    flex-wrap: wrap; /* Allow header items to wrap on small screens */
+    gap: 15px; /* Add gap for wrapping */
+}
+
+.user-list-header h2 { 
+    margin: 0; 
+    flex-shrink: 0; /* Prevent title from shrinking */
+}
+
+.user-list-actions { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    flex-wrap: wrap; /* Allow actions to wrap */
+}
+
+.user-search-bar { 
+    display: flex; 
+    align-items: center; 
+    background: #f5f6fa; 
+    border: 1px solid #e0e0e0; 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+}
+
+.user-search-bar i { 
+    color: #999; 
+    margin-right: 8px; 
+}
+
+.user-search-bar input { 
+    border: none; 
+    background: none; 
+    outline: none; 
+}
+
+.user-role-filter { 
+    padding: 10px 12px; /* Made slightly taller to match input */
+    border-radius: 6px; 
+    border: 1px solid #e0e0e0; 
+    background-color: white;
+}
+
+.user-list-button { 
+    padding: 10px 15px; /* Made slightly taller */
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-weight: 500; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-size: 0.9em;
+}
+
+.user-list-button.add-user-button { 
+    background-color: #dc3545; 
+    color: white; 
+} /* RED */
+.user-list-button.add-user-button:hover {
+    background-color: #c82333;
+}
+
+/* Table container for horizontal scrolling on mobile */
+.user-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.user-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    min-width: 800px; /* Force scroll on smaller screens */
+}
+
+.user-table th, .user-table td { 
+    padding: 15px 25px; 
+    text-align: left; 
+    border-bottom: 1px solid #eee; 
+    vertical-align: middle; 
+    white-space: nowrap; /* Prevent line breaks */
+}
+
+.user-table th { 
+    background-color: #fcfcfc; 
+    font-size: 0.9em; 
+    color: #777; 
+    text-transform: uppercase;
+}
+
+.user-info-cell { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+}
+
+.user-table-avatar { 
+    font-size: 2.2em; /* Larger icon */
+    color: #ccc;
+}
+
+.user-table-name { 
+    display: block; 
+    font-weight: 500; 
+    color: #333; 
+}
+
+.user-table-email { 
+    display: block; 
+    font-size: 0.9em; 
+    color: #888; 
+}
+
+.role-tag { 
+    padding: 4px 10px; 
+    border-radius: 15px; 
+    font-size: 0.85em; 
+    font-weight: 500; 
+    color: white; 
+}
+.role-tag.green { background-color: #28a745; }
+.role-tag.blue { background-color: #1a73e8; } 
+.role-tag.red { background-color: #dc3545; } 
+
+.status-tag { 
+    padding: 4px 10px; 
+    border-radius: 15px; 
+    font-size: 0.85em; 
+    font-weight: 500; 
+}
+.status-tag.green { background-color: #e6f7ec; color: #28a745; }
+.status-tag.yellow { background-color: #fff8e6; color: #e6a800; }
+.status-tag.red { background-color: #fde8e8; color: #dc3545; }
+
+.action-button { 
+    background: none; 
+    border: none; 
+    cursor: pointer; 
+    padding: 5px 8px; 
+    border-radius: 4px; 
+}
+.action-button i { color: #888; transition: color 0.2s; }
+.action-button:hover i { color: #dc3545; } /* RED */
+.action-button.delete-button:hover i { color: #dc3545; } /* RED */
+
+.add-user-dropdown-wrapper {
+    position: relative;
+}
+
+.add-user-dropdown {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
+    width: 160px;
+}
+
+.add-user-dropdown button {
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.add-user-dropdown button:hover {
+    background: #f0f0f0;
+}
+
+/* =========================================== */
+/* 10. Media Queries (Responsiveness) */
+/* =========================================== */
+@media (max-width: 1200px) {
+    .user-summary-cards { 
+        grid-template-columns: 1fr; 
+    }
+}
+
+@media (max-width: 768px) {
+    .user-list-header { 
+        flex-direction: column; 
+        align-items: stretch; /* Make items full-width */
+        gap: 15px; 
+    }
+    .user-list-actions { 
+        flex-direction: column; 
+        width: 100%; 
+        gap: 10px; 
+    }
+    .user-search-bar, .user-role-filter, .user-list-button { 
+        width: 100%; 
+        box-sizing: border-box; /* Ensure padding doesn't break layout */
+    }
+}

@@ -1,0 +1,191 @@
+/* =========================================== */
+/* 11. Settings Page Styles */
+/* =========================================== */
+
+/* --- Main Layout --- */
+.settings-page-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f5f6fa;
+    padding-top: 95px; /* 65px header + 30px padding */
+}
+
+/* --- Header Bar --- */
+.settings-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.settings-back-button {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    color: #555;
+    font-size: 1em;
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.settings-back-button:hover {
+    background-color: #f8f9fa;
+    color: #dc3545;
+    border-color: #f8d7da;
+}
+
+.settings-main-title {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+/* --- Settings Grid --- */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+}
+
+.settings-card {
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.settings-card h3 {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+.settings-card p {
+    font-size: 0.95em;
+    color: #666;
+    margin: -10px 0 0 0;
+}
+
+/* --- Form Elements --- */
+.settings-field {
+    display: flex;
+    flex-direction: column;
+}
+.settings-field label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 5px;
+}
+.settings-select-input {
+    font-size: 1em;
+    padding: 10px 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    color: #333;
+    font-family: inherit;
+}
+
+/* --- Buttons --- */
+.settings-link-button, .settings-action-button {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    color: #555;
+    padding: 12px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Link button */
+    gap: 8px;
+    font-size: 0.95em;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.settings-action-button {
+    justify-content: flex-start; /* Regular button */
+}
+
+.settings-link-button:hover, .settings-action-button:hover {
+    background-color: #f8f9fa;
+    color: #dc3545;
+    border-color: #f8d7da;
+}
+.settings-link-button i, .settings-action-button i {
+    color: #888;
+    transition: color 0.2s;
+    margin-right: 5px;
+}
+.settings-link-button:hover i, .settings-action-button:hover i {
+    color: #dc3545;
+}
+
+
+/* --- Toggle Switch --- */
+.toggle-switch-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.toggle-switch-label {
+    font-size: 1em;
+    font-weight: 500;
+    color: #333;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px; /* Width of the switch */
+    height: 28px; /* Height of the switch */
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 28px;
+}
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #dc3545; /* Red when on */
+}
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}

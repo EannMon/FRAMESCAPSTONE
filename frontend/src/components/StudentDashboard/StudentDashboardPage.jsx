@@ -73,13 +73,13 @@ const LiveClassStatus = ({ recentLog }) => {
             <div className="live-header">
                 <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
                 <div className="live-indicator">
-                    <span className="blink-dot" style={{backgroundColor: statusColor}}></span>
-                    <span style={{color: statusColor, fontWeight: 'bold'}}>{status}</span>
+                    <span className="blink-dot" style={{ backgroundColor: statusColor }}></span>
+                    <span style={{ color: statusColor, fontWeight: 'bold' }}>{status}</span>
                 </div>
             </div>
             <div className="live-body">
                 <div className="room-display">
-                    <i className="fas fa-chalkboard-teacher room-icon" style={{color: status === 'ACTIVE' ? statusColor : '#ccc'}}></i>
+                    <i className="fas fa-chalkboard-teacher room-icon" style={{ color: status === 'ACTIVE' ? statusColor : '#ccc' }}></i>
                     <div className="room-info">
                         <h4>{roomName}</h4>
                         <p>{statusText}</p>
@@ -97,7 +97,7 @@ const StudentRecentAttendance = ({ logs }) => (
         {logs.length > 0 ? (
             logs.map((log, index) => {
                 // SAFETY CHECK: Ensure event_type exists, defaulting to empty string if missing
-                const eventType = log.event_type || 'attendance_in'; 
+                const eventType = log.event_type || 'attendance_in';
                 const isEntry = eventType.includes('in');
                 const displayType = eventType.replace('attendance_', '').toUpperCase();
 
@@ -110,9 +110,9 @@ const StudentRecentAttendance = ({ logs }) => (
                             </span>
                         </div>
                         <div className="attendance-stats">
-                            <span className="attendance-percent" style={{ 
-                                color: isEntry ? '#28a745' : '#666', 
-                                backgroundColor: isEntry ? '#e6f7ec' : '#f0f0f0' 
+                            <span className="attendance-percent" style={{
+                                color: isEntry ? '#28a745' : '#666',
+                                backgroundColor: isEntry ? '#e6f7ec' : '#f0f0f0'
                             }}>
                                 {displayType}
                             </span>
@@ -121,7 +121,7 @@ const StudentRecentAttendance = ({ logs }) => (
                 );
             })
         ) : (
-            <p style={{color: '#888', padding: '10px'}}>No recent records found.</p>
+            <p style={{ color: '#888', padding: '10px' }}>No recent records found.</p>
         )}
     </div>
 );
@@ -144,8 +144,14 @@ const StudentDashboardPage = () => {
                 if (!storedUser) return;
                 setUserData(storedUser);
 
-                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${storedUser.user_id}`);
-                setDashboardData(response.data);
+                const userId = storedUser.id || storedUser.user_id;
+                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${userId}`);
+                setDashboardData(prev => ({
+                    ...prev,
+                    ...response.data,
+                    recent_attendance: response.data.recent_attendance || [],
+                    notifications: response.data.notifications || []
+                }));
                 setLoading(false);
             } catch (error) {
                 console.error("Error fetching dashboard:", error);
@@ -155,23 +161,23 @@ const StudentDashboardPage = () => {
         fetchData();
     }, []);
 
-    if (loading) return <div style={{padding: '40px'}}>Loading Dashboard...</div>;
+    if (loading) return <div style={{ padding: '40px' }}>Loading Dashboard...</div>;
 
     // Get the very last log for the Live Status box
-    const latestLog = dashboardData.recent_attendance && dashboardData.recent_attendance.length > 0 
-        ? dashboardData.recent_attendance[0] 
+    const latestLog = dashboardData.recent_attendance && dashboardData.recent_attendance.length > 0
+        ? dashboardData.recent_attendance[0]
         : null;
 
     return (
         <div className="student-content-grid">
-            <WelcomeBanner studentName={userData.firstName} studentId={userData.tupm_id} />
-            
+            <WelcomeBanner studentName={userData.first_name || userData.firstName} studentId={userData.tupm_id} />
+
             <StudentSummaryCards stats={{
-                attendanceRate: dashboardData.attendance_rate,
-                courses: dashboardData.enrolled_courses,
-                notifCount: dashboardData.notifications.filter(n => !n.is_read).length
+                attendanceRate: dashboardData.attendance_rate || "0%",
+                courses: dashboardData.enrolled_courses || 0,
+                notifCount: (dashboardData.notifications || []).filter(n => !n.is_read).length
             }} />
-            
+
             {/* NEW LAYOUT: Live Status on Left, History on Right */}
             <div className="dashboard-split-row">
                 <LiveClassStatus recentLog={latestLog} />

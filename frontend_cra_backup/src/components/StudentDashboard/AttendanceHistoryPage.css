@@ -1,0 +1,158 @@
+/* AttendanceHistoryPage.css - Cloned from Admin ReportsPage.css */
+
+.reports-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-left: 30px;
+}
+
+.reports-card-grid {
+    display: grid;
+    /* Responsive Grid: Mag-aadjust base sa laki ng screen */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.report-type-card {
+    padding: 20px;
+    text-align: left; /* Mas maganda left align pag marami */
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Uniform height */
+}
+.report-type-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.report-type-icon {
+    width: 45px; 
+    height: 45px; 
+    border-radius: 10px;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 1.4em; 
+    margin-bottom: 12px; 
+    color: white;
+}
+/* Colors */
+.blue-bg { background-color: #3b82f6; }
+.red-bg { background-color: #dc3545; }
+.purple-bg { background-color: #8b5cf6; }
+
+.report-type-title { 
+    font-size: 1.1em; 
+    font-weight: 700; 
+    margin-bottom: 5px; 
+    color: #333;
+}
+
+.report-type-description { 
+    font-size: 0.85em; 
+    color: #666; 
+    line-height: 1.4;
+}
+
+.active-card {
+    border-color: #A62525 !important; /* FRAMES Red */
+    background-color: #fff9f9;
+    box-shadow: 0 4px 12px rgba(166, 37, 37, 0.15);
+}
+
+.view-reports-button {
+    width: 100%; padding: 10px; background-color: #f5f6fa;
+    border: none; border-radius: 6px; color: #555; font-weight: 600; cursor: pointer;
+}
+.view-reports-button:hover { background-color: #e0e0e0; }
+
+/* AttendanceHistoryPage.css */
+
+.reports-header-section {
+    background-color: white;
+    padding: 20px 25px;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.report-selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.report-selector-group label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.big-select {
+    min-width: 300px;
+    padding: 10px;
+    font-size: 1em;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #333;
+}
+.big-select:focus {
+    border-color: #A62525;
+}
+
+.report-description-box {
+    flex-grow: 1;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #A62525;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #555;
+}
+
+.report-description-box i {
+    font-size: 1.5em;
+    color: #A62525;
+}
+
+/* Rest of table styles remain same... */
+
+/* Table Section */
+.recent-reports-card { padding: 0; }
+.recent-reports-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 25px; border-bottom: 1px solid #eee;
+}
+.recent-reports-header h2 { margin: 0; font-size: 1.3em; }
+
+.recent-reports-filters { display: flex; gap: 15px; }
+.recent-reports-filters select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+
+.export-all-button {
+    background-color: #dc3545; color: white; border: none; padding: 8px 15px;
+    border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+}
+
+.reports-table-container { width: 100%; overflow-x: auto; }
+.recent-reports-table { width: 100%; border-collapse: collapse; }
+.recent-reports-table th, .recent-reports-table td {
+    padding: 15px 25px; text-align: left; border-bottom: 1px solid #eee;
+}
+.recent-reports-table th { background-color: #f9f9f9; font-weight: 600; color: #555; }
+
+.log-status-tag { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+.log-status-tag.green { background-color: #e6f7ec; color: #28a745; }
+.log-status-tag.red { background-color: #fde8e8; color: #dc3545; }

@@ -1,0 +1,110 @@
+/* DeptHeadReportsPage.css */
+
+.dept-reports-container {
+    padding: 0 10px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+
+/* HEADER */
+.dept-reports-header {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 25px;
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.dept-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.dept-control-group label {
+    font-weight: 700; color: #555; font-size: 0.9rem; text-transform: uppercase;
+}
+
+.dept-select {
+    padding: 12px; font-size: 1rem; border: 1px solid #ced4da; border-radius: 8px; outline: none;
+}
+.dept-select:focus { border-color: #A62525; }
+
+/* INFO BOX */
+.dept-report-info {
+    flex: 1.5;
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 5px solid #333; /* Dark Accent for Authority */
+    display: flex;
+    gap: 15px;
+    color: #555;
+}
+
+.dept-report-info i { font-size: 1.8rem; color: #333; margin-top: 2px; }
+.info-content h4 { margin: 0 0 5px 0; color: #333; }
+.info-content p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+/* TAGS */
+.faculty-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 10px;
+    background-color: #A62525; /* Red for Faculty Reports */
+    color: white;
+    font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; font-weight: 600;
+}
+
+.room-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 10px;
+    background-color: #007bff; /* Blue for Room Reports */
+    color: white;
+    font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; font-weight: 600;
+}
+
+/* Force White Icons */
+.faculty-tag i, .room-tag i { color: white !important; font-size: 0.85rem; }
+
+/* TABLE CARD */
+.dept-table-card {
+    background: white; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+
+.dept-card-header {
+    display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #eee;
+}
+.dept-card-header h3 { margin: 0; color: #333; }
+
+.btn-export {
+    background-color: #333; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;
+}
+.btn-export:hover { background-color: #555; }
+
+/* TABLE */
+.dept-table-wrapper { overflow-x: auto; }
+.dept-table { width: 100%; border-collapse: collapse; }
+.dept-table th { background-color: #f8f9fa; padding: 15px 20px; text-align: left; color: #666; font-size: 0.9rem; }
+.dept-table td { padding: 15px 20px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: middle; }
+
+/* STATUS PILLS */
+.status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+.status-pill.present { background-color: #d4edda; color: #155724; }
+.status-pill.late { background-color: #fff3cd; color: #856404; }
+.status-pill.alert { background-color: #f8d7da; color: #721c24; }
+
+.red-text { color: #dc3545; font-weight: 700; }
+.green-text { color: #198754; font-weight: 600; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dept-reports-header { flex-direction: column; }
+    .btn-export { width: 100%; justify-content: center; }
+}

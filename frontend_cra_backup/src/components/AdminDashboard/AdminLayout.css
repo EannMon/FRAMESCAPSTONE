@@ -1,0 +1,133 @@
+/* =========================================== */
+/* 1. Global Dashboard Layout */
+/* =========================================== */
+.dashboard-container {
+    min-height: 100vh;
+    background-color: #f5f6fa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.dashboard-body {
+    display: flex;
+    padding-top: 65px; /* <-- PUSH CONTENT BELOW FIXED HEADER */
+}
+
+.main-content-area {
+    flex-grow: 1;
+    padding-left: 250px; /* Space for fixed sidebar */
+    padding-top: 30px;    
+    padding-right: 30px;   
+    padding-bottom: 30px;  
+}
+
+/* =========================================== */
+/* 2. Sidebar Styles (*** UPDATED ***) */
+/* =========================================== */
+.sidebar {
+    width: 250px;
+    position: fixed;
+    top: 65px; 
+    left: 0;
+    bottom: 0;
+    background-color: #ffffff;
+    /* UPDATED: Lighter shadow from new image */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    z-index: 1000; 
+    border-right: 1px solid #f0f0f0; /* Added subtle border */
+}
+
+/* REMOVED: .sidebar-header is gone */
+
+.admin-role-tag {
+    background-color: #fbe9e7; /* Light red */
+    color: #dc3545; /* Dark red */
+    font-weight: 600;
+    font-size: 0.9em;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 10px 20px 20px 20px; /* Added top margin */
+    text-align: center;
+}
+
+.sidebar-nav ul { list-style: none; padding: 0; margin: 0 15px; } /* Added side margin */
+.sidebar-nav li { cursor: pointer; margin-bottom: 5px; } 
+.sidebar-nav a { 
+    display: flex; 
+    align-items: center; 
+    padding: 12px 20px; 
+    color: #555; 
+    text-decoration: none; 
+    font-weight: 500; 
+    transition: all 0.2s ease; 
+    border-radius: 8px; /* Rounded corners for links */
+    /* border-left: 4px solid transparent; */ /* REMOVED old border style */
+}
+.sidebar-nav a i { 
+    margin-right: 15px; 
+    font-size: 1.1em; 
+    width: 20px; 
+    text-align: center; 
+}
+
+/* UPDATED: New active link style */
+.sidebar-nav a.active { 
+    background-color: #dc3545; /* Solid Red */
+    color: #ffffff; /* White text */
+    /* border-left-color: #dc3545; */ /* REMOVED old border style */
+    font-weight: 600;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3); /* Red shadow */
+}
+.sidebar-nav a:hover:not(.active) { 
+    background-color: #f0f2f5; 
+    color: #333; 
+}
+
+/* REMOVED .notification-badge (it was on Alert Center) */
+
+.sidebar-toggle-button { display: none; }
+
+
+/* =========================================== */
+/* 3. Media Queries (Responsiveness) */
+/* =========================================== */
+@media (max-width: 992px) {
+    .dashboard-body {
+        padding-top: 65px; 
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        position: relative;
+        top: 0; 
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        padding: 10px 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        z-index: 999;
+    }
+    .sidebar-toggle-button { 
+        display: block; 
+        background: none; 
+        border: none; 
+        font-size: 1.2em; 
+        cursor: pointer; 
+        /* ADDED: styling for button */
+        color: #333;
+        padding: 5px;
+    }
+    /* .sidebar-header { border: none; margin: 0; padding: 0; } -- REMOVED */
+    .admin-role-tag, .sidebar-nav { display: none; } 
+    
+    .main-content-area {
+        padding-left: 0; 
+        padding: 20px; 
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content-area { padding: 15px; }
+}

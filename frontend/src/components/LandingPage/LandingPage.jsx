@@ -24,37 +24,37 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
         try {
             setErrorMessage('');
 
-            const response = await axios.post('http://localhost:5000/login', {
+            // Updated to use new FastAPI endpoint
+            const response = await axios.post('http://localhost:5000/api/auth/login', {
                 email: email,
                 password: password
             });
 
             if (response.data.message === "Login Successful") {
                 const userData = response.data.user;
-                const userRole = userData.role;
-                const verificationStatus = userData.verification_status; // Mula sa backend
+                const userRole = userData.role.toUpperCase(); // STUDENT, FACULTY, HEAD, ADMIN
+                const verificationStatus = userData.verification_status; // Pending, Verified, Rejected
 
                 // --- NEW VERIFICATION CHECK LOGIC ---
                 if (verificationStatus === 'Verified') {
                     // HAKBANG 1: VERIFIED - Payagan ang access sa Dashboard
                     localStorage.setItem('currentUser', JSON.stringify(userData));
-                    alert(`Welcome back, ${userData.firstName}!`);
+                    alert(`Welcome back, ${userData.first_name}!`);
 
-                    if (userRole === 'admin') {
+                    if (userRole === 'ADMIN') {
                         navigate('/admin-dashboard');
-                    } else if (userRole === 'student') {
+                    } else if (userRole === 'STUDENT') {
                         navigate('/student-dashboard');
-                    } else if (userRole === 'faculty' || userRole === 'dept_head') {
-                        // Routing for Faculty and Dept Head (as per ClassSchedule table)
+                    } else if (userRole === 'FACULTY' || userRole === 'HEAD') {
+                        // Routing for Faculty and Dept Head
                         navigate('/faculty-dashboard');
                     }
                 } else if (verificationStatus === 'Pending') {
                     // HAKBANG 2: PENDING - I-redirect sa Registration page para sa status message
-                    // Gagamitin ang role para sa routing ng RegistrationPage.jsx
-                    navigate(`/register/${userRole}?s=pending`);
+                    navigate(`/register/${userRole.toLowerCase()}?s=pending`);
                 } else if (verificationStatus === 'Rejected') {
                     // HAKBANG 3: REJECTED - I-redirect sa Registration page para sa status message
-                    navigate(`/register/${userRole}?s=rejected`);
+                    navigate(`/register/${userRole.toLowerCase()}?s=rejected`);
                 } else {
                     // Fallback
                     setErrorMessage("Account status is invalid. Please contact administrator.");
@@ -63,7 +63,8 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
             }
         } catch (error) {
             console.error("Login Error:", error);
-            setErrorMessage(error.response?.data?.error || "Something went wrong. Try again.");
+            // Handle FastAPI error response format
+            setErrorMessage(error.response?.data?.detail || "Something went wrong. Try again.");
         }
     };
 

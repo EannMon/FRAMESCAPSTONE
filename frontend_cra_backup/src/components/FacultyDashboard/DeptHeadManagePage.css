@@ -1,0 +1,153 @@
+/* DeptHeadManagePage.css */
+
+.dept-mgmt-container {
+    padding: 0 10px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.mgmt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.mgmt-header h2 { margin: 0 0 5px 0; color: #333; }
+
+.dept-badge {
+    background-color: #fbe9e7;
+    color: #A62525;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.header-actions { display: flex; gap: 10px; }
+
+.mgmt-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.mgmt-btn.primary { background-color: #A62525; color: white; }
+.mgmt-btn.primary:hover { background-color: #8a1f1f; transform: translateY(-2px); }
+
+.mgmt-btn.outline { background-color: white; border: 1px solid #ddd; color: #666; }
+.mgmt-btn.outline:hover { border-color: #A62525; color: #A62525; }
+
+/* Layout Grid */
+.mgmt-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 20px;
+}
+
+/* Card Style */
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+}
+/* DeptHeadManagePage.css */
+
+/* ... (Keep Header & Layout Styles same as before) ... */
+
+/* TABLE STYLES */
+.mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.mgmt-table th { text-align: left; padding: 15px; background: #f8f9fa; color: #666; font-size: 0.9rem; }
+.mgmt-table td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
+
+.code-pill {
+    background: #e3f2fd; color: #0d47a1; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
+}
+
+.small-desc { font-size: 0.85rem; color: #666; margin-top: 4px; font-weight: 500;}
+
+.assigned-pill {
+    background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;
+}
+.unassigned-text { color: #999; font-style: italic; font-size: 0.9rem; }
+
+/* --- CLEAN ROOM STYLES (No Icons) --- */
+.room-info-box {
+    /* Simple styling, no border-left, clean look */
+    padding: 2px 0; 
+}
+
+.room-name {
+    font-weight: 700;
+    color: #333;
+    font-size: 0.9rem; /* Slightly larger text */
+    margin-bottom: 2px;
+}
+
+.sched-time {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+/* TBA Style */
+.tba-text {
+    font-weight: 700;
+    color: #999;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+    background-color: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Actions */
+.action-row { display: flex; gap: 8px; }
+.icon-action {
+    width: 35px; height: 35px; border-radius: 8px; border: 1px solid #eee; background: white; cursor: pointer; color: #666; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.icon-action:hover { background: #f0f0f0; transform: translateY(-2px); }
+
+.icon-action.assign:hover { color: #198754; border-color: #198754; background-color: #e6f7ec; }
+.icon-action.room:hover { color: #007bff; border-color: #007bff; background-color: #e6f0ff; }
+.icon-action.delete:hover { color: #dc3545; border-color: #dc3545; background-color: #fde8e8; }
+
+/* ... (Keep existing Modal & Log Styles) ... */
+.logs-list { display: flex; flex-direction: column; gap: 15px; max-height: 400px; overflow-y: auto; }
+.log-item { display: flex; gap: 12px; align-items: flex-start; }
+.log-icon { width: 30px; height: 30px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.8rem; }
+.log-details { display: flex; flex-direction: column; }
+.log-action { font-size: 0.9rem; color: #333; font-weight: 500; }
+.log-meta { font-size: 0.75rem; color: #999; }
+
+/* Modals */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-content-box { background: white; width: 450px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-header h3 { margin: 0; color: #A62525; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; color: #555; }
+.form-group input, .modal-select, .modal-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 1rem; background: white; }
+.form-group input:focus, .modal-select:focus, .modal-input:focus { border-color: #A62525; }
+.form-row { display: flex; gap: 15px; }
+.form-group.half { flex: 1; }
+
+.submit-btn.full { width: 100%; background: #A62525; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.submit-btn.full:hover { background: #8a1f1f; }
+
+/* Assign Faculty List */
+.faculty-select-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+.faculty-option-btn { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%; }
+.faculty-option-btn:hover { background: #fff5f5; border-color: #A62525; }
+.fac-avatar { width: 35px; height: 35px; background: #A62525; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+.fac-name { font-weight: 600; color: #333; font-size: 0.95rem; flex: 1; }

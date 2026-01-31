@@ -1,0 +1,550 @@
+/* =========================================== */
+/* 7. Admin Reports Page Styles (admin- prefix added) */
+/* =========================================== */
+
+.admin-reports-container {
+    /* Binago: Para sa Preview Mode, gumawa ng mas malawak na column para sa report content.
+       Ito ang container na ginagamit sa parehong main at preview view. */
+    display: grid;
+    grid-template-columns: 1fr; /* Gawing isang column lang ang main layout para sa preview */
+    gap: 30px;
+    padding-left: 30px;
+}
+
+.admin-reports-main-title {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+/* --- Top Report Type Cards Grid --- */
+.admin-reports-card-grid {
+    grid-column: 1 / -1; /* FULL WIDTH */
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Tiyak na 3 column sa desktop */
+    gap: 30px;
+    padding-bottom: 30px;
+}
+
+.admin-report-type-card {
+    text-align: center;
+    border: 2px solid transparent;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.admin-report-type-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    border-color: #dc3545; /* Red Theme */
+    cursor: pointer;
+}
+
+.admin-report-type-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8em;
+    margin: 0 auto 16px;
+    color: white;
+}
+/* Icon color backgrounds */
+.admin-report-type-card:nth-child(1) .admin-report-type-icon { background-color: #3b82f6; } /* Attendance (Blue) */
+.admin-report-type-card:nth-child(2) .admin-report-type-icon { background-color: #10b981; } /* Security (Green) */
+.admin-report-type-card:nth-child(3) .admin-report-type-icon { background-color: #8b5cf6; } /* Usage (Purple) */
+.admin-report-type-card:nth-child(4) .admin-report-type-icon { background-color: #f59e0b; } /* Inconsistency (Yellow) */
+
+.admin-report-type-title {
+    font-size: 1.3em;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.admin-report-type-description {
+    font-size: 0.95em;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.admin-view-reports-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #dc3545; /* Red Theme */
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95em;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.admin-view-reports-button:hover {
+    background-color: #b02a37;
+}
+.admin-view-reports-button i {
+    margin-right: 8px;
+}
+
+/* --- Report Detail Modal --- */
+.admin-report-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.admin-report-modal-content {
+    background-color: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Note: modal-header and modal-close-btn are generic and usually left as is, but keeping other modal classes consistent. */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+}
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #999;
+    cursor: pointer;
+}
+
+.admin-modal-body-grid {
+    display: grid;
+    grid-template-columns: 2fr 3fr; /* List on left, filters on right */
+    height: 100%;
+    overflow: hidden;
+}
+
+/* --- Left Column: Report List --- */
+.admin-report-type-list-wrapper {
+    padding: 25px 0;
+    border-right: 1px solid #f0f0f0;
+    overflow-y: auto;
+}
+.admin-report-type-list-wrapper h3 {
+    padding: 0 25px 15px;
+    font-size: 1.1em;
+    color: #666;
+    margin: 0;
+    border-bottom: 1px solid #eee;
+}
+.admin-report-type-list {
+    padding: 0;
+    list-style: none;
+}
+.admin-report-type-item {
+    padding: 15px 25px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background-color 0.1s, border-left-color 0.2s;
+}
+.admin-report-type-item:hover {
+    background-color: #f8f9fa;
+}
+.admin-report-type-item.selected {
+    background-color: #fbe9e7; /* Light red */
+    border-left-color: #dc3545;
+}
+.admin-report-type-item h4 {
+    margin: 0 0 4px 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: #333;
+}
+.admin-report-type-item p {
+    margin: 0;
+    font-size: 0.85em;
+    color: #777;
+    line-height: 1.4;
+}
+
+/* --- Right Column: Filters --- */
+.admin-report-filter-panel {
+    padding: 25px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.admin-report-filter-panel h3 {
+    font-size: 1.3em;
+    color: #dc3545;
+    margin: 0 0 10px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.admin-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.admin-filter-group label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #333;
+}
+.admin-filter-group-row {
+    display: flex;
+    gap: 10px;
+}
+
+.admin-filter-select {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: white;
+    font-size: 0.95em;
+    flex-grow: 1;
+    cursor: pointer;
+}
+
+/* Dynamic Search Input */
+.admin-filter-search-input {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 0 10px;
+    flex-grow: 1;
+    background-color: #f8f9fa;
+}
+.admin-filter-search-input i {
+    color: #999;
+    margin-right: 8px;
+}
+.admin-filter-search-input input {
+    border: none;
+    background: none;
+    outline: none;
+    padding: 10px 0;
+    width: 100%;
+}
+
+.admin-generate-report-btn-modal {
+    margin-top: auto; /* Push to bottom */
+    padding: 12px;
+    font-size: 1.1em;
+    font-weight: 600;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.admin-generate-report-btn-modal:hover {
+    background-color: #b02a37;
+}
+
+/* --- Table Styles (Modified for tightness) --- */
+.admin-recent-reports-card {
+    grid-column: 1 / -1; /* FULL WIDTH */
+    padding: 0;
+}
+
+
+.admin-recent-reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.admin-recent-reports-header h2 {
+    margin: 0;
+    font-size: 1.3em;
+}
+
+.admin-recent-reports-filters {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.admin-recent-reports-filters select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    background-color: white;
+    font-size: 0.9em;
+}
+
+.admin-export-all-button {
+    background-color: #dc3545; /* Red */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+.admin-export-all-button:hover {
+    background-color: #c82333;
+}
+
+.admin-reports-table-container {
+    width: 100%;
+    /* FINAL SOLUTION: Enable horizontal scrolling as backup */
+    overflow-x: auto; 
+}
+
+.admin-recent-reports-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* Binaba sa 800px min-width. Ang pagpapaiksi ng JSX headers ang magpapakasya rito. */
+    min-width: 800px; 
+    
+}
+
+.admin-recent-reports-table th, .admin-recent-reports-table td {
+    /* FIX 4: Reduce padding aggressively to save space */
+    padding: 20px 20px; 
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    white-space: nowrap; 
+    font-size: 0.9em; 
+}
+
+.admin-recent-reports-table th {
+    /* Make header text smaller */
+    font-size: 0.8em; 
+}
+
+/* FIX 5: Ensure action buttons do not wrap and always appear on the right */
+.admin-recent-reports-table .action-buttons-wrapper {
+    display: flex;
+    white-space: nowrap; 
+    min-width: 100px; 
+    flex-shrink: 0; 
+}
+
+/* --- Tag Styles --- */
+.admin-report-tag {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: white;
+}
+.admin-report-tag.blue { background-color: #1a73e8; }
+.admin-report-tag.red { background-color: #dc3545; }
+.admin-report-tag.purple { background-color: #6f42c1; }
+
+.admin-status-tag {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+.admin-status-tag.green { background-color: #e6f7ec; color: #28a745; }
+.admin-status-tag.grey { background-color: #f0f2f5; color: #6c757d; }
+
+/* --- Action Buttons --- */
+.admin-action-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: #888;
+    font-size: 1.1em;
+    transition: color 0.2s;
+}
+.admin-action-button:hover {
+    color: #dc3545; /* Red hover */
+}
+/* ============================= */
+/* Preview Toolbar (View Report) */
+/* ============================= */
+
+.admin-preview-toolbar {
+    /* Tiyakin na ang toolbar ay full-width sa grid container */
+    grid-column: 1 / -1; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px; /* Dinagdagan ang space */
+}
+
+.admin-preview-toolbar-left,
+.admin-preview-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-preview-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+/* Back Button */
+.admin-back-btn {
+    background: #f3f4f6;
+    color: #000000;
+}
+
+.admin-back-btn:hover {
+    background: #e5e7eb;
+}
+
+/* Download PDF Button */
+.admin-download-btn {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.admin-download-btn i {
+    font-size: 15px;
+}
+
+.admin-download-btn:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
+}
+
+/* --- NEW / MODIFIED: Preview Paper Styles --- */
+
+.preview-paper {
+    /* Tiyakin na ang paper ay full-width sa grid container */
+    grid-column: 1 / -1; 
+    
+    /* Ginamit mo ang .card class, kailangan natin magdagdag ng kaunting styling dito */
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Lighter shadow */
+    padding: 30px; /* Dagdagan ang padding sa loob */
+    margin: 0 auto;
+    width: 100%;
+    
+    /* Para mas mukhang document/paper */
+    max-width: 1100px;
+    min-height: 500px;
+}
+
+/* Header inside the preview paper (para sa title at summary) */
+.preview-paper .paper-head {
+    margin-bottom: 25px; 
+}
+.preview-paper h2 {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+/* Style for filter-summary (as defined inline in JSX) */
+.preview-paper .filter-summary {
+    padding: 15px 0; /* Para ma-overwrite ang inline style kung sakaling may conflict */
+}
+
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-preview-toolbar {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .admin-preview-toolbar-left,
+    .admin-preview-toolbar-right {
+        justify-content: center;
+    }
+
+    .admin-preview-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* --- Responsive Card/Layout Adjustments --- */
+@media (max-width: 1200px) {
+    .admin-reports-card-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+}
+
+/* --- Responsive Modal Adjustments --- */
+@media (max-width: 992px) {
+    .admin-report-modal-content {
+        max-width: 95%;
+    }
+    .admin-modal-body-grid {
+        grid-template-columns: 1fr; /* Stack columns */
+    }
+    .admin-report-type-list-wrapper {
+        border-right: none;
+        border-bottom: 1px solid #f0f0f0;
+        max-height: 200px;
+    }
+    .admin-report-filter-panel {
+        padding-top: 0;
+    }
+}
+@media (max-width: 480px) {
+    .admin-recent-reports-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .admin-recent-reports-filters {
+        flex-direction: column;
+        width: 100%;
+        align-items: stretch;
+    }
+    .admin-recent-reports-filters select, .admin-export-all-button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* FIX 6: Alisin ang padding sa reports-container sa mobile para mas makahinga */
+    .admin-reports-container {
+        padding: 15px;
+        grid-template-columns: 1fr; /* Gawing 1 column lang sa mobile */
+    }
+    .preview-paper {
+        padding: 15px; /* Bawasan ang padding sa mobile */
+    }
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Header.css';
 
-const LOGO_ICON = '/shield-icon-white.svg'; 
+const LOGO_ICON = '/shield-icon-white.svg';
 
 const mockNotifications = [
     { id: 1, icon: 'fas fa-user-shield', text: 'New admin alert: Unauthorized access attempt.', time: '5m ago', read: false },
@@ -18,11 +18,11 @@ const Header = ({ user, setPanel, theme }) => {
 
     const profileRef = useRef(null);
     const notificationRef = useRef(null);
-    
+
     const handleLogout = () => {
-        localStorage.removeItem('currentUser'); 
-        navigate('/'); 
-        window.location.reload(); 
+        localStorage.removeItem('currentUser');
+        navigate('/');
+        window.location.reload();
     };
 
     const toggleProfile = () => { setIsProfileOpen(!isProfileOpen); setIsNotificationOpen(false); };
@@ -46,11 +46,14 @@ const Header = ({ user, setPanel, theme }) => {
         '--logo-filter': 'none',
         '--notif-dot-bg': '#ffc107',
         '--notif-dot-text': '#333'
-    } : {}; 
+    } : {};
 
     // --- 1. NAME LOGIC ---
-    const displayName = (user?.firstName && user?.lastName) 
-        ? `${user.firstName} ${user.lastName}`
+    // Backend returns snake_case (first_name, last_name), fallback to camelCase
+    const firstName = user?.first_name || user?.firstName || '';
+    const lastName = user?.last_name || user?.lastName || '';
+    const displayName = (firstName && lastName)
+        ? `${firstName} ${lastName}`
         : (user?.name || 'User');
 
     // --- 2. AVATAR LOGIC (MATCHES PROFILE PAGE) ---
@@ -59,7 +62,7 @@ const Header = ({ user, setPanel, theme }) => {
 
     return (
         <header className="universal-header" style={dynamicStyle}>
-            
+
             <Link to={user ? "/faculty-dashboard" : "/"} className="header-logo-link">
                 <div className="universal-header-logo">
                     <img src={LOGO_ICON} alt="Frames Logo" className="header-logo-icon" />
@@ -108,10 +111,10 @@ const Header = ({ user, setPanel, theme }) => {
 
                         <div className="profile-menu-container" ref={profileRef}>
                             <div className="user-menu" onClick={toggleProfile}>
-                                <img 
-                                    src={avatarSrc} 
-                                    alt="User Avatar" 
-                                    className="user-avatar" 
+                                <img
+                                    src={avatarSrc}
+                                    alt="User Avatar"
+                                    className="user-avatar"
                                 />
                                 <span className="user-role">{displayName}</span>
                                 <i className={`fas fa-chevron-down dropdown-icon ${isProfileOpen ? 'open' : ''}`}></i>

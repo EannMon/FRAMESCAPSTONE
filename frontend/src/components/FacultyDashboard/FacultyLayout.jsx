@@ -18,9 +18,12 @@ const facultyTheme = {
 // ===========================================
 const FacultySidebar = ({ user }) => {
     // --- LOGIC: Check if user is a Department Head ---
-    const isDeptHead = user?.faculty_status === 'Head' ||
+    // Backend returns roles as uppercase: HEAD, FACULTY, ADMIN
+    const role = user?.role?.toUpperCase();
+    const isDeptHead = role === 'HEAD' ||
+        user?.faculty_status === 'Head' ||
         user?.faculty_status === 'Department Head' ||
-        user?.role === 'dept_head';
+        role === 'DEPT_HEAD';
 
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
@@ -96,7 +99,8 @@ const FacultyLayout = () => {
             }
 
             // --- 2. SECURITY CHECK: ROLE ---
-            if (role !== 'faculty' && role !== 'dept_head') {
+            // Backend returns roles in uppercase: FACULTY, HEAD, ADMIN, STUDENT
+            if (role !== 'faculty' && role !== 'head' && role !== 'dept_head') {
                 alert("Access denied. Authorized for Faculty only.");
                 navigate('/');
                 setLoading(false);
@@ -107,11 +111,16 @@ const FacultyLayout = () => {
             // You can fetch notification counts here if needed, similar to StudentLayout
             // For now, we assume notifications are inside the user object or handled by Header
 
-            // Set User Data
+            // Set User Data - handle both snake_case and camelCase field names
+            const firstName = parsedUser.first_name || parsedUser.firstName || '';
+            const lastName = parsedUser.last_name || parsedUser.lastName || '';
             setUser({
                 ...parsedUser,
                 // Fix: Remove hardcoded default avatar. 
                 // Let Header generate initials if avatar is null/empty.
+                first_name: firstName,
+                last_name: lastName,
+                name: `${firstName} ${lastName}`.trim() || 'Faculty',
                 faculty_status: parsedUser.faculty_status || 'Regular'
             });
 

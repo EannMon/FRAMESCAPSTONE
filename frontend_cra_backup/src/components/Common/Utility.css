@@ -1,0 +1,15 @@
+/* =========================================== */
+/* CENTRAL UTILITY STYLES */
+/* =========================================== */
+
+/* This class is globally imported by all layouts 
+  (AdminLayout, FacultyLayout, StudentLayout) to provide a single source 
+  of truth for the standard look and feel of all data blocks. 
+*/
+.card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 25px;
+    border: 1px solid #e0e0e0;
+}

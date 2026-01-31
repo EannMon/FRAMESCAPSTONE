@@ -32,22 +32,21 @@ const ApplicationPage = () => {
         setError(null);
         try {
             // Tiyakin na ang API endpoint na ito ay nagbabalik ng LAHAT ng users (Pending, Verified, Rejected)
-            const response = await axios.get('http://localhost:5000/admin/verification/list');
-            
+            const response = await axios.get('http://localhost:5000/api/admin/verification/list');
+
             // Map the data to match frontend requirements (name, roleColor, etc.)
-            const mappedData = response.data.map(user => ({
-                id: user.user_id, // Gamitin ang user_id bilang key
-                name: `${user.firstName} ${user.lastName}`,
+            const mappedData = (response.data || []).map(user => ({
+                id: user.id || user.user_id,
+                name: `${user.first_name || ''} ${user.last_name || ''}`,
                 email: user.email,
                 role: user.role,
-                // Assign role color based on logic (optional, for visual flair)
-                roleColor: user.role === 'admin' ? 'red' : user.role === 'faculty' ? 'green' : 'blue',
-                department: user.college || user.course, // Gamitin ang college o course
-                status: user.verification_status, // Gamitin ang verification_status
+                roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
+                department: user.department_name || user.program_name || 'N/A',
+                status: user.verification_status,
                 statusColor: getStatusColor(user.verification_status),
-                date: new Date(user.date_registered).toLocaleString(), // Format ang date
-                // Other fields for modal
-                ...user 
+                date: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A',
+                tupm_id: user.tupm_id,
+                ...user
             }));
 
             setApplications(mappedData);
@@ -66,17 +65,17 @@ const ApplicationPage = () => {
     // --- ACTION HANDLERS (UPDATED TO USE API) ---
     const handleStatusUpdate = async (id, newStatus) => {
         setOpenMenuId(null);
-        const endpoint = newStatus === 'Approved' 
-            ? 'http://localhost:5000/admin/verification/approve' 
-            : 'http://localhost:5000/admin/verification/reject';
+        const endpoint = newStatus === 'Approved'
+            ? 'http://localhost:5000/api/admin/verification/approve'
+            : 'http://localhost:5000/api/admin/verification/reject';
 
         try {
             // Gumamit ng 'Verified' sa API kung 'Approved'
             const apiStatus = newStatus === 'Approved' ? 'Verified' : 'Rejected';
-            
-            await axios.post(endpoint, { 
-                user_id: id, 
-                verification_status: apiStatus 
+
+            await axios.post(endpoint, {
+                user_id: id,
+                verification_status: apiStatus
             });
 
             // Update state agad sa Frontend
@@ -101,10 +100,10 @@ const ApplicationPage = () => {
 
     const deleteApplication = async (id) => {
         if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
-        
+
         try {
-             // Assuming you have a DELETE endpoint (e.g., /user/delete/:id)
-            await axios.delete(`http://localhost:5000/admin/user-delete/${id}`); 
+            // Assuming you have a DELETE endpoint (e.g., /user/delete/:id)
+            await axios.delete(`http://localhost:5000/api/admin/user/${id}`);
             setApplications(prev => prev.filter(app => app.id !== id));
             alert(`User ID ${id} deleted.`);
         } catch (error) {
@@ -160,7 +159,7 @@ const ApplicationPage = () => {
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
                         {/* Statuses are based on DB: Pending, Verified, Rejected */}
-                        <option>Status</option> 
+                        <option>Status</option>
                         <option>Pending</option>
                         <option>Verified</option>
                         <option>Rejected</option>
@@ -206,8 +205,8 @@ const ApplicationPage = () => {
                             {filteredApps.map((app) => (
                                 <tr key={app.id} className="user-row" onClick={() => setModalUser(app)}>
                                     {/* Entire user cell clickable */}
-                                    <td 
-                                        className="user-cell" 
+                                    <td
+                                        className="user-cell"
                                     >
                                         <div className="user-info-cell">
                                             <div className="user-table-avatar">
@@ -236,7 +235,7 @@ const ApplicationPage = () => {
                                             <button
                                                 className="action-button"
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); 
+                                                    e.stopPropagation();
                                                     setOpenMenuId(openMenuId === app.id ? null : app.id);
                                                 }}
                                             >

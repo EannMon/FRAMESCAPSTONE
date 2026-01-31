@@ -1,0 +1,278 @@
+/* =========================================== */
+/* 5. Schedule Page Styles */
+/* =========================================== */
+.schedule-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-left: 30px
+    
+}
+
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.schedule-header h2 {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+.schedule-filters {
+    display: flex;
+    gap: 10px;
+    background-color: #f0f2f5;
+    padding: 5px;
+    border-radius: 8px;
+}
+
+.schedule-filter-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    background-color: transparent;
+    color: #555;
+}
+
+.schedule-filter-btn.active {
+    background-color: white;
+    color: #dc3545; /* Red Theme */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* --- Today's Classes Card --- */
+.today-classes-card {
+    padding: 25px;
+}
+
+.today-classes-card h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.class-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.class-item { 
+    display: flex; 
+    align-items: center; 
+    padding: 15px 0; 
+    border-bottom: 1px solid #eee; 
+}
+.class-item:last-child { 
+    border-bottom: none; 
+    padding-bottom: 0;
+}
+.class-item:first-child {
+    padding-top: 0;
+}
+
+.class-time-dot { 
+    display: flex; 
+    align-items: center; 
+    margin-right: 20px; 
+}
+.class-time-dot .dot { 
+    width: 10px; 
+    height: 10px; 
+    border-radius: 50%; 
+    margin-right: 10px; 
+}
+.class-time-dot .time { 
+    font-weight: 500; 
+    color: #555; 
+    width: 70px; /* Align times */
+}
+
+.class-details { flex-grow: 1; }
+.class-title { 
+    display: block; 
+    font-weight: 600; 
+    font-size: 1.05em; 
+    color: #333; 
+}
+.class-meta { 
+    font-size: 0.9em; 
+    color: #777; 
+}
+.class-status { 
+    margin-left: auto; 
+    font-weight: 500; 
+    font-size: 0.9em; 
+}
+
+/* --- Weekly Schedule Grid --- */
+.week-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.week-day-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.week-day-header {
+    padding: 12px 15px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #eee;
+}
+.week-day-header .day-name {
+    font-weight: 600;
+    color: #333;
+    display: block;
+    font-size: 1.1em;
+}
+.week-day-header .day-date {
+    font-size: 0.9em;
+    color: #777;
+}
+
+.week-day-classes {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.week-class-item {
+    font-size: 0.9em;
+}
+.week-class-item.none {
+    color: #999;
+    font-style: italic;
+}
+.week-class-time {
+    font-weight: 500;
+    color: #dc3545; /* Red Theme */
+    margin-right: 8px;
+}
+.week-class-title {
+    color: #555;
+}
+/* --- Calendar View --- */
+.calendar-view {
+    width: 100%;
+    max-width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.calendar-view .react-calendar {
+    width: 100% !important;
+    border: none;
+    font-family: inherit;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.react-calendar__navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    border-radius: 8px 8px 0 0;
+}
+
+.react-calendar__navigation button {
+    background: none;
+    border: none;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    color: #dc3545; /* Red theme */
+    padding: 5px 10px;
+    border-radius: 6px;
+}
+
+.react-calendar__navigation button:hover {
+    background-color: #f0f2f5;
+}
+
+.react-calendar__month-view__weekdays {
+    text-align: center;
+    font-weight: 600;
+    color: #555;
+    padding: 10px 0;
+}
+
+.react-calendar__month-view__days {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    padding: 10px 0;
+}
+
+.react-calendar__tile {
+    padding: 10px 0;
+    text-align: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.react-calendar__tile:hover {
+    background-color: #f0f2f5;
+}
+
+.react-calendar__tile--active {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.react-calendar__tile--now {
+    background-color: #fff4f4;
+    color: #dc3545;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .react-calendar__month-view__days {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+    }
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .schedule-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .schedule-filters {
+        justify-content: space-between;
+    }
+    .schedule-filter-btn {
+        flex-grow: 1;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .class-item { 
+        flex-direction: column; 
+        align-items: flex-start; 
+        gap: 5px; 
+    }
+    .class-status { 
+        margin-left: 0; 
+        padding-top: 5px; 
+    }
+}

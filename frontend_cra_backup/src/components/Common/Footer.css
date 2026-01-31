@@ -1,0 +1,117 @@
+/* =========================================== */
+/* 13. Global Footer Styles */
+/* =========================================== */
+
+.site-footer {
+    background-color: #1f1f22; /* Dark background */
+    color: #aaa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.7;
+    margin-top: auto; /* Pushes footer to bottom in flex layout */
+}
+
+.footer-content-container {
+    max-width: 1050px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: grid;
+    /* Only two columns, as requested */
+    grid-template-columns: 2fr 1fr; 
+    gap: 40px;
+}
+
+.footer-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.footer-column h4 {
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+.footer-column p {
+    margin: 0 0 20px 0;
+    font-size: 0.9em;
+    max-width: 350px;
+}
+
+/* --- Social Icons --- */
+.footer-social-icons {
+    display: flex;
+    gap: 10px;
+}
+.social-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+.social-icon.fb { background-color: #3b5998; }
+.social-icon.tw { background-color: #1da1f2; }
+.social-icon.ig { background-color: #c13584; }
+.social-icon.li { background-color: #0077b5; }
+.social-icon:hover {
+    opacity: 0.8;
+}
+
+
+/* --- Contact List --- */
+.contact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.contact-list li {
+    display: flex;
+    align-items: center;
+    font-size: 0.9em;
+}
+.contact-list i {
+    color: #fff;
+    font-size: 1.1em;
+    width: 25px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+/* --- Bottom Bar --- */
+.footer-bottom-bar {
+    border-top: 1px solid #444;
+    margin-top: 20px;
+    padding: 10px 0;
+    text-align: center;
+}
+.footer-bottom-bar p {
+    margin: 0;
+    font-size: 0.85em;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .footer-content-container {
+        grid-template-columns: 1fr; /* Stack columns on mobile */
+    }
+    .footer-column {
+        align-items: center;
+        text-align: center;
+    }
+    .footer-column p {
+        max-width: 100%;
+    }
+    .contact-list li {
+        justify-content: center;
+    }
+}

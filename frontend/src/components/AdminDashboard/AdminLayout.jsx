@@ -73,8 +73,8 @@ const AdminLayout = () => {
 
         const userData = JSON.parse(storedUser);
 
-        // HAKBANG 1: Check kung Admin
-        if (userData.role !== 'admin') {
+        // HAKBANG 1: Check kung Admin (backend returns uppercase roles)
+        if (userData.role?.toLowerCase() !== 'admin') {
             alert("Access denied. You are not authorized to view the Admin dashboard.");
             navigate('/');
             return;
@@ -88,9 +88,12 @@ const AdminLayout = () => {
         }
 
         // Kung Verified, i-set ang user data at magpatuloy
+        // Handle both snake_case (backend) and camelCase (legacy) field names
+        const firstName = userData.first_name || userData.firstName || '';
+        const lastName = userData.last_name || userData.lastName || '';
         setUser({
             ...userData,
-            name: `${userData.firstName} ${userData.lastName}`, // Ensure name is formatted for Header
+            name: `${firstName} ${lastName}`.trim() || 'Admin', // Ensure name is formatted for Header
             notifications: 0 // Placeholder or fetch actual count if necessary
         });
         setLoading(false);

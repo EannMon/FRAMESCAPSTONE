@@ -21,11 +21,12 @@ const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, 
 );
 
 const FacultyDashboardPage = () => {
-    // --- STATE ---
+    // --- STATE (with safe defaults) ---
     const [stats, setStats] = useState({
-        today_classes: 0,
-        attendance_rate: 0,
+        todays_classes: 0,
+        average_attendance: 0,
         total_students: 0,
+        total_classes: 0,
         alerts: 0,
         recent_attendance: []
     });
@@ -35,12 +36,21 @@ const FacultyDashboardPage = () => {
     useEffect(() => {
         const fetchStats = async () => {
             const storedUser = localStorage.getItem('currentUser');
-            if (!storedUser) return;
+            if (!storedUser) {
+                setLoading(false);
+                return;
+            }
             const user = JSON.parse(storedUser);
+            const userId = user.id || user.user_id;
 
             try {
-                const response = await axios.get(`http://localhost:5000/api/faculty/dashboard-stats/${user.user_id || user.id}`);
-                setStats(response.data);
+                const response = await axios.get(`http://localhost:5000/api/faculty/dashboard-stats/${userId}`);
+                // Merge with defaults to prevent undefined errors
+                setStats(prev => ({
+                    ...prev,
+                    ...response.data,
+                    recent_attendance: response.data.recent_attendance || []
+                }));
             } catch (error) {
                 console.error("Error fetching dashboard stats:", error);
             } finally {
@@ -57,7 +67,7 @@ const FacultyDashboardPage = () => {
             <FacultySummaryCard
                 iconClass="fas fa-calendar-day"
                 title="Today's Classes"
-                value={stats.today_classes}
+                value={stats.todays_classes || 0}
                 subValue="Scheduled"
                 subValueColor="#dc3545"
                 iconBgClass="f-icon-red"
@@ -65,7 +75,7 @@ const FacultyDashboardPage = () => {
             <FacultySummaryCard
                 iconClass="fas fa-user-check"
                 title="Attendance Rate"
-                value={`${stats.attendance_rate}%`}
+                value={`${stats.average_attendance || 0}%`}
                 subValue="Last 30 Days"
                 subValueColor="#198754"
                 iconBgClass="f-icon-green"
@@ -73,47 +83,49 @@ const FacultyDashboardPage = () => {
             <FacultySummaryCard
                 iconClass="fas fa-users"
                 title="Total Students"
-                value={stats.total_students}
+                value={stats.total_students || 0}
                 subValue="Active Enrollees"
                 subValueColor="#6f42c1"
                 iconBgClass="f-icon-purple"
             />
             <FacultySummaryCard
-                iconClass="fas fa-bell"
-                title="Alerts"
-                value={stats.alerts}
-                subValue="Requires attention"
-                subValueColor="#dc3545"
+                iconClass="fas fa-book"
+                title="Total Classes"
+                value={stats.total_classes || 0}
+                subValue="This Semester"
+                subValueColor="#0d6efd"
                 iconBgClass="f-icon-alert"
             />
         </div>
     );
 
-    const RecentAttendance = () => (
-        <div className="recent-attendance">
-            <h3>Recent Activity</h3>
-            {stats.recent_attendance.length > 0 ? (
-                stats.recent_attendance.map((log, index) => (
-                    <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <strong>{log.subject_code}</strong>
-                            <span style={{ color: 'green', fontWeight: 'bold' }}>Present</span>
+    const RecentAttendance = () => {
+        const recentList = stats.recent_attendance || [];
+        return (
+            <div className="recent-attendance">
+                <h3>Recent Activity</h3>
+                {recentList.length > 0 ? (
+                    recentList.map((log, index) => (
+                        <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <strong>{log.subject_code || 'Class'}</strong>
+                                <span style={{ color: 'green', fontWeight: 'bold' }}>Present</span>
+                            </div>
+                            <small style={{ color: '#888' }}>{log.time || ''} • {log.subject_description || ''}</small>
                         </div>
-                        <small style={{ color: '#888' }}>{log.time} • {log.subject_description}</small>
-                    </div>
-                ))
-            ) : (
-                <div style={{ padding: '20px', color: '#888' }}>No recent activity.</div>
-            )}
-        </div>
-    );
+                    ))
+                ) : (
+                    <div style={{ padding: '20px', color: '#888' }}>No recent activity.</div>
+                )}
+            </div>
+        );
+    };
 
     const ClassroomAlerts = () => (
         <div className="classroom-alerts">
             <h3>System Alerts</h3>
-            {/* Hardcoded example for now, can be connected to real logs later */}
             <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffc107', marginTop: '6px' }}></div>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#28a745', marginTop: '6px' }}></div>
                 <div>
                     <div style={{ fontSize: '0.95em' }}><strong>System Normal</strong></div>
                     <div style={{ fontSize: '0.8em', color: '#888' }}>All systems operational</div>

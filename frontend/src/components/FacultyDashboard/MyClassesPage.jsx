@@ -8,7 +8,7 @@ const FacultyMyClassesPage = () => {
     // --- STATES ---
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
     const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile'
-    
+
     const [user, setUser] = useState(null);
     const [myClasses, setMyClasses] = useState([]); // Data from DB
     const [studentList, setStudentList] = useState([]); // Data from DB
@@ -17,10 +17,10 @@ const FacultyMyClassesPage = () => {
     const [selectedClass, setSelectedClass] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    
+
     // Calendar States
     const [calendarEvents, setCalendarEvents] = useState([]);
-    const [selectedSessions, setSelectedSessions] = useState([]); 
+    const [selectedSessions, setSelectedSessions] = useState([]);
     const [showManageModal, setShowManageModal] = useState(false);
     const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
 
@@ -69,7 +69,7 @@ const FacultyMyClassesPage = () => {
         setLoading(true);
         setSelectedClass(cls);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.schedule_id}`);
+            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.id}`);
             // Add status color logic for UI
             const processedStudents = response.data.map(s => ({
                 ...s,
@@ -102,10 +102,10 @@ const FacultyMyClassesPage = () => {
             classes.forEach(cls => {
                 if (cls.day_of_week === dayName) {
                     events.push({
-                        id: `${cls.schedule_id}-${d}`, // Unique ID
+                        id: `${cls.id}-${d}`, // Unique ID
                         date: dateStr,
                         day: d,
-                        title: cls.course_code,
+                        title: cls.subject_code,
                         time: cls.start_time,
                         section: cls.section,
                         status: 'normal' // Default status
@@ -147,7 +147,7 @@ const FacultyMyClassesPage = () => {
                 }
             );
 
-            if (response.status === 201) {
+            if (response.status === 201 || response.status === 200) {
                 setUploadMessage(
                     `✅ Success! Created ${response.data.schedules_created} schedule(s) and ${response.data.students_created} student account(s)`
                 );
@@ -211,32 +211,32 @@ const FacultyMyClassesPage = () => {
     // --- PDF GENERATORS ---
     const generateClassPDF = () => {
         const doc = new jsPDF();
-        doc.text(`Attendance Report: ${selectedClass.title}`, 14, 20);
+        doc.text(`Attendance Report: ${selectedClass.subject_title}`, 14, 20);
         doc.text(`Section: ${selectedClass.section}`, 14, 26);
-        
+
         const tableRows = studentList.map(s => [
-            `${s.lastName}, ${s.firstName}`, 
-            s.timeIn, 
+            `${s.lastName}, ${s.firstName}`,
+            s.timeIn,
             s.status
         ]);
-        autoTable(doc, { 
-            head: [["Name", "Time In", "Status"]], 
-            body: tableRows, 
-            startY: 35, 
-            headStyles: { fillColor: [166, 37, 37] } 
+        autoTable(doc, {
+            head: [["Name", "Time In", "Status"]],
+            body: tableRows,
+            startY: 35,
+            headStyles: { fillColor: [166, 37, 37] }
         });
-        doc.save(`${selectedClass.course_code}_Report.pdf`);
+        doc.save(`${selectedClass.subject_code}_Report.pdf`);
     };
 
     const generateStudentPDF = () => {
         const doc = new jsPDF();
         doc.text(`Individual Report: ${selectedStudent.firstName} ${selectedStudent.lastName}`, 14, 20);
-        autoTable(doc, { 
-            startY: 30, 
-            head: [['Date', 'Status', 'Time In']], 
-            body: [[new Date().toLocaleDateString(), selectedStudent.status, selectedStudent.timeIn]], 
-            theme: 'striped', 
-            headStyles: { fillColor: [166, 37, 37] } 
+        autoTable(doc, {
+            startY: 30,
+            head: [['Date', 'Status', 'Time In']],
+            body: [[new Date().toLocaleDateString(), selectedStudent.status, selectedStudent.timeIn]],
+            theme: 'striped',
+            headStyles: { fillColor: [166, 37, 37] }
         });
         doc.save(`${selectedStudent.lastName}_Report.pdf`);
     };
@@ -248,27 +248,27 @@ const FacultyMyClassesPage = () => {
         <div className="faculty-classes-grid fade-in">
             {myClasses.length > 0 ? (
                 myClasses.map((cls) => (
-                    <div key={cls.schedule_id} className={`card faculty-class-card ${cls.status === 'ongoing' ? 'today-active' : ''}`}>
+                    <div key={cls.id} className={`card faculty-class-card ${cls.status === 'ongoing' ? 'today-active' : ''}`}>
                         <div className="card-status-badge">
                             {cls.status === 'ongoing' ? <span className="badge-today">Ongoing</span> : <span className="badge-upcoming">Upcoming</span>}
                         </div>
                         <div className="faculty-class-header">
-                            <h3>{cls.title}</h3>
-                            <span className="faculty-class-code">{cls.course_code}</span>
+                            <h3>{cls.subject_title}</h3>
+                            <span className="faculty-class-code">{cls.subject_code}</span>
                         </div>
                         <div className="faculty-class-details">
                             <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {cls.start_time}</div>
-                            <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room_name || 'TBA'}</div>
+                            <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
                             <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
                         </div>
-                        
+
                         <div className="attendance-preview-bar">
                             <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
                             <div className="progress-track">
-                                <div className="progress-fill green" style={{width: `${cls.rate}%`}}></div>
+                                <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
                             </div>
                         </div>
-                        
+
                         <div className="action-area">
                             <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
                                 <i className="fas fa-user-check"></i> View Attendance
@@ -277,7 +277,7 @@ const FacultyMyClassesPage = () => {
                     </div>
                 ))
             ) : (
-                <div style={{gridColumn: '1/-1', textAlign:'center', padding:'40px', color:'#888'}}>
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#888' }}>
                     {loading ? "Loading classes..." : "No classes assigned."}
                 </div>
             )}
@@ -290,14 +290,14 @@ const FacultyMyClassesPage = () => {
             <div className="sheet-header">
                 <button className="back-btn" onClick={handleBack}><i className="fas fa-arrow-left"></i> Back to Classes</button>
                 <div className="class-info-header">
-                    <h2>{selectedClass.title} <span className="highlight-code">({selectedClass.course_code})</span></h2>
-                    <p>{selectedClass.section} • {selectedClass.room_name}</p>
+                    <h2>{selectedClass.subject_title} <span className="highlight-code">({selectedClass.subject_code})</span></h2>
+                    <p>{selectedClass.section} • {selectedClass.room}</p>
                 </div>
             </div>
             <div className="sheet-controls">
                 <div className="search-wrapper">
                     <i className="fas fa-search"></i>
-                    <input type="text" placeholder="Search student..." onChange={(e) => setSearchTerm(e.target.value)}/>
+                    <input type="text" placeholder="Search student..." onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <button className="export-pdf-btn" onClick={generateClassPDF}><i className="fas fa-download"></i> Export List</button>
             </div>
@@ -308,17 +308,17 @@ const FacultyMyClassesPage = () => {
                         {studentList
                             .filter(s => s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || s.firstName.toLowerCase().includes(searchTerm.toLowerCase()))
                             .map(s => (
-                            <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
-                                <td className="student-name-cell">
-                                    <div className="avatar-placeholder">{s.firstName.charAt(0)}</div>
-                                    <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
-                                </td>
-                                <td>{s.timeIn}</td>
-                                <td><span className={`status-badge ${s.statusColor}`}>{s.status}</span></td>
-                                <td><button className="icon-btn-view"><i className="fas fa-chevron-right"></i></button></td>
-                            </tr>
-                        ))}
-                        {studentList.length === 0 && <tr><td colSpan="4" style={{textAlign:'center'}}>No students found.</td></tr>}
+                                <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
+                                    <td className="student-name-cell">
+                                        <div className="avatar-placeholder">{s.firstName.charAt(0)}</div>
+                                        <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
+                                    </td>
+                                    <td>{s.timeIn}</td>
+                                    <td><span className={`status-badge ${s.statusColor}`}>{s.status}</span></td>
+                                    <td><button className="icon-btn-view"><i className="fas fa-chevron-right"></i></button></td>
+                                </tr>
+                            ))}
+                        {studentList.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center' }}>No students found.</td></tr>}
                     </tbody>
                 </table>
             </div>
@@ -359,14 +359,14 @@ const FacultyMyClassesPage = () => {
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const events = calendarEvents.filter(s => s.date === dateStr);
-            
+
             calendarCells.push(
                 <div key={day} className="cal-cell day">
                     <div className="cal-day-number">{day}</div>
                     <div className="cal-events-stack">
                         {events.map(ev => (
-                            <div 
-                                key={ev.id} 
+                            <div
+                                key={ev.id}
                                 className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : 'cal-event-green'} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
                                 onClick={(e) => { e.stopPropagation(); toggleSessionSelect(ev.id); }}
                                 title={`${ev.title} - Click to Select`}
@@ -414,9 +414,9 @@ const FacultyMyClassesPage = () => {
 
                 <div className="form-group">
                     <label>Select PDF File:</label>
-                    <input 
-                        type="file" 
-                        accept=".pdf" 
+                    <input
+                        type="file"
+                        accept=".pdf"
                         onChange={handleFileSelect}
                         disabled={isUploading}
                     />
@@ -434,8 +434,8 @@ const FacultyMyClassesPage = () => {
 
                     <div className="form-group">
                         <label>Academic Year:</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={academicYear}
                             onChange={(e) => setAcademicYear(e.target.value)}
                             placeholder="2024-2025"
@@ -443,8 +443,8 @@ const FacultyMyClassesPage = () => {
                     </div>
                 </div>
 
-                <button 
-                    onClick={handleUpload} 
+                <button
+                    onClick={handleUpload}
                     disabled={isUploading}
                     className="upload-btn"
                 >
@@ -539,7 +539,7 @@ const FacultyMyClassesPage = () => {
                             </div>
                             <div className="form-group">
                                 <label>Status</label>
-                                <select value={modalData.type} onChange={(e) => setModalData({...modalData, type: e.target.value})}>
+                                <select value={modalData.type} onChange={(e) => setModalData({ ...modalData, type: e.target.value })}>
                                     <option value="normal">On-Site</option>
                                     <option value="online-sync">Synchronous Online</option>
                                     <option value="cancelled">Cancelled</option>
@@ -547,7 +547,7 @@ const FacultyMyClassesPage = () => {
                             </div>
                             <div className="form-group">
                                 <label>Remarks (Optional)</label>
-                                <textarea value={modalData.reason} onChange={(e) => setModalData({...modalData, reason: e.target.value})} placeholder="e.g. Typhoon"></textarea>
+                                <textarea value={modalData.reason} onChange={(e) => setModalData({ ...modalData, reason: e.target.value })} placeholder="e.g. Typhoon"></textarea>
                             </div>
                         </div>
                         <div className="modal-footer">

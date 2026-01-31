@@ -93,7 +93,8 @@ const StudentLayout = () => {
             let notifCount = 0;
             try {
                 // Fetch dashboard data to get accurate notification count
-                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${storedUser.user_id}`);
+                const userId = storedUser.id || storedUser.user_id;
+                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${userId}`);
                 const notifs = response.data.notifications || [];
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {

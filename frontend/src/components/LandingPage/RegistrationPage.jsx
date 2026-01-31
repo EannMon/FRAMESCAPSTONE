@@ -161,7 +161,7 @@ const RegistrationPage = () => {
             console.log("Sending Payload:", payload); // Para makita mo sa console
 
             // 3. SEND TO BACKEND
-            const response = await axios.post('http://localhost:5000/register', payload);
+            const response = await axios.post('http://localhost:5000/api/auth/register', payload);
 
             if (response.data.message) {
                 // SUCCESS: Redirect sa Status Page na may 'pending' flag
@@ -217,7 +217,7 @@ const RegistrationPage = () => {
             setFaceValid(false);   // Reset validity
 
             try {
-                const response = await axios.post('http://localhost:5000/validate-face', {
+                const response = await axios.post('http://localhost:5000/api/auth/validate-face', {
                     faceCapture: imageSrc
                 });
 

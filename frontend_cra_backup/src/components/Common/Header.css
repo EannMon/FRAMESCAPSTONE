@@ -1,0 +1,266 @@
+/* =========================================== */
+/* 3. Universal Header Styles */
+/* =========================================== */
+.universal-header {
+    /* --- DEFAULTS: LANDING PAGE MODE (Guest) --- */
+    --header-bg: #ffffff;       /* White BG */
+    --header-text: #dc3545;     /* Red Text */
+    --header-hover: #fbe9e7;    /* Light Red Hover */
+    --border-color: #eee;
+    
+    /* Turn White Logo -> Red for Landing Page */
+    --logo-filter: invert(13%) sepia(94%) saturate(7466%) hue-rotate(353deg) brightness(92%) contrast(105%);
+    
+    --notif-dot-bg: #A62525;
+    --notif-dot-text: #fff;
+
+    /* --- LAYOUT --- */
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+    height: 65px;
+    z-index: 1001;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    
+    /* Apply the Variables */
+    background-color: var(--header-bg); 
+    color: var(--header-text); 
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- Logo Link Wrapper --- */
+.header-logo-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: inherit; 
+}
+.header-logo-link:hover {
+    opacity: 0.8;
+}
+
+.universal-header-logo {
+    display: flex;
+    align-items: center;
+    font-size: 1.6em;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.header-logo-icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    /* This allows us to toggle between Red Logo (Guest) and White Logo (User) */
+    filter: var(--logo-filter);
+    transition: filter 0.3s;
+}
+
+.universal-header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+/* --- GUEST NAV --- */
+.guest-nav {
+    display: flex;
+    gap: 15px;
+}
+.header-login-btn {
+    background: transparent;
+    border: 1px solid var(--header-text);
+    color: var(--header-text);
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+}
+.header-login-btn:hover {
+    background-color: var(--header-hover);
+}
+.header-signup-btn {
+    background-color: #dc3545; /* Always Red */
+    border: none;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.header-signup-btn:hover {
+    background-color: #c91f1b;
+    box-shadow: 0 2px 5px rgba(166, 37, 37, 0.3);
+}
+
+/* --- Dropdowns --- */
+.notification-bell-container,
+.profile-menu-container {
+    position: relative; 
+}
+
+/* --- Icons --- */
+.icon-button {
+    background: none;
+    border: none;
+    font-size: 1.3em;
+    cursor: pointer;
+    margin-right: 20px;
+    position: relative;
+    padding: 5px;
+    color: var(--header-text);
+}
+
+.circular-icon-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+.circular-icon-button:hover {
+    background-color: var(--header-hover) !important;
+}
+
+.notification-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 18px;
+    height: 18px;
+    
+    background-color: var(--notif-dot-bg);
+    color: var(--notif-dot-text);
+    
+    border: 2px solid var(--header-bg); /* Match border to header bg */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem; 
+    font-weight: bold;
+}
+
+/* --- Profile Menu --- */
+.user-menu {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    color: var(--header-text);
+}
+.user-menu:hover {
+    background-color: var(--header-hover);
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 10px;
+    border: 2px solid var(--header-text);
+}
+
+.user-role {
+    font-weight: 600;
+    margin-right: 8px;
+    font-size: 0.95rem;
+}
+.dropdown-icon {
+    font-size: 0.8em;
+    opacity: 0.8;
+    transition: transform 0.2s ease;
+}
+.dropdown-icon.open {
+    transform: rotate(180deg);
+}
+
+/* --- Dropdown Menus (ALWAYS WHITE BG for readability) --- */
+.header-dropdown-menu,
+.notification-dropdown-menu {
+    position: absolute;
+    top: 60px; 
+    right: 0;
+    background: white; 
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    z-index: 1002;
+    overflow: hidden;
+    border: 1px solid #eee;
+    color: #333; 
+}
+
+/* Reset dropdown specific widths */
+.header-dropdown-menu { width: 220px; }
+.notification-dropdown-menu { width: 360px; right: -10px; }
+
+.header-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    text-decoration: none;
+    font-size: 0.95em;
+    font-weight: 500;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    color: #444; 
+}
+.header-dropdown-item i {
+    width: 20px;
+    text-align: center;
+    color: #A62525; /* Red icons inside menu */
+}
+.header-dropdown-item:hover {
+    background-color: #fbe9e7;
+    color: #A62525;
+}
+
+.dropdown-logout-button { border-top: 1px solid #f0f0f0; }
+.dropdown-logout-button:hover { color: #dc3545; background-color: #ffe6e6; }
+
+/* --- Notification Content --- */
+.notification-dropdown-header {
+    background: white;
+    display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #f0f0f0;
+}
+.notification-dropdown-header h3 { margin: 0; font-size: 1.1em; color: #333; }
+.notification-dropdown-header .mark-as-read { font-size: 0.8em; color: #A62525; font-weight: 600; cursor: pointer; }
+
+.notification-list { max-height: 400px; overflow-y: auto; }
+.notification-item { display: flex; gap: 15px; padding: 15px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; background: white; transition: background 0.2s;}
+.notification-item:hover { background-color: #f9f9f9; }
+.notification-item.unread { background-color: #fff5f5; border-left: 3px solid #A62525; }
+
+.notification-text { font-size: 0.9em; color: #333; margin: 0 0 5px 0; line-height: 1.4; }
+.notification-time { font-size: 0.75em; color: #999; }
+.notification-icon-bg { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background-color: #f0f2f5; color: #555; }
+.notification-item.unread .notification-icon-bg { background-color: #ffe6e6; color: #A62525; }
+
+.notification-dropdown-footer { padding: 12px 20px; text-align: center; border-top: 1px solid #f0f0f0; background-color: #fcfcfc; }
+.notification-dropdown-footer a { text-decoration: none; color: #dc3545; font-weight: 500; font-size: 0.9em; }
+
+/* --- Responsive --- */
+@media (max-width: 992px) {
+    .universal-header-logo { display: none; }
+}
+@media (max-width: 480px) {
+    .universal-header { padding: 0 15px; }
+    .user-role, .dropdown-icon { display: none; }
+    .icon-button { margin-right: 10px; }
+}

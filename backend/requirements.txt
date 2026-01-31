@@ -1,10 +1,25 @@
-flask
-flask-cors
-mysql-connector-python
+# FRAMES Backend Dependencies
+# Updated for FastAPI + PostgreSQL + SQLAlchemy
+
+# Web Framework - FastAPI
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+psycopg2-binary
+sqlalchemy
+python-dotenv
+
+# Face Recognition (will migrate to TFLite later)
 opencv-python-headless
 numpy
 deepface
-bcrypt
-python-dotenv
 tf-keras
+
+# Security
+bcrypt
+
+
+# PDF Parsing
 pdfplumber

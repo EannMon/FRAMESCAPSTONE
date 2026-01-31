@@ -1,0 +1,201 @@
+/* FacultyReportsPage.css */
+
+/* --- TAG STYLES (Uniform Red Theme) --- */
+
+/* 1. Personal / Faculty Tag */
+.personal-tag {
+    display: inline-flex;       /* Perfect centering */
+    align-items: center;        /* Vertically align Icon & Text */
+    gap: 8px;                   /* Space between Icon & Text */
+    
+    margin-top: 10px;
+    background-color: #A62525;  /* FRAMES Red */
+    color: white;               /* White Text */
+    
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(166, 37, 37, 0.2);
+}
+
+/* Force Icon to be White */
+.personal-tag i {
+    color: white !important;
+    font-size: 0.85rem;         /* Slightly larger icon for visibility */
+}
+
+/* 2. Class / Student Tag (Now RED also) */
+.class-tag {
+    display: inline-flex;       /* Perfect centering */
+    align-items: center;        /* Vertically align Icon & Text */
+    gap: 8px;                   /* Space between Icon & Text */
+    
+    margin-top: 10px;
+    background-color: #A62525;  /* FRAMES Red (Same as Personal) */
+    color: white;               /* White Text */
+    
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(166, 37, 37, 0.2);
+}
+
+/* Force Icon to be White */
+.class-tag i {
+    color: white !important;
+    font-size: 0.85rem;
+}
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- HEADER SECTION --- */
+.fac-reports-header {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: flex-start; /* Align top for better wrapping */
+    gap: 30px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.fac-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.fac-control-group label {
+    font-weight: 700;
+    color: #555;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fac-select {
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #333;
+    background-color: #fff;
+    transition: border-color 0.2s;
+}
+.fac-select:focus {
+    border-color: #A62525;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(166, 37, 37, 0.1);
+}
+
+/* --- INFO BOX --- */
+.fac-report-info {
+    flex: 1.5; /* Wider than controls */
+    background-color: #fff5f5; /* Light Red tint */
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 5px solid #A62525;
+    display: flex;
+    gap: 15px;
+    color: #555;
+    align-self: stretch; /* Match height */
+}
+
+.fac-report-info i {
+    font-size: 1.8rem;
+    color: #A62525;
+    margin-top: 2px;
+}
+
+.info-content h4 { margin: 0 0 5px 0; color: #A62525; }
+.info-content p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+/* --- TABLE CARD --- */
+.fac-table-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    overflow: hidden;
+}
+
+.fac-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+    background-color: white;
+}
+
+.fac-card-header h3 { margin: 0; color: #333; font-size: 1.2rem; }
+
+.fac-actions {
+    display: flex;
+    gap: 15px;
+}
+
+.btn-export {
+    background-color: #A62525;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+.btn-export:hover { background-color: #8a1f1f; }
+
+/* --- TABLE STYLES --- */
+.fac-table-wrapper { overflow-x: auto; }
+.fac-table { width: 100%; border-collapse: collapse; }
+
+.fac-table th {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    text-align: left;
+    font-weight: 600;
+    color: #666;
+    border-bottom: 2px solid #eee;
+    font-size: 0.9rem;
+}
+
+.fac-table td {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.fac-table tr:hover { background-color: #fafafa; }
+
+/* Status Badges */
+.status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; }
+.status-pill.present { background-color: #d4edda; color: #155724; }
+.status-pill.late { background-color: #fff3cd; color: #856404; }
+.status-pill.absent { background-color: #f8d7da; color: #721c24; }
+.status-pill.alert { background-color: #cff4fc; color: #055160; } /* For break abuse/security */
+
+.remarks-text { font-size: 0.85rem; color: #777; font-style: italic; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .fac-reports-header { flex-direction: column; }
+    .fac-report-info { width: 100%; }
+    .fac-actions { width: 100%; }
+    .btn-export { width: 100%; justify-content: center; }
+}
+

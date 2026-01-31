@@ -1,0 +1,141 @@
+/* =========================================== */
+/* FILE: FacultyLayout.css                   */
+/* =========================================== */
+
+/* 1. Global Layout */
+.dashboard-container {
+    min-height: 100vh;
+    background-color: #f5f6fa; /* Admin Gray Background */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow-x: hidden;
+}
+
+.dashboard-body {
+    display: flex;
+    padding-top: 65px; /* Space for fixed Header */
+}
+
+/* 2. Main Content Area (ETO ANG SUSI SA GAP) */
+.main-content-area {
+    flex-grow: 1;
+    /* I-urong ang container lampas sa Sidebar width (250px) */
+    margin-left: 1rem; 
+    
+    /* Maglagay ng Padding sa paligid ng content */
+    padding: 30px; 
+    
+    /* Sidebar (250px) + Gap is handled by margin/padding */
+    width: calc(100% - 250px);
+    transition: all 0.3s ease;
+}
+
+/* 3. Sidebar Styles (Fixed Position) */
+.faculty-sidebar {
+    width: 250px;
+    position: fixed;
+    top: 65px;
+    left: 0;
+    bottom: 0;
+    background-color: #ffffff;
+    border-right: 1px solid #e0e0e0;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    z-index: 900;
+}
+
+.faculty-role-tag {
+    background-color: #fbe9e7;
+    color: #dc3545;
+    font-weight: 700;
+    font-size: 0.85em;
+    padding: 8px 15px;
+    border-radius: 20px;
+    margin: 0 20px 25px 20px;
+    text-align: center;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Navigation List - Removes bullets */
+.faculty-nav ul {
+    list-style: none; /* IMPORTANT: Removes dots */
+    padding: 0;
+    margin: 0 15px;
+}
+
+.faculty-nav li {
+    margin-bottom: 5px;
+}
+
+/* Navigation Links */
+.faculty-nav a {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: #555; /* Dark gray text */
+    text-decoration: none; /* Removes underline */
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.faculty-nav a i {
+    width: 25px;
+    margin-right: 10px;
+    font-size: 1.1em;
+    text-align: center;
+}
+
+/* Active State (Red Theme) */
+.faculty-nav a.active {
+    background-color: #dc3545;
+    color: white;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.faculty-nav a:hover:not(.active) {
+    background-color: #f8f9fa;
+    color: #dc3545;
+}
+
+.notification-badge {
+    margin-left: auto;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding: 20px;
+    font-size: 0.8em;
+    color: #ccc;
+    text-align: center;
+}
+
+/* Responsive Fix */
+@media (max-width: 992px) {
+    .faculty-sidebar {
+        display: none; /* Hide sidebar on mobile */
+    }
+    .main-content-area {
+        margin-left: 0; /* Reset margin */
+        width: 100%;
+        padding: 20px;
+    }
+}
+
+/* Special Style for Dept Head Links */
+.nav-item.dept-head-link {
+    border-left: 4px solid #A62525;
+    background-color: #fff5f5; /* Light Red BG */
+    margin-top: 5px;
+}
+
+.nav-item.dept-head-link i {
+    color: #A62525;
+}

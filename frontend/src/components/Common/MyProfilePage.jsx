@@ -62,7 +62,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
         setLoading(true);
         setError('');
         try {
-            await axios.post('http://localhost:5000/user/verify-password', {
+            await axios.post('http://localhost:5000/api/users/verify-password', {
                 user_id: userId,
                 password: currentPassword
             });
@@ -88,7 +88,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 
         setLoading(true);
         try {
-            await axios.put('http://localhost:5000/user/change-password', {
+            await axios.put('http://localhost:5000/api/users/change-password', {
                 user_id: userId,
                 new_password: newPassword
             });
@@ -186,7 +186,7 @@ const MyProfilePage = () => {
         const fetchLatestData = async () => {
             if (!user) return;
             try {
-                const response = await axios.get(`http://localhost:5000/user/${user.user_id || user.id}`);
+                const response = await axios.get(`http://localhost:5000/api/users/${user.id || user.user_id}`);
                 setUser(prev => ({ ...prev, ...response.data }));
                 localStorage.setItem('currentUser', JSON.stringify(response.data));
             } catch (error) {
@@ -212,7 +212,7 @@ const MyProfilePage = () => {
 
     const handleSave = async () => {
         try {
-            await axios.put(`http://localhost:5000/user/update/${user.user_id || user.id}`, user);
+            await axios.put(`http://localhost:5000/api/users/${user.id || user.user_id}`, user);
             alert("Profile Updated Successfully!");
             setIsEditing(false);
             localStorage.setItem('currentUser', JSON.stringify(user));
@@ -269,9 +269,9 @@ const MyProfilePage = () => {
                         className="profile-avatar"
                     />
                     <div className="profile-summary-info">
-                        <h2 className="profile-name">{user.firstName} {user.lastName}</h2>
+                        <h2 className="profile-name">{user.first_name || user.firstName} {user.last_name || user.lastName}</h2>
                         <p className="profile-sub-details">ID: {user.tupm_id}</p>
-                        <p className="profile-sub-details">{user.college} - {user.course}</p>
+                        <p className="profile-sub-details">{user.department_name || user.college} - {user.program_name || user.course}</p>
 
                         {/* --- EDITED: CAPITALIZED STATUS --- */}
                         <div className="profile-status-tag" style={{ textTransform: 'capitalize' }}>

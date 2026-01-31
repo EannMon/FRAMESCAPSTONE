@@ -1,0 +1,320 @@
+/* =========================================== */
+/* MAIN LAYOUT (Fixes Footer Position) */
+/* =========================================== */
+.registration-page-wrapper {
+    background-color: #f4f6f8;
+    min-height: 100vh; /* Takes full viewport height */
+    display: flex;
+    flex-direction: column;
+    /* Space for the fixed Header (65px + 10px buffer) */
+    padding-top: 75px; 
+}
+
+.registration-container {
+    width: 100%;
+    max-width: 850px;
+    margin: 40px auto; 
+    padding: 0 20px;
+    
+    /* This pushes the footer down to the bottom */
+    flex: 1; 
+    
+    /* This ensures the footer never touches the card */
+    margin-bottom: 60px; 
+}
+
+.form-card {
+    background: white;
+    padding: 50px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    position: relative;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+/* =========================================== */
+/* TYPOGRAPHY & TITLES */
+/* =========================================== */
+.page-title {
+    text-align: center;
+    color: #333;
+    margin-top: 10px;
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #dc3545; /* TUP Red */
+}
+
+.step-title {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* =========================================== */
+/* NAVIGATION BUTTONS */
+/* =========================================== */
+.top-back-btn {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+    z-index: 10;
+}
+.top-back-btn:hover {
+    color: #dc3545;
+}
+
+.step-buttons {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* =========================================== */
+/* STEPS INDICATOR */
+/* =========================================== */
+.signup-step-indicators {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 40px;
+    gap: 60px;
+    position: relative;
+}
+
+.signup-step-indicators::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 15%;
+    right: 15%;
+    height: 2px;
+    background: #eee;
+    z-index: 0;
+    transform: translateY(-50%);
+}
+
+.step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #ddd;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    color: #999;
+    font-size: 1rem;
+    z-index: 1;
+    transition: all 0.3s;
+}
+
+.step-circle.active {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    box-shadow: 0 4px 10px rgba(166, 37, 37, 0.3);
+}
+
+/* =========================================== */
+/* FORM INPUTS & LAYOUT */
+/* =========================================== */
+.signup-step {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.auth-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auth-form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #444;
+}
+
+.auth-form-group input, 
+.auth-form-group select {
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.auth-form-group input:focus, 
+.auth-form-group select:focus {
+    outline: none;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(166, 37, 37, 0.1);
+}
+
+/* --- Birthday Specific --- */
+.birthday-wrapper {
+    display: flex;
+    gap: 10px;
+}
+.birthday-select {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: white;
+}
+
+/* --- TUPM ID Specific --- */
+.tupm-id-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.tupm-prefix {
+    font-weight: 600;
+    color: #555;
+}
+.tupm-year-input {
+    width: 60px !important;
+    text-align: center;
+}
+.tupm-serial-input {
+    flex: 1;
+}
+/* Back button INSIDE the form */
+.return-btn {
+    background: none;
+    border: none;
+
+    color: #d22f49;
+    font-size: 14px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 5px 0 10px 0;
+
+    margin-bottom: 10px;
+    align-self: flex-start;
+
+    transition: 0.2s ease;
+}
+
+.return-btn i {
+    font-size: 15px;
+}
+
+.return-btn:hover {
+    color: #b71e3a;
+    transform: translateX(-2px);
+    text-decoration: underline;
+}
+
+/* =========================================== */
+/* CAMERA & SUMMARY SECTIONS */
+/* =========================================== */
+.camera-capture-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.camera-preview {
+    width: 100%;
+    max-width: 400px;
+    height: 300px;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.camera-video, .captured-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.validation-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+.validation-overlay.success {
+    background: #28a745;
+}
+
+.summary-section {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+.summary-item:last-child {
+    border-bottom: none;
+}
+.summary-label {
+    font-weight: 600;
+    color: #555;
+}
+
+/* =========================================== */
+/* RESPONSIVE */
+/* =========================================== */
+@media (max-width: 768px) {
+    .signup-step { grid-template-columns: 1fr; }
+    .signup-step-indicators { gap: 30px; }
+    .signup-step-indicators::before { left: 5%; right: 5%; }
+    .form-card { padding: 30px 20px; }
+    
+    .birthday-wrapper {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ANIMATIONS */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
