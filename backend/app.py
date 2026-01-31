@@ -128,11 +128,11 @@ def validate_face():
 @app.route('/login', methods=['POST'])
 def login_user():
     data = request.json
-    email = data.get('email')
+    login_input = data.get('email')  # Can be email OR TUPM ID for students
     password = data.get('password')
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+    if not login_input or not password:
+        return jsonify({"error": "Email/TUPM ID and password are required"}), 400
 
     conn = get_db_connection()
     if not conn: return jsonify({"error": "Database connection failed"}), 500
@@ -141,9 +141,9 @@ def login_user():
     cursor = conn.cursor(dictionary=True) 
 
     try:
-        # 1. Find the user by email
-        sql = "SELECT * FROM User WHERE email = %s"
-        cursor.execute(sql, (email,))
+        # 1. Find the user by email OR TUPM ID (for auto-created students without email)
+        sql = "SELECT * FROM User WHERE tupm_id = %s OR email = %s"
+        cursor.execute(sql, (login_input, login_input))
         user = cursor.fetchone()
 
         if user:
@@ -1468,6 +1468,440 @@ def generate_report_data():
     finally:
         cursor.close()
         conn.close()
+
+# ==========================================
+# HELPER FUNCTIONS FOR PDF PARSING
+# ==========================================
+
+def clean_section(section_str):
+    """
+    Clean duplicated section names
+    Example: "BSIT-BSIT-4A-M" -> "BSIT-4A-M"
+    """
+    parts = section_str.split('-')
+    
+    # Remove consecutive duplicates
+    cleaned = [parts[0]]
+    for part in parts[1:]:
+        if part != cleaned[-1]:
+            cleaned.append(part)
+    
+    return '-'.join(cleaned)
+
+
+def parse_time_slot(days_str, time_str):
+    """
+    Parse day and time from raw strings
+    Days: "W" -> "Wednesday", etc.
+    Time: "06:00PM-08:00PM" -> ("06:00PM", "08:00PM")
+    """
+    day_map = {
+        'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'TH': 'Thursday', 'HU': 'Thursday',
+        'F': 'Friday', 'S': 'Saturday', 'SUN': 'Sunday', 'SU': 'Sunday'
+    }
+    
+    clean_day = days_str.upper().replace('.', '').strip()
+    full_day = day_map.get(clean_day, days_str)
+    
+    # Parse time range
+    time_str = time_str.replace('–', '-')
+    if '-' in time_str:
+        times = time_str.split('-')
+        start = times[0].strip()
+        end = times[1].strip() if len(times) > 1 else "TBA"
+    else:
+        start = time_str.strip()
+        end = "TBA"
+    
+    return full_day, start, end
+
+
+def parse_schedule_pdf(file, faculty_id):
+    """
+    Parse COR PDF - ONE course with MANY students across pages
+    PDF structure:
+    - Header: Schedule info (ONE course only)  
+    - Body: Student list (rows 1-N across multiple pages)
+    - End: "Total Number of Students: N"
+    """
+    print("\n🔍 Parsing Schedule PDF...")
+    
+    import re
+    
+    try:
+        with pdfplumber.open(file) as pdf:
+            # Extract text from FIRST PAGE ONLY for header info
+            page1_text = pdf.pages[0].extract_text() if len(pdf.pages) > 0 else ""
+            
+            # Find course code (pattern: XXXX-M like "IT232-M") - should be unique, appears once
+            subject_code_match = re.search(r'(IT\d{3}-[A-Z])', page1_text)
+            subject_code = subject_code_match.group(1) if subject_code_match else "UNKNOWN"
+            print(f"   Subject Code: {subject_code}")
+            
+            # Find subject name (between "Subject :" and line break)
+            subject_match = re.search(r'Subject\s*:\s*([^\n]+)', page1_text)
+            subject_name = subject_match.group(1).strip() if subject_match else "Unknown Subject"
+            print(f"   Subject Name: {subject_name}")
+            
+            # Find section (between "Course/Section :" and line break)
+            section_match = re.search(r'Course/Section\s*:\s*([^\n]+)', page1_text)
+            section_raw = section_match.group(1).strip() if section_match else "UNKNOWN"
+            section = clean_section(section_raw)
+            print(f"   Section Raw: {section_raw} → Cleaned: {section}")
+            
+            # Find day/time (pattern: "D HH:XXPM-HH:XXPM")
+            time_match = re.search(r'Day/Time\s*:\s*([A-Za-z\s]+(\d{1,2}):(\d{2})[AP]M-\d{1,2}:\d{2}[AP]M)', page1_text)
+            if time_match:
+                time_full = time_match.group(1).strip()
+                days_raw = time_full.split()[0] if len(time_full.split()) > 0 else "TBA"
+                time_raw = re.search(r'(\d{1,2}):(\d{2})[AP]M-\d{1,2}:\d{2}[AP]M', time_full)
+                time_raw = time_raw.group(0) if time_raw else "TBA"
+                day, start_time, end_time = parse_time_slot(days_raw, time_raw)
+                print(f"   Day/Time: {day} {start_time}-{end_time}")
+            else:
+                day, start_time, end_time = "TBA", "TBA", "TBA"
+                print(f"   Day/Time: Not found (using TBA)")
+            
+            # Find venue (between "Venue :" and line break)
+            venue_match = re.search(r'Venue\s*:\s*([^\n]+)', page1_text)
+            venue = venue_match.group(1).strip() if venue_match else "Room 324"
+            print(f"   Venue: {venue}")
+            
+            # Find total number of students (from full PDF text)
+            all_text = ""
+            for page in pdf.pages:
+                all_text += page.extract_text() + "\n"
+            
+            total_match = re.search(r'Total Number of Students\s+(\d+)', all_text)
+            total_students = int(total_match.group(1)) if total_match else 0
+            print(f"   Expected Students: {total_students}")
+            
+            # --- Extract student list from ALL PAGES tables ---
+            # --- Extract student list from ALL PAGES using header row detection ---
+            all_students = []
+            student_counter = 0
+            found_header = False
+            
+            for page_idx, page in enumerate(pdf.pages):
+                print(f"\n📖 Processing page {page_idx + 1}...")
+                
+                # Extract table from entire page (NO CROPPING - use header row detection)
+                table = page.extract_table()
+                
+                if not table:
+                    print(f"   ⚠️  No table found on page {page_idx + 1}")
+                    continue
+
+                for row_idx, row in enumerate(table):
+                    if not row:
+                        continue
+                    
+                    # Clean row data
+                    clean_row = [str(x).replace('\n', ' ').strip() for x in row if x]
+                    row_text = ' '.join(clean_row).lower()
+                    
+                    # Look for the header row: "Student No. Name of Student Course Remarks"
+                    if not found_header:
+                        if 'student no' in row_text and 'name of student' in row_text:
+                            print(f"   📋 Found header row at row {row_idx}")
+                            found_header = True
+                            continue  # Skip the header row itself
+                    
+                    # Only process rows AFTER header is found
+                    if not found_header:
+                        continue
+                    
+                    # STOP at "Total Number of Students" line
+                    if 'total number of students' in row_text or ('total' in row_text and 'students' in row_text and len(clean_row) <= 3):
+                        print(f"   ✓ Reached end of student list at row {row_idx}")
+                        break
+                    
+                    if len(clean_row) < 3:
+                        continue
+                    
+                    # Check if first cell is a student number (1., 2., etc)
+                    first_cell = clean_row[0].strip()
+                    if not first_cell or not first_cell[0].isdigit():
+                        continue
+                    
+                    student_counter += 1
+                    
+                    # Extract: Student No. | TUPM ID | Name | (Program) | (Remarks)
+                    tupm_id = clean_row[1] if len(clean_row) > 1 else ""
+                    name = clean_row[2] if len(clean_row) > 2 else "Unknown"
+                    
+                    # Validate TUPM ID format
+                    if tupm_id and tupm_id.startswith("TUPM"):
+                        all_students.append({
+                            'tupm_id': tupm_id,
+                            'name': name  # LAST, FIRST format
+                        })
+                        if student_counter <= 5 or student_counter > total_students - 3:
+                            print(f"   ✓ Student {student_counter}: {tupm_id} - {name}")
+                        elif student_counter == 6:
+                            print(f"   ... (showing first and last students)")
+            
+            # Verify count
+            print(f"\n✅ PDF Parsing Complete!")
+            print(f"   📚 Course: {subject_code} ({subject_name})")
+            print(f"   👥 Students found: {len(all_students)} (Expected: {total_students})")
+            
+            if total_students > 0 and len(all_students) != total_students:
+                print(f"   ⚠️  MISMATCH! Expected {total_students} but found {len(all_students)}")
+            
+            # Return ONE course with ALL students
+            return {
+                'semester': "1st Semester",
+                'academic_year': "2025-2026",
+                'courses': [{
+                    'subject_code': subject_code,
+                    'subject_name': subject_name,
+                    'section': section,
+                    'units': '2',
+                    'day': day,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'venue': venue,
+                    'enrolled_students': all_students
+                }]
+            }
+
+    except Exception as e:
+        print(f"❌ PDF Parsing Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# ==========================================
+# API: FACULTY SCHEDULE UPLOAD
+# ==========================================
+
+@app.route('/api/faculty/upload-schedule', methods=['POST'])
+def faculty_upload_schedule():
+    """
+    Faculty uploads COR/Schedule PDF to auto-create classes and students
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    faculty_id = request.form.get('faculty_id')
+    semester = request.form.get('semester', '1st Semester')
+    academic_year = request.form.get('academic_year', '2024-2025')
+    
+    if file.filename == '': 
+        return jsonify({"error": "No selected file"}), 400
+    if not faculty_id: 
+        return jsonify({"error": "Faculty ID missing"}), 400
+
+    print(f"📄 Faculty {faculty_id} uploading schedule: {file.filename}")
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection failed"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # 1. Save upload record
+        upload_id = None
+        file_path = f"uploads/faculty_{faculty_id}_{file.filename}"
+        
+        cursor.execute("""
+            INSERT INTO FacultyScheduleUpload (faculty_id, file_name, file_path, semester, academic_year, status)
+            VALUES (%s, %s, %s, %s, %s, 'Processing')
+        """, (faculty_id, file.filename, file_path, semester, academic_year))
+        conn.commit()
+        upload_id = cursor.lastrowid
+
+        # 2. Parse PDF
+        parsed_data = parse_schedule_pdf(file, faculty_id)
+        
+        if not parsed_data:
+            cursor.execute("""
+                UPDATE FacultyScheduleUpload SET status = 'Failed', error_message = %s 
+                WHERE upload_id = %s
+            """, ("Could not parse PDF", upload_id))
+            conn.commit()
+            return jsonify({"error": "Could not parse PDF"}), 400
+
+        # 3. Process classes and students
+        created_schedules = []
+        created_students = []
+        
+        for course_data in parsed_data['courses']:
+            # Create/Update Subject
+            cursor.execute("""
+                INSERT IGNORE INTO Subjects (subject_code, subject_description, units)
+                VALUES (%s, %s, %s)
+            """, (course_data['subject_code'], course_data['subject_name'], course_data['units']))
+
+            # Create Class Schedule (only course_code, no course_name - matches actual table schema)
+            cursor.execute("""
+                INSERT INTO ClassSchedule 
+                (course_code, section, day_of_week, start_time, end_time, camera_id, faculty_id)
+                VALUES (%s, %s, %s, %s, %s, 
+                       (SELECT camera_id FROM CameraManagement WHERE room_name = %s), %s)
+            """, (course_data['subject_code'], course_data['section'], course_data['day'], 
+                  course_data['start_time'], course_data['end_time'], course_data['venue'], faculty_id))
+            
+            schedule_id = cursor.lastrowid
+            created_schedules.append(schedule_id)
+            conn.commit()
+
+            # 4. Create/Update Student Accounts
+            for student in course_data['enrolled_students']:
+                tupm_id = student['tupm_id']
+                
+                # Check if student exists
+                cursor.execute("SELECT user_id FROM User WHERE tupm_id = %s", (tupm_id,))
+                existing_student = cursor.fetchone()
+                
+                if existing_student:
+                    # Update enrolled courses for existing student
+                    user_id = existing_student['user_id']
+                    cursor.execute("""
+                        SELECT enrolled_courses FROM User WHERE user_id = %s
+                    """, (user_id,))
+                    courses_result = cursor.fetchone()
+                    
+                    current_courses = []
+                    if courses_result and courses_result['enrolled_courses']:
+                        try:
+                            current_courses = json.loads(courses_result['enrolled_courses'])
+                        except:
+                            current_courses = []
+                    
+                    if course_data['subject_code'] not in current_courses:
+                        current_courses.append(course_data['subject_code'])
+                    
+                    cursor.execute("""
+                        UPDATE User SET enrolled_courses = %s, section = %s 
+                        WHERE user_id = %s
+                    """, (json.dumps(current_courses), course_data['section'], user_id))
+                    
+                    print(f"✅ Updated student {tupm_id} with new course")
+                else:
+                    # Create NEW student account
+                    # Name is already in LAST, FIRST format from PDF (e.g., "ACOSTA, ANDEE OBANG")
+                    # Split by comma to separate last name and first name
+                    name_parts = student['name'].split(',')
+                    last_name = name_parts[0].strip() if len(name_parts) > 0 else "Student"
+                    first_name = name_parts[1].strip() if len(name_parts) > 1 else "TUP"
+                    
+                    # Default password = surname (lowercase)
+                    default_password = last_name.lower()
+                    hashed_pw = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
+                    
+                    # Parse course from section (e.g., "BSIT-4A-M" -> "BSIT")
+                    course_code = course_data['section'].split('-')[0]
+                    
+                    cursor.execute("""
+                        INSERT INTO User (
+                            email, password_hash, role, tupm_id,
+                            firstName, lastName, section, course, 
+                            enrolled_courses, student_status,
+                            face_status, verification_status,
+                            last_active, date_registered
+                        ) VALUES (
+                            %s, %s, 'student', %s,
+                            %s, %s, %s, %s,
+                            %s, 'Active',
+                            'Not Registered', 'Verified',
+                            NOW(), NOW()
+                        )
+                    """, (
+                        f"tupm_id@tup.edu.ph",  # Placeholder - can be updated in profile
+                        hashed_pw,
+                        tupm_id,
+                        first_name,
+                        last_name,
+                        course_data['section'],
+                        course_code,
+                        json.dumps([course_data['subject_code']])
+                    ))
+                    
+                    created_students.append(tupm_id)
+                    print(f"✅ Created new student account: {tupm_id} ({last_name}, {first_name})")
+                
+                conn.commit()
+
+        # 5. Update upload status
+        cursor.execute("""
+            UPDATE FacultyScheduleUpload 
+            SET status = 'Completed'
+            WHERE upload_id = %s
+        """, (upload_id,))
+        conn.commit()
+
+        return jsonify({
+            "message": "Schedule uploaded and processed successfully!",
+            "upload_id": upload_id,
+            "schedules_created": len(created_schedules),
+            "students_created": len(created_students),
+            "details": {
+                "created_schedules": created_schedules,
+                "created_students": created_students
+            }
+        }), 201
+
+    except Exception as e:
+        print(f"❌ Upload Error: {e}")
+        if upload_id:
+            cursor.execute("""
+                UPDATE FacultyScheduleUpload 
+                SET status = 'Failed', error_message = %s
+                WHERE upload_id = %s
+            """, (str(e), upload_id))
+            conn.commit()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ==========================================
+# API: GET FACULTY UPLOAD HISTORY
+# ==========================================
+
+@app.route('/api/faculty/upload-history/<int:faculty_id>', methods=['GET'])
+def get_faculty_uploads(faculty_id):
+    """
+    Get all schedule uploads by a faculty member
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database connection failed"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        cursor.execute("""
+            SELECT 
+                upload_id, file_name, semester, academic_year, 
+                status, uploaded_at,
+                (SELECT COUNT(*) FROM ClassSchedule WHERE upload_id = fu.upload_id) as schedules_count
+            FROM FacultyScheduleUpload fu
+            WHERE faculty_id = %s
+            ORDER BY uploaded_at DESC
+        """, (faculty_id,))
+        
+        uploads = cursor.fetchall()
+        
+        for upload in uploads:
+            if upload['uploaded_at']:
+                upload['uploaded_at'] = str(upload['uploaded_at'])
+        
+        return jsonify(uploads), 200
+    
+    except Exception as e:
+        print(f"❌ Error fetching uploads: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)

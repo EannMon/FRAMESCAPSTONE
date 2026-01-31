@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './NotificationsPage.css'; 
-import '../ZCommon/Utility.css';
-import Header from '../ZCommon/Header';
+import './NotificationsPage.css';
+import './Utility.css';
+import Header from './Header';
 import Footer from './Footer';
 
 // --- Theme Definition ---
 const redTheme = {
-    primary: '#A62525', 
+    primary: '#A62525',
     dark: '#c82333',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
@@ -37,14 +37,14 @@ const NotificationsPage = () => {
     });
 
     const handleGoBack = () => {
-        navigate(-1); 
+        navigate(-1);
     };
 
     return (
         <>
             {/* Pass real user to Header */}
             <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
-            
+
             <div className="notifications-page-container">
                 {/* Top Header Bar */}
                 <div className="notifications-header-bar">

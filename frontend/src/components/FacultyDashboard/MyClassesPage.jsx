@@ -6,7 +6,7 @@ import './MyClassesPage.css';
 
 const FacultyMyClassesPage = () => {
     // --- STATES ---
-    const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+    const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
     const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile'
     
     const [user, setUser] = useState(null);
@@ -24,6 +24,14 @@ const FacultyMyClassesPage = () => {
     const [showManageModal, setShowManageModal] = useState(false);
     const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
 
+    // Upload States
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploadedSchedules, setUploadedSchedules] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadMessage, setUploadMessage] = useState('');
+    const [semester, setSemester] = useState('1st Semester');
+    const [academicYear, setAcademicYear] = useState('2024-2025');
+
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
         const storedUser = localStorage.getItem('currentUser');
@@ -31,6 +39,7 @@ const FacultyMyClassesPage = () => {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
             fetchSchedule(parsedUser.user_id || parsedUser.id);
+            fetchUploadHistory(parsedUser.user_id || parsedUser.id);
         }
     }, []);
 
@@ -44,6 +53,15 @@ const FacultyMyClassesPage = () => {
         } catch (error) {
             console.error("Error loading schedule:", error);
             setLoading(false);
+        }
+    };
+
+    const fetchUploadHistory = async (userId) => {
+        try {
+            const response = await axios.get(`http://localhost:5000/api/faculty/upload-history/${userId}`);
+            setUploadedSchedules(response.data);
+        } catch (error) {
+            console.error("Error fetching upload history:", error);
         }
     };
 
@@ -96,6 +114,58 @@ const FacultyMyClassesPage = () => {
             });
         }
         setCalendarEvents(events);
+    };
+
+    // --- UPLOAD HANDLERS ---
+    const handleFileSelect = (e) => {
+        setSelectedFile(e.target.files[0]);
+    };
+
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            setUploadMessage('Please select a PDF file');
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadMessage('Uploading and processing schedule...');
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('faculty_id', user.user_id || user.id);
+        formData.append('semester', semester);
+        formData.append('academic_year', academicYear);
+
+        try {
+            const response = await axios.post(
+                'http://localhost:5000/api/faculty/upload-schedule',
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+
+            if (response.status === 201) {
+                setUploadMessage(
+                    `✅ Success! Created ${response.data.schedules_created} schedule(s) and ${response.data.students_created} student account(s)`
+                );
+                setSelectedFile(null);
+                fetchUploadHistory(user.user_id || user.id);
+                fetchSchedule(user.user_id || user.id);
+                // Reset form
+                setTimeout(() => {
+                    setUploadMessage('');
+                }, 5000);
+            } else {
+                setUploadMessage(`❌ Error: ${response.data.error}`);
+            }
+        } catch (error) {
+            setUploadMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     // --- HANDLERS ---
@@ -333,6 +403,100 @@ const FacultyMyClassesPage = () => {
         );
     };
 
+    // E. UPLOAD VIEW
+    const renderUploadView = () => (
+        <div className="upload-container fade-in">
+            <div className="upload-section card">
+                <h3>📚 Upload Course Schedule (PDF)</h3>
+                <p className="info-text">
+                    Upload your COR/Schedule PDF to automatically create courses and enroll students
+                </p>
+
+                <div className="form-group">
+                    <label>Select PDF File:</label>
+                    <input 
+                        type="file" 
+                        accept=".pdf" 
+                        onChange={handleFileSelect}
+                        disabled={isUploading}
+                    />
+                </div>
+
+                <div className="form-row">
+                    <div className="form-group">
+                        <label>Semester:</label>
+                        <select value={semester} onChange={(e) => setSemester(e.target.value)}>
+                            <option>1st Semester</option>
+                            <option>2nd Semester</option>
+                            <option>Summer</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label>Academic Year:</label>
+                        <input 
+                            type="text" 
+                            value={academicYear}
+                            onChange={(e) => setAcademicYear(e.target.value)}
+                            placeholder="2024-2025"
+                        />
+                    </div>
+                </div>
+
+                <button 
+                    onClick={handleUpload} 
+                    disabled={isUploading}
+                    className="upload-btn"
+                >
+                    {isUploading ? '⏳ Processing...' : '📤 Upload Schedule'}
+                </button>
+
+                {uploadMessage && (
+                    <div className={`message ${uploadMessage.includes('✅') ? 'success' : 'error'}`}>
+                        {uploadMessage}
+                    </div>
+                )}
+            </div>
+
+            {/* Upload History Section */}
+            <div className="history-section card">
+                <h3>📋 Upload History</h3>
+                {uploadedSchedules.length === 0 ? (
+                    <p className="no-data">No schedules uploaded yet</p>
+                ) : (
+                    <table className="history-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Semester</th>
+                                <th>Academic Year</th>
+                                <th>Schedules</th>
+                                <th>Status</th>
+                                <th>Uploaded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {uploadedSchedules.map((upload) => (
+                                <tr key={upload.upload_id}>
+                                    <td>{upload.file_name}</td>
+                                    <td>{upload.semester}</td>
+                                    <td>{upload.academic_year}</td>
+                                    <td>{upload.schedules_count}</td>
+                                    <td>
+                                        <span className={`status ${upload.status.toLowerCase()}`}>
+                                            {upload.status}
+                                        </span>
+                                    </td>
+                                    <td>{new Date(upload.uploaded_at).toLocaleDateString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+
     if (!user) return <div className="loading">Please log in.</div>;
 
     return (
@@ -347,12 +511,15 @@ const FacultyMyClassesPage = () => {
                         <button className={`toggle-btn ${viewMode === 'calendar' ? 'active' : ''}`} onClick={() => setViewMode('calendar')}>
                             <i className="fas fa-calendar-alt"></i> Calendar
                         </button>
+                        <button className={`toggle-btn ${viewMode === 'upload' ? 'active' : ''}`} onClick={() => setViewMode('upload')}>
+                            <i className="fas fa-cloud-upload-alt"></i> Upload
+                        </button>
                     </div>
                 </div>
             )}
 
             {subView === 'main' ? (
-                viewMode === 'list' ? renderClassCards() : renderCalendarView()
+                viewMode === 'list' ? renderClassCards() : viewMode === 'calendar' ? renderCalendarView() : renderUploadView()
             ) : subView === 'sheet' ? (
                 renderAttendanceSheet()
             ) : (

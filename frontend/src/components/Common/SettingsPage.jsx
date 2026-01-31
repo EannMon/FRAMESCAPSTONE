@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import './SettingsPage.css'; 
-import '../ZCommon/Utility.css';
-import Header from '../ZCommon/Header';
-import Footer from './Footer'; 
+import './SettingsPage.css';
+import './Utility.css';
+import Header from './Header';
+import Footer from './Footer';
 
 // --- Theme Definition ---
 const redTheme = {
@@ -47,7 +47,7 @@ const SettingsPage = () => {
     });
 
     const handleGoBack = () => {
-        navigate(-1); 
+        navigate(-1);
     };
 
     const handleToggle = (type) => {
@@ -58,7 +58,7 @@ const SettingsPage = () => {
         <>
             {/* Pass the real user here so the Header avatar is correct */}
             <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
-            
+
             <div className="settings-page-container">
                 {/* Top Header Bar */}
                 <div className="settings-header-bar">
@@ -72,12 +72,12 @@ const SettingsPage = () => {
 
                 {/* Settings Grid */}
                 <div className="settings-grid">
-                    
+
                     {/* Account Settings Card */}
                     <div className="card settings-card">
                         <h3>Account</h3>
                         <p>Manage your account and security settings.</p>
-                        
+
                         {/* Link to Profile for editing details */}
                         <Link to="/profile" className="settings-link-button">
                             <span>Go to My Profile</span>
@@ -98,20 +98,20 @@ const SettingsPage = () => {
                     <div className="card settings-card">
                         <h3>Notifications</h3>
                         <p>Control how you receive notifications.</p>
-                        <ToggleSwitch 
-                            label="Email Notifications" 
-                            isToggled={notifications.email} 
-                            onToggle={() => handleToggle('email')} 
+                        <ToggleSwitch
+                            label="Email Notifications"
+                            isToggled={notifications.email}
+                            onToggle={() => handleToggle('email')}
                         />
-                        <ToggleSwitch 
-                            label="SMS Notifications" 
-                            isToggled={notifications.sms} 
-                            onToggle={() => handleToggle('sms')} 
+                        <ToggleSwitch
+                            label="SMS Notifications"
+                            isToggled={notifications.sms}
+                            onToggle={() => handleToggle('sms')}
                         />
-                        <ToggleSwitch 
-                            label="Push Notifications" 
-                            isToggled={notifications.push} 
-                            onToggle={() => handleToggle('push')} 
+                        <ToggleSwitch
+                            label="Push Notifications"
+                            isToggled={notifications.push}
+                            onToggle={() => handleToggle('push')}
                         />
                     </div>
 
