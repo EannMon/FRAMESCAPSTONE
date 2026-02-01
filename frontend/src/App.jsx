@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
 
+// Face Enrollment (mandatory before dashboard access)
+import FaceEnrollmentPage from './components/FaceEnrollment/FaceEnrollmentPage';
+
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout';
 import FacultyLayout from './components/FacultyDashboard/FacultyLayout';
@@ -45,6 +48,9 @@ function App() {
                     <Route path="/" element={<LandingPage />} />
                     {/* Ito yung route na maghahandle ng registration based sa role at status */}
                     <Route path="/register/:role" element={<RegistrationPage />} />
+
+                    {/* Face Enrollment - Mandatory for all users */}
+                    <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
 
                     {/* --- Admin Routes (using AdminLayout) --- */}
                     <Route element={<AdminLayout />}>
