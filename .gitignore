@@ -1,14 +1,32 @@
-# Huwag isama ang Venv ng Python
+# Python Virtual Environment
 venv/
+**/venv/
+backend/venv/
 __pycache__/
 *.pyc
+*.pyo
 
-# Huwag isama ang Node Modules ng React
+# Certificates & Secrets (triggers GitHub secret scanning)
+*.pem
+*.key
+*.crt
+.env
+
+# Node.js
 node_modules/
 build/
 dist/
-.env
 
-# Iba pa
-.DS_Store
+# IDE
 .vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# InsightFace models (large files)
+*.onnx
+
+# Test output
+recognition_results/

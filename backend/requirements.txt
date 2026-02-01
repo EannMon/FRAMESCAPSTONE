@@ -1,25 +1,39 @@
 # FRAMES Backend Dependencies
-# Updated for FastAPI + PostgreSQL + SQLAlchemy
+# Updated: February 1, 2026
 
+# ============================================
 # Web Framework - FastAPI
+# ============================================
 fastapi
 uvicorn[standard]
 python-multipart
 
-# Database
+# ============================================
+# Database - PostgreSQL + SQLAlchemy
+# ============================================
 psycopg2-binary
 sqlalchemy
 python-dotenv
 
-# Face Recognition (will migrate to TFLite later)
+# ============================================
+# Face Recognition - Enrollment (Backend)
+# ============================================
+insightface>=0.7.3
+onnxruntime>=1.16.0
 opencv-python-headless
 numpy
-deepface
-tf-keras
 
+# ============================================
 # Security
+# ============================================
 bcrypt
 
-
+# ============================================
 # PDF Parsing
+# ============================================
 pdfplumber
+
+# ============================================
+# Utilities
+# ============================================
+pillow

@@ -107,7 +107,15 @@ const FacultyLayout = () => {
                 return;
             }
 
-            // --- 3. FETCH LIVE STATS (Optional) ---
+            // --- 3. SECURITY CHECK: FACE ENROLLMENT ---
+            // Mandatory face enrollment before dashboard access
+            if (!parsedUser.face_registered) {
+                navigate('/face-enrollment');
+                setLoading(false);
+                return;
+            }
+
+            // --- 4. FETCH LIVE STATS (Optional) ---
             // You can fetch notification counts here if needed, similar to StudentLayout
             // For now, we assume notifications are inside the user object or handled by Header
 

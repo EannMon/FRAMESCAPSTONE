@@ -89,6 +89,14 @@ const StudentLayout = () => {
                 return;
             }
 
+            // --- SECURITY CHECK: FACE ENROLLMENT ---
+            // Mandatory face enrollment before dashboard access
+            if (!storedUser.face_registered) {
+                navigate('/face-enrollment');
+                setLoading(false);
+                return;
+            }
+
             // --- FETCH LIVE NOTIFICATIONS ---
             let notifCount = 0;
             try {
