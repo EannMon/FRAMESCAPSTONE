@@ -38,6 +38,7 @@ import MyProfilePage from './components/Common/MyProfilePage';
 import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
+import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
 
 function App() {
     return (
@@ -87,6 +88,9 @@ function App() {
                     <Route path="/help-support" element={<HelpSupportPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
+
+                    {/* Template Sandbox */}
+                    <Route path="/test-pdf" element={<TestPDFPage />} />
 
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
