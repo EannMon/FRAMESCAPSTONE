@@ -1,0 +1,99 @@
+.test-pdf-container {
+    padding: 20px;
+    background-color: #e9ecef;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.test-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    margin-top: 20px;
+}
+
+.test-card h1 {
+    color: #003366;
+    margin-bottom: 5px;
+}
+
+.controls-group {
+    margin: 20px 0;
+    text-align: left;
+}
+
+.controls-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: #003366;
+    color: white;
+    border-color: #003366;
+}
+
+.main-select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #333;
+}
+
+.action-area {
+    margin-top: 25px;
+    text-align: center;
+}
+
+.generate-btn {
+    background: linear-gradient(135deg, #00A859, #007b40);
+    /* Brand Green */
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-preview-container {
+    margin-top: 30px;
+    border: 1px solid #ccc;
+    height: 700px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #525659;
+    /* Acrobat gray */
+}
