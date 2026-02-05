@@ -56,25 +56,70 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
     // Background for context box
     doc.setFillColor(...COLORS.lightGray);
     doc.roundedRect(14, boxTop, pageWidth - 28, boxHeight, 3, 3, 'F');
+    
+    // Helper to draw Label (Bold) + Value (Normal)
+    const drawField = (label, value, x, y) => {
+        doc.setFont("helvetica", "bold");
+        doc.text(label, x, y);
+        const labelWidth = doc.getTextWidth(label);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(value || 'N/A', x + labelWidth, y);
+    };
 
-    doc.setFontSize(10);
     doc.setTextColor(...COLORS.text);
+    doc.setFontSize(10);
 
-    // Left Column: Date & Generator Info
-    doc.text(`Date Range: ${reportInfo.dateRange}`, 20, boxTop + 10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, boxTop + 18);
-
-    // Right/Center Column: Context specific (Personal / Class)
-    doc.setFont("helvetica", "bold");
+    // Left Column: Context specific (Name / ID / Class / Scope)
+    // Fixed X = 20
     if (reportInfo.category === 'personal') {
-        doc.text(`Subject: ${reportInfo.context?.name || 'N/A'}`, 120, boxTop + 10);
-        doc.text(`ID: ${reportInfo.context?.id || 'N/A'}`, 120, boxTop + 18);
+        drawField("Name: ", reportInfo.context?.name, 20, boxTop + 10);
+        drawField("ID: ", reportInfo.context?.id, 20, boxTop + 18);
     } else if (reportInfo.category === 'class') {
-        doc.text(`Class Code: ${reportInfo.context?.classCode || 'N/A'}`, 120, boxTop + 10);
-        doc.text(`Section: ${reportInfo.context?.section || 'All'}`, 120, boxTop + 18);
+        drawField("Class Code: ", reportInfo.context?.classCode, 20, boxTop + 10);
+        drawField("Section: ", reportInfo.context?.section || 'All', 20, boxTop + 18);
     } else {
-        doc.text(`Scope: ${reportInfo.context?.scope || 'System-wide'}`, 120, boxTop + 10);
+        drawField("Scope: ", reportInfo.context?.scope || 'System-wide', 20, boxTop + 10);
     }
+
+    // Right Column: Date & Generator Info
+    // Dynamic X for Right Alignment of the Block
+    const rightEdge = pageWidth - 20;
+
+    // Prepare content
+    const dateLabel = "Date Range: ";
+    const dateValue = reportInfo.dateRange;
+    const genLabel = "Generated: ";
+    const genValue = new Date().toLocaleString();
+
+    // Measure widths to find the widest line
+    doc.setFont("helvetica", "bold");
+    const dateLabelW = doc.getTextWidth(dateLabel);
+    const genLabelW = doc.getTextWidth(genLabel);
+
+    doc.setFont("helvetica", "normal");
+    const dateValueW = doc.getTextWidth(dateValue);
+    const genValueW = doc.getTextWidth(genValue);
+
+    const dateTotalW = dateLabelW + dateValueW;
+    const genTotalW = genLabelW + genValueW;
+
+    // Use the max width to determine a common Start X for the block
+    const maxBlockW = Math.max(dateTotalW, genTotalW);
+    const startX = rightEdge - maxBlockW;
+
+    // Draw Function
+    const drawRow = (label, value, y) => {
+        doc.setFont("helvetica", "bold");
+        doc.text(label, startX, y);
+        const lW = doc.getTextWidth(label);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(value, startX + lW, y);
+    };
+
+    drawRow(dateLabel, dateValue, boxTop + 10);
+    drawRow(genLabel, genValue, boxTop + 18);
 
 
     // --- TABLE ---

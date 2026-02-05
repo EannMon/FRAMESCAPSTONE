@@ -152,10 +152,18 @@ const RegistrationPage = () => {
         try {
             // 2. PAYLOAD PREPARATION
             const payload = {
-                ...formData,
+                email: formData.email,
                 password: password,
-                role: role,
-                faceCapture: faceCapture
+                tupm_id: `TUPM-${formData.tupmYear}-${formData.tupmSerial}`,
+                role: role.toUpperCase(), // Ensure uppercase for Enum
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                middle_name: formData.middleName || null,
+                department_id: null, // Optional, can be implemented later if needed
+                program_id: null,    // Optional
+                // Extra fields stored in separate tables or ignored by basic user schema
+                // If backend needs them in a different way, we'd add them here.
+                // For now, based on UserRegister schema, this is what's required.
             };
 
             console.log("Sending Payload:", payload); // Para makita mo sa console

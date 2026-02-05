@@ -156,3 +156,16 @@
 .log-status-tag { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
 .log-status-tag.green { background-color: #e6f7ec; color: #28a745; }
 .log-status-tag.red { background-color: #fde8e8; color: #dc3545; }
+
+/* Filter Item Layout */
+.filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-item label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9em;
+}

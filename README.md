@@ -1,9 +1,11 @@
 USE THESE ACCOUNTS:
+
 1. head.santos@tup.edu.ph - santos - face registered by emman - faculty head
 2. juan.garcia@tup.edu.ph - garcia - no face registered - faculty member
 3. pedro.mendoza@tup.edu.ph - mendoza - no face registered - faculty member
 4. elena.fernandez@tup.edu.ph - fernandez - no face registered - faculty member
 5. for student access, access our discord since they are real data
+6. elena.llana@tup.edu.ph - elenastudent - face registered - student
 
 # FRAMES - Final Tech Stack
 
@@ -13,46 +15,46 @@ USE THESE ACCOUNTS:
 
 ## Edge / AI
 
-| Component | Technology | Notes |
-|-----------|------------|-------|
-| **Face Recognition (Pi)** | MobileNetV2 + FaceNet → TFLite (INT8) | Real-time on Raspberry Pi |
-| **Face Enrollment (Backend)** | InsightFace (buffalo_l) | High-quality enrollment via web |
-| **Hand Gesture** | MediaPipe Hands | Liveness detection |
-| **Camera** | Pi Camera | Raspberry Pi camera module |
+| Component                     | Technology                            | Notes                           |
+| ----------------------------- | ------------------------------------- | ------------------------------- |
+| **Face Recognition (Pi)**     | MobileNetV2 + FaceNet → TFLite (INT8) | Real-time on Raspberry Pi       |
+| **Face Enrollment (Backend)** | InsightFace (buffalo_l)               | High-quality enrollment via web |
+| **Hand Gesture**              | MediaPipe Hands                       | Liveness detection              |
+| **Camera**                    | Pi Camera                             | Raspberry Pi camera module      |
 
 ---
 
 ## Backend
 
-| Component | Technology |
-|-----------|------------|
-| Language | Python 3.12 |
-| Framework | FastAPI (async) |
-| ORM | SQLAlchemy 2.x |
-| Database | PostgreSQL (Aiven Cloud, SSL) |
-| PDF Parsing | pdfplumber |
+| Component   | Technology                    |
+| ----------- | ----------------------------- |
+| Language    | Python 3.12                   |
+| Framework   | FastAPI (async)               |
+| ORM         | SQLAlchemy 2.x                |
+| Database    | PostgreSQL (Aiven Cloud, SSL) |
+| PDF Parsing | pdfplumber                    |
 
 ---
 
 ## Frontend
 
-| Component | Technology |
-|-----------|------------|
-| Build Tool | Vite 6.2 |
-| Framework | React 19.2 (JSX) |
-| HTTP Client | Axios |
-| Charts | Chart.js / Recharts |
-| Styling | Bootstrap 5.3 |
+| Component   | Technology          |
+| ----------- | ------------------- |
+| Build Tool  | Vite 6.2            |
+| Framework   | React 19.2 (JSX)    |
+| HTTP Client | Axios               |
+| Charts      | Chart.js / Recharts |
+| Styling     | Bootstrap 5.3       |
 
 ---
 
 ## Device
 
-| Component | Specification |
-|-----------|---------------|
+| Component   | Specification        |
+| ----------- | -------------------- |
 | Edge Device | Raspberry Pi 4 (4GB) |
-| Display | Small kiosk screen |
-| Camera | Pi Camera Module |
+| Display     | Small kiosk screen   |
+| Camera      | Pi Camera Module     |
 
 ---
 
