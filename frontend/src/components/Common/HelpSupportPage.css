@@ -5,9 +5,15 @@
     width: 100%;
     max-width: 1000px;
     margin: 0 auto;
-    padding: 95px 20px 50px 20px; /* 65px header + 30px space */
+    padding: 100px 20px 50px 20px; /* 80px header + 20px space */
     box-sizing: border-box;
     min-height: calc(100vh - 120px); /* Fill screen, minus header/footer */
+}
+.help-page-container.embedded {
+    padding: 0; /* Let main-content-area handle padding */
+    padding-bottom: 20px;
+    max-width: 100%;
+    min-height: auto;
 }
 
 /* --- Header Bar --- */

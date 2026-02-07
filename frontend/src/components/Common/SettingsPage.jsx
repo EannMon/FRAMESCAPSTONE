@@ -29,7 +29,7 @@ const ToggleSwitch = ({ label, isToggled, onToggle }) => (
 // ===========================================
 // Main Settings Page Component
 // ===========================================
-const SettingsPage = () => {
+const SettingsPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
 
     // --- FIX: GET REAL USER FROM STORAGE ---
@@ -56,19 +56,21 @@ const SettingsPage = () => {
 
     return (
         <>
-            {/* Pass the real user here so the Header avatar is correct */}
-            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            {/* If embedded, don't show the internal Header */}
+            {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
 
-            <div className="settings-page-container">
+            <div className={`settings-page-container ${isEmbedded ? 'embedded' : ''}`}>
                 {/* Top Header Bar */}
-                <div className="settings-header-bar">
-                    <div className="settings-header-left">
-                        <button className="settings-back-button" onClick={handleGoBack}>
-                            <i className="fas fa-arrow-left"></i>
-                        </button>
-                        <h1 className="settings-main-title">Settings</h1>
+                {!isEmbedded && (
+                    <div className="settings-header-bar">
+                        <div className="settings-header-left">
+                            <button className="settings-back-button" onClick={handleGoBack}>
+                                <i className="fas fa-arrow-left"></i>
+                            </button>
+                            <h1 className="settings-main-title">Settings</h1>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Settings Grid */}
                 <div className="settings-grid">
@@ -142,7 +144,8 @@ const SettingsPage = () => {
                     </div>
                 </div>
             </div>
-            <Footer />
+
+            {!isEmbedded && <Footer />}
         </>
     );
 };

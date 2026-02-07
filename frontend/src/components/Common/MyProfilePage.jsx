@@ -225,10 +225,10 @@ const MyProfilePage = () => {
     const handleGoBack = () => navigate(-1);
 
     const theme = {
-        primary: '#A62525',
-        dark: '#c82333',
-        lightBg: 'rgba(255, 255, 255, 0.15)',
-        text: '#FFFFFF'
+        primary: '#0F172A', // Navy
+        dark: '#1E293B',    // Darker Navy
+        lightBg: 'rgba(255, 255, 255, 0.1)', // Light Hover
+        text: '#FFFFFF'     // White Text for Header
     };
 
     if (!user) return <div style={{ padding: '20px' }}>Please log in again.</div>;
@@ -264,7 +264,7 @@ const MyProfilePage = () => {
                 {/* Summary Card */}
                 <div className="card profile-summary-card">
                     <img
-                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=A62525&color=fff`}
+                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=0F172A&color=fff`}
                         alt="User Avatar"
                         className="profile-avatar"
                     />

@@ -81,6 +81,9 @@ function App() {
                         {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
                         <Route path="/student-notifications" element={<NotificationsPage />} />
                         <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
+                        {/* Wrapper Routes for Common Pages to keep Sidebar */}
+                        <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
+                        <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
                     </Route>
 
                     {/* --- Common Routes (Full Pages) --- */}

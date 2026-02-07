@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import './Header.css';
 
 const LOGO_ICON = '/shield-icon-white.svg';
@@ -11,7 +11,7 @@ const mockNotifications = [
     { id: 4, icon: 'fas fa-exclamation-triangle', text: 'System Maintenance is scheduled for 8 PM.', time: '1d ago', read: true },
 ];
 
-const Header = ({ user, setPanel, theme }) => {
+const Header = ({ user, setPanel, theme, showLogo = true }) => {
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -60,24 +60,52 @@ const Header = ({ user, setPanel, theme }) => {
     // Background is now fixed to A62525 (Red) instead of 'random'
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
 
+    // --- 3. PAGE TITLE & DATE LOGIC (Student Context) ---
+    const location = useLocation();
+    
+    const getPageTitle = (path) => {
+        if (path.includes('/student-dashboard')) return 'Dashboard';
+        if (path.includes('/student-schedule')) return 'Schedule';
+        if (path.includes('/student-attendance')) return 'Attendance History';
+        if (path.includes('/profile')) return 'My Profile';
+        if (path.includes('/settings') || path.includes('/student-settings')) return 'Settings';
+        if (path.includes('/help-support') || path.includes('/student-help')) return 'Help & Support';
+        return '';
+    };
+    
+    const pageTitle = getPageTitle(location.pathname);
+    
+    const currentDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+    });
+
     return (
         <header className="universal-header" style={dynamicStyle}>
-
-            <Link to={user ? "/faculty-dashboard" : "/"} className="header-logo-link">
-                <div className="universal-header-logo">
-                    <img src={LOGO_ICON} alt="Frames Logo" className="header-logo-icon" />
-                    <span>FRAMES</span>
+            {showLogo ? (
+                <Link to={user ? (user.role === 'admin' ? "/admin-dashboard" : user.role === 'faculty' ? "/faculty-dashboard" : "/student-dashboard") : "/"} className="header-logo-link">
+                    <div className="universal-header-logo">
+                        <img src={LOGO_ICON} alt="Frames Logo" className="header-logo-icon" />
+                        <span>FRAMES</span>
+                    </div>
+                </Link>
+            ) : (
+                /* Contextual Header for Student (Logo Hidden) */
+                <div className="header-context-section">
+                    <h1 className="header-page-title">{pageTitle}</h1>
+                    <span className="header-current-date">{currentDate}</span>
                 </div>
-            </Link>
+            )}
 
             <div className="universal-header-actions">
                 {user ? (
                     <>
                         <div className="notification-bell-container" ref={notificationRef}>
-                            <button className="icon-button circular-icon-button" onClick={toggleNotifications}>
-                                <i className="fas fa-bell"></i>
+                            <button className="icon-button notification-trigger" onClick={toggleNotifications}>
+                                <i className="far fa-bell"></i>
                                 {mockNotifications.some(n => !n.read) && (
-                                    <span className="notification-dot">
+                                    <span className="notification-count-text">
                                         {mockNotifications.filter(n => !n.read).length}
                                     </span>
                                 )}
@@ -109,28 +137,7 @@ const Header = ({ user, setPanel, theme }) => {
                             )}
                         </div>
 
-                        <div className="profile-menu-container" ref={profileRef}>
-                            <div className="user-menu" onClick={toggleProfile}>
-                                <img
-                                    src={avatarSrc}
-                                    alt="User Avatar"
-                                    className="user-avatar"
-                                />
-                                <span className="user-role">{displayName}</span>
-                                <i className={`fas fa-chevron-down dropdown-icon ${isProfileOpen ? 'open' : ''}`}></i>
-                            </div>
-
-                            {isProfileOpen && (
-                                <div className="header-dropdown-menu">
-                                    <Link to="/profile" className="header-dropdown-item"><i className="fas fa-user"></i> My Profile</Link>
-                                    <Link to="/help-support" className="header-dropdown-item"><i className="fas fa-question-circle"></i> Help & Support</Link>
-                                    <Link to="/settings" className="header-dropdown-item"><i className="fas fa-cog"></i> Settings</Link>
-                                    <button onClick={handleLogout} className="header-dropdown-item dropdown-logout-button">
-                                        <i className="fas fa-sign-out-alt"></i> Log-out
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        {/* Profile Dropdown Removed - Moved to Sidebar */}
                     </>
                 ) : (
                     <nav className="guest-nav">
