@@ -4,8 +4,8 @@
 .student-content-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
-    gap: 30px;
-    padding-left: 30px
+    gap: 20px; 
+    /* padding-left removed - handled by layout */
 }
 
 .welcome-banner {
@@ -18,8 +18,8 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: #f8d7da; /* RED THEME */
-    color: #dc3545; /* RED THEME */
+    background-color: #E8F1FC; /* Accent Blue */
+    color: #163269; /* Primary Navy */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -31,88 +31,110 @@
 .welcome-info p { margin: 0; color: #555; }
 
 .status-tag.green {
-    background-color: #e6f7ec;
-    color: #28a745;
+    background-color: #E6F4EA;
+    color: #2E7D32;
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 0.9em;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .student-summary-cards-container {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Smaller min-width */
+    gap: 20px; /* Reduced from 30px */
 }
 .student-summary-card {
     text-align: center;
-    padding: 20px;
+    padding: 16px; /* Reduced from 20px */
+    border-radius: 12px; /* Soften corners */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 .student-summary-card .summary-icon-container {
-    width: 60px;
-    height: 60px;
+    width: 48px; /* Reduced from 60px */
+    height: 48px; /* Reduced from 60px */
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.8em;
-    margin: 0 auto 15px auto;
+    font-size: 1.4em; /* Reduced from 1.8em */
+    margin: 0 auto 10px auto; /* Reduced margin */
 }
-/* Icon colors */
-.summary-icon-container.s-attendance-bg { background-color: #a7e0aa; color: #28a745; }
-.summary-icon-container.s-courses-bg { background-color: #d8c7f0; color: #6f42c1; }
-.summary-icon-container.s-access-bg { background-color: #a4cbf4; color: #1a73e8; }
-.summary-icon-container.s-notifications-bg { background-color: #f7a39b; color: #dc3545; }
+/* Icon colors - UPDATED */
+.summary-icon-container.s-attendance-bg { background-color: #E6F4EA; color: #2E7D32; } /* Green */
+.summary-icon-container.s-courses-bg { background-color: #E8F1FC; color: #163269; } /* Navy */
+.summary-icon-container.s-access-bg { background-color: #FFF8E1; color: #F9A825; } /* Amber */
+.summary-icon-container.s-notifications-bg { background-color: #FFEBEE; color: #C62828; } /* Red */
 
 .student-summary-card .summary-value {
-    font-size: 2.2em;
+    font-size: 1.8em; /* Reduced from 2.2em */
     font-weight: 700;
     color: #333;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
 }
 .student-summary-card .summary-title {
-    font-size: 1em;
+    font-size: 0.9em; /* Reduced from 1em */
     color: #777;
 }
 
 /* =========================================== */
-/* 4. NEW SPLIT ROW LAYOUT (Live Status + History) */
+/* 4. NEW LAYOUT: CHART + SIDE PANEL */
 /* =========================================== */
 
-.dashboard-split-row {
+.dashboard-main-layout {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Half-Half */
-    gap: 30px;
+    grid-template-columns: 2.5fr 1fr; /* 70% - 30% roughly */
+    gap: 20px; /* Reduced from 25px */
+    align-items: start;
 }
 
-.live-status-card {
+.dashboard-left-column {
     display: flex;
     flex-direction: column;
+}
+
+.dashboard-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* --- LIVE STATUS CARD (Right Panel) --- */
+.live-status-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px; /* Reduced from 20px */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
 .live-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
     border-bottom: 1px solid #eee;
 }
 
-.live-header h3 { margin: 0; font-size: 1.2em; color: #333; }
+.live-header h3 { margin: 0; font-size: 1rem; color: #444; } /* Smaller font */
 
 .live-indicator {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9em;
+    font-size: 0.85em;
+    background: #f8f9fa;
+    padding: 4px 10px;
+    border-radius: 20px;
 }
 
 .blink-dot {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     display: inline-block;
     box-shadow: 0 0 5px rgba(0,0,0,0.2);
@@ -124,64 +146,225 @@
 }
 
 .live-body {
-    flex-grow: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f9f9f9;
+    background-color: #fcfcfc;
     border-radius: 8px;
-    padding: 30px;
+    padding: 15px; /* Reduced from 20px */
+    border: 1px dashed #eee;
 }
 
-.room-display {
-    text-align: center;
-}
-
+.room-display { text-align: center; }
 .room-icon {
-    font-size: 3em;
-    margin-bottom: 15px;
+    font-size: 2em; /* Smaller */
+    margin-bottom: 8px;
     transition: color 0.3s ease;
 }
+.room-info h4 { margin: 0; font-size: 1.1em; color: #333; }
+.room-info p { margin: 4px 0 0; color: #777; font-size: 0.85em; }
 
-.room-info h4 {
-    margin: 0;
-    font-size: 1.5em;
-    color: #333;
-}
-
-.room-info p {
-    margin: 5px 0 0;
-    color: #777;
-}
-
-/* Update Recent Attendance to take full height */
+/* --- RECENT ACTIVITY (Right Panel) --- */
 .student-recent-attendance {
-    height: 100%;
+    background: white;
+    border-radius: 12px;
+    padding: 16px; /* Reduced from 20px */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+.student-recent-attendance h3 { margin: 0 0 12px 0; font-size: 1rem; color: #444; }
+
+.recent-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
-.student-recent-attendance h3 { margin-top: 0; margin-bottom: 20px; }
+.student-attendance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0; /* Reduced padding */
+    border-bottom: 1px solid #f5f5f5;
+}
+.student-attendance-item:last-child { border-bottom: none; padding-bottom: 0; }
+.student-attendance-item:first-child { padding-top: 0; }
 
-.student-attendance-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
-.student-attendance-item:last-child { border-bottom: none; }
-.attendance-day { display: block; font-weight: 500; font-size: 1.05em; }
-.attendance-time { font-size: 0.9em; color: #777; }
-.attendance-percent { font-size: 0.9em; font-weight: 600; padding: 5px 10px; border-radius: 6px; }
+.attendance-day { font-weight: 600; font-size: 0.95em; color: #333; }
+.attendance-time { font-size: 0.85em; color: #888; display: block; margin-top: 2px; }
+.attendance-percent { 
+    font-size: 0.75em; 
+    font-weight: 600; 
+    padding: 4px 8px; 
+    border-radius: 4px; 
+    letter-spacing: 0.5px;
+}
+
+/* --- ADVANCED CHART STYLES --- */
+.attendance-trend-chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.trend-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.trend-chart-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Time Filter Pills */
+.filter-pill-group {
+    display: flex;
+    background: #f1f3f5; /* Light gray bg */
+    padding: 4px;
+    border-radius: 8px;
+    gap: 2px;
+}
+
+.filter-pill {
+    background: transparent;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-pill:hover {
+    color: #333;
+    background: rgba(255,255,255,0.5);
+}
+
+.filter-pill.active {
+    background: white;
+    color: #1a73e8; /* Active Blue */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Type Filter Bar */
+.type-filter-bar {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.type-text-btn {
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    color: #888;
+    padding: 0 0 5px 0;
+    cursor: pointer;
+    position: relative;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.type-text-btn:hover { color: #555; }
+
+.type-text-btn.active-type {
+    color: #333;
+    font-weight: 700;
+}
+
+.type-text-btn.active-type::after {
+    content: '';
+    position: absolute;
+    bottom: -11px; /* Align with border-bottom of container */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #333;
+    border-radius: 2px 2px 0 0;
+}
+
+/* SVG Container */
+.svg-chart-container {
+    width: 100%;
+    margin-bottom: 15px;
+}
+.trend-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Footer: Insights & Legend */
+.chart-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.chart-insight {
+    font-size: 0.95rem;
+    color: #495057;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-legends {
+    display: flex;
+    gap: 20px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
 
 /* =========================================== */
 /* 5. Media Queries (Responsiveness) */
 /* =========================================== */
 @media (max-width: 1200px) {
     .student-content-grid { grid-template-columns: 1fr; }
+    .dashboard-main-layout { grid-template-columns: 1fr; } /* Stack layout on tablet/mobile */
+    .dashboard-right-column { flex-direction: row; gap: 20px; }
+    .live-status-card, .student-recent-attendance { flex: 1; }
 }
+
 @media (max-width: 900px) {
-    .dashboard-split-row {
-        grid-template-columns: 1fr; /* Stack on mobile */
-    }
+    .dashboard-right-column { flex-direction: column; }
 }
+
 @media (max-width: 768px) {
     .student-summary-cards-container { grid-template-columns: 1fr 1fr; }
     .welcome-banner { flex-direction: column; align-items: flex-start; gap: 15px; }
+    .chart-footer { flex-direction: column; align-items: flex-start; gap: 15px; }
 }
+
 @media (max-width: 480px) {
     .student-summary-cards-container { grid-template-columns: 1fr; }
+    .filter-pill { padding: 4px 8px; font-size: 0.75rem; }
 }

@@ -38,6 +38,7 @@ import MyProfilePage from './components/Common/MyProfilePage';
 import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
+import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
 
 function App() {
     return (
@@ -80,6 +81,9 @@ function App() {
                         {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
                         <Route path="/student-notifications" element={<NotificationsPage />} />
                         <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
+                        {/* Wrapper Routes for Common Pages to keep Sidebar */}
+                        <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
+                        <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
                     </Route>
 
                     {/* --- Common Routes (Full Pages) --- */}
@@ -87,6 +91,9 @@ function App() {
                     <Route path="/help-support" element={<HelpSupportPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
+
+                    {/* Template Sandbox */}
+                    <Route path="/test-pdf" element={<TestPDFPage />} />
 
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />

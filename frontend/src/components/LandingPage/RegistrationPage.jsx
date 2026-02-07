@@ -38,11 +38,20 @@ const RegistrationPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showRetypePassword, setShowRetypePassword] = useState(false);
 
-    // Camera Refs
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
-    const streamRef = useRef(null);
-    const [faceCapture, setFaceCapture] = useState(null);
+    // Validation & Alert State
+    const [errors, setErrors] = useState({});
+    const [alertConfig, setAlertConfig] = useState({ show: false, title: '', message: '', type: 'error' });
+
+    const showAlert = (title, message, type = 'error') => {
+        setAlertConfig({ show: true, title, message, type });
+    };
+
+    const closeAlert = () => {
+        setAlertConfig({ ...alertConfig, show: false });
+    };
+
+    // Camera functionality removed
+
 
     // Add these states inside RegistrationPage component
     const [faceValid, setFaceValid] = useState(false); // Green box indicator
@@ -132,30 +141,104 @@ const RegistrationPage = () => {
     };
 
     // Handlers
-    const handleNext = () => setStep(prev => prev + 1);
-    const handleBack = () => setStep(prev => prev - 1);
+    const handleInputChange = (field, value) => {
+        // Numeric Restriction for IDs and Zip
+        if (['tupmYear', 'tupmSerial', 'zipCode'].includes(field)) {
+            if (value && !/^\d*$/.test(value)) return; // Only allow digits
+        }
+
+        setFormData(prev => ({ ...prev, [field]: value }));
+
+        // Clear error for this field if it exists
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
+    };
+
+    const validateStep = (currentStep) => {
+        const newErrors = {};
+        let isValid = true;
+
+        if (currentStep === 1) {
+            if (!formData.firstName) newErrors.firstName = true;
+            if (!formData.lastName) newErrors.lastName = true;
+            // Middle name might be optional? Let's assume strict for now based on prev impl or loose. 
+            // Usually First/Last are required.
+            if (!formData.email) newErrors.email = true;
+            if (!formData.tupmYear) newErrors.tupmYear = true;
+            if (!formData.tupmSerial) newErrors.tupmSerial = true;
+            // Address parts
+            // if (!formData.streetNumber) newErrors.streetNumber = true; // Maybe optional?
+            // if (!formData.barangay) newErrors.barangay = true;
+            // if (!formData.city) newErrors.city = true;
+        }
+
+        if (currentStep === 2) {
+            if (!formData.college) newErrors.college = true;
+            if (role === 'student') {
+                if (!formData.courseCode) newErrors.courseCode = true;
+                if (!formData.year) newErrors.year = true;
+                if (!formData.section) newErrors.section = true;
+                if (!formData.status) newErrors.status = true;
+                if (!formData.term) newErrors.term = true;
+            } else if (role === 'faculty') {
+                if (!formData.facultyStatus) newErrors.facultyStatus = true;
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            isValid = false;
+        }
+
+        return isValid;
+    };
+    const handleNext = () => {
+        if (validateStep(step)) {
+            setStep(prev => prev + 1);
+        } else {
+            // Optional: Shake effect or focus is handled by CSS class
+        }
+    };
+
+    const handleBack = () => {
+        if (step > 1) {
+            setStep(prev => prev - 1);
+        } else {
+            navigate('/'); // Return to landing page
+        }
+    };
 
     // HAKBANG 5 (Step 3.3 Revised): Pag-handle ng pag-finish at pag-redirect
     const handleFinish = async () => {
-        // 1. SECURITY CHECK: Check kung may picture at valid
-        if (!faceCapture || !faceValid) {
-            alert("⚠️ Please capture a valid face photo first!");
-            return;
-        }
+        // Face capture check removed
+
 
         // Add password validation here if needed
         if (password !== retypePassword || password.length < 6) {
-            alert("⚠️ Passwords must match and be at least 6 characters long.");
+            showAlert("Invalid Password", "Passwords must match and be at least 6 characters long.", "warning");
             return;
         }
 
         try {
             // 2. PAYLOAD PREPARATION
             const payload = {
-                ...formData,
+                email: formData.email,
                 password: password,
-                role: role,
-                faceCapture: faceCapture
+                tupm_id: `TUPM-${formData.tupmYear}-${formData.tupmSerial}`,
+                role: role.toUpperCase(), // Ensure uppercase for Enum
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                middle_name: formData.middleName || null,
+                department_id: null, // Optional, can be implemented later if needed
+                program_id: null,    // Optional
+                // Extra fields stored in separate tables or ignored by basic user schema
+                // If backend needs them in a different way, we'd add them here.
+                // For now, based on UserRegister schema, this is what's required.
             };
 
             console.log("Sending Payload:", payload); // Para makita mo sa console
@@ -172,71 +255,15 @@ const RegistrationPage = () => {
             // Handling specific MySQL errors from backend
             const errorMsg = error.response?.data?.error || error.message;
             if (errorMsg.includes("Email or TUPM ID already exists.")) {
-                alert("Registration Failed: Email or TUPM ID already exists.");
+                showAlert("Registration Failed", "Email or TUPM ID already exists.", "error");
             } else {
-                alert("Registration Failed: " + errorMsg);
+                showAlert("Registration Failed", errorMsg, "error");
             }
         }
     };
 
-    // Camera Logic
-    useEffect(() => {
-        const startCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    streamRef.current = stream;
-                    videoRef.current.play();
-                }
-            } catch (err) { console.error(err); }
-        };
-        if (step === 3) startCamera();
-        else {
-            if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-        }
-        return () => { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
-    }, [step]);
+    // Camera Logic removed
 
-    const handleCapture = async () => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-
-        if (video && canvas) {
-            // 1. Draw image to canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-
-            // 2. Get Data URL
-            const imageSrc = canvas.toDataURL('image/png');
-            setFaceCapture(imageSrc); // Show preview temporarily
-
-            // 3. Send to Backend for Validation
-            setIsValidating(true); // Start loading
-            setFaceValid(false);   // Reset validity
-
-            try {
-                const response = await axios.post('http://localhost:5000/api/auth/validate-face', {
-                    faceCapture: imageSrc
-                });
-
-                if (response.data.valid) {
-                    setFaceValid(true); // Show Green Box
-                } else {
-                    setFaceValid(false);
-                    alert("⚠️ " + response.data.message);
-                    setFaceCapture(null); // Clear image if invalid so user tries again
-                }
-            } catch (error) {
-                console.error("Validation Error:", error);
-                alert("Server error during face validation.");
-                setFaceCapture(null);
-            } finally {
-                setIsValidating(false); // Stop loading
-            }
-        }
-    };
 
     // Filter Courses based on selected College
     const filteredCourses = availableCourses.filter(c => c.college === formData.college);
@@ -300,21 +327,33 @@ const RegistrationPage = () => {
 
             <div className="registration-container">
 
+                {/* Custom Alert Overlay */}
+                {alertConfig.show && (
+                    <div className="custom-alert-overlay" onClick={closeAlert}>
+                        <div className="custom-alert-box" onClick={e => e.stopPropagation()}>
+                            <div className={`custom-alert-icon ${alertConfig.type}`}>
+                                {alertConfig.type === 'success' && '✅'}
+                                {alertConfig.type === 'error' && '❌'}
+                                {alertConfig.type === 'warning' && '⚠️'}
+                            </div>
+                            <h3 className="custom-alert-title">{alertConfig.title}</h3>
+                            <p className="custom-alert-message">{alertConfig.message}</p>
+                            <button className="custom-alert-close-btn" onClick={closeAlert}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="form-card">
+                    {/* Back button RESTORED to Top Left */}
                     <button
                         type="button"
                         className="return-btn"
-                        onClick={() => navigate(-1)}
+                        onClick={handleBack}
                     >
                         <i className="fas fa-arrow-left"></i> Back
                     </button>
-
-                    {/* TOP LEFT BACK BUTTON (Steps 2-4) */}
-                    {step > 1 && (
-                        <button className="top-back-btn" onClick={handleBack}>
-                            <i className="fas fa-arrow-left"></i> Back
-                        </button>
-                    )}
 
                     <h2 className="page-title">
                         {role === 'student' ? 'Student' : 'Faculty'} Registration
@@ -322,7 +361,7 @@ const RegistrationPage = () => {
 
                     {/* Step Indicators */}
                     <div className="signup-step-indicators">
-                        {[1, 2, 3, 4].map(n => (
+                        {[1, 2, 3].map(n => (
                             <div key={n} className={`step-circle ${step >= n ? "active" : ""}`}>{n}</div>
                         ))}
                     </div>
@@ -336,11 +375,21 @@ const RegistrationPage = () => {
                                 {/* Row 1: First & Last Name */}
                                 <div className="auth-form-group">
                                     <label>First Name</label>
-                                    <input type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} />
+                                    <input
+                                        type="text"
+                                        value={formData.firstName}
+                                        onChange={e => handleInputChange('firstName', e.target.value)}
+                                        className={errors.firstName ? 'input-error' : ''}
+                                    />
                                 </div>
                                 <div className="auth-form-group">
                                     <label>Last Name</label>
-                                    <input type="text" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} />
+                                    <input
+                                        type="text"
+                                        value={formData.lastName}
+                                        onChange={e => handleInputChange('lastName', e.target.value)}
+                                        className={errors.lastName ? 'input-error' : ''}
+                                    />
                                 </div>
 
                                 {/* Row 2: Middle Name (Full) & Birthday */}
@@ -350,7 +399,7 @@ const RegistrationPage = () => {
                                         type="text"
                                         placeholder="Enter middle name"
                                         value={formData.middleName}
-                                        onChange={e => setFormData({ ...formData, middleName: e.target.value })}
+                                        onChange={e => handleInputChange('middleName', e.target.value)}
                                     />
                                 </div>
 
@@ -377,16 +426,35 @@ const RegistrationPage = () => {
                                 {/* Row 3: Email (Left) & TUPM ID (Right) */}
                                 <div className="auth-form-group">
                                     <label>Email</label>
-                                    <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={e => handleInputChange('email', e.target.value)}
+                                        className={errors.email ? 'input-error' : ''}
+                                    />
                                 </div>
 
                                 <div className="auth-form-group">
                                     <label>TUPM ID</label>
-                                    <div className="tupm-id-wrapper">
+                                    <div className={`tupm-id-wrapper ${errors.tupmYear || errors.tupmSerial ? 'input-error-wrapper' : ''}`}>
                                         <span className="tupm-prefix">TUPM-</span>
-                                        <input type="text" placeholder="YY" maxLength="2" value={formData.tupmYear} onChange={e => setFormData({ ...formData, tupmYear: e.target.value })} className="tupm-year-input" />
+                                        <input
+                                            type="text"
+                                            placeholder="YY"
+                                            maxLength="2"
+                                            value={formData.tupmYear}
+                                            onChange={e => handleInputChange('tupmYear', e.target.value)}
+                                            className={`tupm-year-input ${errors.tupmYear ? 'input-error' : ''}`}
+                                        />
                                         <span className="tupm-sep">-</span>
-                                        <input type="text" placeholder="####" maxLength="4" value={formData.tupmSerial} onChange={e => setFormData({ ...formData, tupmSerial: e.target.value })} className="tupm-serial-input" />
+                                        <input
+                                            type="text"
+                                            placeholder="####"
+                                            maxLength="4"
+                                            value={formData.tupmSerial}
+                                            onChange={e => handleInputChange('tupmSerial', e.target.value)}
+                                            className={`tupm-serial-input ${errors.tupmSerial ? 'input-error' : ''}`}
+                                        />
                                     </div>
                                 </div>
 
@@ -436,7 +504,7 @@ const RegistrationPage = () => {
                                         type="text"
                                         maxLength="4"
                                         value={formData.zipCode}
-                                        onChange={e => setFormData({ ...formData, zipCode: e.target.value })}
+                                        onChange={e => handleInputChange('zipCode', e.target.value)}
                                     />
                                 </div>
 
@@ -455,12 +523,12 @@ const RegistrationPage = () => {
                                     <label>College</label>
                                     <select
                                         value={formData.college}
-                                        onChange={e => setFormData({
-                                            ...formData,
-                                            college: e.target.value,
-                                            courseCode: '', // Reset course pag nagpalit ng college
-                                            section: ''     // Reset section pag nagpalit ng college
-                                        })}
+                                        onChange={e => {
+                                            handleInputChange('college', e.target.value);
+                                            handleInputChange('courseCode', '');
+                                            handleInputChange('section', '');
+                                        }}
+                                        className={errors.college ? 'input-error' : ''}
                                     >
                                         <option value="">Select College</option>
                                         {collegeOptions.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -475,8 +543,12 @@ const RegistrationPage = () => {
                                             <label>Course</label>
                                             <select
                                                 value={formData.courseCode}
-                                                onChange={e => setFormData({ ...formData, courseCode: e.target.value, section: '' })} // Reset section pag nagpalit course
-                                                disabled={!formData.college} // Disable kung wala pang college
+                                                onChange={e => {
+                                                    handleInputChange('courseCode', e.target.value);
+                                                    handleInputChange('section', '');
+                                                }}
+                                                disabled={!formData.college}
+                                                className={errors.courseCode ? 'input-error' : ''}
                                             >
                                                 <option value="">Select Course</option>
                                                 {filteredCourses.map(c => (
@@ -488,7 +560,11 @@ const RegistrationPage = () => {
                                         {/* 3. YEAR & SECTION (Side-by-Side) */}
                                         <div className="auth-form-group">
                                             <label>Year Level</label>
-                                            <select value={formData.year} onChange={e => setFormData({ ...formData, year: e.target.value })}>
+                                            <select
+                                                value={formData.year}
+                                                onChange={e => handleInputChange('year', e.target.value)}
+                                                className={errors.year ? 'input-error' : ''}
+                                            >
                                                 <option value="">Select Year</option>
                                                 <option value="1">1st Year</option>
                                                 <option value="2">2nd Year</option>
@@ -502,8 +578,9 @@ const RegistrationPage = () => {
                                             <label>Section</label>
                                             <select
                                                 value={formData.section}
-                                                onChange={e => setFormData({ ...formData, section: e.target.value })}
-                                                disabled={!formData.courseCode} // Disable kung wala pang course
+                                                onChange={e => handleInputChange('section', e.target.value)}
+                                                disabled={!formData.courseCode}
+                                                className={errors.section ? 'input-error' : ''}
                                             >
                                                 <option value="">Select Section</option>
                                                 {/* Dito lumalabas ang dynamic sections base sa course */}
@@ -516,7 +593,11 @@ const RegistrationPage = () => {
                                         {/* 4. STATUS & TERM (Side-by-Side) - NEW REQUEST */}
                                         <div className="auth-form-group">
                                             <label>Student Status</label>
-                                            <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
+                                            <select
+                                                value={formData.status}
+                                                onChange={e => handleInputChange('status', e.target.value)}
+                                                className={errors.status ? 'input-error' : ''}
+                                            >
                                                 <option value="">Select Status</option>
                                                 <option value="Regular">Regular</option>
                                                 <option value="Irregular">Irregular</option>
@@ -525,7 +606,11 @@ const RegistrationPage = () => {
 
                                         <div className="auth-form-group">
                                             <label>Current Term</label>
-                                            <select value={formData.term} onChange={e => setFormData({ ...formData, term: e.target.value })}>
+                                            <select
+                                                value={formData.term}
+                                                onChange={e => handleInputChange('term', e.target.value)}
+                                                className={errors.term ? 'input-error' : ''}
+                                            >
                                                 <option value="">Select Term</option>
                                                 <option value="1st">1st Semester</option>
                                                 <option value="2nd">2nd Semester</option>
@@ -550,64 +635,10 @@ const RegistrationPage = () => {
                         </>
                     )}
 
-                    {/* === STEP 3: CAMERA === */}
+                    {/* === STEP 3: SUMMARY & PASSWORD === */}
                     {step === 3 && (
                         <>
-                            <h3 className="step-title">Step 3: Face Capture</h3>
-                            <div className="camera-capture-section">
-                                <div className="camera-preview">
-                                    {/* Show Video only if no capture yet */}
-                                    {!faceCapture && (
-                                        <video ref={videoRef} playsInline muted className="camera-video" />
-                                    )}
-
-                                    <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-                                    {/* Show Captured Image with Validation Border */}
-                                    {faceCapture && (
-                                        <div className="captured-image-container" style={{ position: 'relative' }}>
-                                            <img
-                                                src={faceCapture}
-                                                alt="captured"
-                                                className="captured-image"
-                                                style={{
-                                                    border: faceValid ? '5px solid #28a745' : '5px solid #dc3545', // GREEN if valid, RED if checking
-                                                    borderRadius: '8px'
-                                                }}
-                                            />
-                                            {/* Status Label Overlay */}
-                                            {isValidating && <div className="validation-overlay">🔍 Checking Face...</div>}
-                                            {faceValid && <div className="validation-overlay success">✅ Face Detected</div>}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="camera-actions">
-                                    {/* Hide Capture button if already captured and valid */}
-                                    {!faceValid && (
-                                        <button className="auth-submit-button" onClick={handleCapture} disabled={isValidating}>
-                                            {isValidating ? 'Processing...' : 'Capture Face'}
-                                        </button>
-                                    )}
-
-                                    {/* Show Retake/Reset button */}
-                                    {faceCapture && (
-                                        <button className="auth-back-button" onClick={() => {
-                                            setFaceCapture(null);
-                                            setFaceValid(false);
-                                        }}>
-                                            Retake
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {/* === STEP 4: SUMMARY & PASSWORD === */}
-                    {step === 4 && (
-                        <>
-                            <h3 className="step-title">Step 4: Review & Password</h3>
+                            <h3 className="step-title">Step 3: Review & Password</h3>
                             <div className="summary-section">
                                 <div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleName} {formData.lastName}</span></div>
                                 <div className="summary-item"><span className="summary-label">Birthday:</span> <span>{formData.birthday}</span></div>
@@ -628,9 +659,11 @@ const RegistrationPage = () => {
                         </>
                     )}
 
-                    {/* BUTTONS (Bottom Right Next/Finish) */}
-                    <div className="step-buttons">
-                        {step < 4 ? (
+                    {/* BUTTONS (Bottom Navigation - Next Only) */}
+                    <div className="step-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
+                        {/* Back button removed from bottom */}
+
+                        {step < 3 ? (
                             <button className="auth-submit-button" onClick={handleNext}>
                                 Next <i className="fas fa-arrow-right"></i>
                             </button>

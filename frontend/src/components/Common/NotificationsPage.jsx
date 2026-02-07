@@ -6,11 +6,11 @@ import Header from './Header';
 import Footer from './Footer';
 
 // --- Theme Definition ---
-const redTheme = {
-    primary: '#A62525',
-    dark: '#c82333',
-    lightBg: 'rgba(255, 255, 255, 0.15)',
-    text: '#FFFFFF'
+const navyTheme = {
+    primary: '#0F172A', // Navy
+    dark: '#1E293B',    // Darker Navy
+    lightBg: 'rgba(255, 255, 255, 0.1)', // Light Hover
+    text: '#FFFFFF'     // White Text
 };
 
 // --- Mock Notification Data (Kept as static for UI display) ---
@@ -43,7 +43,7 @@ const NotificationsPage = () => {
     return (
         <>
             {/* Pass real user to Header */}
-            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            <Header theme={navyTheme} user={user} setPanel={() => navigate('/')} />
 
             <div className="notifications-page-container">
                 {/* Top Header Bar */}

@@ -1,57 +1,22 @@
 /* =========================================== */
-/* 5. Schedule Page Styles */
+/* 5. Schedule Page Styles (FRAMES Navy Theme) */
 /* =========================================== */
 .schedule-view-container {
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    padding-left: 30px
-    
+    gap: 20px; 
+    /* padding-left removed - handled by layout */
 }
 
-.schedule-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.schedule-header h2 {
-    font-size: 1.8em;
-    font-weight: 700;
-    color: #333;
-    margin: 0;
-}
-
-.schedule-filters {
-    display: flex;
-    gap: 10px;
-    background-color: #f0f2f5;
-    padding: 5px;
-    border-radius: 8px;
-}
-
-.schedule-filter-btn {
-    padding: 8px 15px;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.9em;
-    font-weight: 500;
-    cursor: pointer;
-    background-color: transparent;
-    color: #555;
-}
-
-.schedule-filter-btn.active {
-    background-color: white;
-    color: #dc3545; /* Red Theme */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
+/* ... headers ... */
 
 /* --- Today's Classes Card --- */
 .today-classes-card {
-    padding: 25px;
+    padding: 20px; /* Reduced from 25px */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
 .today-classes-card h3 {
@@ -60,6 +25,7 @@
     font-size: 1.3em;
     padding-bottom: 15px;
     border-bottom: 1px solid #eee;
+    color: #163269; /* Navy */
 }
 
 .class-list {
@@ -125,6 +91,10 @@
 .week-day-card {
     padding: 0;
     overflow: hidden;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
 .week-day-header {
@@ -158,7 +128,7 @@
 }
 .week-class-time {
     font-weight: 500;
-    color: #dc3545; /* Red Theme */
+    color: #F9A825; /* Warning/Amber Highlight */
     margin-right: 8px;
 }
 .week-class-title {
@@ -170,6 +140,10 @@
     max-width: 100%;
     padding: 20px;
     box-sizing: border-box;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
 .calendar-view .react-calendar {
@@ -178,7 +152,7 @@
     font-family: inherit;
     background-color: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: none; /* Removed inner shadow */
 }
 
 .react-calendar__navigation {
@@ -188,7 +162,7 @@
     padding: 10px 20px;
     background-color: #f9f9f9;
     border-bottom: 1px solid #eee;
-    border-radius: 8px 8px 0 0;
+    border-radius: 12px 12px 0 0;
 }
 
 .react-calendar__navigation button {
@@ -197,13 +171,13 @@
     font-size: 1em;
     font-weight: 600;
     cursor: pointer;
-    color: #dc3545; /* Red theme */
+    color: #163269; /* Navy */
     padding: 5px 10px;
     border-radius: 6px;
 }
 
 .react-calendar__navigation button:hover {
-    background-color: #f0f2f5;
+    background-color: #E8F1FC;
 }
 
 .react-calendar__month-view__weekdays {
@@ -229,17 +203,18 @@
 }
 
 .react-calendar__tile:hover {
-    background-color: #f0f2f5;
+    background-color: #E8F1FC;
+    color: #163269;
 }
 
 .react-calendar__tile--active {
-    background-color: #dc3545 !important;
+    background-color: #163269 !important; /* Navy */
     color: white !important;
 }
 
 .react-calendar__tile--now {
-    background-color: #fff4f4;
-    color: #dc3545;
+    background-color: #FFF8E1;
+    color: #F9A825;
     font-weight: 600;
 }
 

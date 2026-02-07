@@ -206,7 +206,9 @@ Utility scripts for database management.
 | `PROJECT_STRUCTURE.md` | Root | File structure diagram |
 | `SETUP_GUIDE.md` | Root | How to run the project |
 | `FILE_REFERENCE.md` | Root | This file - detailed file listing |
-| `MIGRATION_DOCUMENTATION.md` | `documentation/` | Migration from Flask to FastAPI |
+| `documentation/FACULTY_HEAD_REPORT_GUIDE.md` | `documentation/` | **New**. Specific instructions for Dept Head reports. |
+| `documentation/REPORT_TEMPLATE_IMPLEMENTATION_GUIDE.md` | `documentation/` | **New**. Technical guide on implementing the `ReportGenerator` utility. |
+| `MIGRATION_DOCUMENTATION.md` | `documentation/` | Details the migration to FastAPI/Vite/SQLAlchemy. |
 | `REFACTOR_COMPLETION_REPORT.md` | `documentation/` | Refactoring summary |
 | `CHANGELOG_2026_01_31.md` | `documentation/` | Change log |
 | `EDGE_AI_ANALYSIS.md` | `documentation/` | Edge AI architecture analysis |

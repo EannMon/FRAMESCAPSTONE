@@ -3,31 +3,32 @@
 /* =========================================== */
 .registration-page-wrapper {
     background-color: #f4f6f8;
-    min-height: 100vh; /* Takes full viewport height */
+    min-height: 100vh;
+    /* Takes full viewport height */
     display: flex;
     flex-direction: column;
     /* Space for the fixed Header (65px + 10px buffer) */
-    padding-top: 75px; 
+    padding-top: 75px;
 }
 
 .registration-container {
     width: 100%;
     max-width: 850px;
-    margin: 40px auto; 
+    margin: 40px auto;
     padding: 0 20px;
-    
+
     /* This pushes the footer down to the bottom */
-    flex: 1; 
-    
+    flex: 1;
+
     /* This ensures the footer never touches the card */
-    margin-bottom: 60px; 
+    margin-bottom: 60px;
 }
 
 .form-card {
     background: white;
     padding: 50px 40px;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     position: relative;
     animation: fadeInUp 0.4s ease-out;
 }
@@ -42,7 +43,8 @@
     margin-bottom: 30px;
     font-size: 1.8rem;
     font-weight: 800;
-    color: #dc3545; /* TUP Red */
+    color: #dc3545;
+    /* TUP Red */
 }
 
 .step-title {
@@ -72,6 +74,7 @@
     transition: color 0.2s;
     z-index: 10;
 }
+
 .top-back-btn:hover {
     color: #dc3545;
 }
@@ -155,7 +158,7 @@
     color: #444;
 }
 
-.auth-form-group input, 
+.auth-form-group input,
 .auth-form-group select {
     padding: 12px;
     border: 1px solid #ccc;
@@ -164,11 +167,40 @@
     transition: border-color 0.2s;
 }
 
-.auth-form-group input:focus, 
+.auth-form-group input:focus,
 .auth-form-group select:focus {
     outline: none;
     border-color: #dc3545;
     box-shadow: 0 0 0 3px rgba(166, 37, 37, 0.1);
+}
+
+.auth-form-group input.input-error,
+.auth-form-group select.input-error {
+    border-color: #dc3545;
+    background-color: #fff8f8;
+    animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+    0% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
+    75% {
+        transform: translateX(-5px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
 }
 
 /* --- Birthday Specific --- */
@@ -176,6 +208,7 @@
     display: flex;
     gap: 10px;
 }
+
 .birthday-select {
     flex: 1;
     padding: 12px;
@@ -190,17 +223,21 @@
     align-items: center;
     gap: 5px;
 }
+
 .tupm-prefix {
     font-weight: 600;
     color: #555;
 }
+
 .tupm-year-input {
     width: 60px !important;
     text-align: center;
 }
+
 .tupm-serial-input {
     flex: 1;
 }
+
 /* Back button INSIDE the form */
 .return-btn {
     background: none;
@@ -257,7 +294,8 @@
     align-items: center;
 }
 
-.camera-video, .captured-image {
+.camera-video,
+.captured-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -268,12 +306,13 @@
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.7);
     color: white;
     padding: 5px 15px;
     border-radius: 20px;
     font-size: 0.9rem;
 }
+
 .validation-overlay.success {
     background: #28a745;
 }
@@ -284,15 +323,18 @@
     border-radius: 8px;
     border: 1px solid #eee;
 }
+
 .summary-item {
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
     border-bottom: 1px solid #e0e0e0;
 }
+
 .summary-item:last-child {
     border-bottom: none;
 }
+
 .summary-label {
     font-weight: 600;
     color: #555;
@@ -302,11 +344,23 @@
 /* RESPONSIVE */
 /* =========================================== */
 @media (max-width: 768px) {
-    .signup-step { grid-template-columns: 1fr; }
-    .signup-step-indicators { gap: 30px; }
-    .signup-step-indicators::before { left: 5%; right: 5%; }
-    .form-card { padding: 30px 20px; }
-    
+    .signup-step {
+        grid-template-columns: 1fr;
+    }
+
+    .signup-step-indicators {
+        gap: 30px;
+    }
+
+    .signup-step-indicators::before {
+        left: 5%;
+        right: 5%;
+    }
+
+    .form-card {
+        padding: 30px 20px;
+    }
+
     .birthday-wrapper {
         flex-direction: column;
         gap: 8px;
@@ -315,6 +369,99 @@
 
 /* ANIMATIONS */
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =========================================== */
+/* CUSTOM ALERT POPUP */
+/* =========================================== */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.3s;
+}
+
+.custom-alert-box {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+}
+
+.custom-alert-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.custom-alert-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.custom-alert-message {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.custom-alert-close-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.custom-alert-close-btn:hover {
+    background-color: #bb2d3b;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
