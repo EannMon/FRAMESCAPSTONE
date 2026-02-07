@@ -181,3 +181,44 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
         doc.save(filename);
     }
 };
+
+/**
+ * Generates a clean CSV report.
+ * 
+ * @param {Object} reportInfo - Metadata about the report
+ * @param {Array} tableData - Array of objects for the table
+ */
+export const generateCSV = (reportInfo, tableData) => {
+    if (!tableData || tableData.length === 0) {
+        alert("No data available to export.");
+        return;
+    }
+
+    // 1. Create Header Row
+    const headers = Object.keys(tableData[0]);
+    const headerRow = headers.join(",");
+
+    // 2. Create Data Rows
+    const rows = tableData.map(row => {
+        return headers.map(fieldName => {
+            const data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : ''; // Escape double quotes
+            return `"${data}"`; // Wrap in quotes to handle commas/newlines
+        }).join(",");
+    });
+
+    // 3. Combine
+    const csvContent = [headerRow, ...rows].join("\n");
+
+    // 4. Create Blob and Download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${reportInfo.title.replace(/\s+/g, '_')}_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
