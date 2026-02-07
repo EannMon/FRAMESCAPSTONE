@@ -127,5 +127,5 @@ You should now see the `defaultdb` database and its tables (e.g., `users`, `clas
 
 | Component | Command | Port |
 |-----------|---------|------|
-| Backend | `uvicorn main:app --reload` | 5000 |
+| Backend |`uvicorn main:app --reload --port 5000`| 5000 |
 | Frontend | `npm run dev` | 3000 |
