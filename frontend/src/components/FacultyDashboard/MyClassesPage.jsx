@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './MyClassesPage.css';
 
 const FacultyMyClassesPage = () => {
@@ -194,51 +193,97 @@ const FacultyMyClassesPage = () => {
         }
     };
 
-    // Bulk Update (Visual only for now, as DB doesn't store exceptions yet)
-    const handleBulkUpdate = () => {
-        const updatedEvents = calendarEvents.map(ev => {
-            if (selectedSessions.includes(ev.id)) {
-                return { ...ev, status: modalData.type, reason: modalData.reason };
-            }
-            return ev;
-        });
-        setCalendarEvents(updatedEvents);
-        setShowManageModal(false);
-        setSelectedSessions([]);
-        alert("Schedule updated locally (Backend support for cancellations needed).");
+    // Bulk Update - Now persists to database
+    const handleBulkUpdate = async () => {
+        // Get the actual dates for the selected sessions
+        const selectedDates = selectedSessions.map(sessionId => {
+            const event = calendarEvents.find(ev => ev.id === sessionId);
+            return event ? event.date : null;
+        }).filter(d => d !== null);
+
+        if (selectedDates.length === 0) {
+            alert("No valid sessions selected");
+            return;
+        }
+
+        // Determine the class_id from the first selected session
+        const firstSelected = calendarEvents.find(ev => selectedSessions.includes(ev.id));
+        if (!firstSelected) {
+            alert("Could not determine class");
+            return;
+        }
+
+        // Extract class_id from session id (format: "class_id-day")
+        const classId = parseInt(firstSelected.id.split('-')[0]);
+
+        try {
+            await axios.post('http://localhost:5000/api/faculty/session-exceptions', {
+                class_id: classId,
+                session_dates: selectedDates,
+                exception_type: modalData.type === 'normal' ? 'onsite' :
+                    modalData.type === 'online-sync' ? 'online' : modalData.type,
+                reason: modalData.reason || null
+            });
+
+            // Update visual state
+            const updatedEvents = calendarEvents.map(ev => {
+                if (selectedSessions.includes(ev.id)) {
+                    return { ...ev, status: modalData.type, reason: modalData.reason };
+                }
+                return ev;
+            });
+            setCalendarEvents(updatedEvents);
+            setShowManageModal(false);
+            setSelectedSessions([]);
+            alert("✅ Schedule updated and saved to database!");
+        } catch (error) {
+            console.error("Error saving session exceptions:", error);
+            alert("❌ Failed to save changes: " + (error.response?.data?.detail || error.message));
+        }
     };
-
-    // --- PDF GENERATORS ---
+    // --- PDF GENERATORS (Using FRAMES ReportGenerator) ---
     const generateClassPDF = () => {
-        const doc = new jsPDF();
-        doc.text(`Attendance Report: ${selectedClass.subject_title}`, 14, 20);
-        doc.text(`Section: ${selectedClass.section}`, 14, 26);
+        const reportInfo = {
+            title: `${selectedClass.subject_title} Attendance`,
+            type: "CLASS ATTENDANCE REPORT",
+            category: 'class',
+            context: {
+                classCode: selectedClass.subject_code,
+                section: selectedClass.section
+            },
+            dateRange: new Date().toLocaleDateString()
+        };
 
-        const tableRows = studentList.map(s => [
-            `${s.lastName}, ${s.firstName}`,
-            s.timeIn,
-            s.status
-        ]);
-        autoTable(doc, {
-            head: [["Name", "Time In", "Status"]],
-            body: tableRows,
-            startY: 35,
-            headStyles: { fillColor: [166, 37, 37] }
-        });
-        doc.save(`${selectedClass.subject_code}_Report.pdf`);
+        const tableData = studentList.map(s => ({
+            "Student Name": `${s.lastName}, ${s.firstName}`,
+            "Student ID": s.tupm_id,
+            "Time In": s.timeIn,
+            "Status": s.status
+        }));
+
+        generateFramesPDF(reportInfo, tableData);
     };
 
     const generateStudentPDF = () => {
-        const doc = new jsPDF();
-        doc.text(`Individual Report: ${selectedStudent.firstName} ${selectedStudent.lastName}`, 14, 20);
-        autoTable(doc, {
-            startY: 30,
-            head: [['Date', 'Status', 'Time In']],
-            body: [[new Date().toLocaleDateString(), selectedStudent.status, selectedStudent.timeIn]],
-            theme: 'striped',
-            headStyles: { fillColor: [166, 37, 37] }
-        });
-        doc.save(`${selectedStudent.lastName}_Report.pdf`);
+        const reportInfo = {
+            title: "Individual Attendance Report",
+            type: "STUDENT REPORT",
+            category: 'personal',
+            context: {
+                name: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
+                id: selectedStudent.tupm_id
+            },
+            dateRange: new Date().toLocaleDateString()
+        };
+
+        const tableData = [{
+            "Date": new Date().toLocaleDateString(),
+            "Subject": selectedClass.subject_title,
+            "Time In": selectedStudent.timeIn,
+            "Status": selectedStudent.status
+        }];
+
+        generateFramesPDF(reportInfo, tableData);
     };
 
     // --- RENDERERS ---
@@ -546,8 +591,17 @@ const FacultyMyClassesPage = () => {
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label>Remarks (Optional)</label>
-                                <textarea value={modalData.reason} onChange={(e) => setModalData({ ...modalData, reason: e.target.value })} placeholder="e.g. Typhoon"></textarea>
+                                <label>Reason</label>
+                                <select value={modalData.reason} onChange={(e) => setModalData({ ...modalData, reason: e.target.value })}>
+                                    <option value="">-- Select Reason --</option>
+                                    <option value="Health Related">Health Related</option>
+                                    <option value="Natural Disaster">Natural Disaster</option>
+                                    <option value="Internet Connectivity">Internet Connectivity</option>
+                                    <option value="Holiday">Holiday</option>
+                                    <option value="Faculty Leave">Faculty Leave</option>
+                                    <option value="University Event">University Event</option>
+                                    <option value="Others">Others</option>
+                                </select>
                             </div>
                         </div>
                         <div className="modal-footer">

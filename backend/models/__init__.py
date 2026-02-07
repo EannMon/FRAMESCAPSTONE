@@ -8,6 +8,7 @@ from models.class_ import Class
 from models.enrollment import Enrollment
 from models.device import Device, DeviceStatus
 from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
+from models.session_exception import SessionException, ExceptionType
 
 __all__ = [
     "Department",
@@ -24,4 +25,6 @@ __all__ = [
     "AttendanceLog",
     "AttendanceAction",
     "VerifiedBy",
+    "SessionException",
+    "ExceptionType",
 ]

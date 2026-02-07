@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel
 
 from db.database import get_db
@@ -15,6 +15,7 @@ from models.class_ import Class
 from models.subject import Subject
 from models.enrollment import Enrollment
 from models.attendance_log import AttendanceLog, AttendanceAction
+from models.session_exception import SessionException, ExceptionType
 
 router = APIRouter()
 
@@ -36,6 +37,8 @@ class ClassResponse(BaseModel):
     present_count: int = 0
     rate: int = 0
     status: str = "upcoming"
+    semester: Optional[str] = None
+    academic_year: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -115,7 +118,9 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
             total_students=total_students,
             present_count=present_count,
             rate=rate,
-            status=status
+            status=status,
+            semester=cls.semester,
+            academic_year=cls.academic_year
         ))
     
     return result
@@ -269,7 +274,13 @@ async def upload_schedule(
             raise HTTPException(status_code=400, detail="Could not parse PDF")
         
         created_schedules = []
+        updated_schedules = []
         created_students = []
+        enrolled_count = 0
+        
+        # Use semester/year from form if provided, else from PDF parser
+        current_semester = semester or parsed_data.get('semester', '1st Semester')
+        current_academic_year = academic_year or parsed_data.get('academic_year', '2025-2026')
         
         for course_data in parsed_data['courses']:
             # Create/Get Subject
@@ -306,41 +317,62 @@ async def upload_schedule(
                     except:
                         pass
             
-            # Create Class
-            new_class = Class(
-                subject_id=subject.id,
-                faculty_id=faculty_id,
-                room=course_data.get('venue', 'Room 324'),
-                day_of_week=course_data['day'],
-                start_time=start_time,
-                end_time=end_time,
-                section=course_data['section'],
-                semester=semester or parsed_data.get('semester', '1st Semester'),
-                academic_year=academic_year or parsed_data.get('academic_year', '2025-2026')
-            )
-            db.add(new_class)
-            db.commit()
-            db.refresh(new_class)
-            created_schedules.append(new_class.id)
+            # Check if Class ALREADY EXISTS
+            # Unique identification: Subject + Section + Day + Semester + Academic Year
+            existing_class = db.query(Class).filter(
+                Class.subject_id == subject.id,
+                Class.section == course_data['section'],
+                Class.day_of_week == course_data['day'],
+                Class.semester == current_semester,
+                Class.academic_year == current_academic_year
+            ).first()
             
-            print(f"✅ Created class: {subject.code} - {course_data['section']} ({course_data['day']})")
+            if existing_class:
+                # Update existing class
+                existing_class.start_time = start_time
+                existing_class.end_time = end_time
+                existing_class.room = course_data.get('venue', 'Room 324')
+                if faculty_id:
+                    existing_class.faculty_id = faculty_id
+                
+                db.commit()
+                db.refresh(existing_class)
+                updated_schedules.append(existing_class.id)
+                current_class = existing_class
+                print(f"   🔄 Updated class: {subject.code} - {course_data['section']} ({course_data['day']})")
+            else:
+                # Create new Class
+                new_class = Class(
+                    subject_id=subject.id,
+                    faculty_id=faculty_id,
+                    room=course_data.get('venue', 'Room 324'),
+                    day_of_week=course_data['day'],
+                    start_time=start_time,
+                    end_time=end_time,
+                    section=course_data['section'],
+                    semester=current_semester,
+                    academic_year=current_academic_year
+                )
+                db.add(new_class)
+                db.commit()
+                db.refresh(new_class)
+                created_schedules.append(new_class.id)
+                current_class = new_class
+                print(f"   ✅ Created class: {subject.code} - {course_data['section']} ({course_data['day']})")
             
             # Create/Update Student Accounts and Enrollments
+            # Get current enrollments for this class to avoid duplicates
+            existing_enrollments = {
+                e.student_id for e in db.query(Enrollment).filter(Enrollment.class_id == current_class.id).all()
+            }
+            
             for student_data in course_data.get('enrolled_students', []):
                 tupm_id = student_data['tupm_id']
                 
-                # Check if student exists
-                existing_student = db.query(User).filter(User.tupm_id == tupm_id).first()
+                # Check if student user exists
+                student_user = db.query(User).filter(User.tupm_id == tupm_id).first()
                 
-                if existing_student:
-                    # Just enroll existing student
-                    enrollment = Enrollment(
-                        class_id=new_class.id,
-                        student_id=existing_student.id
-                    )
-                    db.add(enrollment)
-                    print(f"   📝 Enrolled existing student: {tupm_id}")
-                else:
+                if not student_user:
                     # Create new student account
                     name_parts = student_data['name'].split(',')
                     last_name = name_parts[0].strip() if len(name_parts) > 0 else "Student"
@@ -350,7 +382,7 @@ async def upload_schedule(
                     default_password = last_name.lower()
                     hashed_pw = bcrypt.hashpw(default_password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
                     
-                    new_student = User(
+                    student_user = User(
                         email=f"{tupm_id.lower()}@tup.edu.ph",
                         password_hash=hashed_pw,
                         role=UserRole.STUDENT,
@@ -361,19 +393,22 @@ async def upload_schedule(
                         verification_status=VerificationStatus.VERIFIED,
                         face_registered=False
                     )
-                    db.add(new_student)
+                    db.add(student_user)
                     db.commit()
-                    db.refresh(new_student)
-                    
-                    # Enroll the new student
-                    enrollment = Enrollment(
-                        class_id=new_class.id,
-                        student_id=new_student.id
-                    )
-                    db.add(enrollment)
+                    db.refresh(student_user)
                     
                     created_students.append(tupm_id)
-                    print(f"   ✅ Created student: {tupm_id} ({last_name}, {first_name})")
+                    print(f"      Created student: {tupm_id}")
+                
+                # Check if already enrolled in THIS class instance
+                if student_user.id not in existing_enrollments:
+                    enrollment = Enrollment(
+                        class_id=current_class.id,
+                        student_id=student_user.id
+                    )
+                    db.add(enrollment)
+                    existing_enrollments.add(student_user.id) # Add to set to prevent double enrollment in *this* loop if duplicates exist in list
+                    enrolled_count += 1
             
             db.commit()
         
@@ -381,9 +416,12 @@ async def upload_schedule(
             "message": "Schedule uploaded and processed successfully!",
             "filename": file.filename,
             "schedules_created": len(created_schedules),
+            "schedules_updated": len(updated_schedules),
             "students_created": len(created_students),
+            "enrollments_added": enrolled_count,
             "details": {
                 "created_schedules": created_schedules,
+                "updated_schedules": updated_schedules,
                 "created_students": created_students
             }
         }
@@ -436,3 +474,140 @@ def get_class_details_by_schedule_id(schedule_id: int, db: Session = Depends(get
     
     return students
 
+
+# ============================================
+# Session Exception Endpoints
+# ============================================
+
+class SessionExceptionCreate(BaseModel):
+    class_id: int
+    session_dates: List[str]  # List of date strings "YYYY-MM-DD"
+    exception_type: str       # "online", "cancelled", "onsite", "holiday"
+    reason: Optional[str] = None
+
+
+class SessionExceptionResponse(BaseModel):
+    id: int
+    class_id: int
+    session_date: str
+    exception_type: str
+    reason: Optional[str]
+    created_at: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+@router.post("/session-exceptions")
+def create_session_exceptions(
+    data: SessionExceptionCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Create session exceptions for one or more dates.
+    Used when a class is cancelled, moved online, etc.
+    """
+    class_obj = db.query(Class).filter(Class.id == data.class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Map string to enum
+    type_map = {
+        "online": ExceptionType.ONLINE,
+        "cancelled": ExceptionType.CANCELLED,
+        "onsite": ExceptionType.ONSITE,
+        "holiday": ExceptionType.HOLIDAY
+    }
+    exception_type = type_map.get(data.exception_type.lower(), ExceptionType.ONSITE)
+    
+    created_count = 0
+    for date_str in data.session_dates:
+        try:
+            session_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        
+        # Check if exception already exists for this date
+        existing = db.query(SessionException).filter(
+            SessionException.class_id == data.class_id,
+            SessionException.session_date == session_date
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.exception_type = exception_type
+            existing.reason = data.reason
+        else:
+            # Create new
+            new_exception = SessionException(
+                class_id=data.class_id,
+                session_date=session_date,
+                exception_type=exception_type,
+                reason=data.reason
+            )
+            db.add(new_exception)
+            created_count += 1
+    
+    db.commit()
+    return {"message": f"Created/updated {len(data.session_dates)} session exception(s)"}
+
+
+@router.get("/session-exceptions/{class_id}", response_model=List[SessionExceptionResponse])
+def get_session_exceptions(class_id: int, db: Session = Depends(get_db)):
+    """Get all session exceptions for a class"""
+    exceptions = db.query(SessionException).filter(
+        SessionException.class_id == class_id
+    ).all()
+    
+    return [
+        SessionExceptionResponse(
+            id=e.id,
+            class_id=e.class_id,
+            session_date=str(e.session_date),
+            exception_type=e.exception_type.value,
+            reason=e.reason,
+            created_at=str(e.created_at) if e.created_at else None
+        )
+        for e in exceptions
+    ]
+
+
+@router.get("/session-exceptions-by-faculty/{faculty_id}")
+def get_all_session_exceptions_for_faculty(
+    faculty_id: int,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all session exceptions for all classes taught by a faculty.
+    Useful for generating the calendar view with cancelled/online sessions marked.
+    """
+    # Get all class IDs for this faculty
+    class_ids = [c.id for c in db.query(Class).filter(Class.faculty_id == faculty_id).all()]
+    
+    if not class_ids:
+        return []
+    
+    query = db.query(SessionException).filter(SessionException.class_id.in_(class_ids))
+    
+    # Optional date filtering
+    if month and year:
+        from sqlalchemy import extract
+        query = query.filter(
+            extract('month', SessionException.session_date) == month,
+            extract('year', SessionException.session_date) == year
+        )
+    
+    exceptions = query.all()
+    
+    return [
+        {
+            "id": e.id,
+            "class_id": e.class_id,
+            "session_date": str(e.session_date),
+            "exception_type": e.exception_type.value,
+            "reason": e.reason
+        }
+        for e in exceptions
+    ]
