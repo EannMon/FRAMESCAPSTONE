@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // import jsPDF from 'jspdf'; <-- Removed
 // import autoTable from 'jspdf-autotable'; <-- Removed
 import './FacultyReportsPage.css';
@@ -167,6 +167,16 @@ const FacultyReportsPage = () => {
     // --- STATES ---
     const [selectedReportId, setSelectedReportId] = useState('CLASS_MONTHLY');
     const [selectedSubject, setSelectedSubject] = useState('CS101');
+    const [dateFilter, setDateFilter] = useState('');
+    const [monthFilter, setMonthFilter] = useState('');
+    const [selectedSection, setSelectedSection] = useState('All');
+    const [statusFilter, setStatusFilter] = useState('All');
+
+    // Modal & Generation States
+    const [showModal, setShowModal] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [reportFormat, setReportFormat] = useState('PDF');
+    const [validationError, setValidationError] = useState('');
 
     // Logic to switch data source
     const currentReport = reportOptions.find(r => r.id === selectedReportId);
@@ -176,7 +186,23 @@ const FacultyReportsPage = () => {
     const getDisplayData = () => {
         let data = isPersonal ? mockPersonalLogs : mockClassLogs;
 
-        // Simple Filter Logic for specific report types to make demo realistic
+        // 1. Filter by Section (Class Reports Only)
+        if (!isPersonal && selectedSection !== 'All') {
+            data = data.filter(d => d.col2 === selectedSection);
+        }
+
+        // 2. Filter by Status
+        if (statusFilter !== 'All') {
+            if (statusFilter === 'Issues') {
+                data = data.filter(d => ['Late', 'Absent', 'Alert', 'Security'].includes(d.status));
+            } else if (statusFilter === 'Present') {
+                data = data.filter(d => ['Present', 'On Time'].includes(d.status));
+            } else {
+                data = data.filter(d => d.status === statusFilter);
+            }
+        }
+
+        // 3. Simple Filter Logic for specific report types to make demo realistic
         if (selectedReportId === 'UNRECOGNIZED_LOGS') return data.filter(d => d.status === 'Security');
         if (selectedReportId === 'CLASS_LATE' || selectedReportId === 'INSTRUCTOR_DELAY') return data.filter(d => d.status === 'Late');
         if (selectedReportId === 'BREAK_ABUSE') return data.filter(d => d.status === 'Alert');
@@ -186,7 +212,42 @@ const FacultyReportsPage = () => {
 
     const displayData = getDisplayData();
 
-    // --- PDF GENERATOR ---
+    // --- REPORT GENERATION HANDLERS ---
+
+    const handleGenerateClick = () => {
+        setValidationError('');
+
+        // 1. Validation Logic
+        const requiresDate = ['PERSONAL_DAILY', 'CLASS_LATE'].includes(selectedReportId);
+        // Add more logic here for which reports STRICTLY need a date
+
+        if (requiresDate && !dateFilter) {
+            setValidationError('Please select a specific date for this report type.');
+            return;
+        }
+
+        // If Monthly report, strictly require month? (Optional rule)
+        if (selectedReportId.includes('MONTHLY') && !monthFilter) {
+            setValidationError('Please select a month for the monthly report.');
+            return;
+        }
+
+        // Proceed to Modal
+        setShowModal(true);
+    };
+
+    const confirmGeneration = () => {
+        setIsGenerating(true);
+
+        // Simulate API / Processing Delay
+        setTimeout(() => {
+            handleDownloadPDF(); // Re-use existing logic
+            setIsGenerating(false);
+            setShowModal(false);
+        }, 2000); // 2 second delay to show spinner
+    };
+
+    // --- PDF GENERATOR (Existing Logic) ---
     const handleDownloadPDF = () => {
         // 1. Map Data for Report
         const tableInput = displayData.map(row => {
@@ -217,8 +278,8 @@ const FacultyReportsPage = () => {
                 category: isPersonal ? 'personal' : 'class',
                 context: isPersonal
                     ? { name: "Faculty User", id: "FAC-SELF" } // Could be dynamic based on user prop
-                    : { classCode: selectedSubject, section: "BSIT 4A" },
-                dateRange: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                    : { classCode: selectedSubject, section: selectedSection === 'All' ? 'All Sections' : selectedSection },
+                dateRange: dateFilter || monthFilter || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
             }, tableInput);
         });
     };
@@ -229,28 +290,31 @@ const FacultyReportsPage = () => {
             {/* HEADER & CONTROLS */}
             <div className="fac-reports-header">
 
-                <div className="fac-control-group">
-                    <label>Select Report Type</label>
-                    <select
-                        className="fac-select"
-                        value={selectedReportId}
-                        onChange={(e) => setSelectedReportId(e.target.value)}
-                    >
-                        <optgroup label="Class Specific Reports (Students)">
-                            {reportOptions.filter(r => r.type === 'CLASS').map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="Personal Faculty Reports (Self)">
-                            {reportOptions.filter(r => r.type === 'PERSONAL').map(opt => (
-                                <option key={opt.id} value={opt.id}>{opt.label}</option>
-                            ))}
-                        </optgroup>
-                    </select>
+                {/* LEFT COLUMN: Primary Filters (Max 3) */}
+                <div className="fac-control-column">
+                    <div className="fac-input-group">
+                        <label>Select Report Type</label>
+                        <select
+                            className="fac-select"
+                            value={selectedReportId}
+                            onChange={(e) => setSelectedReportId(e.target.value)}
+                        >
+                            <optgroup label="Class Specific Reports (Students)">
+                                {reportOptions.filter(r => r.type === 'CLASS').map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Personal Faculty Reports (Self)">
+                                {reportOptions.filter(r => r.type === 'PERSONAL').map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+                    </div>
 
                     {/* Show Subject Filter ONLY for Class Reports */}
                     {!isPersonal && (
-                        <div style={{ marginTop: '15px' }}>
+                        <div className="fac-input-group">
                             <label>Filter Subject</label>
                             <select
                                 className="fac-select"
@@ -264,13 +328,58 @@ const FacultyReportsPage = () => {
                             </select>
                         </div>
                     )}
+
+                    {/* Date / Month Selection */}
+                    <div className="fac-input-group">
+                        <label>Date Selection <span style={{ color: 'red' }}>*</span></label>
+                        {selectedReportId.includes('MONTHLY') || selectedReportId.includes('SEM') ? (
+                            <input
+                                type="month"
+                                className="fac-select"
+                                style={{ width: '100%' }}
+                                value={monthFilter}
+                                onChange={(e) => setMonthFilter(e.target.value)}
+                            />
+                        ) : (
+                            <input
+                                type="date"
+                                className="fac-select"
+                                style={{ width: '100%' }}
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                            />
+                        )}
+                    </div>
+
+                    {/* MOVED STATUS HERE FOR PERSONAL REPORTS ONLY (To fill gap) */}
+                    {isPersonal && (
+                        <div className="fac-input-group">
+                            <label>Status Category</label>
+                            <select
+                                className="fac-select"
+                                style={{ width: '100%' }}
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="All">All Statuses</option>
+                                <option value="Present">Present / On Time</option>
+                                <option value="Issues">Issues Only (Late/Absent/Alert)</option>
+                                <option value="Late">Late Only</option>
+                                <option value="Absent">Absent Only</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
 
-                {/* Info Box */}
-                <div className="fac-report-info">
-                    <i className={`fas ${isPersonal ? 'fa-user-lock' : 'fa-chalkboard-teacher'}`}></i>
-                    <div className="info-content">
-                        <h4>{currentReport.label}</h4>
+                {/* RIGHT COLUMN: Info Box (Top) & Secondary Filters */}
+                <div className="fac-control-column-right">
+
+                    {/* Info Box (Moved to Top) */}
+                    <div className="fac-report-info-compact">
+                        <div className="info-header-row">
+                            <i className={`fas ${isPersonal ? 'fa-user-lock' : 'fa-chalkboard-teacher'}`}></i>
+                            <h4>{currentReport.label}</h4>
+                        </div>
                         <p>{currentReport.desc}</p>
 
                         {/* Dynamic Tag based on Type */}
@@ -284,7 +393,52 @@ const FacultyReportsPage = () => {
                             </span>
                         )}
                     </div>
+
+                    {/* Secondary Filters Row (Below Info Box) */}
+                    {!isPersonal && (
+                        <div className="fac-secondary-filters">
+                            {/* Section Filter (Class Only) */}
+                            <div className="fac-input-group">
+                                <label>Section / Group</label>
+                                <select
+                                    className="fac-select"
+                                    style={{ width: '100%' }}
+                                    value={selectedSection}
+                                    onChange={(e) => setSelectedSection(e.target.value)}
+                                >
+                                    <option value="All">All Sections</option>
+                                    <option value="BSIT 4A">BSIT 4A</option>
+                                    <option value="BSIT 4B">BSIT 4B</option>
+                                    <option value="BSCS 3A">BSCS 3A</option>
+                                </select>
+                            </div>
+
+                            {/* Status Category Filter (Class Only here) */}
+                            <div className="fac-input-group">
+                                <label>Status Category</label>
+                                <select
+                                    className="fac-select"
+                                    style={{ width: '100%' }}
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                >
+                                    <option value="All">All Statuses</option>
+                                    <option value="Present">Present / On Time</option>
+                                    <option value="Issues">Issues Only (Late/Absent/Alert)</option>
+                                    <option value="Late">Late Only</option>
+                                    <option value="Absent">Absent Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Validation Error Message (Full Width) */}
+                {validationError && (
+                    <div className="validation-error" style={{ width: '100%', marginTop: '10px' }}>
+                        <i className="fas fa-exclamation-circle"></i> {validationError}
+                    </div>
+                )}
             </div>
 
             {/* DATA TABLE */}
@@ -293,7 +447,7 @@ const FacultyReportsPage = () => {
                     <h3>
                         {isPersonal ? "My Personal Logs" : `Student List: ${selectedSubject}`}
                     </h3>
-                    <button className="btn-export" onClick={handleDownloadPDF}>
+                    <button className="btn-export" onClick={handleGenerateClick}>
                         <i className="fas fa-file-pdf"></i> Generate Official Report
                     </button>
                 </div>
@@ -353,6 +507,85 @@ const FacultyReportsPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* CONFIRMATION MODAL */}
+            {showModal && (
+                <div className="report-modal-overlay">
+                    <div className="report-modal-content">
+                        <div className="modal-header">
+                            <h3>Generate Official Report</h3>
+                            <button className="close-btn" onClick={() => setShowModal(false)}>&times;</button>
+                        </div>
+
+                        <div className="modal-body">
+                            <p className="modal-desc">
+                                Please review your report settings before generating.
+                                The system will process <strong>128-dimensional embedding logs</strong> to create this summary.
+                            </p>
+
+                            <div className="summary-box">
+                                <div className="summary-item">
+                                    <span className="label">Report Type:</span>
+                                    <span className="value">{currentReport.label}</span>
+                                </div>
+                                <div className="summary-item">
+                                    <span className="label">Subject/Scope:</span>
+                                    <span className="value">{isPersonal ? 'My Personal Logs' : selectedSubject}</span>
+                                </div>
+                                <div className="summary-item">
+                                    <span className="label">Target Date:</span>
+                                    <span className="value">
+                                        {dateFilter || monthFilter || "All Time"}
+                                        {!dateFilter && !monthFilter && <span className="warning-text"> (No date selected)</span>}
+                                    </span>
+                                </div>
+                                <div className="summary-item">
+                                    <span className="label">Filters Applied:</span>
+                                    <span className="value">
+                                        {selectedSection !== 'All' ? selectedSection : 'All Sections'},
+                                        {statusFilter !== 'All' ? ` ${statusFilter}` : ' All Statuses'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="format-selection">
+                                <label>Output Format:</label>
+                                <div className="toggle-group">
+                                    <button
+                                        className={`toggle-btn ${reportFormat === 'PDF' ? 'active' : ''}`}
+                                        onClick={() => setReportFormat('PDF')}
+                                    >
+                                        <i className="fas fa-file-pdf"></i> PDF
+                                    </button>
+                                    <button
+                                        className={`toggle-btn ${reportFormat === 'CSV' ? 'active' : ''}`}
+                                        onClick={() => setReportFormat('CSV')}
+                                    >
+                                        <i className="fas fa-file-csv"></i> CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="btn-cancel" onClick={() => setShowModal(false)} disabled={isGenerating}>
+                                Cancel
+                            </button>
+                            <button className="btn-confirm" onClick={confirmGeneration} disabled={isGenerating}>
+                                {isGenerating ? (
+                                    <>
+                                        <span className="spinner-small"></span> Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        Generate Report <i className="fas fa-chevron-right"></i>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
