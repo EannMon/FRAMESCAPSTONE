@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // Import Axios
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import axios from 'axios';
+import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './FacultyAttendancePage.css';
 
 const FacultyAttendancePage = () => {
@@ -43,7 +42,7 @@ const FacultyAttendancePage = () => {
         setSelectedClass(cls);
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.schedule_id}`);
+            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.id}`);
             setStudentList(response.data);
             setViewMode('details');
         } catch (error) {
@@ -61,55 +60,51 @@ const FacultyAttendancePage = () => {
         setStudentList([]);
     };
 
-    // Export Single Class Report
+    // Export Single Class Report (FRAMES Template)
     const handleClassExport = () => {
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text("CLASS ATTENDANCE REPORT", 14, 20);
-        
-        doc.setFontSize(11);
-        doc.text(`Subject: ${selectedClass.title} (${selectedClass.course_code})`, 14, 30);
-        doc.text(`Section: ${selectedClass.section}`, 14, 36);
-        doc.text(`Time: ${selectedClass.start_time} - ${selectedClass.end_time}`, 14, 42);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 48);
+        const reportInfo = {
+            title: `${selectedClass.subject_title} Attendance`,
+            type: "CLASS ATTENDANCE REPORT",
+            category: 'class',
+            context: {
+                classCode: selectedClass.subject_code,
+                section: selectedClass.section
+            },
+            dateRange: new Date().toLocaleDateString()
+        };
 
-        const tableRows = studentList.map(s => [
-            `${s.lastName}, ${s.firstName}`, 
-            s.tupm_id, 
-            s.timeIn, 
-            s.status, 
-            s.remarks
-        ]);
-        
-        autoTable(doc, {
-            head: [["Student Name", "ID", "Time In", "Status", "Remarks"]],
-            body: tableRows,
-            startY: 55,
-            theme: 'grid',
-            headStyles: { fillColor: [166, 37, 37] } 
-        });
+        const tableData = studentList.map(s => ({
+            "Student Name": `${s.lastName}, ${s.firstName}`,
+            "ID Number": s.tupm_id,
+            "Time In": s.timeIn,
+            "Status": s.status,
+            "Remarks": s.remarks || ""
+        }));
 
-        doc.save(`${selectedClass.course_code}_${selectedClass.section}_Report.pdf`);
+        generateFramesPDF(reportInfo, tableData);
     };
 
-    // Global Export (All Subjects)
+    // Global Export (All Subjects - FRAMES Template)
     const handleGlobalExport = () => {
-        const doc = new jsPDF();
-        doc.text("OVERALL ATTENDANCE SUMMARY", 14, 20);
-        const tableRows = myClasses.map(cls => [
-            cls.title, 
-            cls.course_code, 
-            cls.room_name || "TBA", 
-            `${cls.rate}%`, 
-            cls.status.toUpperCase()
-        ]);
-        autoTable(doc, { 
-            head: [["Subject", "Code", "Room", "Attendance %", "Status"]], 
-            body: tableRows, 
-            startY: 30, 
-            headStyles: { fillColor: [166, 37, 37] } 
-        });
-        doc.save("Global_Attendance_Report.pdf");
+        const reportInfo = {
+            title: "Overall Attendance Summary",
+            type: "FACULTY REPORT",
+            category: 'system',
+            context: {
+                scope: "My Classes"
+            },
+            dateRange: new Date().toLocaleDateString()
+        };
+
+        const tableData = myClasses.map(cls => ({
+            "Subject": cls.subject_title,
+            "Code": cls.subject_code,
+            "Room": cls.room || "TBA",
+            "Attendance": `${cls.rate}%`,
+            "Status": cls.status.toUpperCase()
+        }));
+
+        generateFramesPDF(reportInfo, tableData);
     };
 
     // Helper: Status Badge
@@ -138,8 +133,8 @@ const FacultyAttendancePage = () => {
                 <div className="attendance-stat-card">
                     <div className="stat-label">Avg Attendance</div>
                     <div className="stat-value green">
-                        {myClasses.length > 0 
-                            ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length) 
+                        {myClasses.length > 0
+                            ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length)
                             : 0}%
                     </div>
                     <div className="stat-sub">Across all sections</div>
@@ -152,22 +147,22 @@ const FacultyAttendancePage = () => {
                 <div className="today-classes-list">
                     {myClasses.length > 0 ? (
                         myClasses.map((cls) => (
-                            <div key={cls.schedule_id} className={`today-class-item ${cls.status}`}>
+                            <div key={cls.id} className={`today-class-item ${cls.status}`}>
                                 <div className="class-info">
-                                    <h4>{cls.title} <span className="code-tag">{cls.course_code}</span></h4>
+                                    <h4>{cls.subject_title} <span className="code-tag">{cls.subject_code}</span></h4>
                                     <p>
-                                        <span style={{fontWeight:'bold', color:'#555'}}>{cls.section}</span> • 
-                                        {cls.day_of_week} {cls.start_time} • {cls.room_name}
+                                        <span style={{ fontWeight: 'bold', color: '#555' }}>{cls.section}</span> •
+                                        {cls.day_of_week} {cls.start_time} • {cls.room}
                                     </p>
                                     {renderStatusBadge(cls.status)}
                                 </div>
-                                
+
                                 <div className="attendance-visuals">
                                     <div className="class-attendance-rate">{cls.rate}%</div>
                                     <div className="attendance-progress">
-                                        <div className="progress-bar" style={{width: `${cls.rate}%`}}></div>
+                                        <div className="progress-bar" style={{ width: `${cls.rate}%` }}></div>
                                     </div>
-                                    <div style={{fontSize:'0.8em', color:'#888', marginTop:'5px'}}>
+                                    <div style={{ fontSize: '0.8em', color: '#888', marginTop: '5px' }}>
                                         {cls.present_count} / {cls.total_students} Present
                                     </div>
                                 </div>
@@ -180,7 +175,7 @@ const FacultyAttendancePage = () => {
                             </div>
                         ))
                     ) : (
-                        <div style={{padding:'20px', textAlign:'center', color:'#888'}}>
+                        <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
                             No classes assigned yet. Contact the Dept Head.
                         </div>
                     )}
@@ -197,17 +192,17 @@ const FacultyAttendancePage = () => {
                     <i className="fas fa-arrow-left"></i> Back to Dashboard
                 </button>
                 <div className="class-details-title">
-                    <h2>{selectedClass.title} <span className="highlight-code">({selectedClass.course_code})</span></h2>
-                    <p>{selectedClass.section} • {selectedClass.room_name}</p>
+                    <h2>{selectedClass.subject_title} <span className="highlight-code">({selectedClass.subject_code})</span></h2>
+                    <p>{selectedClass.section} • {selectedClass.room}</p>
                 </div>
             </div>
 
             <div className="details-controls">
-                <input 
-                    type="text" 
-                    placeholder="Search student..." 
+                <input
+                    type="text"
+                    placeholder="Search student..."
                     className="search-input"
-                    value={searchTerm} 
+                    value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <button className="export-pdf-btn" onClick={handleClassExport}>
@@ -228,25 +223,25 @@ const FacultyAttendancePage = () => {
                     </thead>
                     <tbody>
                         {studentList
-                            .filter(s => 
-                                s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            .filter(s =>
+                                s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 s.firstName.toLowerCase().includes(searchTerm.toLowerCase())
                             )
                             .map((student) => (
-                            <tr key={student.user_id}>
-                                <td className="font-bold">{student.lastName}, {student.firstName}</td>
-                                <td className="text-muted">{student.tupm_id}</td>
-                                <td>{student.timeIn}</td>
-                                <td>
-                                    <span className={`status-badge ${student.status === 'Present' ? 'green' : 'red'}`}>
-                                        {student.status}
-                                    </span>
-                                </td>
-                                <td>{student.remarks}</td>
-                            </tr>
-                        ))}
+                                <tr key={student.user_id}>
+                                    <td className="font-bold">{student.lastName}, {student.firstName}</td>
+                                    <td className="text-muted">{student.tupm_id}</td>
+                                    <td>{student.timeIn}</td>
+                                    <td>
+                                        <span className={`status-badge ${student.status === 'Present' ? 'green' : 'red'}`}>
+                                            {student.status}
+                                        </span>
+                                    </td>
+                                    <td>{student.remarks}</td>
+                                </tr>
+                            ))}
                         {studentList.length === 0 && (
-                            <tr><td colSpan="5" style={{textAlign:'center', padding:'20px'}}>No students enrolled in this section.</td></tr>
+                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No students enrolled in this section.</td></tr>
                         )}
                     </tbody>
                 </table>

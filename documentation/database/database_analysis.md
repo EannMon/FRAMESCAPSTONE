@@ -312,6 +312,42 @@ VerifiedBy:        FACE | FACE+GESTURE
 
 ---
 
+#### 📋 Table: `session_exceptions`
+**Purpose**: Tracks class session exceptions (cancelled, online mode, holidays) for reporting
+
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| `id` 🔑 | Integer (PK) | Unique identifier | `1` |
+| `class_id` 🔗 | Integer (FK) | Links to classes | `5` |
+| `session_date` | Date | Specific date affected | 2026-02-14 |
+| `exception_type` | Enum | Type of exception | `ONLINE` / `CANCELLED` / `ONSITE` / `HOLIDAY` |
+| `reason` | String(255) | Reason for exception | "Natural Disaster" |
+| `created_by` 🔗 | Integer (FK) | Faculty who created | `3` |
+| `created_at` | DateTime | When recorded | 2026-02-07 15:00:00 |
+
+**Enums Used:**
+```
+ExceptionType:  ONSITE | ONLINE | CANCELLED | HOLIDAY
+```
+
+**Predefined Reasons (Frontend dropdown):**
+- Health Related
+- Natural Disaster
+- Internet Connectivity
+- Holiday
+- Faculty Leave
+- University Event
+- Others
+
+**Relationships:**
+- ⬅️ Belongs to one `class`
+- ⬅️ Created by one `user` (faculty)
+
+> [!TIP]
+> This table enables tracking of class mode (onsite/online/cancelled) for monthly attendance reports. Run `python scripts/migrate_session_exceptions.py` once to create this table.
+
+---
+
 ## 🔗 Complete Relationship Map
 
 ```mermaid
