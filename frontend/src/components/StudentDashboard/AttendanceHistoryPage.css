@@ -1,15 +1,15 @@
-/* AttendanceHistoryPage.css - Cloned from Admin ReportsPage.css */
+/* AttendanceHistoryPage.css - Refactored for FRAMES Navy Theme */
 
 .reports-container {
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    padding-left: 30px;
+    gap: 20px; 
+    /* padding-left removed - handled by layout */
 }
 
 .reports-card-grid {
     display: grid;
-    /* Responsive Grid: Mag-aadjust base sa laki ng screen */
+    /* Responsive Grid */
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
     margin-bottom: 20px;
@@ -17,14 +17,16 @@
 
 .report-type-card {
     padding: 20px;
-    text-align: left; /* Mas maganda left align pag marami */
+    text-align: left;
     border: 2px solid transparent;
     transition: all 0.2s;
     cursor: pointer;
     background: white;
     display: flex;
     flex-direction: column;
-    height: 100%; /* Uniform height */
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .report-type-card:hover {
     box-shadow: 0 6px 16px rgba(0,0,0,0.1);
@@ -43,15 +45,15 @@
     color: white;
 }
 /* Colors */
-.blue-bg { background-color: #3b82f6; }
-.red-bg { background-color: #dc3545; }
-.purple-bg { background-color: #8b5cf6; }
+.blue-bg { background-color: #163269; } /* Navy */
+.red-bg { background-color: #C62828; }
+.purple-bg { background-color: #7b1fa2; }
 
 .report-type-title { 
     font-size: 1.1em; 
     font-weight: 700; 
     margin-bottom: 5px; 
-    color: #333;
+    color: #163269; /* Navy */
 }
 
 .report-type-description { 
@@ -61,24 +63,25 @@
 }
 
 .active-card {
-    border-color: #A62525 !important; /* FRAMES Red */
-    background-color: #fff9f9;
-    box-shadow: 0 4px 12px rgba(166, 37, 37, 0.15);
+    border-color: #163269 !important; /* FRAMES Navy */
+    background-color: #f0f4ff;
+    box-shadow: 0 4px 12px rgba(22, 50, 105, 0.15);
 }
 
 .view-reports-button {
-    width: 100%; padding: 10px; background-color: #f5f6fa;
-    border: none; border-radius: 6px; color: #555; font-weight: 600; cursor: pointer;
+    width: 100%; padding: 10px; background-color: #163269;
+    border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;
 }
-.view-reports-button:hover { background-color: #e0e0e0; }
+.view-reports-button:hover { background-color: #0F2448; }
 
-/* AttendanceHistoryPage.css */
+/* Filter Section */
 
 .reports-header-section {
     background-color: white;
     padding: 20px 25px;
-    border-radius: 10px;
-    border: 1px solid #e0e0e0;
+    border-radius: 12px; /* Soft rounding */
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     margin-bottom: 20px;
     display: flex;
     align-items: center;
@@ -102,47 +105,52 @@
     min-width: 300px;
     padding: 10px;
     font-size: 1em;
-    border: 2px solid #eee;
+    border: 1px solid #ddd; /* Softer border */
     border-radius: 8px;
     font-weight: 600;
     color: #333;
 }
 .big-select:focus {
-    border-color: #A62525;
+    border-color: #163269;
+    outline: none;
 }
 
 .report-description-box {
     flex-grow: 1;
-    background-color: #f8f9fa;
+    background-color: #E8F1FC; /* Accent Blue */
     padding: 15px;
     border-radius: 8px;
-    border-left: 4px solid #A62525;
+    border-left: 4px solid #163269;
     display: flex;
     align-items: center;
     gap: 15px;
-    color: #555;
+    color: #163269;
 }
 
 .report-description-box i {
     font-size: 1.5em;
-    color: #A62525;
+    color: #163269;
 }
 
-/* Rest of table styles remain same... */
-
 /* Table Section */
-.recent-reports-card { padding: 0; }
+.recent-reports-card { 
+    padding: 0; 
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
+}
 .recent-reports-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 20px 25px; border-bottom: 1px solid #eee;
 }
-.recent-reports-header h2 { margin: 0; font-size: 1.3em; }
+.recent-reports-header h2 { margin: 0; font-size: 1.3em; color: #163269; }
 
 .recent-reports-filters { display: flex; gap: 15px; }
 .recent-reports-filters select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
 
 .export-all-button {
-    background-color: #dc3545; color: white; border: none; padding: 8px 15px;
+    background-color: #163269; color: white; border: none; padding: 8px 15px;
     border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
 
@@ -153,9 +161,13 @@
 }
 .recent-reports-table th { background-color: #f9f9f9; font-weight: 600; color: #555; }
 
-.log-status-tag { padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
-.log-status-tag.green { background-color: #e6f7ec; color: #28a745; }
-.log-status-tag.red { background-color: #fde8e8; color: #dc3545; }
+/* Semantic Tags */
+.log-status-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.85em; font-weight: 600; }
+.log-status-tag.green { background-color: #E6F4EA; color: #2E7D32; }
+.log-status-tag.red { background-color: #FFEBEE; color: #C62828; }
+.log-status-tag.warning { background-color: #FFF8E1; color: #F9A825; }
+.log-status-tag.neutral { background-color: #F8F9FA; color: #6C757D; }
+.log-status-tag.danger { background-color: #FFEBEE; color: #C62828; }
 
 /* Filter Item Layout */
 .filter-item {

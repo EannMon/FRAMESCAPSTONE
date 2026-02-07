@@ -4,11 +4,19 @@ import axios from 'axios';
 import './AttendanceHistoryPage.css';
 import StudentReportModal from './StudentReportModal';
 
-const LogStatusTag = ({ text, isPresent }) => (
-    <span className={`log-status-tag ${isPresent ? 'green' : 'red'}`}>
-        {text}
-    </span>
-);
+const LogStatusTag = ({ text, isPresent, type }) => {
+    let statusClass = 'neutral';
+    if (isPresent) statusClass = 'success';
+    else if (type === 'system_alert') statusClass = 'danger';
+    else if (type === 'break_out') statusClass = 'warning';
+    else statusClass = 'neutral';
+
+    return (
+        <span className={`log-status-tag ${statusClass}`}>
+            {text}
+        </span>
+    );
+};
 
 const AttendanceHistoryPage = () => {
     // 1. DATA STATE
@@ -27,10 +35,9 @@ const AttendanceHistoryPage = () => {
     const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
 
     // ... (reportTypes array remains same) ...
-   const reportTypes = [
+    const reportTypes = [
         { id: 'DAILY_REPORT', label: 'Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
         { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
-        { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Visual trend of improvement or decline.' },
         { id: 'SEM_REPORT', label: 'Semestral Report (Per Subject)', desc: 'Provides cumulative data per subject for academic reference.' },
         { id: 'OVERALL_SEM', label: 'Overall Semestral Summary', desc: 'Consolidates all subjects for holistic engagement assessment.' },
         { id: 'HISTORY_30D', label: 'Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
@@ -174,13 +181,7 @@ const AttendanceHistoryPage = () => {
                     return d >= last30 && d <= rangeEnd;
                 });
                 break;
-            case 'MONTHLY_TRENDS':
-                filtered = filtered.filter(l => {
-                    const d = new Date(l.timestamp);
-                    // filterDate format "YYYY-MM-DD", works for specific month
-                    return d.getMonth() === selectedDate.getMonth() && d.getFullYear() === selectedDate.getFullYear();
-                });
-                break;
+
             case 'SEM_REPORT':
                 // Specific Semester (Year + Sem)
                 const year = parseInt(academicYear);
@@ -242,8 +243,7 @@ const AttendanceHistoryPage = () => {
                 const last30 = new Date(d);
                 last30.setDate(last30.getDate() - 30);
                 return `${last30.toLocaleDateString('en-US', options)} - ${d.toLocaleDateString('en-US', options)}`;
-            case 'MONTHLY_TRENDS':
-                return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
             case 'SEM_REPORT':
                 return `${selectedSemester === '1ST' ? '1st' : (selectedSemester === '2ND' ? '2nd' : 'Summer')} Semester ${academicYear}-${parseInt(academicYear) + 1}`;
             case 'OVERALL_SEM':
@@ -284,15 +284,7 @@ const AttendanceHistoryPage = () => {
         }
 
         // B. Month Picker
-        if (selectedReportType === 'MONTHLY_TRENDS') {
-             const monthVal = filterDate.slice(0, 7); 
-             return (
-                 <div className="filter-item">
-                     <label>Select Month:</label>
-                     <input type="month" style={style} value={monthVal} onChange={(e) => setFilterDate(e.target.value + "-01")} />
-                 </div>
-             );
-        }
+
 
         // C. Academic Year Only (Overall Sem)
         if (selectedReportType === 'OVERALL_SEM') {
@@ -461,7 +453,7 @@ const AttendanceHistoryPage = () => {
                                             <div style={{ fontWeight: '500' }}>{new Date(log.timestamp).toLocaleDateString()}</div>
                                             <div style={{ fontSize: '0.85em', color: '#888' }}>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                         </td>
-                                        <td style={{ fontWeight: '600', color: log.mapped_subject === 'Unauthorized Entry' ? 'red' : '#333' }}>
+                                        <td style={{ fontWeight: '600', color: log.mapped_subject === 'Unauthorized Entry' ? '#C62828' : '#333' }}>
                                             {log.mapped_subject}
                                         </td>
                                         <td>{log.mapped_room}</td>
@@ -469,6 +461,7 @@ const AttendanceHistoryPage = () => {
                                             <LogStatusTag
                                                 text={log.event_type.includes('in') ? 'PRESENT' : (log.event_type === 'system_alert' ? 'ALERT' : 'OUT')}
                                                 isPresent={log.event_type.includes('in')}
+                                                type={log.event_type}
                                             />
                                         </td>
                                         <td style={{ fontSize: '0.9em', color: log.remarks === 'Late' ? 'orange' : '#555' }}>

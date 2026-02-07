@@ -52,7 +52,7 @@ const FaqItem = ({ item, isOpen, onClick }) => {
 };
 
 // --- Main Help & Support Page Component ---
-const HelpSupportPage = () => {
+const HelpSupportPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
     const [openFaq, setOpenFaq] = useState(null);
 
@@ -73,17 +73,18 @@ const HelpSupportPage = () => {
 
     return (
         <>
-            {/* Pass the real user here. If null (not logged in), Header shows Login buttons. */}
-            <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />
+            {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
 
-            <div className="help-page-container">
-                <div className="help-header-bar">
-                    <button onClick={handleBack} className="help-back-button">
-                        <i className="fas fa-arrow-left"></i>
-                        <span>Back</span>
-                    </button>
-                    <h1>Help & Support</h1>
-                </div>
+            <div className={`help-page-container ${isEmbedded ? 'embedded' : ''}`}>
+                {!isEmbedded && (
+                    <div className="help-header-bar">
+                        <button onClick={handleBack} className="help-back-button">
+                            <i className="fas fa-arrow-left"></i>
+                            <span>Back</span>
+                        </button>
+                        <h1>Help & Support</h1>
+                    </div>
+                )}
 
                 <div className="help-grid-top">
                     <div className="card help-card">
@@ -117,7 +118,8 @@ const HelpSupportPage = () => {
                 </div>
 
             </div>
-            <Footer />
+
+            {!isEmbedded && <Footer />}
         </>
     );
 };

@@ -38,7 +38,7 @@
 
 /* --- HEADER --- */
 .report-modal-header {
-    background-color: #A62525; /* FRAMES Red */
+    background-color: #0F172A; /* Frames Navy */
     color: white;
     padding: 18px 25px; /* Slightly more padding */
     display: flex;
@@ -161,9 +161,9 @@
 
 /* Active State (Red for PDF, or just Selected) */
 .format-btn.active {
-    border: 2px solid #A62525; /* Red border */
-    color: #A62525;
-    background-color: #fff5f5;
+    border: 2px solid #0F172A; /* Navy border */
+    color: #0F172A;
+    background-color: #f1f5f9;
 }
 
 .format-btn i {

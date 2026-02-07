@@ -111,7 +111,7 @@ const SchedulePage = () => {
 
       {/* --- 1. UPLOAD COR SECTION --- */}
       {showUpload && (
-        <div className="card upload-cor-section" style={{ marginBottom: '20px', borderLeft: '5px solid #dc3545' }}>
+        <div className="card upload-cor-section" style={{ marginBottom: '20px', borderLeft: '5px solid #163269' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h3 style={{ margin: '0 0 5px 0', color: '#333' }}>Schedule Setup</h3>
