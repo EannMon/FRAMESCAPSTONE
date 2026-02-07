@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 import './AttendanceHistoryPage.css';
+import StudentReportModal from './StudentReportModal';
 
 const LogStatusTag = ({ text, isPresent }) => (
     <span className={`log-status-tag ${isPresent ? 'green' : 'red'}`}>
@@ -27,15 +28,15 @@ const AttendanceHistoryPage = () => {
 
     // ... (reportTypes array remains same) ...
    const reportTypes = [
-        { id: 'DAILY_REPORT', label: 'a. Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
-        { id: 'WEEKLY_SUMMARY', label: 'b. Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
-        { id: 'MONTHLY_TRENDS', label: 'c. Monthly Attendance Trends', desc: 'Visual trend of improvement or decline.' },
-        { id: 'SEM_REPORT', label: 'd. Semestral Report (Per Subject)', desc: 'Provides cumulative data per subject for academic reference.' },
-        { id: 'OVERALL_SEM', label: 'e. Overall Semestral Summary', desc: 'Consolidates all subjects for holistic engagement assessment.' },
-        { id: 'HISTORY_30D', label: 'f. Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
-        { id: 'LATE_REPORT', label: 'g. Personal Late Arrival Report', desc: 'Monitors frequency and duration of lateness for punctuality.' },
-        { id: 'BREAK_LOG', label: 'h. Break Duration Log', desc: 'Shows total break time to encourage responsible behavior.' },
-        { id: 'CONSISTENCY', label: 'i. Personal Consistency Index', desc: 'AI-generated metric predicting absence trends.' }
+        { id: 'DAILY_REPORT', label: 'Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
+        { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
+        { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Visual trend of improvement or decline.' },
+        { id: 'SEM_REPORT', label: 'Semestral Report (Per Subject)', desc: 'Provides cumulative data per subject for academic reference.' },
+        { id: 'OVERALL_SEM', label: 'Overall Semestral Summary', desc: 'Consolidates all subjects for holistic engagement assessment.' },
+        { id: 'HISTORY_30D', label: 'Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
+        { id: 'LATE_REPORT', label: 'Personal Late Arrival Report', desc: 'Monitors frequency and duration of lateness for punctuality.' },
+        { id: 'BREAK_LOG', label: 'Break Duration Log', desc: 'Shows total break time to encourage responsible behavior.' },
+        { id: 'CONSISTENCY', label: 'Personal Consistency Index', desc: 'AI-generated metric predicting absence trends.' }
     ];
 
     // Helper: Parse Time "07:00 AM" -> Minutes
@@ -333,13 +334,12 @@ const AttendanceHistoryPage = () => {
         return null; 
     };
 
-    // --- PDF GENERATOR ---
-    const generatePDF = () => {
-        // ... (PDF logic uses newly defined getDateRangeString) ...
-        // 1. Get Current Report Info
-        const reportObj = reportTypes.find(r => r.id === selectedReportType);
+    // --- MODAL STATE ---
+    const [showReportModal, setShowReportModal] = useState(false);
 
-        // 2. Map Data for Report (Matching keys to headers)
+    // --- REPORT GENERATION HANDLER ---
+    const handleGenerateReport = (format) => {
+        // 1. Map Data for Report (Matching keys to headers)
         const tableInput = displayData.map(log => ({
             "Date": new Date(log.timestamp).toLocaleDateString(),
             "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -349,19 +349,38 @@ const AttendanceHistoryPage = () => {
             "Remarks": log.remarks || '-'
         }));
 
-        // 3. Generate PDF using Shared Utility
-        import('../../utils/ReportGenerator').then(({ generateFramesPDF }) => {
-            generateFramesPDF({
-                title: reportObj?.label.replace(/^[a-z]\.\s/, '') || "Attendance Report", 
-                type: "PERSONAL ATTENDANCE RECORD",
-                category: 'personal',
-                context: {
-                    name: `${userProfile.first_name || userProfile.firstName} ${userProfile.last_name || userProfile.lastName}`,
-                    id: userProfile.tupm_id
-                },
-                dateRange: getDateRangeString() 
-            }, tableInput);
-        });
+        const reportObj = reportTypes.find(r => r.id === selectedReportType);
+        const reportTitle = reportObj?.label.replace(/^[a-z]\.\s/, '') || "Attendance Report";
+        const dateRangeStr = getDateRangeString();
+
+        const reportInfo = {
+            title: reportTitle,
+            type: "PERSONAL ATTENDANCE RECORD",
+            category: 'personal',
+            context: {
+                name: `${userProfile.first_name || userProfile.firstName} ${userProfile.last_name || userProfile.lastName}`,
+                id: userProfile.tupm_id
+            },
+            dateRange: dateRangeStr
+        };
+
+        if (format === 'PDF') {
+            import('../../utils/ReportGenerator').then(({ generateFramesPDF }) => {
+                generateFramesPDF(reportInfo, tableInput);
+            });
+        } else if (format === 'CSV') {
+            import('../../utils/ReportGenerator').then(({ generateCSV }) => {
+                generateCSV(reportInfo, tableInput);
+            });
+        }
+        
+        setShowReportModal(false);
+    };
+
+    const handleOpenModal = () => {
+        // Validation: Verify constraints if needed (e.g., date selected)
+        // For now, flexible.
+        setShowReportModal(true);
     };
 
     if (loading) return <div style={{ padding: '40px' }}>Loading Records...</div>;
@@ -417,8 +436,8 @@ const AttendanceHistoryPage = () => {
                             ))}
                         </select>
 
-                        <button className="export-all-button" onClick={generatePDF}>
-                            <i className="fas fa-file-pdf"></i> Download PDF
+                        <button className="export-all-button" onClick={handleOpenModal}>
+                            <i className="fas fa-file-pdf"></i> Generate Official Report
                         </button>
                     </div>
                 </div>
@@ -468,6 +487,17 @@ const AttendanceHistoryPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* REPORT GENERATION MODAL */}
+            <StudentReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                onGenerate={handleGenerateReport}
+                defaultReportType={reportTypes.find(r => r.id === selectedReportType)?.label}
+                defaultSubject={selectedSubject === 'ALL' ? 'All Enrolled Subjects' : selectedSubject}
+                defaultDate={getDateRangeString()}
+                filters="All Statuses"
+            />
         </div>
     );
 };
