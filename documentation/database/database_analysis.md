@@ -30,10 +30,12 @@ erDiagram
     USERS ||--o{ ENROLLMENTS : "enrolled in classes"
     USERS ||--o{ CLASSES : "teaches (faculty)"
     USERS ||--o{ ATTENDANCE_LOGS : "attendance records"
+    USERS ||--o{ SESSION_EXCEPTIONS : "creates (faculty)"
     
     SUBJECTS ||--o{ CLASSES : "scheduled as"
     CLASSES ||--o{ ENROLLMENTS : "has students"
     CLASSES ||--o{ ATTENDANCE_LOGS : "attendance for"
+    CLASSES ||--o{ SESSION_EXCEPTIONS : "has exceptions"
     
     DEVICES ||--o{ ATTENDANCE_LOGS : "captured by"
 ```
@@ -249,6 +251,7 @@ flowchart LR
     subgraph "Attendance Tracking"
         DEV[📱 DEVICES<br/>Raspberry Pi kiosks]
         ATT[✅ ATTENDANCE_LOGS<br/>Check-in records]
+        EXC[📋 SESSION_EXCEPTIONS<br/>Cancelled/Online sessions]
         DEV --> ATT
     end
 ```
@@ -366,6 +369,7 @@ flowchart TB
     subgraph SCHEDULE["📅 Scheduling"]
         CLS[classes]
         ENR[enrollments]
+        EXC[session_exceptions]
     end
     
     subgraph ATTENDANCE["✅ Attendance"]
@@ -381,10 +385,12 @@ flowchart TB
     USR -->|"1:N"| ENR
     USR -->|"1:N (faculty)"| CLS
     USR -->|"1:N"| ATT
+    USR -->|"1:N (faculty)"| EXC
     
     SUB -->|"1:N"| CLS
     CLS -->|"1:N"| ENR
     CLS -->|"1:N"| ATT
+    CLS -->|"1:N"| EXC
     
     DEV -->|"1:N"| ATT
 ```
