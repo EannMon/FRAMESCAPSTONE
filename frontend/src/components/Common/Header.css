@@ -46,10 +46,7 @@
 
 .universal-header-logo {
     display: flex;
-    align-items: center;
-    font-size: 1.6em;
-    font-weight: 800;
-    letter-spacing: 1px;
+    flex-direction: column;
 }
 
 .header-logo-icon {
@@ -70,10 +67,17 @@
 /* --- Contextual Header Section (When Logo is Hidden) --- */
 .header-context-section {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin-left: 260px; /* Offset for Sidebar (250px) + Gap */
+    flex-direction: row; /* Fixed: Row instead of Column */
+    align-items: center; /* Center items vertically */
+    gap: 15px; /* Space between toggle and title */
+    justify-content: flex-start; /* Align start */
+    margin-left: 230px; /* Offset: 250px sidebar - 30px header padding + 10px gap */
     height: 100%;
+    transition: margin-left 0.3s ease;
+}
+
+.header-context-section.collapsed {
+    margin-left: 60px; /* Offset: 80px sidebar - 30px header padding + 10px gap */
 }
 
 .header-page-title {
@@ -102,6 +106,30 @@
 .guest-nav {
     display: flex;
     gap: 15px;
+}
+.header-sidebar-toggle {
+    background-color: #0F172A; /* Student Navy Brand */
+    color: white;
+    border: none;
+    width: 36px; /* Slightly smaller than mobile 40px to fit header */
+    height: 36px;
+    border-radius: 8px; /* Standard Frames Radius */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-sidebar-toggle:hover {
+    background-color: #1E293B; /* Slightly lighter Navy */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.header-sidebar-toggle i {
+    font-size: 1rem;
 }
 .header-login-btn {
     background: transparent;

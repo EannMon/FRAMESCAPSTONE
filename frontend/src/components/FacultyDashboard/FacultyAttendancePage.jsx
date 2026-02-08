@@ -124,21 +124,42 @@ const FacultyAttendancePage = () => {
             </div>
 
             {/* Statistics based on Real Data */}
+            {/* Statistics based on Real Data (Premium Style) */}
             <div className="attendance-stats-grid">
-                <div className="attendance-stat-card">
-                    <div className="stat-label">Total Classes</div>
-                    <div className="stat-value">{myClasses.length}</div>
-                    <div className="stat-sub">Assigned Subjects</div>
-                </div>
-                <div className="attendance-stat-card">
-                    <div className="stat-label">Avg Attendance</div>
-                    <div className="stat-value green">
-                        {myClasses.length > 0
-                            ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length)
-                            : 0}%
+                
+                {/* Total Classes Card - Premium Style */}
+                <div className="summary-card premium">
+                    <div className="summary-content-left">
+                        <div className="summary-title">Total Classes</div>
+                        <div className="summary-value-row">
+                            <span className="summary-value">{myClasses.length}</span>
+                        </div>
+                        <div className="summary-sub-value">Assigned Subjects</div>
                     </div>
-                    <div className="stat-sub">Across all sections</div>
+                    <div className="summary-icon-container f-icon-soft-blue">
+                        <i className="fas fa-book-open"></i>
+                    </div>
                 </div>
+
+                {/* Avg Attendance Card - Premium Style */}
+                <div className="summary-card premium">
+                    <div className="summary-content-left">
+                        <div className="summary-title">Avg Attendance</div>
+                        <div className="summary-value-row">
+                            <span className="summary-value">
+                                {myClasses.length > 0
+                                    ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length)
+                                    : 0}%
+                            </span>
+                            <span className="summary-badge success">Active</span>
+                        </div>
+                        <div className="summary-sub-value">Across all sections</div>
+                    </div>
+                    <div className="summary-icon-container f-icon-soft-green">
+                        <i className="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+
             </div>
 
             {/* Today's Classes */}

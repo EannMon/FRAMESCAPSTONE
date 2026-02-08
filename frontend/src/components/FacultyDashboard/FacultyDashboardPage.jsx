@@ -3,19 +3,23 @@ import axios from 'axios';
 import './FacultyDashboardPage.css';
 import '../Common/Utility.css';
 
-const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass }) => (
-    <div className="summary-card">
-        <div className={`summary-icon-container ${iconBgClass}`}>
-            <i className={iconClass}></i>
-        </div>
-        <div className="summary-content">
+// New Premium "Lovable" Card Component
+const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass, badge }) => (
+    <div className="summary-card premium">
+        <div className="summary-content-left">
             <div className="summary-title">{title}</div>
-            <div className="summary-value">{value}</div>
+            <div className="summary-value-row">
+                <span className="summary-value">{value}</span>
+                {badge && <span className={`summary-badge ${badge.type}`}>{badge.text}</span>}
+            </div>
             {subValue && (
-                <div className="summary-sub-value" style={{ color: subValueColor }}>
+                <div className="summary-sub-value">
                     {subValue}
                 </div>
             )}
+        </div>
+        <div className={`summary-icon-container ${iconBgClass}`}>
+            <i className={iconClass}></i>
         </div>
     </div>
 );
@@ -60,41 +64,39 @@ const FacultyDashboardPage = () => {
         fetchStats();
     }, []);
 
-    // --- SUB-COMPONENTS (Defined inside to access 'stats') ---
+    // --- SUB-COMPONENTS ---
 
     const FacultySummaryCards = () => (
         <div className="summary-cards-container">
             <FacultySummaryCard
-                iconClass="fas fa-calendar-day"
+                iconClass="fas fa-calendar-check"
                 title="Today's Classes"
                 value={stats.todays_classes || 0}
-                subValue="Scheduled"
-                subValueColor="#dc3545"
-                iconBgClass="f-icon-red"
+                subValue="Scheduled for today"
+                iconBgClass="f-icon-soft-green"
+                badge={{ text: "Active", type: "success" }}
             />
             <FacultySummaryCard
-                iconClass="fas fa-user-check"
-                title="Attendance Rate"
+                iconClass="fas fa-clock"
+                title="Avg. Attendance"
                 value={`${stats.average_attendance || 0}%`}
                 subValue="Last 30 Days"
-                subValueColor="#198754"
-                iconBgClass="f-icon-green"
+                iconBgClass="f-icon-soft-amber"
+                badge={{ text: "On Track", type: "warning" }}
+            />
+            <FacultySummaryCard
+                iconClass="fas fa-door-open"
+                title="Active Classes"
+                value={stats.total_classes || 0}
+                subValue="Currently active courses"
+                iconBgClass="f-icon-soft-blue"
             />
             <FacultySummaryCard
                 iconClass="fas fa-users"
-                title="Total Students"
+                title="Total Enrolled"
                 value={stats.total_students || 0}
-                subValue="Active Enrollees"
-                subValueColor="#6f42c1"
-                iconBgClass="f-icon-purple"
-            />
-            <FacultySummaryCard
-                iconClass="fas fa-book"
-                title="Total Classes"
-                value={stats.total_classes || 0}
-                subValue="This Semester"
-                subValueColor="#0d6efd"
-                iconBgClass="f-icon-alert"
+                subValue="Students across sections"
+                iconBgClass="f-icon-soft-navy"
             />
         </div>
     );
@@ -102,33 +104,40 @@ const FacultyDashboardPage = () => {
     const RecentAttendance = () => {
         const recentList = stats.recent_attendance || [];
         return (
-            <div className="recent-attendance">
+            <div className="recent-attendance card">
                 <h3>Recent Activity</h3>
-                {recentList.length > 0 ? (
-                    recentList.map((log, index) => (
-                        <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <strong>{log.subject_code || 'Class'}</strong>
-                                <span style={{ color: 'green', fontWeight: 'bold' }}>Present</span>
+                <div className="recent-list-container">
+                    {recentList.length > 0 ? (
+                        recentList.map((log, index) => (
+                            <div key={index} className="recent-activity-row">
+                                <div className="activity-icon">
+                                    <i className="fas fa-graduation-cap"></i>
+                                </div>
+                                <div className="activity-details">
+                                    <strong>{log.subject_code || 'Class'}</strong>
+                                    <span className="activity-time">{log.time || ''} • {log.subject_description || ''}</span>
+                                </div>
+                                <div className="activity-status">
+                                    <span className="status-pill success">Present</span>
+                                </div>
                             </div>
-                            <small style={{ color: '#888' }}>{log.time || ''} • {log.subject_description || ''}</small>
-                        </div>
-                    ))
-                ) : (
-                    <div style={{ padding: '20px', color: '#888' }}>No recent activity.</div>
-                )}
+                        ))
+                    ) : (
+                        <div style={{ padding: '20px', color: '#888', textAlign: 'center' }}>No recent activity.</div>
+                    )}
+                </div>
             </div>
         );
     };
 
     const ClassroomAlerts = () => (
-        <div className="classroom-alerts">
-            <h3>System Alerts</h3>
-            <div style={{ display: 'flex', gap: '10px', padding: '10px 0' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#28a745', marginTop: '6px' }}></div>
+        <div className="classroom-alerts card">
+            <h3>System Status</h3>
+            <div className="system-status-row">
+                <div className="status-indicator pulse-green"></div>
                 <div>
-                    <div style={{ fontSize: '0.95em' }}><strong>System Normal</strong></div>
-                    <div style={{ fontSize: '0.8em', color: '#888' }}>All systems operational</div>
+                    <div className="status-text-main">System Normal</div>
+                    <div className="status-text-sub">All systems operational</div>
                 </div>
             </div>
         </div>
@@ -139,8 +148,10 @@ const FacultyDashboardPage = () => {
     return (
         <div className="faculty-content-grid">
             <FacultySummaryCards />
-            <RecentAttendance />
-            <ClassroomAlerts />
+            <div className="dashboard-columns">
+                <RecentAttendance />
+                <ClassroomAlerts />
+            </div>
         </div>
     );
 };

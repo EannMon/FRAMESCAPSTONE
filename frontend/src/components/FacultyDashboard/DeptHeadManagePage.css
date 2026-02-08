@@ -1,153 +1,194 @@
-/* DeptHeadManagePage.css */
+/* =========================================== */
+/* FILE: DeptHeadManagePage.css              */
+/* =========================================== */
 
 .dept-mgmt-container {
-    padding: 0 10px;
+    padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-/* Header */
+/* HEADER */
 .mgmt-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    /* margin-bottom handled by container gap */
 }
 
-.mgmt-header h2 { margin: 0 0 5px 0; color: #333; }
+.mgmt-header h2 { margin: 0 0 5px 0; color: #333; font-size: 1.5rem; }
 
+/* Department Badge - Navy/Amber for Head */
 .dept-badge {
-    background-color: #fbe9e7;
-    color: #A62525;
+    background-color: #FFF8E1; /* Light Amber */
+    color: #F9A825; /* Amber Text */
+    border: 1px solid #F9A825;
     padding: 5px 12px;
     border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .header-actions { display: flex; gap: 10px; }
 
+/* BUTTONS - NAVY THEME */
+/* BUTTONS - NAVY THEME */
 .mgmt-btn {
     padding: 10px 20px;
-    border-radius: 10px;
-    border: none;
+    border-radius: 8px; 
+    border: 1px solid transparent;
     cursor: pointer;
     font-weight: 600;
     display: flex;
     align-items: center;
     gap: 8px;
     transition: all 0.2s;
+    font-size: 0.9rem;
 }
 
-.mgmt-btn.primary { background-color: #A62525; color: white; }
-.mgmt-btn.primary:hover { background-color: #8a1f1f; transform: translateY(-2px); }
+.mgmt-btn.primary { 
+    background-color: #163269; 
+    color: white; 
+    box-shadow: 0 2px 5px rgba(22, 50, 105, 0.2);
+}
+.mgmt-btn.primary:hover { 
+    background-color: #0F2448; 
+    transform: translateY(-1px); 
+    box-shadow: 0 4px 8px rgba(22, 50, 105, 0.3); 
+}
 
-.mgmt-btn.outline { background-color: white; border: 1px solid #ddd; color: #666; }
-.mgmt-btn.outline:hover { border-color: #A62525; color: #A62525; }
+.mgmt-btn.outline { 
+    background-color: white; 
+    border: 1px solid #cbd5e1; 
+    color: #64748b; 
+}
+.mgmt-btn.outline:hover { 
+    border-color: #163269; 
+    color: #163269; 
+    background-color: #f8fafc;
+    transform: translateY(-1px);
+}
 
-/* Layout Grid */
+/* LAYOUT GRID */
 .mgmt-layout {
     display: grid;
     grid-template-columns: 3fr 1fr;
     gap: 20px;
 }
 
-/* Card Style */
+/* CARD STYLE - MATCHING STUDENT MODULE */
 .card {
     background: white;
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border: 1px solid #e0e0e0;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.04);
 }
-/* DeptHeadManagePage.css */
 
-/* ... (Keep Header & Layout Styles same as before) ... */
+.card h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    color: #444;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 12px;
+}
 
 /* TABLE STYLES */
-.mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-.mgmt-table th { text-align: left; padding: 15px; background: #f8f9fa; color: #666; font-size: 0.9rem; }
-.mgmt-table td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; }
-
-.code-pill {
-    background: #e3f2fd; color: #0d47a1; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem;
+.table-responsive { overflow-x: auto; }
+.mgmt-table { width: 100%; border-collapse: collapse; }
+.mgmt-table th { 
+    text-align: left; 
+    padding: 15px; 
+    background: #163269; /* Navy Header */
+    color: white; 
+    font-size: 0.9rem; 
+    font-weight: 600;
 }
+.mgmt-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #333; }
+.mgmt-table tbody tr:hover { background-color: #f8fafc; }
 
-.small-desc { font-size: 0.85rem; color: #666; margin-top: 4px; font-weight: 500;}
+/* PILLS & BADGES */
+.code-pill {
+    background: #E8F1FC; color: #163269; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.85rem;
+}
+.small-desc { font-size: 0.85rem; color: #64748b; margin-top: 4px; font-weight: 500; }
 
 .assigned-pill {
-    background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;
+    background: #E6F4EA; color: #2E7D32; /* Success Green */
+    padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;
 }
-.unassigned-text { color: #999; font-style: italic; font-size: 0.9rem; }
+.unassigned-text { color: #94a3b8; font-style: italic; font-size: 0.9rem; }
 
-/* --- CLEAN ROOM STYLES (No Icons) --- */
-.room-info-box {
-    /* Simple styling, no border-left, clean look */
-    padding: 2px 0; 
-}
+/* ROOM INFO */
+.room-info-box { padding: 2px 0; }
+.room-name { font-weight: 700; color: #333; font-size: 0.95rem; margin-bottom: 2px; }
+.sched-time { font-size: 0.85rem; color: #64748b; }
+.tba-text { font-weight: 700; color: #94a3b8; letter-spacing: 1px; font-size: 0.85rem; background-color: #f1f5f9; padding: 4px 8px; border-radius: 4px; }
 
-.room-name {
-    font-weight: 700;
-    color: #333;
-    font-size: 0.9rem; /* Slightly larger text */
-    margin-bottom: 2px;
-}
-
-.sched-time {
-    font-size: 0.8rem;
-    color: #666;
-}
-
-/* TBA Style */
-.tba-text {
-    font-weight: 700;
-    color: #999;
-    letter-spacing: 1px;
-    font-size: 0.85rem;
-    background-color: #f0f0f0;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-/* Actions */
+/* ACTIONS */
 .action-row { display: flex; gap: 8px; }
 .icon-action {
-    width: 35px; height: 35px; border-radius: 8px; border: 1px solid #eee; background: white; cursor: pointer; color: #666; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer; color: #64748b; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
 }
-.icon-action:hover { background: #f0f0f0; transform: translateY(-2px); }
+.icon-action:hover { background: #f8fafc; transform: translateY(-1px); }
 
-.icon-action.assign:hover { color: #198754; border-color: #198754; background-color: #e6f7ec; }
-.icon-action.room:hover { color: #007bff; border-color: #007bff; background-color: #e6f0ff; }
-.icon-action.delete:hover { color: #dc3545; border-color: #dc3545; background-color: #fde8e8; }
+.icon-action.assign:hover { color: #163269; border-color: #163269; background-color: #E8F1FC; }
+.icon-action.room:hover { color: #F9A825; border-color: #F9A825; background-color: #FFF8E1; }
+.icon-action.delete:hover { color: #C62828; border-color: #C62828; background-color: #FFEBEE; }
 
-/* ... (Keep existing Modal & Log Styles) ... */
+/* LOGS */
 .logs-list { display: flex; flex-direction: column; gap: 15px; max-height: 400px; overflow-y: auto; }
 .log-item { display: flex; gap: 12px; align-items: flex-start; }
-.log-icon { width: 30px; height: 30px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.8rem; }
+.log-icon { 
+    width: 30px; height: 30px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.8rem; flex-shrink: 0;
+}
 .log-details { display: flex; flex-direction: column; }
 .log-action { font-size: 0.9rem; color: #333; font-weight: 500; }
-.log-meta { font-size: 0.75rem; color: #999; }
+.log-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
 
-/* Modals */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal-content-box { background: white; width: 450px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.modal-header h3 { margin: 0; color: #A62525; }
-.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+/* MODALS */
+.modal-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px);
+}
+.modal-content-box { 
+    background: white; width: 450px; padding: 30px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.modal-header h3 { margin: 0; color: #163269; font-size: 1.25rem; font-weight: 700; } /* Navy Header */
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s; }
+.close-btn:hover { color: #163269; }
 
 .form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; color: #555; }
-.form-group input, .modal-select, .modal-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 1rem; background: white; }
-.form-group input:focus, .modal-select:focus, .modal-input:focus { border-color: #A62525; }
+.form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #475569; }
+.form-group input, .modal-select, .modal-input { 
+    width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 0.95rem; background: white; transition: border-color 0.2s;
+}
+.form-group input:focus, .modal-select:focus, .modal-input:focus { border-color: #163269; ring: 2px solid #E8F1FC; }
 .form-row { display: flex; gap: 15px; }
 .form-group.half { flex: 1; }
 
-.submit-btn.full { width: 100%; background: #A62525; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px; }
-.submit-btn.full:hover { background: #8a1f1f; }
+.submit-btn.full { 
+    width: 100%; background: #163269; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 15px; transition: background 0.2s;
+}
+.submit-btn.full:hover { background: #0F2448; }
 
-/* Assign Faculty List */
-.faculty-select-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
-.faculty-option-btn { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%; }
-.faculty-option-btn:hover { background: #fff5f5; border-color: #A62525; }
-.fac-avatar { width: 35px; height: 35px; background: #A62525; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-.fac-name { font-weight: 600; color: #333; font-size: 0.95rem; flex: 1; }
+/* FACULTY LIST IN MODAL */
+.faculty-select-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+.faculty-option-btn { 
+    display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%; 
+}
+.faculty-option-btn:hover { background: #f8fafc; border-color: #163269; }
+.fac-avatar { 
+    width: 32px; height: 32px; background: #163269; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem;
+}
+.fac-name { font-weight: 600; color: #333; font-size: 0.9rem; flex: 1; }
+
+/* Responsive */
+@media (max-width: 992px) {
+    .mgmt-layout { grid-template-columns: 1fr; }
+}

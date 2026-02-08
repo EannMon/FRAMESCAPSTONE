@@ -11,7 +11,7 @@ const mockNotifications = [
     { id: 4, icon: 'fas fa-exclamation-triangle', text: 'System Maintenance is scheduled for 8 PM.', time: '1d ago', read: true },
 ];
 
-const Header = ({ user, setPanel, theme, showLogo = true }) => {
+const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSidebarCollapsed }) => {
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -68,8 +68,17 @@ const Header = ({ user, setPanel, theme, showLogo = true }) => {
         if (path.includes('/student-schedule')) return 'Schedule';
         if (path.includes('/student-attendance')) return 'Attendance History';
         if (path.includes('/profile')) return 'My Profile';
-        if (path.includes('/settings') || path.includes('/student-settings')) return 'Settings';
-        if (path.includes('/help-support') || path.includes('/student-help')) return 'Help & Support';
+        if (path.includes('/settings') || path.includes('/student-settings') || path.includes('/faculty-settings')) return 'Settings';
+        if (path.includes('/help-support') || path.includes('/student-help') || path.includes('/faculty-help')) return 'Help & Support';
+        
+        // Faculty Routes
+        if (path.includes('/faculty-dashboard')) return 'Dashboard';
+        if (path.includes('/faculty-classes')) return 'My Classes';
+        if (path.includes('/faculty-attendance')) return 'Attendance';
+        if (path.includes('/faculty-reports')) return 'Reports';
+        if (path.includes('/faculty-dept-management')) return 'Department Management';
+        if (path.includes('/faculty-dept-reports')) return 'Department Reports';
+        
         return '';
     };
     
@@ -91,10 +100,17 @@ const Header = ({ user, setPanel, theme, showLogo = true }) => {
                     </div>
                 </Link>
             ) : (
-                /* Contextual Header for Student (Logo Hidden) */
-                <div className="header-context-section">
-                    <h1 className="header-page-title">{pageTitle}</h1>
-                    <span className="header-current-date">{currentDate}</span>
+                /* Contextual Header for Student/Faculty (Logo Hidden) */
+                <div className={`header-context-section ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+                    {toggleSidebar && (
+                        <button className="header-sidebar-toggle" onClick={toggleSidebar}>
+                            <i className="fas fa-bars"></i>
+                        </button>
+                    )}
+                    <div className="header-title-group">
+                        <h1 className="header-page-title">{pageTitle}</h1>
+                        <span className="header-current-date">{currentDate}</span>
+                    </div>
                 </div>
             )}
 

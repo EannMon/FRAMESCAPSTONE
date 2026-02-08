@@ -185,3 +185,56 @@
         gap: 15px;
     }
 }
+
+/* =========================================== */
+/* FACULTY THEME OVERRIDES (Navy #163269)      */
+/* =========================================== */
+
+/* 1. Header & Back Button */
+.help-page-container.faculty-theme .help-back-button:hover {
+    background-color: #E8F1FC;
+    color: #163269;
+    border-color: #163269;
+}
+
+/* 2. Help Cards (Premium "Lovable" Style) */
+.help-page-container.faculty-theme .help-card {
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f1f5f9;
+    padding: 30px;
+    transition: all 0.2s ease-in-out;
+}
+
+.help-page-container.faculty-theme .help-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+}
+
+.help-page-container.faculty-theme .help-card-icon {
+    border-radius: 12px; /* Squircle */
+    width: 60px;
+    height: 60px;
+}
+
+/* Specific Colors for Faculty Theme */
+.help-page-container.faculty-theme .help-grid-top .help-card:first-child .help-card-icon {
+    background-color: #eff6ff; /* Soft Blue */
+    color: #3b82f6;
+}
+
+.help-page-container.faculty-theme .help-grid-top .help-card:last-child .help-card-icon {
+    background-color: #ecfdf5; /* Soft Green */
+    color: #10b981;
+}
+
+/* 3. FAQ Section */
+.help-page-container.faculty-theme .faq-question:hover {
+    color: #163269; /* Navy instead of Red */
+}
+
+.help-page-container.faculty-theme .faq-list-card {
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f1f5f9;
+}

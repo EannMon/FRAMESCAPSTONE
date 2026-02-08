@@ -71,11 +71,15 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
         setOpenFaq(openFaq === index ? null : index);
     };
 
+    const role = user?.role?.toLowerCase();
+    const isFaculty = role === 'faculty' || role === 'dept_head' || role === 'head';
+    const themeClass = isFaculty ? 'faculty-theme' : '';
+
     return (
         <>
             {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
 
-            <div className={`help-page-container ${isEmbedded ? 'embedded' : ''}`}>
+            <div className={`help-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass}`}>
                 {!isEmbedded && (
                     <div className="help-header-bar">
                         <button onClick={handleBack} className="help-back-button">

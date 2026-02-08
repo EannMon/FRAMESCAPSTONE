@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import './FacultyLayout.css';
 import '../Common/Utility.css';
 import Header from '../Common/Header';
 
-// --- THEME DEFINITION ---
+// --- THEME DEFINITION (Navy) ---
 const facultyTheme = {
-    primary: '#A62525',
-    dark: '#c82333',
-    lightBg: 'rgba(255, 255, 255, 0.15)',
-    text: '#FFFFFF'
+    primary: '#FFFFFF', // White Header (Admin Style)
+    dark: '#E2E8F0',    // Light Border
+    lightBg: '#F1F5F9', // Hover Color
+    text: '#163269'     // Navy Text
 };
 
 // ===========================================
 // 1. Faculty Sidebar Component
 // ===========================================
-const FacultySidebar = ({ user }) => {
-    // --- LOGIC: Check if user is a Department Head ---
-    // Backend returns roles as uppercase: HEAD, FACULTY, ADMIN
+const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
     const role = user?.role?.toUpperCase();
     const isDeptHead = role === 'HEAD' ||
         user?.faculty_status === 'Head' ||
@@ -30,37 +28,87 @@ const FacultySidebar = ({ user }) => {
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/faculty-classes' },
         { name: 'Attendance', icon: 'fas fa-user-check', to: '/faculty-attendance' },
         { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports' },
+        { type: 'divider' },
+        { name: 'Settings', icon: 'fas fa-cog', to: '/faculty-settings' },
+        { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/faculty-help' },
     ];
 
     if (isDeptHead) {
-        navItems.push({
-            name: 'Department Mgmt',
-            icon: 'fas fa-university',
-            to: '/faculty-dept-management'
-        });
+        // Insert Department Management items before divider
+        const insertIndex = 4; // Before divider
+        navItems.splice(insertIndex, 0, 
+            { name: 'Department Mgmt', icon: 'fas fa-university', to: '/faculty-dept-management' },
+            { name: 'Dept Reports', icon: 'fas fa-file-alt', to: '/faculty-dept-reports' }
+        );
     }
 
+    const handleLogout = () => {
+        localStorage.removeItem('currentUser');
+        window.location.href = '/';
+    };
+
+    // Construct Name for Profile Section
+    const firstName = user?.first_name || user?.firstName || '';
+    const lastName = user?.last_name || user?.lastName || '';
+    const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : (user?.name || 'Faculty');
+    // Avatar
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=163269&color=fff`;
+
     return (
-        <aside className="faculty-sidebar">
-            <div className="faculty-role-tag">
-                {isDeptHead ? "Department Head" : "Faculty Member"}
+        <aside className={`faculty-sidebar ${isDeptHead ? 'dept-head-sidebar' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+            
+            {/* BRANDING (Matched to Student Module) */}
+            <div className="sidebar-brand">
+                <div className="sidebar-logo-container">
+                    <img src="/shield-icon-white.svg" alt="Frames Logo" className="sidebar-logo-icon" />
+                </div>
+                {!isCollapsed && (
+                    <div className="sidebar-brand-text-group">
+                        <span className="sidebar-brand-title">FRAMES</span>
+                    </div>
+                )}
             </div>
+
+            {/* Role Tag */}
+            {!isCollapsed && (
+                <div className="faculty-role-tag">
+                    {isDeptHead ? "Department Head" : "Faculty Member"}
+                </div>
+            )}
 
             <nav className="faculty-nav">
                 <ul>
-                    {navItems.map((item) => (
-                        <li key={item.name}>
-                            <NavLink to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
-                                <i className={item.icon}></i>
-                                <span>{item.name}</span>
-                            </NavLink>
-                        </li>
+                    {navItems.map((item, index) => (
+                        item.type === 'divider' ? (
+                            <li key={`divider-${index}`} className="nav-divider" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 20px' }}></li>
+                        ) : (
+                            <li key={item.name}>
+                                <NavLink to={item.to} className={({ isActive }) => isActive ? 'active' : ''} title={isCollapsed ? item.name : ''}>
+                                    <i className={item.icon}></i>
+                                    {!isCollapsed && <span>{item.name}</span>}
+                                </NavLink>
+                            </li>
+                        )
                     ))}
                 </ul>
             </nav>
 
-            <div className="sidebar-footer">
-                SmartCampus v2.1.0
+            {/* USER PROFILE FOOTER */}
+            <div className="sidebar-user-footer">
+                <Link to="/profile" className="sidebar-user-info" title="View Profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, color: 'inherit', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+                    <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
+                    {!isCollapsed && (
+                        <div className="sidebar-user-details" style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span className="sidebar-user-name" style={{ fontWeight: '600', fontSize: '0.9rem' }}>{displayName}</span>
+                            <span className="sidebar-user-role" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{isDeptHead ? "Dept. Head" : "Faculty"}</span>
+                        </div>
+                    )}
+                </Link>
+                {!isCollapsed && (
+                    <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
+                        <i className="fas fa-sign-out-alt"></i>
+                    </button>
+                )}
             </div>
         </aside>
     );
@@ -75,6 +123,7 @@ const FacultyLayout = () => {
     // States for user data and loading
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     useEffect(() => {
         const loadUserData = async () => {
@@ -89,43 +138,30 @@ const FacultyLayout = () => {
             const parsedUser = JSON.parse(storedUserJson);
             const role = parsedUser.role?.toLowerCase();
 
-            // --- 1. SECURITY CHECK: VERIFICATION ---
+            // --- 1. SECURITY CHECK ---
             if (parsedUser.verification_status !== 'Verified') {
-                alert("Access denied. Your account is still pending verification.");
-                localStorage.removeItem('currentUser'); // Force logout
+                alert("Access denied. Pending verification.");
+                localStorage.removeItem('currentUser');
                 navigate('/');
-                setLoading(false);
                 return;
             }
 
-            // --- 2. SECURITY CHECK: ROLE ---
-            // Backend returns roles in uppercase: FACULTY, HEAD, ADMIN, STUDENT
             if (role !== 'faculty' && role !== 'head' && role !== 'dept_head') {
                 alert("Access denied. Authorized for Faculty only.");
                 navigate('/');
-                setLoading(false);
                 return;
             }
 
-            // --- 3. SECURITY CHECK: FACE ENROLLMENT ---
-            // Mandatory face enrollment before dashboard access
+            // --- 2. FACE ENROLLMENT CHECK ---
             if (!parsedUser.face_registered) {
                 navigate('/face-enrollment');
-                setLoading(false);
                 return;
             }
 
-            // --- 4. FETCH LIVE STATS (Optional) ---
-            // You can fetch notification counts here if needed, similar to StudentLayout
-            // For now, we assume notifications are inside the user object or handled by Header
-
-            // Set User Data - handle both snake_case and camelCase field names
             const firstName = parsedUser.first_name || parsedUser.firstName || '';
             const lastName = parsedUser.last_name || parsedUser.lastName || '';
             setUser({
                 ...parsedUser,
-                // Fix: Remove hardcoded default avatar. 
-                // Let Header generate initials if avatar is null/empty.
                 first_name: firstName,
                 last_name: lastName,
                 name: `${firstName} ${lastName}`.trim() || 'Faculty',
@@ -146,12 +182,19 @@ const FacultyLayout = () => {
 
     return (
         <div className="dashboard-container">
-            <Header theme={facultyTheme} user={user} />
+            {/* Header: Pass theme props and hide logo to show Page Title */ }
+            <Header 
+                theme={facultyTheme} 
+                user={user} 
+                showLogo={false} 
+                toggleSidebar={() => setIsCollapsed(!isCollapsed)} 
+                isSidebarCollapsed={isCollapsed} 
+            />
 
             <div className="dashboard-body">
-                <FacultySidebar user={user} />
+                <FacultySidebar user={user} isCollapsed={isCollapsed} toggleSidebar={() => setIsCollapsed(!isCollapsed)} />
 
-                <div className="main-content-area">
+                <div className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />
                 </div>
             </div>

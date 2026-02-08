@@ -54,12 +54,16 @@ const SettingsPage = ({ isEmbedded = false }) => {
         setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
     };
 
+    const role = user?.role?.toLowerCase();
+    const isFaculty = role === 'faculty' || role === 'dept_head' || role === 'head';
+    const themeClass = isFaculty ? 'faculty-theme' : '';
+
     return (
         <>
             {/* If embedded, don't show the internal Header */}
             {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
 
-            <div className={`settings-page-container ${isEmbedded ? 'embedded' : ''}`}>
+            <div className={`settings-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass}`}>
                 {/* Top Header Bar */}
                 {!isEmbedded && (
                     <div className="settings-header-bar">
