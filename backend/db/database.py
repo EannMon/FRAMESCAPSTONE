@@ -16,12 +16,13 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set!")
 
 # Create SQLAlchemy engine with SSL requirement for Aiven
+# NOTE: Aiven free tier has ~20 connection limit. Keep pool small.
 engine = create_engine(
     DATABASE_URL,
     echo=True,  # Set to False in production
     pool_pre_ping=True,  # Verify connections before use
-    pool_size=5,
-    max_overflow=10
+    pool_size=2,         # Reduced from 5 to avoid connection exhaustion
+    max_overflow=3       # Reduced from 10 to stay under Aiven limit
 )
 
 # Session factory

@@ -22,6 +22,7 @@ class Device(Base):
     ip_address = Column(String(45))                 # IPv4 or IPv6
     device_name = Column(String(100))               # e.g., "KIOSK-CL1"
     status = Column(Enum(DeviceStatus), default=DeviceStatus.ACTIVE)
+    room_capacity = Column(Integer, default=40)     # Max occupancy for overcrowding alerts
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)

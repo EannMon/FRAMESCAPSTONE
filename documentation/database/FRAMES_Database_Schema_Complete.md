@@ -58,7 +58,7 @@ FRAMES is a web-based smart attendance system for classroom environments that:
 
 ### Table Categories
 
-The FRAMES database consists of **10 tables** organized into **4 logical categories**:
+The FRAMES database consists of **13 tables** organized into **5 logical categories**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -81,6 +81,11 @@ The FRAMES database consists of **10 tables** organized into **4 logical categor
 │  │  • session_exceptions   │    │                                     │    │
 │  └─────────────────────────┘    └─────────────────────────────────────┘    │
 │                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    🔒 SECURITY & MONITORING                         │    │
+│  │  • security_logs        • audit_logs        • system_metrics        │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -92,7 +97,8 @@ The FRAMES database consists of **10 tables** organized into **4 logical categor
 | 👥 User & Identity | 2 | People and biometric data (users, facial_profiles) |
 | 📅 Class Scheduling | 3 | Schedule management (classes, enrollments, session_exceptions) |
 | ✅ Attendance Tracking | 2 | Devices and records (devices, attendance_logs) |
-| **TOTAL** | **10** | |
+| 🔒 Security & Monitoring | 3 | Security events, audit trails, system metrics |
+| **TOTAL** | **13** | |
 
 ---
 
@@ -182,8 +188,41 @@ erDiagram
         string ip_address "192.168.1.100"
         string device_name "KIOSK-CL1"
         enum status "ACTIVE/INACTIVE/MAINTENANCE"
+        int room_capacity "40"
         datetime created_at "UTC timestamp"
         datetime last_heartbeat "Last ping time"
+    }
+    
+    SECURITY_LOGS {
+        int id PK "Auto-increment"
+        int device_id FK "→ devices.id"
+        enum event_type "UNRECOGNIZED_FACE/GESTURE_FAILURE/SPOOF_ATTEMPT"
+        binary embedding_data "Captured face data"
+        float confidence_score "Partial match score"
+        string room "Location"
+        string details "Additional context"
+        datetime timestamp "UTC timestamp"
+    }
+    
+    AUDIT_LOGS {
+        int id PK "Auto-increment"
+        int user_id FK "→ users.id"
+        string action_type "USER_CREATE/SCHEDULE_UPLOAD/etc"
+        string target_table "Table affected"
+        int target_id "Record ID affected"
+        json old_value "Previous state"
+        json new_value "New state"
+        string ip_address "Request IP"
+        datetime timestamp "UTC timestamp"
+    }
+    
+    SYSTEM_METRICS {
+        int id PK "Auto-increment"
+        int device_id FK "→ devices.id"
+        string metric_type "RECOGNITION_LATENCY/ERROR_RATE/etc"
+        float value "Metric value"
+        string unit "ms/percent/count"
+        datetime timestamp "UTC timestamp"
     }
     
     ATTENDANCE_LOGS {
@@ -226,6 +265,10 @@ erDiagram
     CLASSES ||--o{ SESSION_EXCEPTIONS : "has exceptions"
     
     DEVICES ||--o{ ATTENDANCE_LOGS : "captured by"
+    DEVICES ||--o{ SECURITY_LOGS : "security events"
+    DEVICES ||--o{ SYSTEM_METRICS : "metrics"
+    
+    USERS ||--o{ AUDIT_LOGS : "actions logged"
 ```
 
 ### Simplified Relationship View
@@ -474,6 +517,7 @@ flowchart TB
 | `room` | VARCHAR(100) | | Room location | "CL1" |
 | `ip_address` | VARCHAR(45) | | IPv4 or IPv6 | "192.168.1.100" |
 | `device_name` | VARCHAR(100) | | Device identifier | "KIOSK-CL1" |
+| `room_capacity` | INTEGER | DEFAULT 40 | Max occupancy for overcrowding alerts | `40` |
 | `status` | ENUM | DEFAULT 'ACTIVE' | Current status | `ACTIVE`, `INACTIVE`, `MAINTENANCE` |
 | `created_at` | DATETIME | DEFAULT NOW() | Registration time | 2026-01-15 08:00:00 |
 | `last_heartbeat` | DATETIME | | Last ping time | 2026-02-02 17:55:00 |
@@ -494,6 +538,7 @@ flowchart TB
 | `device_id` | INTEGER | FK → devices.id | Capturing device | `1` |
 | `action` | ENUM | NOT NULL | Attendance action type | `ENTRY`, `BREAK_OUT`, `BREAK_IN`, `EXIT` |
 | `verified_by` | ENUM | | Verification method | `FACE`, `FACE+GESTURE` |
+| `is_late` | BOOLEAN | DEFAULT FALSE | Flag for late arrival | `TRUE` |
 | `confidence_score` | FLOAT | | Face recognition confidence | `0.92` |
 | `gesture_detected` | VARCHAR(50) | | Gesture used (if any) | "PEACE_SIGN", "THUMBS_UP", "OPEN_PALM" |
 | `timestamp` | DATETIME | DEFAULT NOW() | Log timestamp | 2026-02-02 08:02:15 |
@@ -635,6 +680,9 @@ All tables use auto-incrementing integer primary keys.
 | attendance_logs | device_id | devices | - |
 | session_exceptions | class_id | classes | CASCADE |
 | session_exceptions | created_by | users | - |
+| security_logs | device_id | devices | - |
+| audit_logs | user_id | users | - |
+| system_metrics | device_id | devices | - |
 
 ---
 
@@ -681,8 +729,13 @@ All tables use auto-incrementing integer primary keys.
 | Enrollment | [enrollment.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/enrollment.py) |
 | Device | [device.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/device.py) |
 | AttendanceLog | [attendance_log.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/attendance_log.py) |
+| SessionException | [session_exception.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/session_exception.py) |
+| SecurityLog | [security_log.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/security_log.py) |
+| AuditLog | [audit_log.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/audit_log.py) |
+| SystemMetric | [system_metric.py](file:///c:/Users/Emmanuel/Documents/OURCAPSTONE/Capstoneee/backend/models/system_metric.py) |
 
 ---
 
-**Document generated:** February 8, 2026  
+**Document updated:** February 8, 2026  
+**Version:** 1.1  
 **Schema verified against:** SQLAlchemy models in `/backend/models/`

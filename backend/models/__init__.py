@@ -9,6 +9,9 @@ from models.enrollment import Enrollment
 from models.device import Device, DeviceStatus
 from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
 from models.session_exception import SessionException, ExceptionType
+from models.security_log import SecurityLog, SecurityEventType
+from models.audit_log import AuditLog, AuditActions
+from models.system_metric import SystemMetric, MetricTypes
 
 __all__ = [
     "Department",
@@ -27,4 +30,10 @@ __all__ = [
     "VerifiedBy",
     "SessionException",
     "ExceptionType",
+    "SecurityLog",
+    "SecurityEventType",
+    "AuditLog",
+    "AuditActions",
+    "SystemMetric",
+    "MetricTypes",
 ]
