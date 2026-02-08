@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import './StudentLayout.css';
 import '../Common/Utility.css';
+import '../Common/GlobalDashboard.css'; // Import Global Styles
 import Header from '../Common/Header';
 
 // --- THEME DEFINITION ---
@@ -16,7 +17,7 @@ const studentTheme = {
 // ===========================================
 // 1. Student Sidebar Component
 // ===========================================
-const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
+const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
@@ -47,15 +48,17 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
                 onClick={toggleMobile}
             ></div>
 
-            <aside className={`student-sidebar ${isMobileOpen ? 'open' : ''}`}>
+            <aside className={`frames-sidebar ${isMobileOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
                 {/* BRANDING HEADER */}
                 <div className="sidebar-brand">
                     <div className="sidebar-logo-container">
                         <img src="/shield-icon-white.svg" alt="Frames Logo" className="sidebar-logo-icon" />
                     </div>
-                    <div className="sidebar-brand-text-group">
-                        <span className="sidebar-brand-title">FRAMES</span>
-                    </div>
+                    {!isCollapsed && (
+                        <div className="sidebar-brand-text-group">
+                            <span className="sidebar-brand-title">FRAMES</span>
+                        </div>
+                    )}
                     {/* Mobile Close Button */}
                     <button className="mobile-sidebar-close" onClick={toggleMobile}>
                         <i className="fas fa-times"></i>
@@ -73,7 +76,8 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
                                         to={item.to}
                                         end={item.to === '/student-dashboard'}
                                         onClick={() => isMobileOpen && toggleMobile()} // Close on click mobile
-                                        className={({ isActive }) => isActive ? 'active' : ''}
+                                        className={({ isActive }) => `frames-sidebar-link ${isActive ? 'active' : ''}`} // Use Global Class
+                                        title={isCollapsed ? item.name : ''}
                                     >
                                         <i className={item.icon}></i>
                                         <span>{item.name}</span>
@@ -86,16 +90,20 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
 
                 {/* USER PROFILE FOOTER */}
                 <div className="sidebar-user-footer">
-                    <Link to="/profile" className="sidebar-user-info" title="View Profile">
+                    <Link to="/profile" className="sidebar-user-info" title="View Profile" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
                         <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
-                        <div className="sidebar-user-details">
-                            <span className="sidebar-user-name">{displayName}</span>
-                            <span className="sidebar-user-role">Student</span>
-                        </div>
+                        {!isCollapsed && (
+                            <div className="sidebar-user-details">
+                                <span className="sidebar-user-name">{displayName}</span>
+                                <span className="sidebar-user-role">Student</span>
+                            </div>
+                        )}
                     </Link>
-                    <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
-                        <i className="fas fa-sign-out-alt"></i>
-                    </button>
+                    {!isCollapsed && (
+                        <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
+                            <i className="fas fa-sign-out-alt"></i>
+                        </button>
+                    )}
                 </div>
             </aside>
         </>
@@ -112,8 +120,10 @@ const StudentLayout = () => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false); // Collapsed State
 
     const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
+    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
     // FETCH USER DATA & SECURITY CHECK
     useEffect(() => {
@@ -182,7 +192,14 @@ const StudentLayout = () => {
 
     return (
         <div className="dashboard-container">
-            <Header user={user} setPanel={() => {}} theme={studentTheme} showLogo={false} />
+            <Header 
+                user={user} 
+                setPanel={() => {}} 
+                theme={studentTheme} 
+                showLogo={false}
+                toggleSidebar={toggleSidebar}
+                isSidebarCollapsed={isCollapsed}
+            />
             
             {/* Mobile Header Toggle (Visible only on mobile) */}
             <button className="mobile-menu-toggle" onClick={toggleMobile}>
@@ -193,9 +210,10 @@ const StudentLayout = () => {
                 <StudentSidebar 
                     user={user} 
                     isMobileOpen={isMobileOpen} 
-                    toggleMobile={toggleMobile} 
+                    toggleMobile={toggleMobile}
+                    isCollapsed={isCollapsed}
                 />
-                <main className="main-content-area">
+                <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />
                 </main>
             </div>
