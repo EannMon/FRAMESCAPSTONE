@@ -62,15 +62,15 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
 
     // --- 3. PAGE TITLE & DATE LOGIC (Student Context) ---
     const location = useLocation();
-    
+
     const getPageTitle = (path) => {
         if (path.includes('/student-dashboard')) return 'Dashboard';
         if (path.includes('/student-schedule')) return 'Schedule';
         if (path.includes('/student-attendance')) return 'Attendance History';
-        if (path.includes('/profile')) return 'My Profile';
+        if (path.includes('/profile') || path.includes('/student-profile') || path.includes('/faculty-profile')) return 'My Profile';
         if (path.includes('/settings') || path.includes('/student-settings') || path.includes('/faculty-settings')) return 'Settings';
         if (path.includes('/help-support') || path.includes('/student-help') || path.includes('/faculty-help')) return 'Help & Support';
-        
+
         // Faculty Routes
         if (path.includes('/faculty-dashboard')) return 'Dashboard';
         if (path.includes('/faculty-classes')) return 'My Classes';
@@ -78,12 +78,12 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         if (path.includes('/faculty-reports')) return 'Reports';
         if (path.includes('/faculty-dept-management')) return 'Department Management';
         if (path.includes('/faculty-dept-reports')) return 'Department Reports';
-        
+
         return '';
     };
-    
+
     const pageTitle = getPageTitle(location.pathname);
-    
+
     const currentDate = new Date().toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
@@ -147,7 +147,11 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                                         ))}
                                     </div>
                                     <div className="notification-dropdown-footer">
-                                        <Link to="/notifications">View All Notifications</Link>
+                                        <Link to={
+                                            user?.role?.toLowerCase() === 'student' ? '/student-notifications' :
+                                                (user?.role?.toLowerCase() === 'faculty' || user?.role?.toLowerCase() === 'head') ? '/faculty-notifications' :
+                                                    '/notifications'
+                                        }>View All Notifications</Link>
                                     </div>
                                 </div>
                             )}

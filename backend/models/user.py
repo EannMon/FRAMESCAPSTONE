@@ -41,6 +41,9 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     middle_name = Column(String(100))
+    contact_number = Column(String(20))
+    birthday = Column(DateTime)
+    home_address = Column(String(500))
     
     # Academic Info (Foreign Keys)
     department_id = Column(Integer, ForeignKey("departments.id"))
@@ -49,7 +52,16 @@ class User(Base):
     # For Students
     year_level = Column(String(20))  # e.g., "1st Year", "4th Year"
     section = Column(String(50))     # e.g., "BSIT-4A"
+    current_term = Column(String(50)) # e.g., "1st Sem 2023-2024"
+    academic_advisor = Column(String(100))
+    gpa = Column(String(10))         # Storing as string to handle "1.50" format easily
     
+    # Emergency Contact
+    emergency_contact_name = Column(String(100))
+    emergency_contact_relationship = Column(String(50))
+    emergency_contact_phone = Column(String(20))
+    emergency_contact_address = Column(String(255))
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     last_active = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

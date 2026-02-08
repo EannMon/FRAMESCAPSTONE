@@ -35,15 +35,15 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
     const firstName = user?.first_name || user?.firstName || '';
     const lastName = user?.last_name || user?.lastName || '';
     const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : (user?.name || 'Student');
-    
+
     // Avatar
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
 
     return (
         <>
             {/* Mobile Overlay Backdrop */}
-            <div 
-                className={`sidebar-overlay ${isMobileOpen ? 'open' : ''}`} 
+            <div
+                className={`sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
                 onClick={toggleMobile}
             ></div>
 
@@ -86,7 +86,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile }) => {
 
                 {/* USER PROFILE FOOTER */}
                 <div className="sidebar-user-footer">
-                    <Link to="/profile" className="sidebar-user-info" title="View Profile">
+                    <Link to="/student-profile" className="sidebar-user-info" title="View Profile">
                         <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
                         <div className="sidebar-user-details">
                             <span className="sidebar-user-name">{displayName}</span>
@@ -182,18 +182,18 @@ const StudentLayout = () => {
 
     return (
         <div className="dashboard-container">
-            <Header user={user} setPanel={() => {}} theme={studentTheme} showLogo={false} />
-            
+            <Header user={user} setPanel={() => { }} theme={studentTheme} showLogo={false} />
+
             {/* Mobile Header Toggle (Visible only on mobile) */}
             <button className="mobile-menu-toggle" onClick={toggleMobile}>
                 <i className="fas fa-bars"></i>
             </button>
 
             <div className="dashboard-body">
-                <StudentSidebar 
-                    user={user} 
-                    isMobileOpen={isMobileOpen} 
-                    toggleMobile={toggleMobile} 
+                <StudentSidebar
+                    user={user}
+                    isMobileOpen={isMobileOpen}
+                    toggleMobile={toggleMobile}
                 />
                 <main className="main-content-area">
                     <Outlet context={{ user }} />

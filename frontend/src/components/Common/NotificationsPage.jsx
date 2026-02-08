@@ -26,7 +26,7 @@ const mockNotifications = [
 // ===========================================
 // Main Notifications Page Component
 // ===========================================
-const NotificationsPage = () => {
+const NotificationsPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
 
     // --- FIX: GET REAL USER FROM STORAGE ---
@@ -43,21 +43,26 @@ const NotificationsPage = () => {
     return (
         <>
             {/* Pass real user to Header */}
-            <Header theme={navyTheme} user={user} setPanel={() => navigate('/')} />
+            {!isEmbedded && <Header theme={navyTheme} user={user} setPanel={() => navigate('/')} />}
 
-            <div className="notifications-page-container">
+            <div className={`notifications-page-container ${isEmbedded ? 'embedded' : ''}`}>
                 {/* Top Header Bar */}
                 <div className="notifications-header-bar">
-                    <div className="notifications-header-left">
-                        <button className="notifications-back-button" onClick={handleGoBack}>
-                            <i className="fas fa-arrow-left"></i>
-                        </button>
-                        <h1 className="notifications-main-title">Notifications</h1>
-                    </div>
-                    <div className="notifications-header-right">
+                    {/* Only show Left Header (Back + Title) if NOT embedded */}
+                    {!isEmbedded && (
+                        <div className="notifications-header-left">
+                            <button className="notifications-back-button" onClick={handleGoBack}>
+                                <i className="fas fa-arrow-left"></i>
+                            </button>
+                            <h1 className="notifications-main-title">Notifications</h1>
+                        </div>
+                    )}
+
+                    {/* Filter Buttons - Always Show, but adjust alignment if embedded */}
+                    <div className="notifications-header-right" style={isEmbedded ? { width: '100%', justifyContent: 'flex-start' } : {}}>
                         <button className="notification-filter-button active">All</button>
                         <button className="notification-filter-button">Unread</button>
-                        <button className="notification-action-button">Mark all as read</button>
+                        <button className="notification-action-button" style={{ marginLeft: 'auto' }}>Mark all as read</button>
                     </div>
                 </div>
 
@@ -77,7 +82,7 @@ const NotificationsPage = () => {
                     ))}
                 </div>
             </div>
-            <Footer />
+            {!isEmbedded && <Footer />}
         </>
     );
 };
