@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import './FacultyLayout.css';
 import '../Common/Utility.css';
+import '../Common/GlobalDashboard.css'; // Import Global Styles
 import Header from '../Common/Header';
 
 // --- THEME DEFINITION (Navy) ---
@@ -55,8 +56,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=163269&color=fff`;
 
     return (
-        <aside className={`faculty-sidebar ${isDeptHead ? 'dept-head-sidebar' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-
+        <aside className={`frames-sidebar ${isDeptHead ? 'dept-head-sidebar' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
             {/* BRANDING (Matched to Student Module) */}
             <div className="sidebar-brand">
                 <div className="sidebar-logo-container">
@@ -71,7 +71,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
 
             {/* Role Tag */}
             {!isCollapsed && (
-                <div className="faculty-role-tag">
+                <div className="frames-role-tag">
                     {isDeptHead ? "Department Head" : "Faculty Member"}
                 </div>
             )}
@@ -83,9 +83,13 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
                             <li key={`divider-${index}`} className="nav-divider" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 20px' }}></li>
                         ) : (
                             <li key={item.name}>
-                                <NavLink to={item.to} className={({ isActive }) => isActive ? 'active' : ''} title={isCollapsed ? item.name : ''}>
+                                <NavLink
+                                    to={item.to}
+                                    className={({ isActive }) => `frames-sidebar-link ${isActive ? 'active' : ''}`}
+                                    title={isCollapsed ? item.name : ''}
+                                >
                                     <i className={item.icon}></i>
-                                    {!isCollapsed && <span>{item.name}</span>}
+                                    <span>{item.name}</span>
                                 </NavLink>
                             </li>
                         )

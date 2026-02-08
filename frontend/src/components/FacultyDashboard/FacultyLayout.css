@@ -36,42 +36,25 @@
 }
 
 /* =========================================== */
-/* 3. Sidebar Styles (Matched to Student Module) */
+/* 2. Faculty Sidebar Styles */
 /* =========================================== */
-.faculty-sidebar {
-    width: 250px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    background-color: #0F172A; /* Student Navy */
-    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    z-index: 1100;
-    border-right: none;
-    transition: width 0.3s ease;
-}
+/* Base structure from .frames-sidebar (GlobalDashboard.css) */
 
-.faculty-sidebar.collapsed {
-    width: 80px;
-}
-
-/* BRANDING SECTION */
+/* BRANDING SECTION - Synced with Student */
 .sidebar-brand {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 25px 20px;
-    margin-bottom: 5px;
+    margin-bottom: 5px; /* Match Student: 5px */
     background-color: #0F172A;
-    position: relative; /* For toggle button positioning */
-    height: 90px; /* Fixed height to prevent layout shifts */
+    position: relative;
+    height: 90px; /* Fixed height to match Student */
     box-sizing: border-box;
     justify-content: flex-start;
 }
 
-.faculty-sidebar.collapsed .sidebar-brand {
+.frames-sidebar.collapsed .sidebar-brand {
     justify-content: center;
     padding: 25px 0;
 }
@@ -110,34 +93,15 @@
     font-family: 'Inter', sans-serif;
 }
 
-/* ROLE TAG */
-.faculty-role-tag {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #E2E8F0;
-    font-weight: 600;
-    font-size: 0.75rem;
-    padding: 6px 12px;
-    border-radius: 4px;
-    margin: 0 20px 10px 20px;
-    text-align: center;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    white-space: nowrap;
-    overflow: hidden;
-}
+/* ROLE TAG - Now handled by .frames-role-tag in GlobalDashboard.css */
 
-.dept-head-sidebar .faculty-role-tag {
-    background-color: rgba(249, 168, 37, 0.15);
-    color: #F9A825;
-    border-color: #F9A825;
-}
+/* Nav Styles - Links use .frames-sidebar-link from global */
 
-/* Nav Styles */
+/* Nav Styles - Links use .frames-sidebar-link from global */
 .faculty-nav {
     flex-grow: 1;
     overflow-y: auto;
-    overflow-x: hidden; /* Prevent horizontal scroll when collapsing */
+    overflow-x: hidden;
     padding: 10px 0;
 }
 
@@ -151,59 +115,9 @@
     margin-bottom: 2px;
 }
 
-.faculty-nav a {
-    display: flex;
-    align-items: center;
-    padding: 10px 25px; /* Reduced from 14px 25px */
-    color: rgba(255, 255, 255, 0.7);
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    border-left: 4px solid transparent;
-    white-space: nowrap; /* Keep text on one line */
-    height: 44px; /* Reduced from 50px */
-}
-
-.faculty-sidebar.collapsed .faculty-nav a {
-    justify-content: center;
-    padding: 0;
-    width: 100%;
-}
-
-.faculty-nav a i {
-    margin-right: 15px;
-    font-size: 1.1em;
-    width: 20px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.faculty-sidebar.collapsed .faculty-nav a i {
-    margin-right: 0;
-    font-size: 1.3em; /* Slightly larger icon when collapsed */
-}
-
-/* Active State */
-.faculty-nav a.active {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    font-weight: 600;
-    border-left-color: #ffffff;
-}
-.faculty-sidebar.collapsed .faculty-nav a.active {
-    border-left: none; /* Remove left border */
-    border-right: 4px solid #ffffff; /* Move indicator to right? Or just background */
-    border-right: none;
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.faculty-nav a:hover:not(.active) {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: white;
-}
-
 /* Dept Head Active Override */
-.dept-head-sidebar .faculty-nav a.active {
+/* We target the global class .frames-sidebar-link but specifically within .dept-head-sidebar */
+.dept-head-sidebar .frames-sidebar-link.active {
     border-left-color: #F9A825;
     background-color: rgba(249, 168, 37, 0.1);
     color: #ffffff;
