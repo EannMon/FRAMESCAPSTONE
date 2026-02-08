@@ -58,7 +58,7 @@ FRAMES is a web-based smart attendance system for classroom environments that:
 
 ### Table Categories
 
-The FRAMES database consists of **9 tables** organized into **4 logical categories**:
+The FRAMES database consists of **10 tables** organized into **4 logical categories**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -78,6 +78,7 @@ The FRAMES database consists of **9 tables** organized into **4 logical categori
 │  │  ─────────────────────  │    │  ───────────────────────────────    │    │
 │  │  • classes              │    │  • devices                          │    │
 │  │  • enrollments          │    │  • attendance_logs                  │    │
+│  │  • session_exceptions   │    │                                     │    │
 │  └─────────────────────────┘    └─────────────────────────────────────┘    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -89,9 +90,9 @@ The FRAMES database consists of **9 tables** organized into **4 logical categori
 |----------|--------|---------|
 | 🏫 Academic Structure | 3 | Organizational hierarchy (departments, programs, subjects) |
 | 👥 User & Identity | 2 | People and biometric data (users, facial_profiles) |
-| 📅 Class Scheduling | 2 | Schedule management (classes, enrollments) |
+| 📅 Class Scheduling | 3 | Schedule management (classes, enrollments, session_exceptions) |
 | ✅ Attendance Tracking | 2 | Devices and records (devices, attendance_logs) |
-| **TOTAL** | **9** | |
+| **TOTAL** | **10** | |
 
 ---
 
@@ -198,6 +199,16 @@ erDiagram
         string remarks "Optional notes"
     }
 
+    SESSION_EXCEPTIONS {
+        int id PK "Auto-increment"
+        int class_id FK "→ classes.id"
+        date session_date "2026-02-14"
+        enum exception_type "ONSITE/ONLINE/CANCELLED/HOLIDAY"
+        string reason "Natural Disaster"
+        int created_by FK "→ users.id (faculty)"
+        datetime created_at "UTC timestamp"
+    }
+
     %% Relationships
     DEPARTMENTS ||--o{ PROGRAMS : "contains"
     DEPARTMENTS ||--o{ USERS : "belongs to"
@@ -207,10 +218,12 @@ erDiagram
     USERS ||--o{ ENROLLMENTS : "enrolled in classes"
     USERS ||--o{ CLASSES : "teaches (faculty)"
     USERS ||--o{ ATTENDANCE_LOGS : "attendance records"
+    USERS ||--o{ SESSION_EXCEPTIONS : "creates (faculty)"
     
     SUBJECTS ||--o{ CLASSES : "scheduled as"
     CLASSES ||--o{ ENROLLMENTS : "has students"
     CLASSES ||--o{ ATTENDANCE_LOGS : "attendance for"
+    CLASSES ||--o{ SESSION_EXCEPTIONS : "has exceptions"
     
     DEVICES ||--o{ ATTENDANCE_LOGS : "captured by"
 ```
@@ -233,6 +246,7 @@ flowchart TB
     subgraph SCHEDULE["📅 Class Scheduling"]
         CLS[("classes")]
         ENR[("enrollments")]
+        EXC[("session_exceptions")]
     end
     
     subgraph ATTEND["✅ Attendance Tracking"]
@@ -252,6 +266,9 @@ flowchart TB
     SUB -->|"1:N"| CLS
     CLS -->|"1:N"| ENR
     CLS -->|"1:N"| ATT
+    CLS -->|"1:N"| EXC
+    
+    USR -->|"1:N faculty"| EXC
     
     DEV -->|"1:N"| ATT
 ```
@@ -415,6 +432,37 @@ flowchart TB
 
 ---
 
+#### 📋 `session_exceptions`
+**Purpose:** Tracks class session exceptions (cancelled, online mode, holidays) for attendance reporting
+
+| Column | Data Type | Constraints | Description | Example |
+|--------|-----------|-------------|-------------|---------|
+| `id` | INTEGER | PK, AUTO_INCREMENT | Unique identifier | `1` |
+| `class_id` | INTEGER | FK → classes.id, NOT NULL | Affected class | `5` |
+| `session_date` | DATE | NOT NULL | Specific date affected | 2026-02-14 |
+| `exception_type` | ENUM | NOT NULL | Type of exception | `ONSITE`, `ONLINE`, `CANCELLED`, `HOLIDAY` |
+| `reason` | VARCHAR(255) | | Reason for exception | "Natural Disaster" |
+| `created_by` | INTEGER | FK → users.id, NOT NULL | Faculty who created | `3` |
+| `created_at` | DATETIME | DEFAULT NOW() | Record creation | 2026-02-07 15:00:00 |
+
+**Predefined Reasons (Frontend dropdown):**
+- Health Related
+- Natural Disaster
+- Internet Connectivity
+- Holiday
+- Faculty Leave
+- University Event
+- Others
+
+**Relationships:**
+- ← Belongs to one `class` (N:1)
+- ← Created by one `user/faculty` (N:1)
+
+> [!TIP]
+> This table enables tracking of class mode (onsite/online/cancelled) for monthly attendance reports. Run `python scripts/migrate_session_exceptions.py` once to create this table.
+
+---
+
 ### ✅ Category 4: Attendance Tracking
 
 #### 📋 `devices`
@@ -476,9 +524,11 @@ flowchart TB
 | users | → | enrollments | 1:N | CASCADE |
 | users | → | classes (taught) | 1:N | - |
 | users | → | attendance_logs | 1:N | CASCADE |
+| users | → | session_exceptions (created) | 1:N | - |
 | subjects | → | classes | 1:N | - |
 | classes | → | enrollments | 1:N | CASCADE |
 | classes | → | attendance_logs | 1:N | CASCADE |
+| classes | → | session_exceptions | 1:N | CASCADE |
 | devices | → | attendance_logs | 1:N | - |
 
 ### Many-to-Many Relationships
@@ -539,6 +589,15 @@ class VerifiedBy(enum.Enum):
     FACE_GESTURE = "FACE+GESTURE" # Face + hand gesture
 ```
 
+### ExceptionType
+```python
+class ExceptionType(enum.Enum):
+    ONSITE = "ONSITE"       # Regular in-person class
+    ONLINE = "ONLINE"       # Online/remote class
+    CANCELLED = "CANCELLED" # Class cancelled
+    HOLIDAY = "HOLIDAY"     # Holiday, no classes
+```
+
 ---
 
 ## 🔒 Constraints & Indexes
@@ -574,6 +633,8 @@ All tables use auto-incrementing integer primary keys.
 | attendance_logs | user_id | users | - |
 | attendance_logs | class_id | classes | - |
 | attendance_logs | device_id | devices | - |
+| session_exceptions | class_id | classes | CASCADE |
+| session_exceptions | created_by | users | - |
 
 ---
 
@@ -623,5 +684,5 @@ All tables use auto-incrementing integer primary keys.
 
 ---
 
-**Document generated:** February 7, 2026  
+**Document generated:** February 8, 2026  
 **Schema verified against:** SQLAlchemy models in `/backend/models/`

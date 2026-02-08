@@ -2,7 +2,7 @@
 ## System Data Architecture & Information Flow
 
 **FRAMES** - Facial Recognition Attendance and Monitoring System  
-**Version:** 1.0 | **Date:** February 7, 2026
+**Version:** 1.1 | **Date:** February 8, 2026
 
 ---
 
@@ -19,13 +19,16 @@ The highest-level view showing FRAMES as a single system interacting with extern
 > [!IMPORTANT]
 > **Registration-First Policy:** All users (Students, Faculty, Department Head) must complete **facial enrollment** before accessing the dashboard. The system blocks dashboard access until `face_registered = true`.
 
+> [!NOTE]
+> **HEAD Role Clarification:** The Department Head is also a teaching faculty member. They can upload schedules, auto-create student accounts, teach classes, AND verify faculty members under their department before those faculty can log in and complete facial registration.
+
 ```mermaid
 flowchart TB
     subgraph USERS["👥 System Users"]
-        direction LR
+        direction TB
         STU["👤 Student"]
         FAC["👨‍🏫 Faculty"]
-        HEAD["👔 Department Head"]
+        HEAD["👔 Department Head<br/>(also teaches)"]
     end
 
     subgraph MGMT["⚙️ Management"]
@@ -33,60 +36,133 @@ flowchart TB
     end
 
     subgraph EDGE["📱 Edge Devices"]
-        KIOSK["📟 Raspberry Pi\nKiosk"]
+        KIOSK["📟 Raspberry Pi<br/>Kiosk"]
     end
 
-    FRAMES[("🖥️ FRAMES\n━━━━━━━━━━\nFacial Recognition\nAttendance &\nMonitoring System")]
+    FRAMES[("🖥️ FRAMES<br/>━━━━━━━━━━<br/>Facial Recognition<br/>Attendance &<br/>Monitoring System")]
 
     %% STEP 1: Account Creation (by Faculty/Head or self-register)
-    FAC & HEAD -->|"1️⃣ Create account\n+ Upload schedule\n(auto-creates students)"| FRAMES
-    STU -->|"1️⃣ Login with\nauto-created credentials"| FRAMES
+    FAC -->|"1️⃣ Create account<br/>+ Upload schedule<br/>(auto-creates students)"| FRAMES
+    HEAD -->|"1️⃣ Create account<br/>+ Upload schedule<br/>+ Verify faculty"| FRAMES
+    STU -->|"1️⃣ Login with<br/>auto-created credentials"| FRAMES
 
     %% STEP 2: Mandatory Face Enrollment (BEFORE dashboard access)
-    STU & FAC & HEAD -->|"2️⃣ Register face data\n(required first)"| FRAMES
+    STU -->|"2️⃣ Register face<br/>(required first)"| FRAMES
+    FAC -->|"2️⃣ Register face<br/>(after HEAD verifies)"| FRAMES
+    HEAD -->|"2️⃣ Register face<br/>(required first)"| FRAMES
 
     %% STEP 3: Dashboard Access (AFTER face enrollment)
-    FRAMES -->|"3️⃣ Personal attendance\n(after face enrolled)"| STU
-    FRAMES -->|"3️⃣ Class summaries\n+ Upload schedules"| FAC
-    FRAMES -->|"3️⃣ Dept reports\n+ Verify faculty"| HEAD
+    FRAMES -->|"3️⃣ Personal<br/>attendance"| STU
+    FRAMES -->|"3️⃣ Class summaries<br/>+ Upload schedules"| FAC
+    FRAMES -->|"3️⃣ Dept reports<br/>+ Student attendance<br/>+ Faculty attendance"| HEAD
 
     %% Admin (no face enrollment needed)
-    ADMIN -->|"System config,\nanalytics"| FRAMES
+    ADMIN -->|"System config,<br/>analytics"| FRAMES
     FRAMES -->|"System reports"| ADMIN
 
     %% Kiosk Attendance
-    KIOSK <-->|"Face/gesture capture\n↔ Attendance logs"| FRAMES
+    KIOSK <-->|"Face/gesture<br/>↔ Attendance logs"| FRAMES
 ```
 
-### User Access Flow Summary
+---
+
+## 👔 Department Head (HEAD) Role Details
+
+The HEAD has dual responsibilities: **teaching** and **department management**.
+
+```mermaid
+flowchart TB
+    subgraph HEAD_ROLE["👔 Department Head Capabilities"]
+        direction TB
+        
+        subgraph TEACHING["📚 As a Teacher"]
+            T1["Upload class schedules"]
+            T2["Auto-generate student accounts"]
+            T3["View own class attendance"]
+            T4["Manage own enrolled students"]
+        end
+        
+        subgraph MANAGEMENT["🏛️ As Department Manager"]
+            M1["Verify faculty members<br/>(before they can login)"]
+            M2["View faculty attendance records"]
+            M3["View all dept student attendance"]
+            M4["Access department-wide reports"]
+        end
+    end
+    
+    T1 --> T2
+    M1 --> M2
+```
+
+### Faculty Verification Flow
+
+```mermaid
+flowchart LR
+    subgraph FACULTY_REG["Faculty Registration"]
+        direction TB
+        F1["Faculty<br/>registers"]
+        F2["status =<br/>PENDING"]
+        F3["Cannot login<br/>or register face"]
+    end
+    
+    subgraph HEAD_VERIFY["HEAD Verification"]
+        direction TB
+        H1["HEAD reviews<br/>faculty info"]
+        H2["HEAD approves"]
+        H3["status =<br/>VERIFIED"]
+    end
+    
+    subgraph FACULTY_ACCESS["Faculty Access"]
+        direction TB
+        A1["Faculty can<br/>now login"]
+        A2["Faculty registers<br/>face"]
+        A3["Full dashboard<br/>access"]
+    end
+    
+    F1 --> F2 --> F3
+    F3 -.->|"Blocked"| H1
+    H1 --> H2 --> H3
+    H3 --> A1 --> A2 --> A3
+```
+
+---
+
+## 🔄 User Access Flow Summary
 
 ```mermaid
 flowchart LR
     subgraph STEP1["1️⃣ Account Creation"]
         direction TB
-        A1["Faculty/Head uploads schedule"]
-        A2["Students auto-created"]
+        A1["Faculty/HEAD<br/>uploads schedule"]
+        A2["Students<br/>auto-created"]
         A1 --> A2
+    end
+
+    subgraph STEP1B["1️⃣b Faculty Verification"]
+        direction TB
+        V1["Faculty registers"]
+        V2["HEAD verifies"]
+        V3["Faculty approved"]
+        V1 --> V2 --> V3
     end
 
     subgraph STEP2["2️⃣ Face Enrollment"]
         direction TB
         B1["User logs in"]
-        B2["face_registered = false?"]
-        B3["Redirect to\nFacial Enrollment"]
-        B4["Capture 15 frames\n→ Store embedding"]
-        B1 --> B2 --> B3 --> B4
+        B2["Redirect to<br/>Facial Enrollment"]
+        B3["Capture 15 frames<br/>Store embedding"]
+        B1 --> B2 --> B3
     end
 
     subgraph STEP3["3️⃣ Dashboard Access"]
         direction TB
-        C1["face_registered = true"]
-        C2["Access dashboard\n& features"]
+        C1["face_registered<br/>= true"]
+        C2["Full feature<br/>access"]
         C1 --> C2
     end
 
-    STEP1 ~~~ STEP2 ~~~ STEP3
     STEP1 --> STEP2 --> STEP3
+    STEP1B --> STEP2
 ```
 
 ---
@@ -101,69 +177,74 @@ Decomposition of FRAMES into major subsystems showing data stores and processes.
 ```mermaid
 flowchart TB
     subgraph USERS["👥 External Actors"]
-        direction LR
+        direction TB
         STU["👤 Students"]
         FAC["👨‍🏫 Faculty"]
-        HEAD["👔 Dept Head"]
+        HEAD["👔 Dept Head<br/>(also teaches)"]
         ADMIN["⚙️ Admin"]
     end
 
     subgraph EDGE["📱 Edge Devices"]
-        KIOSK["Raspberry Pi\nKiosk"]
+        KIOSK["Raspberry Pi<br/>Kiosk"]
     end
 
     subgraph PROCESSES["⚙️ Core Processes"]
-        direction LR
-        P1[["1.0\nUser\nManagement"]]
-        P2[["2.0\nFacial\nEnrollment\n━━━━━━━\n⛔ GATE"]]
-        P3[["3.0\nSchedule\nManagement"]]
-        P4[["4.0\nAttendance\nRecognition"]]
-        P5[["5.0\nReporting &\nAnalytics"]]
+        direction TB
+        P1[["1.0<br/>User<br/>Management"]]
+        P2[["2.0<br/>Facial<br/>Enrollment<br/>━━━━━<br/>⛔ GATE"]]
+        P3[["3.0<br/>Schedule<br/>Management"]]
+        P4[["4.0<br/>Attendance<br/>Recognition"]]
+        P5[["5.0<br/>Reporting &<br/>Analytics"]]
     end
 
     subgraph DATASTORES["🗄️ Data Stores"]
-        direction LR
+        direction TB
         D1[("D1: users")]
         D2[("D2: facial_profiles")]
-        D3[("D3: departments\nprograms\nsubjects")]
-        D4[("D4: classes\nenrollments")]
+        D3[("D3: departments<br/>programs<br/>subjects")]
+        D4[("D4: classes<br/>enrollments<br/>session_exceptions")]
         D5[("D5: devices")]
         D6[("D6: attendance_logs")]
     end
 
     %% STEP 1: User Management flows
-    STU & FAC & HEAD -->|"Registration data"| P1
+    STU --> |"Registration"| P1
+    FAC --> |"Registration"| P1
+    HEAD --> |"Registration"| P1
     P1 -->|"User records"| D1
     P1 -->|"Academic links"| D3
     HEAD -->|"Verify faculty"| P1
 
     %% STEP 2: Facial Enrollment flows (MANDATORY GATE)
-    STU & FAC & HEAD -->|"Face frames\n(15 captures)"| P2
+    STU -->|"Face frames"| P2
+    FAC -->|"Face frames<br/>(after verified)"| P2
+    HEAD -->|"Face frames"| P2
     P2 <-->|"User lookup"| D1
-    P2 -->|"Face embedding\n(512-d vector)"| D2
-    P2 -->|"Set face_registered\n= true"| D1
+    P2 -->|"Face embedding"| D2
+    P2 -->|"Set face_registered"| D1
 
     %% STEP 3: Schedule Management flows
-    FAC & HEAD -->|"Schedule upload\n(CSV/Excel)"| P3
+    FAC -->|"Schedule upload"| P3
+    HEAD -->|"Schedule upload"| P3
     P3 <-->|"Subject lookup"| D3
     P3 -->|"Class records"| D4
-    P3 -->|"Auto-create\nstudents"| D1
+    P3 -->|"Auto-create<br/>students"| D1
 
     %% STEP 4: Attendance Recognition flows (Edge)
-    KIOSK -->|"Face capture\n+ gesture"| P4
-    P4 <-->|"Embedding\nlookup"| D2
-    P4 <-->|"Class\nverification"| D4
+    KIOSK -->|"Face + gesture"| P4
+    P4 <-->|"Embedding<br/>lookup"| D2
+    P4 <-->|"Class<br/>verification"| D4
     P4 <-->|"Device info"| D5
-    P4 -->|"Attendance\nrecord"| D6
+    P4 -->|"Attendance<br/>record"| D6
 
     %% STEP 5: Reporting flows (REQUIRES face_registered = true)
     D6 -->|"Logs"| P5
     D4 -->|"Class info"| P5
     D1 -->|"User info"| P5
-    D2 -.->|"⛔ Check\nface_registered"| P5
+    D2 -.->|"⛔ Check<br/>face_registered"| P5
     P5 -->|"Personal attendance"| STU
     P5 -->|"Class reports"| FAC
-    P5 -->|"Dept reports"| HEAD
+    P5 -->|"Dept + Faculty<br/>reports"| HEAD
     P5 -->|"System analytics"| ADMIN
 ```
 
@@ -175,22 +256,22 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph INPUT
-        A1["Registration Form"]
-        A2["Verification Request"]
+    subgraph INPUT["📥 Input"]
+        A1["Registration<br/>Form"]
+        A2["Verification<br/>Request"]
     end
 
     subgraph PROCESS["1.0 User Management"]
-        B1["Validate Input"]
-        B2["Hash Password"]
-        B3["Link to Dept/Program"]
-        B4["Set Verification Status"]
+        B1["Validate<br/>Input"]
+        B2["Hash<br/>Password"]
+        B3["Link to<br/>Dept/Program"]
+        B4["Set Verification<br/>Status"]
     end
 
-    subgraph OUTPUT
+    subgraph OUTPUT["📤 Output"]
         C1[("users")]
-        C2["Account Created"]
-        C3["Verification Status"]
+        C2["Account<br/>Created"]
+        C3["Verification<br/>Status"]
     end
 
     A1 --> B1 --> B2 --> B3 --> C1
@@ -200,6 +281,7 @@ flowchart LR
 ```
 
 **Data Elements:**
+
 | Input | Processing | Output |
 |-------|------------|--------|
 | email, password, tupm_id, name | Validation, bcrypt hashing | users record |
@@ -213,20 +295,20 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph INPUT["📸 Input"]
-        A1["Webcam Feed\n15 frames"]
+        A1["Webcam Feed<br/>15 frames"]
     end
 
-    subgraph PROCESS["2.0 Facial Enrollment (Server-Side)"]
-        B1["Face Detection\nMTCNN/RetinaFace"]
-        B2["Face Alignment\n5-point landmark"]
-        B3["Embedding Extraction\nInsightFace Buffalo"]
-        B4["Embedding Averaging\n512-d vector"]
-        B5["Quality Scoring\n0.0 - 1.0"]
+    subgraph PROCESS["2.0 Facial Enrollment"]
+        B1["Face Detection<br/>MTCNN/RetinaFace"]
+        B2["Face Alignment<br/>5-point landmark"]
+        B3["Embedding Extraction<br/>InsightFace Buffalo"]
+        B4["Embedding Averaging<br/>512-d vector"]
+        B5["Quality Scoring<br/>0.0 - 1.0"]
     end
 
     subgraph OUTPUT["💾 Output"]
         C1[("facial_profiles")]
-        C2[("users.face_registered\n= true")]
+        C2[("users.face_registered<br/>= true")]
     end
 
     A1 --> B1 --> B2 --> B3 --> B4 --> B5
@@ -235,6 +317,7 @@ flowchart TB
 ```
 
 **Data Elements:**
+
 | Input | Processing | Output |
 |-------|------------|--------|
 | 15 webcam frames | Face detection, alignment | Detected faces |
@@ -258,14 +341,14 @@ flowchart TB
     subgraph PROCESS["3.0 Schedule Management"]
         B1["Parse File"]
         B2["Validate Subjects"]
-        B3["Create/Find Students"]
-        B4["Create Class Records"]
-        B5["Auto-Enroll Students"]
+        B3["Create/Find<br/>Students"]
+        B4["Create Class<br/>Records"]
+        B5["Auto-Enroll<br/>Students"]
     end
 
     subgraph OUTPUT["💾 Output"]
         C1[("subjects")]
-        C2[("users\n(auto-created)")]
+        C2[("users<br/>(auto-created)")]
         C3[("classes")]
         C4[("enrollments")]
     end
@@ -279,6 +362,7 @@ flowchart TB
 ```
 
 **Data Elements:**
+
 | Input | Processing | Output |
 |-------|------------|--------|
 | subject_code, title, units | Subject lookup/creation | subjects record |
@@ -293,28 +377,28 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph INPUT["📱 Raspberry Pi Input"]
-        A1["Pi Camera Feed"]
-        A2["Hand Gesture\n(for breaks/exit)"]
+        A1["Pi Camera<br/>Feed"]
+        A2["Hand Gesture<br/>(for breaks/exit)"]
     end
 
     subgraph PROCESS["4.0 Attendance Recognition"]
-        B1["Face Detection\nTFLite"]
-        B2["Embedding Extraction\nFaceNet INT8"]
-        B3["Cosine Similarity\nMatching"]
-        B4["Threshold Check\n≥ 0.6"]
-        B5["Gesture Detection\nMediaPipe Hands"]
-        B6["Action Validation"]
+        B1["Face Detection<br/>TFLite"]
+        B2["Embedding Extraction<br/>FaceNet INT8"]
+        B3["Cosine Similarity<br/>Matching"]
+        B4["Threshold Check<br/>≥ 0.6"]
+        B5["Gesture Detection<br/>MediaPipe Hands"]
+        B6["Action<br/>Validation"]
     end
 
     subgraph DATASTORES["🗄️ Data Lookup"]
-        D1[("facial_profiles\nembeddings")]
-        D2[("enrollments\nclass verification")]
+        D1[("facial_profiles<br/>embeddings")]
+        D2[("enrollments<br/>class verification")]
         D3[("devices")]
     end
 
     subgraph OUTPUT["💾 Output"]
         C1[("attendance_logs")]
-        C2["Display Confirmation"]
+        C2["Display<br/>Confirmation"]
     end
 
     A1 --> B1 --> B2
@@ -332,7 +416,9 @@ flowchart TB
     B6 --> C2
 ```
 
-**Attendance Action Flow:**
+---
+
+### Attendance Action Flow
 
 ```mermaid
 flowchart LR
@@ -355,6 +441,7 @@ flowchart LR
 ```
 
 **Gesture Meanings:**
+
 | Gesture | Action | Description |
 |---------|--------|-------------|
 | ✌️ Peace Sign | BREAK_OUT | Two fingers raised |
@@ -375,26 +462,69 @@ flowchart TB
     end
 
     subgraph PROCESS["5.0 Reporting & Analytics"]
-        B1["Aggregate by\nStudent"]
-        B2["Aggregate by\nClass/Section"]
-        B3["Aggregate by\nFaculty"]
-        B4["Aggregate by\nDepartment"]
-        B5["Generate Charts"]
+        B1["Aggregate by<br/>Student"]
+        B2["Aggregate by<br/>Class/Section"]
+        B3["Aggregate by<br/>Faculty"]
+        B4["Aggregate by<br/>Department"]
+        B5["Generate<br/>Charts"]
     end
 
     subgraph OUTPUT["📈 Reports"]
-        C1["Student\nAttendance"]
-        C2["Class\nSummaries"]
-        C3["Faculty\nReports"]
-        C4["Dept\nDashboard"]
-        C5["Export\nCSV/PDF"]
+        C1["Student<br/>Attendance"]
+        C2["Class<br/>Summaries"]
+        C3["Faculty<br/>Reports"]
+        C4["Dept<br/>Dashboard"]
+        C5["Export<br/>CSV/PDF"]
     end
 
-    D1 & D2 & D3 --> B1 --> C1
-    D1 & D2 --> B2 --> C2
-    D1 & D2 & D3 --> B3 --> C3
-    D1 & D4 --> B4 --> C4
-    B1 & B2 & B3 & B4 --> B5 --> C5
+    D1 --> B1 --> C1
+    D2 --> B1
+    D3 --> B1
+    
+    D1 --> B2 --> C2
+    D2 --> B2
+    
+    D1 --> B3 --> C3
+    D2 --> B3
+    D3 --> B3
+    
+    D1 --> B4 --> C4
+    D4 --> B4
+    
+    B1 --> B5
+    B2 --> B5
+    B3 --> B5
+    B4 --> B5
+    B5 --> C5
+```
+
+---
+
+## 📊 HEAD Access Scope
+
+The Department Head can access attendance data for:
+
+```mermaid
+flowchart TB
+    subgraph HEAD_ACCESS["👔 HEAD Can View"]
+        direction TB
+        
+        subgraph OWN_CLASSES["📚 Own Classes (like Faculty)"]
+            OC1["Students enrolled<br/>in HEAD's classes"]
+            OC2["Attendance for<br/>HEAD's classes"]
+        end
+        
+        subgraph DEPT_FACULTY["👨‍🏫 Department Faculty"]
+            DF1["All faculty members<br/>in department"]
+            DF2["Faculty attendance<br/>records"]
+            DF3["Faculty verification<br/>status"]
+        end
+        
+        subgraph DEPT_STUDENTS["👤 Department Students"]
+            DS1["All students<br/>in department"]
+            DS2["Student attendance<br/>summaries"]
+        end
+    end
 ```
 
 ---
@@ -404,27 +534,27 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant STU as 👤 Student
-    participant KIOSK as 📱 Kiosk (RPi)
+    participant KIOSK as 📱 Kiosk
     participant API as 🖥️ Backend API
     participant DB as 🗄️ PostgreSQL
 
     Note over STU,DB: Attendance Entry Flow (Face Only)
     STU->>KIOSK: Stand in front of camera
     KIOSK->>KIOSK: Capture face frame
-    KIOSK->>KIOSK: Extract embedding (TFLite FaceNet)
+    KIOSK->>KIOSK: Extract embedding (TFLite)
     KIOSK->>API: Send embedding for matching
     API->>DB: Query facial_profiles
-    DB-->>API: Return matches with confidence
+    DB-->>API: Return matches + confidence
     
     alt Confidence ≥ Threshold
-        API->>DB: Verify enrollment in current class
+        API->>DB: Verify enrollment
         DB-->>API: Enrollment confirmed
-        API->>DB: INSERT attendance_log (action=ENTRY, verified_by=FACE)
+        API->>DB: INSERT attendance_log
         API-->>KIOSK: Success response
-        KIOSK-->>STU: "✅ Attendance Recorded: John Doe"
+        KIOSK-->>STU: ✅ Attendance Recorded
     else Confidence < Threshold
         API-->>KIOSK: No match found
-        KIOSK-->>STU: "❌ Face not recognized"
+        KIOSK-->>STU: ❌ Face not recognized
     end
 
     Note over STU,DB: Break-Out Flow (Face + Gesture)
@@ -434,11 +564,11 @@ sequenceDiagram
     
     alt Face + Gesture Valid
         KIOSK->>API: Log break-out
-        API->>DB: INSERT attendance_log (action=BREAK_OUT, verified_by=FACE+GESTURE)
+        API->>DB: INSERT attendance_log
         API-->>KIOSK: Success
-        KIOSK-->>STU: "✅ Break recorded"
+        KIOSK-->>STU: ✅ Break recorded
     else Invalid
-        KIOSK-->>STU: "❌ Action rejected"
+        KIOSK-->>STU: ❌ Action rejected
     end
 ```
 
@@ -448,23 +578,23 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    subgraph CLIENT["🌐 Frontend (Vite + React)"]
-        WEB["Web Dashboard"]
+    subgraph CLIENT["🌐 Frontend"]
+        WEB["Web Dashboard<br/>(Vite + React)"]
     end
 
-    subgraph EDGE["📱 Edge (Raspberry Pi)"]
+    subgraph EDGE["📱 Edge Layer"]
         CAM["Pi Camera v2"]
         TFLITE["TFLite FaceNet"]
         MEDIAPIPE["MediaPipe Hands"]
     end
 
-    subgraph SERVER["🖥️ Backend (FastAPI)"]
-        API["REST API\n(async)"]
-        INSIGHT["InsightFace\n(enrollment)"]
+    subgraph SERVER["🖥️ Backend"]
+        API["REST API<br/>(FastAPI)"]
+        INSIGHT["InsightFace<br/>(enrollment)"]
     end
 
-    subgraph DATABASE["🗄️ Database (Aiven PostgreSQL)"]
-        PG[("PostgreSQL\n\n• users\n• facial_profiles\n• classes\n• enrollments\n• attendance_logs\n• devices\n• departments\n• programs\n• subjects")]
+    subgraph DATABASE["🗄️ Database"]
+        PG[("PostgreSQL<br/>(Aiven)<br/>━━━━━━━<br/>10 tables")]
     end
 
     WEB <-->|"HTTP/JSON"| API
@@ -476,7 +606,7 @@ flowchart TB
     WEB -->|"Webcam frames"| INSIGHT
     INSIGHT -->|"Embeddings"| API
     
-    API <-->|"SQLAlchemy\nSSL Connection"| PG
+    API <-->|"SQLAlchemy<br/>SSL"| PG
 ```
 
 ---
@@ -488,8 +618,8 @@ flowchart TB
 | D1: User Data | users | Credentials, roles, academic info | Read-heavy (auth, lookup) |
 | D2: Biometric Data | facial_profiles | Face embeddings | Read-heavy (recognition) |
 | D3: Academic Structure | departments, programs, subjects | Org hierarchy | Read-only (reference) |
-| D4: Scheduling | classes, enrollments | Class schedules, student links | Read-heavy, write on enrollment |
-| D5: Devices | devices | Kiosk info, status | Read-heavy, periodic heartbeat writes |
+| D4: Scheduling | classes, enrollments, session_exceptions | Class schedules, student links | Read-heavy, write on enrollment |
+| D5: Devices | devices | Kiosk info, status | Read-heavy, periodic heartbeat |
 | D6: Attendance | attendance_logs | All attendance records | Write-heavy, read for reports |
 
 ---
@@ -502,10 +632,10 @@ flowchart TB
 | Facial Profiles | 1:1 with users | Same as users |
 | Classes | 50 - 200 per semester | Per semester |
 | Enrollments | 20-30 per student | Per semester |
-| Attendance Logs | 100-500 per student per semester | Continuous |
+| Attendance Logs | 100-500 per student | Per semester |
 | Devices | 5-20 | Slow (hardware) |
 
 ---
 
-**Document generated:** February 7, 2026  
+**Document generated:** February 8, 2026  
 **System architecture verified against:** FRAMES_DOCUMENTATION_RECENT.md
