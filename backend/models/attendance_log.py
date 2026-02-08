@@ -2,7 +2,7 @@
 AttendanceLog Model - Core table for attendance records
 Supports ENTRY, BREAK_OUT, BREAK_IN, EXIT actions with gesture verification.
 """
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum, Float, Boolean
 from sqlalchemy.orm import relationship
 from db.database import Base
 from datetime import datetime
@@ -32,6 +32,7 @@ class AttendanceLog(Base):
     # Attendance Info
     action = Column(Enum(AttendanceAction), nullable=False)
     verified_by = Column(Enum(VerifiedBy))           # FACE for entry, FACE+GESTURE for breaks/exit
+    is_late = Column(Boolean, default=False)         # For faster late arrival queries
     
     # Recognition metadata
     confidence_score = Column(Float)                  # Face recognition confidence
