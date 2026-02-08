@@ -13,11 +13,11 @@
 }
 
 .main-content-area {
-    flex-grow: 1;
-    padding-left: 270px;   /* 250px Sidebar + 20px Left Padding */
-    padding-top: 20px;     /* Top Padding */
-    padding-right: 20px;   /* Right Padding */
-    padding-bottom: 20px;  /* Bottom Padding */
+    transition: padding-left 0.3s ease;
+}
+
+.main-content-area.collapsed {
+    padding-left: 100px; /* Collapsed: 80px + 20px */
 }
 
 /* Enforce no top margin for the first element to ensure exact 20px padding */
@@ -26,25 +26,9 @@
 }
 
 /* =========================================== */
-/* 2. Student Sidebar Styles (Synchronized to Admin) */
-/* =========================================== */
-/* =========================================== */
 /* 2. Student Sidebar Styles (FRAMES Navy Theme) */
 /* =========================================== */
-.student-sidebar {
-    width: 250px;
-    position: fixed;
-    top: 0; /* Cover the header area */
-    left: 0;
-    bottom: 0;
-    background-color: #0F172A; /* new Dark Navy from reference */
-    /* Synchronized Admin shadow style */
-    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1); 
-    display: flex;
-    flex-direction: column;
-    z-index: 1100; /* Above Header (1001) */ 
-    border-right: none;
-}
+/* Note: Base structure now uses .frames-sidebar from GlobalDashboard.css */
 
 /* BRANDING SECTION */
 .sidebar-brand {
@@ -52,8 +36,16 @@
     align-items: center;
     gap: 12px;
     padding: 25px 20px;
-    margin-bottom: 10px;
+    margin-bottom: 5px; /* Reduced from 10px to match Faculty */
     background-color: #0F172A; /* Match sidebar */
+    justify-content: flex-start;
+    height: 90px; /* Fixed height to match Faculty */
+    box-sizing: border-box;
+}
+/* Collapsed Brand */
+.frames-sidebar.collapsed .sidebar-brand {
+    justify-content: center;
+    padding: 25px 0;
 }
 
 .sidebar-logo-container {
@@ -64,6 +56,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .sidebar-logo-icon {
@@ -100,37 +93,8 @@
 .student-nav ul { list-style: none; padding: 0; margin: 0; } 
 .student-nav li { margin-bottom: 2px; } 
 
-.student-nav a { 
-    display: flex; 
-    align-items: center; 
-    padding: 14px 25px; 
-    color: rgba(255, 255, 255, 0.7); 
-    text-decoration: none; 
-    font-weight: 500; 
-    transition: all 0.2s ease; 
-    border-left: 4px solid transparent;
-}
+/* Note: Links now use .frames-sidebar-link from GlobalDashboard.css */
 
-.student-nav a i { 
-    margin-right: 15px; 
-    font-size: 1.1em; 
-    width: 20px; 
-    text-align: center; 
-}
-
-/* Active State - Subtle Overlay + Border */
-.student-nav a.active { 
-    background-color: rgba(255, 255, 255, 0.1); 
-    color: #ffffff; 
-    font-weight: 600;
-    border-left-color: #ffffff; /* White indicator */
-    box-shadow: none;
-}
-
-.student-nav a:hover:not(.active) { 
-    background-color: rgba(255, 255, 255, 0.05); 
-    color: white; 
-}
 
 .student-nav .notification-badge { 
     margin-left: auto; 

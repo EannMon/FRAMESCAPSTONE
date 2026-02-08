@@ -56,10 +56,20 @@ To ensure a cohesive user experience, the following layout standards are applied
 - **Height:** Fixed at **80px**.
 - **Styling:** White background (`#FFFFFF`) with a subtle bottom border (`1px solid #E2E8F0`) and shadow (`0 2px 5px rgba(0,0,0,0.1)`).
 - **Content:** Minimalist. Contains only the **Notification Bell** and **Page Title** (Slate Grey `#334155`, Font Weight `700`).
-- **Profile:** **Removed from Header.** User profile actions are relocated to the Sidebar to reduce header clutter.
 - **Z-Index:** Fixed positioning with `z-index: 1001` to stay above content.
 
-### B. Sidebar (Primary Navigation)
+### B. Global Style Reference (CSS Classes)
+
+To ensure consistency, use the following global classes defined in `GlobalDashboard.css`:
+
+| Component         | Class Name              | Description                                          |
+| :---------------- | :---------------------- | :--------------------------------------------------- |
+| **Card**          | `.frames-card`          | White bg, 12px radius, soft shadow, hover lift.      |
+| **Sidebar**       | `.frames-sidebar`       | Navy bg (#0F172A), 250px width, collapsible to 80px. |
+| **Sidebar Link**  | `.frames-sidebar-link`  | 44px height, 10px padding, hover effects.            |
+| **Toggle Button** | `.frames-header-toggle` | Navy square (36x36px), 8px radius, white icon.       |
+
+### C. Sidebar (Primary Navigation)
 
 - **Structure:**
   - **Brand Header:** Clear logo and "FRAMES" text at the top.
