@@ -65,6 +65,13 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                     </button>
                 </div>
 
+                {/* Role Tag */}
+                {!isCollapsed && (
+                    <div className="frames-role-tag">
+                        STUDENT
+                    </div>
+                )}
+
                 <nav className="student-nav">
                     <ul>
                         {navItems.map((item, index) => (

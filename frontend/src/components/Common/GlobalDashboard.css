@@ -115,3 +115,27 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
+
+/* --- 4. SIDEBAR ROLE TAG (Global) --- */
+.frames-role-tag {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #E2E8F0;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    margin: 0 20px 10px 20px;
+    text-align: center;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Dept Head Override (Specific Color) */
+.dept-head-sidebar .frames-role-tag {
+    background-color: rgba(249, 168, 37, 0.15); /* Amber Tint */
+    color: #F9A825; /* Amber Text */
+    border-color: #F9A825;
+}
