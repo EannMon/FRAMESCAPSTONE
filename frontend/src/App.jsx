@@ -73,6 +73,9 @@ function App() {
                         <Route path="/faculty-dept-reports" element={<DeptHeadReportsPage />} />
                         <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
                         <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
+                        {/* New Embedded Pages */}
+                        <Route path="/faculty-profile" element={<MyProfilePage isEmbedded={true} />} />
+                        <Route path="/faculty-notifications" element={<NotificationsPage isEmbedded={true} />} />
                     </Route>
 
                     {/* --- Student Routes (using StudentLayout) --- */}
@@ -81,11 +84,12 @@ function App() {
                         <Route path="/student-schedule" element={<SchedulePage />} />
                         <Route path="/student-attendance" element={<AttendanceHistoryPage />} />
                         {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
-                        <Route path="/student-notifications" element={<NotificationsPage />} />
+                        <Route path="/student-notifications" element={<NotificationsPage isEmbedded={true} />} />
                         <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
                         {/* Wrapper Routes for Common Pages to keep Sidebar */}
                         <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
                         <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
+                        <Route path="/student-profile" element={<MyProfilePage isEmbedded={true} />} />
                     </Route>
 
                     {/* --- Common Routes (Full Pages) --- */}

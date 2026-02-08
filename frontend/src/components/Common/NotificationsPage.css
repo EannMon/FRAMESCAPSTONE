@@ -4,7 +4,8 @@
 
 /* --- Main Layout --- */
 .notifications-page-container {
-    max-width: 900px; /* Notifications page is narrower */
+    max-width: 900px;
+    /* Notifications page is narrower */
     margin: 0 auto;
     padding: 30px 20px 80px 20px;
     display: flex;
@@ -12,7 +13,15 @@
     gap: 30px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #f5f6fa;
-    padding-top: 100px; /* 80px header + 20px padding */
+    padding-top: 100px;
+    /* 80px header + 20px padding */
+}
+
+.notifications-page-container.embedded {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+    max-width: 100%;
 }
 
 /* --- Header Bar --- */
@@ -20,7 +29,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap; /* Allow wrapping on small screens */
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
     gap: 15px;
 }
 
@@ -44,6 +54,7 @@
     justify-content: center;
     transition: all 0.2s;
 }
+
 .notifications-back-button:hover {
     background-color: #f8f9fa;
     color: #0F172A;
@@ -63,7 +74,8 @@
     gap: 10px;
 }
 
-.notification-filter-button, .notification-action-button {
+.notification-filter-button,
+.notification-action-button {
     padding: 8px 15px;
     border-radius: 6px;
     cursor: pointer;
@@ -77,9 +89,11 @@
     color: #555;
     border: 1px solid #ddd;
 }
+
 .notification-filter-button:hover {
     background-color: #e9ecef;
 }
+
 .notification-filter-button.active {
     background-color: #0F172A;
     color: white;
@@ -88,16 +102,19 @@
 
 .notification-action-button {
     background-color: transparent;
-    color: #2563EB; /* Blue */
+    color: #2563EB;
+    /* Blue */
     border: none;
 }
+
 .notification-action-button:hover {
     text-decoration: underline;
 }
 
 /* --- Notifications List --- */
 .notifications-list-card {
-    padding: 0; /* Remove padding for list */
+    padding: 0;
+    /* Remove padding for list */
 }
 
 .notification-item {
@@ -110,9 +127,11 @@
     transition: background-color 0.2s;
     position: relative;
 }
+
 .notification-item:last-child {
     border-bottom: none;
 }
+
 .notification-item:hover {
     background-color: #fcfcfc;
 }
@@ -129,10 +148,13 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background-color: #EFF6FF; /* Light blue */
-    color: #2563EB; /* Blue */
+    background-color: #EFF6FF;
+    /* Light blue */
+    color: #2563EB;
+    /* Blue */
     font-size: 1.1em;
 }
+
 .notification-icon.read-icon {
     background-color: #f0f2f5;
     color: #555;
@@ -158,7 +180,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: #2563EB; /* Blue */
+    background-color: #2563EB;
+    /* Blue */
     flex-shrink: 0;
     margin-left: 10px;
 }
@@ -168,14 +191,17 @@
         flex-direction: column;
         align-items: stretch;
     }
+
     .notifications-header-left {
         width: 100%;
     }
+
     .notifications-header-right {
         width: 100%;
         display: grid;
         grid-template-columns: 1fr 1fr;
     }
+
     .notification-action-button {
         grid-column: 1 / -1;
         text-align: center;
