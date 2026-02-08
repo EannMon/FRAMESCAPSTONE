@@ -5,6 +5,7 @@ import './StudentLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css'; // Import Global Styles
 import Header from '../Common/Header';
+import Logo from '../Common/Logo';
 
 // --- THEME DEFINITION ---
 const studentTheme = {
@@ -52,7 +53,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                 {/* BRANDING HEADER */}
                 <div className="sidebar-brand">
                     <div className="sidebar-logo-container">
-                        <img src="/shield-icon-white.svg" alt="Frames Logo" className="sidebar-logo-icon" />
+                        <Logo className="sidebar-logo-icon" size={42} colorShift />
                     </div>
                     {!isCollapsed && (
                         <div className="sidebar-brand-text-group">

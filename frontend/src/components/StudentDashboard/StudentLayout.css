@@ -41,6 +41,9 @@
     justify-content: flex-start;
     height: 90px; /* Fixed height to match Faculty */
     box-sizing: border-box;
+    /* FIX: Center content better */
+    /* FIX: Center content better */
+    padding-left: 20px; 
 }
 /* Collapsed Brand */
 .frames-sidebar.collapsed .sidebar-brand {
@@ -51,7 +54,6 @@
 .sidebar-logo-container {
     width: 40px;
     height: 40px;
-    background: #3B82F6; /* Brand Blue Background for Logo if needed, or just transparent */
     border-radius: 8px; /* Rounded square logo shape from reference */
     display: flex;
     align-items: center;
@@ -59,11 +61,7 @@
     flex-shrink: 0;
 }
 
-.sidebar-logo-icon {
-    width: 24px;
-    height: 24px;
-    filter: brightness(0) invert(1); 
-}
+
 
 .sidebar-brand-text-group {
     display: flex;
@@ -71,12 +69,12 @@
 }
 
 .sidebar-brand-title {
-    font-size: 1.2rem;
-    font-weight: 800;
-    letter-spacing: 1px;
+    font-size: 1.5rem; /* Increased size */
+    font-weight: 700;
     color: white;
     line-height: 1;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Outfit', sans-serif; 
+    letter-spacing: 2px;
 }
 
 .sidebar-brand-subtitle {
@@ -84,8 +82,10 @@
     color: #94A3B8; /* Slate 400 */
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-top: 4px;
-    font-weight: 600;
+    margin-top: 2px;
+    font-weight: 500;
+    font-family: 'Outfit', sans-serif;
+    opacity: 0.6;
 }
 
 .student-sidebar-toggle { display: none; } 

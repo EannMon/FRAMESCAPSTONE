@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import './Header.css';
+import Logo from './Logo';
 
-const LOGO_ICON = '/shield-icon-white.svg';
+// const LOGO_ICON = '/shield-icon-white.svg';
 
 const mockNotifications = [
     { id: 1, icon: 'fas fa-user-shield', text: 'New admin alert: Unauthorized access attempt.', time: '5m ago', read: false },
@@ -95,7 +96,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
             {showLogo ? (
                 <Link to={user ? (user.role === 'admin' ? "/admin-dashboard" : user.role === 'faculty' ? "/faculty-dashboard" : "/student-dashboard") : "/"} className="header-logo-link">
                     <div className="universal-header-logo">
-                        <img src={LOGO_ICON} alt="Frames Logo" className="header-logo-icon" />
+                        <Logo className="header-logo-icon" size={45} />
                         <span>FRAMES</span>
                     </div>
                 </Link>

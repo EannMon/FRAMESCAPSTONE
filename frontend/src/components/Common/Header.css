@@ -46,15 +46,18 @@
 
 .universal-header-logo {
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Fixed: Row instead of Column */
+    align-items: center; /* Center items vertically */
+    gap: 10px; /* Space between logo and text */
 }
 
 .header-logo-icon {
-    width: 30px;
-    height: 30px;
-    margin-right: 10px;
+    /* Removed fixed width/height to allow Logo component to control size */
+    /* width: 30px; */
+    /* height: 30px; */
+    margin-right: 0; /* Handled by gap in parent */
     /* This allows us to toggle between Red Logo (Guest) and White Logo (User) */
-    filter: var(--logo-filter);
+    /* filter: var(--logo-filter); REMOVED for new SVG component */
     transition: filter 0.3s;
 }
 
