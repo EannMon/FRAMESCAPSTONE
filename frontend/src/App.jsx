@@ -71,6 +71,8 @@ function App() {
                         <Route path="/faculty-reports" element={<FacultyReportsPage />} />
                         <Route path="/faculty-dept-management" element={<DeptHeadManagePage />} />
                         <Route path="/faculty-dept-reports" element={<DeptHeadReportsPage />} />
+                        <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
+                        <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
                     </Route>
 
                     {/* --- Student Routes (using StudentLayout) --- */}

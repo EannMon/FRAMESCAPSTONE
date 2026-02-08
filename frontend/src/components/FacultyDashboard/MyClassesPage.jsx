@@ -548,7 +548,6 @@ const FacultyMyClassesPage = () => {
         <div className="faculty-my-classes-container">
             {subView === 'main' && (
                 <div className="view-toggle-header">
-                    <h2>My Classes</h2>
                     <div className="toggle-buttons">
                         <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>
                             <i className="fas fa-list"></i> List

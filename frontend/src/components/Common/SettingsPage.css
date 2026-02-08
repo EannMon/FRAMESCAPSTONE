@@ -195,3 +195,22 @@
 .toggle-switch input:checked + .toggle-slider:before {
     transform: translateX(22px);
 }
+
+/* =========================================== */
+/* FACULTY THEME OVERRIDES (Navy #163269)      */
+/* =========================================== */
+.settings-page-container.faculty-theme .toggle-switch input:checked + .toggle-slider {
+    background-color: #163269; /* Navy */
+}
+
+.settings-page-container.faculty-theme .settings-link-button:hover,
+.settings-page-container.faculty-theme .settings-action-button:hover {
+    color: #163269;
+    background-color: #EEF2FF;
+    border-color: #163269;
+}
+
+.settings-page-container.faculty-theme .settings-link-button:hover i,
+.settings-page-container.faculty-theme .settings-action-button:hover i {
+    color: #163269;
+}

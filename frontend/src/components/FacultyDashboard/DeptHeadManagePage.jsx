@@ -162,7 +162,6 @@ const DeptHeadManagePage = () => {
             {/* HEADER */}
             <div className="mgmt-header">
                 <div>
-                    <h2>Curriculum & Room Management</h2>
                     <span className="dept-badge"><i className="fas fa-building"></i> {department}</span>
                 </div>
                 <div className="header-actions">
