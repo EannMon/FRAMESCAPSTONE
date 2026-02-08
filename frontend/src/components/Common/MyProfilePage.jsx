@@ -170,7 +170,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 // ===========================================
 // MAIN PAGE COMPONENT
 // ===========================================
-const MyProfilePage = () => {
+const MyProfilePage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
 
     // --- States ---
@@ -202,13 +202,7 @@ const MyProfilePage = () => {
         setUser(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleEmergencyChange = (e) => {
-        const { name, value } = e.target;
-        setUser(prev => ({
-            ...prev,
-            emergency_contact: { ...prev.emergency_contact, [name]: value }
-        }));
-    };
+
 
     const handleSave = async () => {
         try {
@@ -233,36 +227,45 @@ const MyProfilePage = () => {
 
     if (!user) return <div style={{ padding: '20px' }}>Please log in again.</div>;
 
+    // Helper: Check Role
+    const isStudent = user.role?.toLowerCase() === 'student';
+
     return (
         <>
-            <Header theme={theme} user={user} />
+            {!isEmbedded && <Header theme={theme} user={user} />}
 
-            <div className="profile-page-container">
-                {/* Header */}
-                <div className="profile-header-bar">
-                    <div className="profile-header-left">
-                        <button className="profile-back-button" onClick={handleGoBack}>
-                            <i className="fas fa-arrow-left"></i>
-                        </button>
-                        <h1 className="profile-main-title">My Profile</h1>
-                    </div>
-
-                    {!isEditing ? (
-                        <button className="profile-edit-button" onClick={() => setIsEditing(true)}>
-                            <i className="fas fa-pen"></i> Edit Profile
-                        </button>
-                    ) : (
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="profile-cancel-button" onClick={() => setIsEditing(false)}>Cancel</button>
-                            <button className="profile-save-button" onClick={handleSave}>
-                                <i className="fas fa-save"></i> Save Changes
+            <div className={`profile-page-container ${isEmbedded ? 'embedded' : ''}`}>
+                {/* Header - Only show if NOT embedded (Back button and Title) */}
+                {!isEmbedded && (
+                    <div className="profile-header-bar">
+                        <div className="profile-header-left">
+                            <button className="profile-back-button" onClick={handleGoBack}>
+                                <i className="fas fa-arrow-left"></i>
                             </button>
+                            <h1 className="profile-main-title">My Profile</h1>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Summary Card */}
-                <div className="card profile-summary-card">
+                <div className="card profile-summary-card" style={{ position: 'relative' }}>
+
+                    {/* --- MOVED: EDIT BUTTONS TO TOP RIGHT OF CARD --- */}
+                    <div style={{ position: 'absolute', top: '25px', right: '25px' }}>
+                        {!isEditing ? (
+                            <button className="profile-edit-button" onClick={() => setIsEditing(true)}>
+                                <i className="fas fa-pen"></i> Edit Profile
+                            </button>
+                        ) : (
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button className="profile-cancel-button" onClick={() => setIsEditing(false)}>Cancel</button>
+                                <button className="profile-save-button" onClick={handleSave}>
+                                    <i className="fas fa-save"></i> Save Changes
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     <img
                         src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=0F172A&color=fff`}
                         alt="User Avatar"
@@ -285,27 +288,39 @@ const MyProfilePage = () => {
                 <div className="profile-info-grid">
                     <div className="card profile-info-card">
                         <h3>Personal Information</h3>
-                        <ProfileField label="First Name" name="firstName" value={user.firstName} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="Last Name" name="lastName" value={user.lastName} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="First Name" name="first_name" value={user.first_name} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Last Name" name="last_name" value={user.last_name} onChange={handleChange} isEditing={isEditing} />
                         <ProfileField label="TUPM ID" value={user.tupm_id} disabled={true} isEditing={isEditing} />
                         <ProfileField label="Email" value={user.email} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Phone" name="contactNumber" value={user.contactNumber} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Phone" name="contact_number" value={user.contact_number || ''} onChange={handleChange} isEditing={isEditing} />
                         <ProfileField label="Birthday" name="birthday" type="date" value={user.birthday ? user.birthday.split('T')[0] : ''} onChange={handleChange} isEditing={isEditing} />
                         <div className="profile-field">
                             <label>Home Address</label>
-                            <textarea name="homeAddress" value={user.homeAddress || ''} onChange={handleChange} disabled={!isEditing} className={isEditing ? "profile-input-editable" : "profile-input-disabled"} rows="3"></textarea>
+                            <textarea name="home_address" value={user.home_address || ''} onChange={handleChange} disabled={!isEditing} className={isEditing ? "profile-input-editable" : "profile-input-disabled"} rows="3"></textarea>
                         </div>
                     </div>
 
+                    {/* ACADEMIC INFO: Filter based on Role */}
                     <div className="card profile-info-card">
                         <h3>Academic Information</h3>
-                        <ProfileField label="College" value={user.college} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Course" value={user.course} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Year Level" value={user.year_level} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Section" value={user.section} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Term" value={user.term} disabled={true} isEditing={isEditing} />
-                        {user.academic_advisor && <ProfileField label="Advisor" value={user.academic_advisor} disabled={true} isEditing={isEditing} />}
-                        {user.gpa && <ProfileField label="GPA" value={user.gpa} disabled={true} isEditing={isEditing} />}
+                        <ProfileField label="College" value={user.department_name} disabled={true} isEditing={isEditing} />
+
+                        {/* Show these only if Student */}
+                        {isStudent && (
+                            <>
+                                <ProfileField label="Course" value={user.program_name} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Year Level" value={user.year_level} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Section" value={user.section} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Term" value={user.current_term} disabled={true} isEditing={isEditing} />
+                                {user.academic_advisor && <ProfileField label="Advisor" value={user.academic_advisor} disabled={true} isEditing={isEditing} />}
+                                {user.gpa && <ProfileField label="GPA" value={user.gpa} disabled={true} isEditing={isEditing} />}
+                            </>
+                        )}
+
+                        {/* Optional: Add specific Faculty fields here if needed */}
+                        {!isStudent && user.department_name && (
+                            <ProfileField label="Department" value={user.department_name} disabled={true} isEditing={isEditing} />
+                        )}
                     </div>
                 </div>
 
@@ -313,10 +328,10 @@ const MyProfilePage = () => {
                 <div className="card profile-info-card full-width-card">
                     <h3>Emergency Contact</h3>
                     <div className="profile-info-grid">
-                        <ProfileField label="Contact Name" name="name" value={user.emergency_contact?.name} onChange={handleEmergencyChange} isEditing={isEditing} />
-                        <ProfileField label="Relationship" name="relationship" value={user.emergency_contact?.relationship} onChange={handleEmergencyChange} isEditing={isEditing} />
-                        <ProfileField label="Phone Number" name="phone" value={user.emergency_contact?.phone} onChange={handleEmergencyChange} isEditing={isEditing} />
-                        <ProfileField label="Address" name="address" value={user.emergency_contact?.address} onChange={handleEmergencyChange} isEditing={isEditing} />
+                        <ProfileField label="Contact Name" name="emergency_contact_name" value={user.emergency_contact_name || ''} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Relationship" name="emergency_contact_relationship" value={user.emergency_contact_relationship || ''} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Phone Number" name="emergency_contact_phone" value={user.emergency_contact_phone || ''} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Address" name="emergency_contact_address" value={user.emergency_contact_address || ''} onChange={handleChange} isEditing={isEditing} />
                     </div>
                 </div>
 
@@ -336,7 +351,7 @@ const MyProfilePage = () => {
                 </div>
             </div>
 
-            <Footer />
+            {!isEmbedded && <Footer />}
 
             {/* --- ADDED: PASSWORD MODAL --- */}
             <PasswordModal

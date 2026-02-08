@@ -38,7 +38,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
     if (isDeptHead) {
         // Insert Department Management items before divider
         const insertIndex = 4; // Before divider
-        navItems.splice(insertIndex, 0, 
+        navItems.splice(insertIndex, 0,
             { name: 'Department Mgmt', icon: 'fas fa-university', to: '/faculty-dept-management' },
             { name: 'Dept Reports', icon: 'fas fa-file-alt', to: '/faculty-dept-reports' }
         );
@@ -58,7 +58,6 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
 
     return (
         <aside className={`frames-sidebar ${isDeptHead ? 'dept-head-sidebar' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-            
             {/* BRANDING (Matched to Student Module) */}
             <div className="sidebar-brand">
                 <div className="sidebar-logo-container">
@@ -85,8 +84,8 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
                             <li key={`divider-${index}`} className="nav-divider" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 20px' }}></li>
                         ) : (
                             <li key={item.name}>
-                                <NavLink 
-                                    to={item.to} 
+                                <NavLink
+                                    to={item.to}
                                     className={({ isActive }) => `frames-sidebar-link ${isActive ? 'active' : ''}`}
                                     title={isCollapsed ? item.name : ''}
                                 >
@@ -101,7 +100,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
 
             {/* USER PROFILE FOOTER */}
             <div className="sidebar-user-footer">
-                <Link to="/profile" className="sidebar-user-info" title="View Profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, color: 'inherit', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+                <Link to="/faculty-profile" className="sidebar-user-info" title="View Profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, color: 'inherit', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
                     <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
                     {!isCollapsed && (
                         <div className="sidebar-user-details" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -188,13 +187,13 @@ const FacultyLayout = () => {
 
     return (
         <div className="dashboard-container">
-            {/* Header: Pass theme props and hide logo to show Page Title */ }
-            <Header 
-                theme={facultyTheme} 
-                user={user} 
-                showLogo={false} 
-                toggleSidebar={() => setIsCollapsed(!isCollapsed)} 
-                isSidebarCollapsed={isCollapsed} 
+            {/* Header: Pass theme props and hide logo to show Page Title */}
+            <Header
+                theme={facultyTheme}
+                user={user}
+                showLogo={false}
+                toggleSidebar={() => setIsCollapsed(!isCollapsed)}
+                isSidebarCollapsed={isCollapsed}
             />
 
             <div className="dashboard-body">
