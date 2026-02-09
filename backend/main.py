@@ -4,7 +4,7 @@ Clean entry point with modular routers
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import auth, users, admin, faculty, student, face
+from api.routers import auth, users, admin, faculty, student, face, kiosk
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +29,7 @@ app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
 app.include_router(face.router)  # Already has /api/face prefix
+app.include_router(kiosk.router)  # Already has /api/kiosk prefix
 
 
 @app.get("/")

@@ -1,0 +1,592 @@
+Raspberry Pi Face Recognition Pipeline Implementation Plan
+This plan implements a gesture-gated face recognition pipeline for Raspberry Pi 4 kiosks. The enrollment pipeline on your server is FINAL and will NOT be touched.
+
+Key Design Decision: Embedding Compatibility
+CAUTION
+
+Critical Constraint: Your enrollment pipeline uses InsightFace (buffalo_l) which generates 512-dimensional embeddings. The TFLite model you choose for recognition MUST also produce 512-d embeddings, OR you must accept a small accuracy trade-off by training a projection layer.
+
+Model Recommendation: MobileFaceNet (TFLite FP32)
+Model	Embedding Dimension	RPi4 Inference	Accuracy
+MobileFaceNet	128-d or 512-d (depends on variant)	~18-25ms	99.5% LFW
+FaceNet	128-d or 512-d	~60-80ms	99.6% LFW
+InsightFace TFLite	512-d	~100-150ms	99.8% LFW
+Recommendation: Use MobileFaceNet-512 (TFLite FP32) for production. If unavailable, use InsightFace with buffalo_sc (smaller, CPU-friendly) for exact embedding match, accepting slightly higher latency.
+
+IMPORTANT
+
+Do NOT use INT8 quantization initially. Benchmarks show INT8 on RPi4 can be slower due to lack of hardware acceleration. Use FP32, then test INT8 only if FP32 is too slow.
+
+Architecture Overview
+Data Flow
+Gesture Gate
+Laptop Testing
+Sync embeddingson startup
+USB Webcam
+Face DetectorMediaPipe/BlazeFace
+Face Crop112x112
+TFLite ModelMobileFaceNet
+Embedding MatchCosine Similarity
+MediaPipe HandsPeace Sign Detection
+Log Attendance
+PostgreSQLfacial_profiles
+Local JSON Cache
+Backend API/api/attendance
+Proposed File Structure
+backend/
+├── rpi/                          # [NEW] RPi-specific code (portable)
+│   ├── __init__.py
+│   ├── config.py                 # Device config, thresholds
+│   ├── face_detector.py          # MediaPipe face detection
+│   ├── face_recognizer.py        # TFLite embedding extraction
+│   ├── gesture_detector.py       # MediaPipe Hands (peace sign)
+│   ├── embedding_cache.py        # Load/cache embeddings from JSON/DB
+│   ├── attendance_logger.py      # POST to backend API
+│   ├── main_kiosk.py             # Main loop (RPi production)
+│   └── test_laptop.py            # Laptop testing version
+├── scripts/
+│   ├── export_embeddings.py      # [NEW] Export DB embeddings to JSON
+│   └── test_face_recognition.py  # (existing, for reference)
+└── models_tflite/                # [NEW] Store TFLite model files
+    ├── mobilefacenet_512.tflite
+    └── blazeface_short.tflite
+Proposed Changes
+Component 1: Face Detection
+[NEW] 
+face_detector.py
+Use MediaPipe Face Detection (BlazeFace Short-Range) for fast face localization.
+
+python
+"""Fast face detection using MediaPipe (works on laptop + RPi)"""
+import mediapipe as mp
+import cv2
+import numpy as np
+class FaceDetector:
+    def __init__(self, min_confidence=0.7):
+        self.mp_face = mp.solutions.face_detection
+        self.detector = self.mp_face.FaceDetection(
+            model_selection=0,  # 0=short-range (2m), 1=long-range (5m)
+            min_detection_confidence=min_confidence
+        )
+    
+    def detect(self, frame_rgb):
+        """
+        Detect faces in RGB frame.
+        Returns list of (x, y, w, h, confidence) tuples.
+        """
+        results = self.detector.process(frame_rgb)
+        detections = []
+        
+        if results.detections:
+            h, w = frame_rgb.shape[:2]
+            for det in results.detections:
+                bbox = det.location_data.relative_bounding_box
+                x = int(bbox.xmin * w)
+                y = int(bbox.ymin * h)
+                bw = int(bbox.width * w)
+                bh = int(bbox.height * h)
+                conf = det.score[0]
+                detections.append((x, y, bw, bh, conf))
+        
+        return detections
+    
+    def crop_face(self, frame_rgb, bbox, target_size=(112, 112), margin=0.2):
+        """Crop and resize face with margin for embedding extraction."""
+        x, y, w, h = bbox[:4]
+        # Add margin
+        mx = int(w * margin)
+        my = int(h * margin)
+        x1 = max(0, x - mx)
+        y1 = max(0, y - my)
+        x2 = min(frame_rgb.shape[1], x + w + mx)
+        y2 = min(frame_rgb.shape[0], y + h + my)
+        
+        face_crop = frame_rgb[y1:y2, x1:x2]
+        face_resized = cv2.resize(face_crop, target_size)
+        return face_resized
+Component 2: Face Recognition (TFLite)
+[NEW] 
+face_recognizer.py
+python
+"""TFLite face embedding extraction (MobileFaceNet or compatible)"""
+import numpy as np
+class FaceRecognizer:
+    def __init__(self, model_path: str):
+        """
+        Load TFLite model for face embedding extraction.
+        Model should output 512-d embedding to match InsightFace enrollment.
+        """
+        try:
+            import tflite_runtime.interpreter as tflite
+        except ImportError:
+            import tensorflow.lite as tflite
+        
+        self.interpreter = tflite.Interpreter(model_path=model_path)
+        self.interpreter.allocate_tensors()
+        
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
+        
+        # Get expected input shape (typically [1, 112, 112, 3])
+        self.input_shape = self.input_details[0]['shape'][1:3]
+    
+    def preprocess(self, face_rgb):
+        """Preprocess face crop for model input."""
+        # Resize to model input size
+        face = cv2.resize(face_rgb, tuple(self.input_shape))
+        # Normalize to [-1, 1] (common for face models)
+        face = (face.astype(np.float32) - 127.5) / 127.5
+        # Add batch dimension
+        face = np.expand_dims(face, axis=0)
+        return face
+    
+    def get_embedding(self, face_rgb):
+        """
+        Extract 512-d embedding from face crop.
+        Returns normalized embedding vector.
+        """
+        input_data = self.preprocess(face_rgb)
+        self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
+        self.interpreter.invoke()
+        
+        embedding = self.interpreter.get_tensor(self.output_details[0]['index'])[0]
+        # L2 normalize
+        embedding = embedding / np.linalg.norm(embedding)
+        return embedding
+Component 3: Embedding Cache & Matching
+[NEW] 
+embedding_cache.py
+python
+"""Load and cache embeddings from JSON/DB for efficient matching."""
+import json
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
+@dataclass
+class EnrolledFace:
+    user_id: int
+    name: str
+    email: str
+    embedding: np.ndarray
+    quality: float
+class EmbeddingCache:
+    def __init__(self):
+        self.faces: List[EnrolledFace] = []
+        self._embeddings_matrix: Optional[np.ndarray] = None
+    
+    def load_from_json(self, json_path: str):
+        """Load embeddings exported from database."""
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+        
+        self.faces = []
+        for item in data['embeddings']:
+            emb = np.array(item['embedding'], dtype=np.float32)
+            emb = emb / np.linalg.norm(emb)  # Ensure normalized
+            self.faces.append(EnrolledFace(
+                user_id=item['user_id'],
+                name=item['name'],
+                email=item['email'],
+                embedding=emb,
+                quality=item.get('quality', 0.0)
+            ))
+        
+        # Precompute matrix for fast batch comparison
+        if self.faces:
+            self._embeddings_matrix = np.vstack([f.embedding for f in self.faces])
+    
+    def find_match(self, query_embedding: np.ndarray, threshold: float = 0.45) -> Tuple[Optional[EnrolledFace], float]:
+        """
+        Find best matching face using cosine similarity.
+        
+        Threshold recommendation:
+        - 0.45: Strict (low false accepts, may miss valid users)
+        - 0.40: Balanced (recommended for production)
+        - 0.35: Lenient (more false accepts, fewer misses)
+        
+        Returns (matched_face, similarity_score) or (None, score) if below threshold.
+        """
+        if self._embeddings_matrix is None or len(self.faces) == 0:
+            return None, 0.0
+        
+        # Batch cosine similarity (fast matrix multiplication)
+        similarities = np.dot(self._embeddings_matrix, query_embedding)
+        best_idx = np.argmax(similarities)
+        best_score = float(similarities[best_idx])
+        
+        if best_score >= threshold:
+            return self.faces[best_idx], best_score
+        return None, best_score
+Component 4: Gesture Detection (Attendance Gate)
+[NEW] 
+gesture_detector.py
+python
+"""MediaPipe Hands gesture detection for attendance confirmation."""
+import mediapipe as mp
+import numpy as np
+class GestureDetector:
+    """Detect peace sign (V-sign) to confirm attendance."""
+    
+    def __init__(self, min_confidence=0.7):
+        self.mp_hands = mp.solutions.hands
+        self.hands = self.mp_hands.Hands(
+            static_image_mode=False,
+            max_num_hands=1,
+            min_detection_confidence=min_confidence,
+            min_tracking_confidence=0.5
+        )
+    
+    def detect_peace_sign(self, frame_rgb) -> bool:
+        """
+        Detect if user is showing peace sign (index + middle finger up).
+        Used for ENTRY verification (FACE+GESTURE).
+        """
+        results = self.hands.process(frame_rgb)
+        
+        if not results.multi_hand_landmarks:
+            return False
+        
+        hand = results.multi_hand_landmarks[0]
+        landmarks = hand.landmark
+        
+        # Finger tip and pip (joint) indices
+        # Index: tip=8, pip=6
+        # Middle: tip=12, pip=10
+        # Ring: tip=16, pip=14
+        # Pinky: tip=20, pip=18
+        # Thumb: tip=4, ip=3
+        
+        def is_finger_up(tip_idx, pip_idx):
+            return landmarks[tip_idx].y < landmarks[pip_idx].y
+        
+        index_up = is_finger_up(8, 6)
+        middle_up = is_finger_up(12, 10)
+        ring_down = not is_finger_up(16, 14)
+        pinky_down = not is_finger_up(20, 18)
+        
+        # Peace sign: index + middle UP, ring + pinky DOWN
+        return index_up and middle_up and ring_down and pinky_down
+    
+    def get_detected_gesture(self, frame_rgb) -> str:
+        """Return name of detected gesture or 'NONE'."""
+        if self.detect_peace_sign(frame_rgb):
+            return "PEACE_SIGN"
+        # Add more gestures as needed (THUMBS_UP, OPEN_PALM, etc.)
+        return "NONE"
+Component 5: Main Kiosk Loop
+[NEW] 
+main_kiosk.py
+python
+"""Main kiosk loop for Raspberry Pi attendance system."""
+import cv2
+import time
+import requests
+import logging
+from face_detector import FaceDetector
+from face_recognizer import FaceRecognizer
+from gesture_detector import GestureDetector
+from embedding_cache import EmbeddingCache
+from config import Config
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+class AttendanceKiosk:
+    def __init__(self, config: Config):
+        self.config = config
+        
+        # Initialize components
+        logger.info("🔄 Loading face detector...")
+        self.face_detector = FaceDetector(min_confidence=config.FACE_DET_CONFIDENCE)
+        
+        logger.info("🔄 Loading face recognizer...")
+        self.face_recognizer = FaceRecognizer(config.TFLITE_MODEL_PATH)
+        
+        logger.info("🔄 Loading gesture detector...")
+        self.gesture_detector = GestureDetector(min_confidence=config.GESTURE_CONFIDENCE)
+        
+        logger.info("📥 Loading embeddings cache...")
+        self.cache = EmbeddingCache()
+        self.cache.load_from_json(config.EMBEDDINGS_JSON_PATH)
+        logger.info(f"✅ Loaded {len(self.cache.faces)} enrolled faces")
+        
+        # State tracking
+        self.last_recognized_user = None
+        self.last_recognition_time = 0
+        self.cooldown_seconds = 5  # Prevent duplicate entries
+    
+    def process_frame(self, frame_bgr):
+        """Process single frame and return recognition result."""
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        
+        # Step 1: Detect face
+        detections = self.face_detector.detect(frame_rgb)
+        if not detections:
+            return None, "NO_FACE", 0.0
+        
+        # Use largest face
+        largest = max(detections, key=lambda d: d[2] * d[3])
+        face_crop = self.face_detector.crop_face(frame_rgb, largest)
+        
+        # Step 2: Extract embedding
+        embedding = self.face_recognizer.get_embedding(face_crop)
+        
+        # Step 3: Match against cache
+        match, score = self.cache.find_match(
+            embedding, 
+            threshold=self.config.MATCH_THRESHOLD
+        )
+        
+        if match is None:
+            return None, "UNKNOWN", score
+        
+        return match, "RECOGNIZED", score
+    
+    def check_gesture_gate(self, frame_bgr) -> bool:
+        """Check if user is showing required gesture."""
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        gesture = self.gesture_detector.get_detected_gesture(frame_rgb)
+        return gesture == "PEACE_SIGN"
+    
+    def log_attendance(self, user, action, gesture=None, confidence=0.0):
+        """Send attendance log to backend API."""
+        try:
+            payload = {
+                "user_id": user.user_id,
+                "class_id": self.config.CURRENT_CLASS_ID,  # Set per-device
+                "device_id": self.config.DEVICE_ID,
+                "action": action,
+                "verified_by": "FACE+GESTURE" if gesture else "FACE",
+                "confidence_score": confidence,
+                "gesture_detected": gesture
+            }
+            response = requests.post(
+                f"{self.config.BACKEND_URL}/api/attendance/log",
+                json=payload,
+                timeout=5
+            )
+            return response.status_code == 200
+        except Exception as e:
+            logger.error(f"❌ Failed to log attendance: {e}")
+            return False
+    
+    def run(self):
+        """Main loop for kiosk operation."""
+        logger.info("📷 Starting camera...")
+        cap = cv2.VideoCapture(self.config.CAMERA_INDEX)
+        
+        if not cap.isOpened():
+            logger.error("❌ Failed to open camera!")
+            return
+        
+        logger.info("✅ Kiosk running! Press Ctrl+C to stop.")
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+                
+                # Recognition
+                match, status, score = self.process_frame(frame)
+                
+                if status == "RECOGNIZED":
+                    now = time.time()
+                    
+                    # Cooldown check
+                    if (self.last_recognized_user == match.user_id and 
+                        now - self.last_recognition_time < self.cooldown_seconds):
+                        continue
+                    
+                    logger.info(f"👤 Detected: {match.name} ({score:.1%})")
+                    
+                    # Gesture gate (optional based on config)
+                    if self.config.REQUIRE_GESTURE:
+                        logger.info("✋ Waiting for peace sign...")
+                        gesture_start = time.time()
+                        gesture_confirmed = False
+                        
+                        while time.time() - gesture_start < 5:  # 5 second timeout
+                            ret, frame = cap.read()
+                            if self.check_gesture_gate(frame):
+                                gesture_confirmed = True
+                                break
+                            time.sleep(0.1)
+                        
+                        if not gesture_confirmed:
+                            logger.warning("⚠️ Gesture not detected, skipping")
+                            continue
+                    
+                    # Log attendance
+                    gesture = "PEACE_SIGN" if self.config.REQUIRE_GESTURE else None
+                    if self.log_attendance(match, "ENTRY", gesture, score):
+                        logger.info(f"✅ Attendance logged for {match.name}")
+                        self.last_recognized_user = match.user_id
+                        self.last_recognition_time = now
+                
+                time.sleep(0.05)  # ~20 FPS processing
+        
+        except KeyboardInterrupt:
+            logger.info("👋 Shutting down...")
+        finally:
+            cap.release()
+if __name__ == "__main__":
+    from config import Config
+    kiosk = AttendanceKiosk(Config())
+    kiosk.run()
+Component 6: Configuration
+[NEW] 
+config.py
+python
+"""Kiosk configuration - edit for your deployment."""
+import os
+class Config:
+    # Camera
+    CAMERA_INDEX = 0  # 0=default, change for Pi Camera
+    
+    # Model paths
+    TFLITE_MODEL_PATH = "models_tflite/mobilefacenet_512.tflite"
+    EMBEDDINGS_JSON_PATH = "data/embeddings_cache.json"
+    
+    # Recognition thresholds
+    FACE_DET_CONFIDENCE = 0.7
+    GESTURE_CONFIDENCE = 0.7
+    MATCH_THRESHOLD = 0.40  # Cosine similarity (0.35-0.45 range)
+    
+    # Attendance requirements
+    REQUIRE_GESTURE = True  # Require peace sign for entry
+    
+    # Backend connection
+    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+    
+    # Device identity (set per kiosk)
+    DEVICE_ID = int(os.getenv("DEVICE_ID", "1"))
+    CURRENT_CLASS_ID = int(os.getenv("CLASS_ID", "1"))
+Component 7: Embedding Export Script
+[NEW] 
+export_embeddings.py
+python
+"""Export enrolled face embeddings from PostgreSQL to JSON for RPi cache."""
+import sys
+import os
+import json
+import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db.database import SessionLocal
+from models.facial_profile import FacialProfile
+from models.user import User
+def export_embeddings(output_path: str):
+    """Export all embeddings to JSON file for kiosk devices."""
+    db = SessionLocal()
+    
+    try:
+        profiles = db.query(FacialProfile).all()
+        
+        export_data = {
+            "version": "1.0",
+            "model": "insightface_buffalo_l_v1",
+            "embedding_dim": 512,
+            "embeddings": []
+        }
+        
+        for profile in profiles:
+            user = db.query(User).filter(User.id == profile.user_id).first()
+            if user and profile.embedding:
+                # Convert bytes to list for JSON serialization
+                emb_array = np.frombuffer(profile.embedding, dtype=np.float32)
+                
+                export_data["embeddings"].append({
+                    "user_id": user.id,
+                    "name": f"{user.first_name} {user.last_name}",
+                    "email": user.email,
+                    "tupm_id": user.tupm_id,
+                    "embedding": emb_array.tolist(),
+                    "quality": profile.enrollment_quality or 0.0,
+                    "model_version": profile.model_version
+                })
+        
+        with open(output_path, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        
+        print(f"✅ Exported {len(export_data['embeddings'])} embeddings to {output_path}")
+        return True
+        
+    finally:
+        db.close()
+if __name__ == "__main__":
+    output = sys.argv[1] if len(sys.argv) > 1 else "data/embeddings_cache.json"
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    export_embeddings(output)
+Similarity Metrics & Thresholds
+Recommended Thresholds for Cosine Similarity
+Use Case	Threshold	False Accept Rate	False Reject Rate
+High Security	0.50	Very Low	Higher (may miss valid users)
+Balanced (Recommended)	0.40-0.45	Low	Low
+Convenience	0.35	Higher	Very Low
+NOTE
+
+These thresholds assume both enrollment and recognition use the same model architecture. If you use MobileFaceNet (128-d) for recognition but have InsightFace (512-d) enrollments, you'll need to either:
+
+Re-enroll users with MobileFaceNet
+Train a linear projection layer (128→512 or vice versa)
+Use InsightFace buffalo_sc (smaller TFLite model) for recognition
+Edge Cases & Mitigations
+Edge Case	Problem	Mitigation
+Low Lighting	Face detection fails or low quality	Use IR camera + message "Move closer to light"
+Multiple Faces	Ambiguous identity	Use largest face (closest to camera)
+Face Occlusion	Masks, glasses, hair	Enroll with variations; lower threshold if needed
+Spoofing	Photo/video attacks	Future: add liveness detection (blink, head turn)
+Network Failure	Can't log attendance	Queue logs locally, sync when online
+Model Mismatch	TFLite vs InsightFace embeddings	Test cosine similarity; re-enroll if <0.3 average
+Latency	Slow recognition	Target: <100ms for detection + embedding
+Verification Plan
+1. Unit Test: Embedding Export
+bash
+cd backend
+# Export embeddings to JSON
+python scripts/export_embeddings.py data/test_embeddings.json
+# Verify file contains expected data
+python -c "import json; d=json.load(open('data/test_embeddings.json')); print(f'{len(d[\"embeddings\"])} embeddings, dim={d[\"embedding_dim\"]}')"
+Expected: Prints count of enrolled users and dimension=512.
+
+2. Integration Test: Laptop Recognition
+bash
+cd backend
+# Run existing recognition test (uses InsightFace)
+python scripts/test_face_recognition.py
+Expected: Recognizes enrolled user with >50% confidence on majority of frames.
+
+3. Manual Test: End-to-End Kiosk Flow (Laptop Simulation)
+Setup:
+
+Export embeddings: python scripts/export_embeddings.py
+Start kiosk: python rpi/main_kiosk.py
+Test Recognition:
+
+Show your face to the webcam
+Console should display: 👤 Detected: [Your Name] (XX%)
+Test Gesture Gate:
+
+When prompted, show peace sign (✌️)
+Console should display: ✅ Attendance logged for [Your Name]
+Verify Cooldown:
+
+Try showing face again immediately
+Should NOT log duplicate entry within 5 seconds
+NOTE
+
+The TFLite model file (mobilefacenet_512.tflite) must be downloaded separately. Shall I provide download instructions or a script to fetch it?
+
+Assumptions
+Model Availability: MobileFaceNet-512 TFLite model exists and is compatible. If not, fall back to InsightFace buffalo_sc.
+Network Access: Kiosk has network access to sync embeddings and log attendance.
+Single Camera: One camera per kiosk (no stereo/depth for liveness yet).
+USB Webcam First: Testing on laptop before deploying to RPi.
+Peace Sign Only: Initial gesture is peace sign; expandable to others.
+Questions for You
+TFLite Model Source: Do you have a preferred MobileFaceNet-512 TFLite model, or should I recommend a source?
+Fallback Strategy: If MobileFaceNet produces 128-d embeddings (mismatch with your 512-d enrollments), would you prefer:
+(A) Re-enroll users with the new model, or
+(B) Use InsightFace buffalo_sc (slower but exact match)?
+Class Scheduling: How will the kiosk know which class_id is currently active? Options:
+(A) Hardcode per-device
+(B) Query schedule API based on current time + room
+Liveness Detection: Is anti-spoofing a priority for MVP, or acceptable as a future enhancement?
