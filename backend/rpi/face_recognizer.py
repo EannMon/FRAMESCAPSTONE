@@ -1,6 +1,13 @@
 """
-Face Recognizer using InsightFace buffalo_sc
-Extracts 512-d embeddings compatible with server enrollment (buffalo_l).
+Face Recognizer using InsightFace
+Extracts 512-d embeddings for face matching.
+
+CRITICAL: The recognition model MUST match the enrollment model!
+- Enrollment uses: buffalo_l (server-side)
+- Recognition MUST use: buffalo_l (same model)
+
+buffalo_l and buffalo_sc produce DIFFERENT embedding spaces despite
+both outputting 512-d vectors. Cross-model similarity will be near-random.
 """
 import numpy as np
 import cv2
@@ -11,18 +18,18 @@ logger = logging.getLogger(__name__)
 
 # Global model instance (lazy loaded)
 _face_analyzer = None
+_loaded_model_name = None
 
 
-def get_face_analyzer(model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (320, 320)):
+def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] = (640, 640)):
     """
     Lazy-load InsightFace model.
     
-    buffalo_sc = smaller, faster version suitable for RPi
-    Produces same 512-d embeddings as buffalo_l used in enrollment.
+    IMPORTANT: Use the SAME model as enrollment (buffalo_l) for compatible embeddings.
     """
-    global _face_analyzer
+    global _face_analyzer, _loaded_model_name
     
-    if _face_analyzer is None:
+    if _face_analyzer is None or _loaded_model_name != model_name:
         try:
             from insightface.app import FaceAnalysis
             
@@ -31,8 +38,9 @@ def get_face_analyzer(model_name: str = "buffalo_sc", det_size: Tuple[int, int] 
                 name=model_name,
                 providers=['CPUExecutionProvider']
             )
-            _face_analyzer.prepare(ctx_id=-1, det_size=det_size)
-            logger.info(f"✅ InsightFace model loaded successfully!")
+            _face_analyzer.prepare(ctx_id=0, det_size=det_size)
+            _loaded_model_name = model_name
+            logger.info(f"✅ InsightFace model loaded: {model_name} (det_size={det_size})")
             
         except ImportError:
             logger.error("❌ InsightFace not installed. Run: pip install insightface onnxruntime")

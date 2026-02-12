@@ -1,6 +1,13 @@
 """
 Main Kiosk Application - Face Recognition Attendance System
 Runs the full attendance loop: face detection → recognition → gesture → log.
+
+Supports two modes:
+- LAPTOP: InsightFace runs every frame (fast CPU, ~50ms)
+- RPI:    Two-stage gated detection:
+          Stage 1: MediaPipe BlazeFace detects face (~30ms on RPi4)
+          Stage 2: Only if face found → InsightFace extracts embedding (~150-250ms on RPi4)
+          Net: Responsive UI + recognition within ~300ms when face appears
 """
 import cv2
 import time
@@ -68,7 +75,8 @@ class AttendanceKiosk:
         
         logger.info("🔄 Loading gesture detector (MediaPipe Hands)...")
         self.gesture_detector = GestureDetector(
-            min_confidence=self.config.GESTURE_CONFIDENCE
+            min_confidence=self.config.GESTURE_CONFIDENCE,
+            consecutive_frames=getattr(self.config, 'GESTURE_CONSECUTIVE_FRAMES', 3)
         )
         
         logger.info("📥 Loading embedding cache...")
@@ -105,9 +113,14 @@ class AttendanceKiosk:
         
         # State tracking
         self._last_recognized: dict = {}  # user_id -> timestamp (for cooldown)
+        self._frame_count: int = 0
         
         logger.info("=" * 60)
         logger.info(f"✅ Kiosk initialized | Device ID: {self.config.DEVICE_ID}")
+        logger.info(f"   Platform: {self.config.PLATFORM.upper()}")
+        logger.info(f"   Gated detection: {'ON' if self.config.USE_GATED_DETECTION else 'OFF'}")
+        logger.info(f"   Model: {self.config.INSIGHTFACE_MODEL} @ {self.config.RECOGNITION_DET_SIZE}")
+        logger.info(f"   Frame skip: every {self.config.RECOGNITION_FRAME_SKIP} frame(s)")
         logger.info(f"   Enrolled faces: {self.embedding_cache.count}")
         logger.info(f"   Backend URL: {self.config.BACKEND_URL}")
         logger.info("=" * 60)
@@ -116,13 +129,35 @@ class AttendanceKiosk:
         """
         Process a single frame for face recognition.
         
+        Two modes:
+        - Direct (laptop): InsightFace handles detection + embedding in one pass
+        - Gated (RPi):     MediaPipe detects face first (fast), then InsightFace 
+                           only runs on the full frame if a face is present
+        
         Returns:
             (face_match, confidence, bbox) or (None, 0.0, None)
         """
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         
-        # Use InsightFace for both detection and embedding (more accurate)
-        embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+        if self.config.USE_GATED_DETECTION:
+            # STAGE 1: Fast face detection with MediaPipe (~30ms on RPi4)
+            face_bbox = self.face_detector.get_largest_face(frame_rgb)
+            
+            if face_bbox is None:
+                return None, 0.0, None
+            
+            # Check minimum face size
+            _, _, fw, fh, _ = face_bbox
+            if fw < self.config.MIN_FACE_SIZE_PX or fh < self.config.MIN_FACE_SIZE_PX:
+                return None, 0.0, None
+            
+            # STAGE 2: InsightFace embedding extraction (~150-250ms on RPi4)
+            # Pass full frame — InsightFace does its own internal detection + alignment
+            # which is more accurate than using a pre-crop
+            embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+        else:
+            # Direct mode (laptop): InsightFace handles everything
+            embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
         
         if embedding is None:
             return None, 0.0, None
@@ -208,8 +243,8 @@ class AttendanceKiosk:
                 
                 frame_count += 1
                 
-                # Process every 3rd frame for performance
-                if frame_count % 3 != 0:
+                # Skip frames for performance (configurable per platform)
+                if frame_count % self.config.RECOGNITION_FRAME_SKIP != 0:
                     continue
                 
                 # Get active class
