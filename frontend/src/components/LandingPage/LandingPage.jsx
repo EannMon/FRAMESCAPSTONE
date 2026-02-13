@@ -45,9 +45,10 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                         navigate('/admin-dashboard');
                     } else if (userRole === 'STUDENT') {
                         navigate('/student-dashboard');
-                    } else if (userRole === 'FACULTY' || userRole === 'HEAD') {
-                        // Routing for Faculty and Dept Head
+                    } else if (userRole === 'FACULTY') {
                         navigate('/faculty-dashboard');
+                    } else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') {
+                        navigate('/dept-head-dashboard');
                     }
                 } else if (verificationStatus === 'Pending') {
                     // HAKBANG 2: PENDING - I-redirect sa Registration page para sa status message

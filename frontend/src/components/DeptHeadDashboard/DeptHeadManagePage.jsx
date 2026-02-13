@@ -11,22 +11,22 @@ const DeptHeadManagePage = () => {
     const [facultyList, setFacultyList] = useState([]);
     const [availableRooms, setAvailableRooms] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showRoomModal, setShowRoomModal] = useState(false);
-    
+
     // Selection State
     const [selectedCourse, setSelectedCourse] = useState(null);
-    
+
     // Form States
     const [newCourse, setNewCourse] = useState({
         code: '', name: '', units: 3
     });
 
     const [roomForm, setRoomForm] = useState({
-        roomName: '', 
+        roomName: '',
         day: 'Monday',
         startTime: '09:00 AM',
         endTime: '12:00 PM'
@@ -42,13 +42,13 @@ const DeptHeadManagePage = () => {
             if (response.data) {
                 setCourses(response.data.courses || []);
                 setFacultyList(response.data.faculty || []);
-                
+
                 // Extract just the room names for the dropdown if rooms exist
                 const rooms = response.data.rooms || [];
                 setAvailableRooms(rooms.map(r => r.room_name));
-                
-                if(rooms.length > 0) {
-                    setRoomForm(prev => ({...prev, roomName: rooms[0].room_name}));
+
+                if (rooms.length > 0) {
+                    setRoomForm(prev => ({ ...prev, roomName: rooms[0].room_name }));
                 }
             }
         } catch (error) {
@@ -118,7 +118,7 @@ const DeptHeadManagePage = () => {
     const handleAssignRoom = async (e) => {
         e.preventDefault();
         if (!selectedCourse) return;
-        
+
         try {
             await axios.post('http://localhost:5000/api/dept/assign-room', {
                 schedule_id: selectedCourse.schedule_id,
@@ -142,17 +142,17 @@ const DeptHeadManagePage = () => {
         const doc = new jsPDF();
         doc.text(`Department Load & Room Assignment`, 14, 20);
         const tableRows = courses.map(c => [
-            c.subject_code, 
-            c.name, 
-            c.assigned_faculty || "Unassigned", 
-            c.room_name || "TBA", 
+            c.subject_code,
+            c.name,
+            c.assigned_faculty || "Unassigned",
+            c.room_name || "TBA",
             c.schedule || "TBA"
         ]);
         autoTable(doc, {
             head: [["Code", "Description", "Instructor", "Room", "Schedule"]],
             body: tableRows,
             startY: 30,
-            headStyles: { fillColor: [166, 37, 37] }
+            headStyles: { fillColor: [22, 50, 105] } // Adjusted to Navy
         });
         doc.save('Dept_Assignments.pdf');
     };
@@ -177,7 +177,7 @@ const DeptHeadManagePage = () => {
             <div className="mgmt-layout">
                 {/* TABLE */}
                 <div className="course-list-section card">
-                    <h3>Course Loads & Room Assignments {loading && <span style={{fontSize:'0.8em', color:'#888'}}>(Refreshing...)</span>}</h3>
+                    <h3>Course Loads & Room Assignments {loading && <span style={{ fontSize: '0.8em', color: '#888' }}>(Refreshing...)</span>}</h3>
                     <div className="table-responsive">
                         <table className="mgmt-table">
                             <thead>
@@ -195,7 +195,7 @@ const DeptHeadManagePage = () => {
                                             <span className="code-pill">{course.subject_code}</span>
                                             <div className="small-desc">{course.name}</div>
                                         </td>
-                                        
+
                                         {/* Faculty Column */}
                                         <td>
                                             {course.assigned_faculty ? (
@@ -233,7 +233,7 @@ const DeptHeadManagePage = () => {
                                     </tr>
                                 ))}
                                 {courses.length === 0 && !loading && (
-                                    <tr><td colSpan="4" style={{textAlign:'center', padding:'20px'}}>No subjects found. Create one!</td></tr>
+                                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No subjects found. Create one!</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -253,13 +253,13 @@ const DeptHeadManagePage = () => {
                                 </div>
                             </div>
                         ))}
-                        {logs.length === 0 && <div style={{color:'#999', fontSize:'0.9em'}}>No recent activities.</div>}
+                        {logs.length === 0 && <div style={{ color: '#999', fontSize: '0.9em' }}>No recent activities.</div>}
                     </div>
                 </div>
             </div>
 
             {/* --- MODALS --- */}
-            
+
             {/* 1. Create Course */}
             {showCreateModal && (
                 <div className="modal-overlay">
@@ -271,15 +271,15 @@ const DeptHeadManagePage = () => {
                         <form onSubmit={handleCreateCourse}>
                             <div className="form-group">
                                 <label>Subject Code</label>
-                                <input type="text" value={newCourse.code} onChange={e => setNewCourse({...newCourse, code: e.target.value})} required placeholder="e.g. IT 321" />
+                                <input type="text" value={newCourse.code} onChange={e => setNewCourse({ ...newCourse, code: e.target.value })} required placeholder="e.g. IT 321" />
                             </div>
                             <div className="form-group">
                                 <label>Description</label>
-                                <input type="text" value={newCourse.name} onChange={e => setNewCourse({...newCourse, name: e.target.value})} required />
+                                <input type="text" value={newCourse.name} onChange={e => setNewCourse({ ...newCourse, name: e.target.value })} required />
                             </div>
                             <div className="form-group">
                                 <label>Units</label>
-                                <input type="number" value={newCourse.units} onChange={e => setNewCourse({...newCourse, units: e.target.value})} required min="1" max="6" />
+                                <input type="number" value={newCourse.units} onChange={e => setNewCourse({ ...newCourse, units: e.target.value })} required min="1" max="6" />
                             </div>
                             <button type="submit" className="submit-btn full">Create Subject</button>
                         </form>
@@ -319,10 +319,10 @@ const DeptHeadManagePage = () => {
                         <form onSubmit={handleAssignRoom}>
                             <div className="form-group">
                                 <label>Select Room</label>
-                                <select 
+                                <select
                                     className="modal-select"
-                                    value={roomForm.roomName} 
-                                    onChange={e => setRoomForm({...roomForm, roomName: e.target.value})}
+                                    value={roomForm.roomName}
+                                    onChange={e => setRoomForm({ ...roomForm, roomName: e.target.value })}
                                 >
                                     {availableRooms.length > 0 ? (
                                         availableRooms.map(r => <option key={r} value={r}>{r}</option>)
@@ -333,10 +333,10 @@ const DeptHeadManagePage = () => {
                             </div>
                             <div className="form-group">
                                 <label>Day of Week</label>
-                                <select 
+                                <select
                                     className="modal-select"
                                     value={roomForm.day}
-                                    onChange={e => setRoomForm({...roomForm, day: e.target.value})}
+                                    onChange={e => setRoomForm({ ...roomForm, day: e.target.value })}
                                 >
                                     {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(d => (
                                         <option key={d} value={d}>{d}</option>
@@ -346,16 +346,16 @@ const DeptHeadManagePage = () => {
                             <div className="form-row">
                                 <div className="form-group half">
                                     <label>Start Time</label>
-                                    <input type="text" className="modal-input" placeholder="09:00 AM" required 
+                                    <input type="text" className="modal-input" placeholder="09:00 AM" required
                                         value={roomForm.startTime}
-                                        onChange={e => setRoomForm({...roomForm, startTime: e.target.value})} 
+                                        onChange={e => setRoomForm({ ...roomForm, startTime: e.target.value })}
                                     />
                                 </div>
                                 <div className="form-group half">
                                     <label>End Time</label>
-                                    <input type="text" className="modal-input" placeholder="12:00 PM" required 
+                                    <input type="text" className="modal-input" placeholder="12:00 PM" required
                                         value={roomForm.endTime}
-                                        onChange={e => setRoomForm({...roomForm, endTime: e.target.value})} 
+                                        onChange={e => setRoomForm({ ...roomForm, endTime: e.target.value })}
                                     />
                                 </div>
                             </div>
