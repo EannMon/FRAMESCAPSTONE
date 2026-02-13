@@ -3,23 +3,22 @@ import axios from 'axios'; // Import Axios
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './DeptHeadReportsPage.css';
 
+const reportOptions = [
+    // FACULTY REPORTS (Matching TestPDFPage Template)
+    { id: 'FAC_PERFORMANCE', label: 'Faculty Attendance Performance', desc: 'Aggregates attendance and punctuality of instructors.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
+    { id: 'FAC_LATE', label: 'Faculty Late Arrival Report', desc: 'Identifies recurring delays by faculty.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
+
+    // ROOM REPORTS
+    { id: 'ROOM_OCCUPANCY', label: 'Room Utilization & Occupancy', desc: 'Tracks occupants per room vs capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' },
+    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Detects rooms exceeding safety capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' }
+];
+
 const DeptHeadReportsPage = () => {
 
     // --- STATES ---
     const [selectedReportId, setSelectedReportId] = useState('FAC_PERFORMANCE');
     const [reportData, setReportData] = useState([]); // Holds DB data
     const [loading, setLoading] = useState(false);
-
-    // --- REPORT CONFIGURATION ---
-    const reportOptions = [
-        // FACULTY REPORTS (Matching TestPDFPage Template)
-        { id: 'FAC_PERFORMANCE', label: 'Faculty Attendance Performance', desc: 'Aggregates attendance and punctuality of instructors.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
-        { id: 'FAC_LATE', label: 'Faculty Late Arrival Report', desc: 'Identifies recurring delays by faculty.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
-
-        // ROOM REPORTS
-        { id: 'ROOM_OCCUPANCY', label: 'Room Utilization & Occupancy', desc: 'Tracks occupants per room vs capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' },
-        { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Detects rooms exceeding safety capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' }
-    ];
 
     const currentReport = reportOptions.find(r => r.id === selectedReportId);
     const isRoomReport = currentReport?.type === 'ROOM';
@@ -43,7 +42,7 @@ const DeptHeadReportsPage = () => {
         if (currentReport?.endpoint) {
             fetchData();
         }
-    }, [selectedReportId, currentReport]);
+    }, [currentReport]);
 
     // --- PDF GENERATOR ---
     const handleDownloadPDF = () => {
@@ -70,7 +69,6 @@ const DeptHeadReportsPage = () => {
             }));
         }
 
-        // 2. Generate PDF
         // 2. Generate PDF
         generateFramesPDF({
             title: currentReport.label,
@@ -182,7 +180,7 @@ const DeptHeadReportsPage = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#888' }}>
-                                        {loading ? "Fetching data..." : "No records found in database."}
+                                        {loading ? "Fetching data..." : "No data available."}
                                     </td>
                                 </tr>
                             )}

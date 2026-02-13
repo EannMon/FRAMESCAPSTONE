@@ -1,0 +1,465 @@
+/* =========================================== */
+/* DeptHeadUserManagementPage.css */
+/* =========================================== */
+.user-management-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+    padding-left: 30px;
+    padding-right: 30px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Tabs */
+.user-management-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0;
+    width: 100%;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #64748b;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    /* Make tabs take full width */
+    text-align: center;
+}
+
+.tab-button:hover {
+    color: #163269;
+    background-color: rgba(22, 50, 105, 0.05);
+}
+
+.tab-button.active {
+    color: #163269;
+    border-bottom-color: #163269;
+}
+
+/* Tab Content Wrapper */
+.tab-content-verification {
+    width: 100%;
+    overflow-x: hidden;
+    animation: fadeIn 0.3s ease;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   USER DIRECTORY STYLES
+   ========================================== */
+.user-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.user-summary-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid #e2e8f0;
+    transition: transform 0.2s;
+}
+
+.user-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.05);
+}
+
+.user-summary-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+.user-summary-title {
+    font-size: 0.95rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* List Card */
+
+.user-list-card,
+.app-list-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+    border: 1px solid #e2e8f0;
+    /* overflow: hidden;  <-- Removed to prevent dropdown clipping */
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.app-list-card {
+    max-width: 100%;
+}
+
+.user-list-header,
+.app-list-header {
+    padding: 25px 30px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+/* ... headers ... */
+
+.user-table th,
+.app-table th {
+    text-align: left;
+    padding: 18px 30px;
+    background-color: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+    /* Headers can stay nowrap or wrap if needed */
+}
+
+.user-table td,
+.app-table td {
+    padding: 20px 30px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 0.95rem;
+    vertical-align: middle;
+    white-space: normal;
+    /* ALLOW WRAPPING so table shrinks */
+    word-wrap: break-word;
+    /* Handle long emails/names */
+}
+
+.user-table tr:hover,
+.app-table tr:hover {
+    background-color: #f8fafc;
+}
+
+.user-info-cell {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-table-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #e2e8f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #64748b;
+}
+
+.user-table-name {
+    display: block;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.user-table-email {
+    display: block;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.role-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.role-tag.red {
+    background-color: #fee2e2;
+    color: #ef4444;
+}
+
+.role-tag.green {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
+.role-tag.blue {
+    background-color: #dbeafe;
+    color: #3b82f6;
+}
+
+.status-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-tag.green {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
+.status-tag.yellow {
+    background-color: #fef9c3;
+    color: #eab308;
+}
+
+.status-tag.red {
+    background-color: #fee2e2;
+    color: #ef4444;
+}
+
+.action-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+/* ==========================================
+   VERIFICATION SPECIFIC STYLES
+   ========================================== */
+.app-filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.app-filter-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    flex-grow: 1;
+}
+
+.app-filter-select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    font-size: 0.95rem;
+}
+
+.app-search-bar {
+    display: flex;
+    align-items: center;
+    position: relative;
+    max-width: 400px;
+    flex-grow: 1;
+}
+
+.refresh-button {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    color: #555;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.refresh-button:hover {
+    background: #e2e6ea;
+}
+
+/* Modal Styles */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+.add-user-form input,
+.add-user-form select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+}
+
+.add-user-submit {
+    width: 100%;
+    padding: 12px;
+    background-color: #163269;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.add-user-cancel {
+    width: 100%;
+    padding: 12px;
+    background-color: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.modal-close-button {
+    width: 100%;
+    /* Match cancel button */
+    padding: 12px;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    margin-top: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Dropdown */
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.action-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    min-width: 140px;
+    overflow: hidden;
+}
+
+.action-dropdown button {
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    color: #334155;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-dropdown button:hover {
+    background-color: #f8fafc;
+}
+
+.action-dropdown button.delete {
+    color: #ef4444;
+}
+
+.action-dropdown button.delete:hover {
+    background-color: #fef2f2;
+}
+
+@media (max-width: 768px) {
+
+    .app-filter-bar,
+    .app-filter-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .app-filter-select,
+    .app-search-bar {
+        width: 100%;
+        max-width: none;
+    }
+}

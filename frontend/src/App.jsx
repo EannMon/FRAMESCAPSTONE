@@ -9,6 +9,7 @@ import FaceEnrollmentPage from './components/FaceEnrollment/FaceEnrollmentPage';
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout';
 import FacultyLayout from './components/FacultyDashboard/FacultyLayout';
+import DeptHeadLayout from './components/DeptHeadDashboard/DeptHeadLayout';
 import StudentLayout from './components/StudentDashboard/StudentLayout';
 
 
@@ -25,8 +26,13 @@ import FacultyDashboardPage from './components/FacultyDashboard/FacultyDashboard
 import MyClassesPage from './components/FacultyDashboard/MyClassesPage';
 import FacultyAttendancePage from './components/FacultyDashboard/FacultyAttendancePage';
 import FacultyReportsPage from './components/FacultyDashboard/FacultyReportsPage';
-import DeptHeadManagePage from './components/FacultyDashboard/DeptHeadManagePage';
-import DeptHeadReportsPage from './components/FacultyDashboard/DeptHeadReportsPage';
+
+// --- Import Dept Head Pages ---
+import DeptHeadDashboardPage from './components/DeptHeadDashboard/DeptHeadDashboardPage';
+import DeptHeadManagePage from './components/DeptHeadDashboard/DeptHeadManagePage';
+import DeptHeadReportsPage from './components/DeptHeadDashboard/DeptHeadReportsPage';
+import DeptHeadUserManagementPage from './components/DeptHeadDashboard/DeptHeadUserManagementPage';
+import DeptHeadSystemLogsPage from './components/DeptHeadDashboard/DeptHeadSystemLogsPage';
 
 // --- Import Student Pages ---
 import StudentDashboardPage from './components/StudentDashboard/StudentDashboardPage';
@@ -63,14 +69,30 @@ function App() {
                         <Route path="/admin-logs" element={<SystemLogsPage />} />
                     </Route>
 
+                    {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
+                    <Route element={<DeptHeadLayout />}>
+                        <Route path="/dept-head-dashboard" element={<DeptHeadDashboardPage />} />
+                        <Route path="/dept-head-management" element={<DeptHeadManagePage />} />
+                        <Route path="/dept-head-reports" element={<DeptHeadReportsPage />} />
+                        <Route path="/dept-head-users" element={<DeptHeadUserManagementPage />} />
+                        <Route path="/dept-head-logs" element={<DeptHeadSystemLogsPage />} />
+
+                        {/* Common Embedded for Dept Head */}
+                        <Route path="/dept-head-profile" element={<MyProfilePage isEmbedded={true} />} />
+                        <Route path="/dept-head-settings" element={<SettingsPage isEmbedded={true} />} />
+                        <Route path="/dept-head-help" element={<HelpSupportPage isEmbedded={true} />} />
+                        <Route path="/dept-head-notifications" element={<NotificationsPage isEmbedded={true} />} />
+                    </Route>
+
                     {/* --- Faculty Routes (using FacultyLayout) --- */}
                     <Route element={<FacultyLayout />}>
                         <Route index path="/faculty-dashboard" element={<FacultyDashboardPage />} />
                         <Route path="/faculty-classes" element={<MyClassesPage />} />
                         <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
                         <Route path="/faculty-reports" element={<FacultyReportsPage />} />
-                        <Route path="/faculty-dept-management" element={<DeptHeadManagePage />} />
-                        <Route path="/faculty-dept-reports" element={<DeptHeadReportsPage />} />
+
+                        {/* REMOVED Dept Head pages from here */}
+
                         <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
                         <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
                         {/* New Embedded Pages */}

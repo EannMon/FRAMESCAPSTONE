@@ -324,16 +324,7 @@ const MyProfilePage = ({ isEmbedded = false }) => {
                     </div>
                 </div>
 
-                {/* Emergency Contact */}
-                <div className="card profile-info-card full-width-card">
-                    <h3>Emergency Contact</h3>
-                    <div className="profile-info-grid">
-                        <ProfileField label="Contact Name" name="emergency_contact_name" value={user.emergency_contact_name || ''} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="Relationship" name="emergency_contact_relationship" value={user.emergency_contact_relationship || ''} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="Phone Number" name="emergency_contact_phone" value={user.emergency_contact_phone || ''} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="Address" name="emergency_contact_address" value={user.emergency_contact_address || ''} onChange={handleChange} isEditing={isEditing} />
-                    </div>
-                </div>
+                {/* Emergency Contact Removed */}
 
                 {/* Account Settings - UPDATED */}
                 <div className="card profile-info-card full-width-card">
