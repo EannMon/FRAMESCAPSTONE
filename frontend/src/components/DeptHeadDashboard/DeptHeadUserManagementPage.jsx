@@ -79,7 +79,7 @@ const DeptHeadUserManagementPage = () => {
                 name: `${user.first_name || ''} ${user.last_name || ''}`,
                 email: user.email,
                 role: user.role || 'N/A',
-                roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
+                roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue', // CSS 'red' class now maps to Purple style
                 department: user.department_name || user.program_name || 'N/A',
                 status: user.verification_status || 'Pending',
                 statusColor: getStatusColor(user.verification_status),
@@ -115,22 +115,31 @@ const DeptHeadUserManagementPage = () => {
     // ==========================================
     // DIRECTORY HANDLERS
     // ==========================================
-    const [newUser, setNewUser] = useState({
-        name: "", email: "", password: "", confirmPassword: "", role: "Student", department: "", faceStatus: "Pending"
-    });
+    const [selectedUserForSummary, setSelectedUserForSummary] = useState(null);
+    const [isPanelClosing, setIsPanelClosing] = useState(false);
+    const [summarySchedule, setSummarySchedule] = useState([]);
+    const [summaryScheduleLoading, setSummaryScheduleLoading] = useState(false);
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setNewUser(prev => ({ ...prev, [name]: value }));
+    const closePanel = () => {
+        setIsPanelClosing(true);
+        setTimeout(() => {
+            setSelectedUserForSummary(null);
+            setIsPanelClosing(false);
+        }, 300);
     };
 
-    const handleAddUser = (e) => {
-        e.preventDefault();
-        // Mock add for now - effectively local only since we fetched from API
-        // ideally this would POST to API
-        alert("Manual add is client-side only for this demo right now.");
-        setShowAddUserModal(false);
-    };
+    useEffect(() => {
+        if (selectedUserForSummary) {
+            const uid = selectedUserForSummary.id || selectedUserForSummary.user_id;
+            setSummaryScheduleLoading(true);
+            axios.get(`http://localhost:5000/api/dept/user-schedule/${uid}`)
+                .then(res => setSummarySchedule(res.data || []))
+                .catch(() => setSummarySchedule([]))
+                .finally(() => setSummaryScheduleLoading(false));
+        } else {
+            setSummarySchedule([]);
+        }
+    }, [selectedUserForSummary]);
 
     const filteredUsers = users.filter(user => {
         const matchesRole = roleFilter === "All Roles" || user.role === roleFilter;
@@ -140,6 +149,8 @@ const DeptHeadUserManagementPage = () => {
             (user.department && user.department.toLowerCase().includes(searchValue.toLowerCase()));
         return matchesRole && matchesSearch;
     });
+
+
 
     // ==========================================
     // VERIFICATION HANDLERS
@@ -158,13 +169,15 @@ const DeptHeadUserManagementPage = () => {
                 verification_status: apiStatus
             });
 
+            // Update local state to match backend response logic
             setVerificationUsers(prev =>
                 prev.map(app =>
                     app.id === id
                         ? {
                             ...app,
-                            status: apiStatus,
-                            statusColor: getStatusColor(apiStatus)
+                            status: apiStatus, // 'Verified' or 'Rejected'
+                            statusColor: getStatusColor(apiStatus),
+                            verification_status: apiStatus // Ensure raw field is updated too
                         }
                         : app
                 )
@@ -191,8 +204,19 @@ const DeptHeadUserManagementPage = () => {
     };
 
     const filteredVerificationUsers = verificationUsers.filter((item) => {
-        const roleMatch = verificationRoleFilter === "All" || item.role === verificationRoleFilter.toUpperCase(); // Fixed: match API role case
-        const statusMatch = verificationStatusFilter === "Status" || item.status === verificationStatusFilter;
+        // Fix: backend returns uppercase roles (ADMIN, FACULTY), filter values are title case (All, Faculty)
+        // Adjust filter check to handle both or normalize
+        const roleMatch = verificationRoleFilter === "All" || item.role === verificationRoleFilter.toUpperCase();
+
+        // DEFAULT: Show only Pending/Rejected unless explicitly filtering for Verified
+        let statusMatch = true;
+        if (verificationStatusFilter === "Status") {
+            // Default view: exclude Verified/Approved to reduce clutter
+            statusMatch = item.status !== 'Verified' && item.status !== 'Approved' && item.status !== 'VERIFIED';
+        } else {
+            statusMatch = item.status === verificationStatusFilter;
+        }
+
         const searchMatch =
             (item.name && item.name.toLowerCase().includes(verificationSearch.toLowerCase())) ||
             (item.email && item.email.toLowerCase().includes(verificationSearch.toLowerCase())) ||
@@ -291,7 +315,7 @@ const DeptHeadUserManagementPage = () => {
                                                 <td>{app.date}</td>
                                                 <td className="actions-cell">
                                                     <div className="dropdown-container">
-                                                        <button className="action-button" onClick={(e) => { e.stopPropagation(); setVerificationOpenMenuId(verificationOpenMenuId === app.id ? null : app.id); }}>
+                                                        <button className="dept-action-button" onClick={(e) => { e.stopPropagation(); setVerificationOpenMenuId(verificationOpenMenuId === app.id ? null : app.id); }}>
                                                             <i className="fas fa-ellipsis-h"></i>
                                                         </button>
                                                         {verificationOpenMenuId === app.id && (
@@ -399,7 +423,9 @@ const DeptHeadUserManagementPage = () => {
                                             <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
                                             <td>{user.lastActive}</td>
                                             <td>
-                                                <button className="action-button"><i className="fas fa-pen"></i></button>
+                                                <button className="dept-action-button" onClick={() => setSelectedUserForSummary(user)} title="View Profile">
+                                                    <i className="fas fa-id-card"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
@@ -410,28 +436,150 @@ const DeptHeadUserManagementPage = () => {
                         </table>
                     </div>
 
-                    {/* REGISTER MODAL */}
+                    {/* REGISTER MODAL REPLACEMENT: Role Selection */}
                     {showAddUserModal && (
                         <div className="modal-backdrop" onClick={() => setShowAddUserModal(false)}>
-                            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                                <h3>Register New User</h3>
-                                <form onSubmit={handleAddUser} className="add-user-form">
-                                    <input type="text" name="name" placeholder="Full Name" value={newUser.name} onChange={handleInputChange} required />
-                                    <input type="email" name="email" placeholder="Email" value={newUser.email} onChange={handleInputChange} required />
-                                    <input type="password" name="password" placeholder="Password" value={newUser.password} onChange={handleInputChange} required />
-                                    <input type="text" name="department" placeholder="Department" value={newUser.department} onChange={handleInputChange} required />
-                                    <select name="role" value={newUser.role} onChange={handleInputChange}>
-                                        <option value="ADMIN">Admin</option>
-                                        <option value="FACULTY">Faculty</option>
-                                        <option value="STUDENT">Student</option>
-                                    </select>
-                                    <button type="submit" className="add-user-submit">Register</button>
-                                    <button type="button" className="add-user-cancel" onClick={() => setShowAddUserModal(false)}>Cancel</button>
-                                </form>
+                            <div className="modal-content role-selection-modal" onClick={e => e.stopPropagation()}>
+                                <h3>Select User Role</h3>
+                                <p className="role-selection-subtitle">Choose the type of user you want to register.</p>
+
+                                <div className="role-cards-grid">
+                                    {/* Faculty Card */}
+                                    <div className="dept-role-card faculty" onClick={() => navigate('/register/faculty')}>
+                                        <i className="fas fa-chalkboard-teacher"></i>
+                                        <h3>Faculty</h3>
+                                        <p>Register a new faculty member.</p>
+                                    </div>
+
+                                    {/* Student Card */}
+                                    <div className="dept-role-card student" onClick={() => navigate('/register/student')}>
+                                        <i className="fas fa-user-graduate"></i>
+                                        <h3>Student</h3>
+                                        <p>Register a new student.</p>
+                                    </div>
+                                </div>
+
+                                <button className="modal-close-button" onClick={() => setShowAddUserModal(false)} style={{ marginTop: '30px' }}>Cancel</button>
                             </div>
                         </div>
                     )}
                 </>
+            )}
+
+            {/* SLIDE-UP PROFILE PANEL */}
+            {selectedUserForSummary && (
+                <div className={`profile-panel-overlay ${isPanelClosing ? 'closing' : ''}`} onClick={closePanel}>
+                    <div className={`profile-panel ${isPanelClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()}>
+
+                        {/* Pull-down handle to close */}
+                        <div className="panel-pull-handle" onClick={closePanel}>
+                            <i className="fas fa-chevron-down"></i>
+                        </div>
+
+                        {/* Panel Body — Two Column Grid */}
+                        <div className="panel-body">
+                            {/* LEFT: Identity Card */}
+                            <div className="panel-identity-card">
+                                <div className="panel-identity-header">
+                                    <div className="panel-avatar">
+                                        {selectedUserForSummary.first_name
+                                            ? selectedUserForSummary.first_name[0].toUpperCase()
+                                            : selectedUserForSummary.name
+                                                ? selectedUserForSummary.name[0].toUpperCase()
+                                                : '?'}
+                                    </div>
+                                    <h3 className="panel-user-name">{selectedUserForSummary.name}</h3>
+                                    <span className={`role-tag ${selectedUserForSummary.roleColor}`}>{selectedUserForSummary.role}</span>
+                                </div>
+
+                                <div className="panel-identity-details">
+                                    <div className="panel-detail-row">
+                                        <i className="fas fa-envelope"></i>
+                                        <div>
+                                            <span className="panel-detail-label">Email</span>
+                                            <span className="panel-detail-value">{selectedUserForSummary.email}</span>
+                                        </div>
+                                    </div>
+                                    <div className="panel-detail-row">
+                                        <i className="fas fa-building"></i>
+                                        <div>
+                                            <span className="panel-detail-label">Department</span>
+                                            <span className="panel-detail-value">{selectedUserForSummary.department || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="panel-detail-row">
+                                        <i className="fas fa-id-badge"></i>
+                                        <div>
+                                            <span className="panel-detail-label">TUPM ID</span>
+                                            <span className="panel-detail-value">{selectedUserForSummary.tupm_id || selectedUserForSummary.user_id || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="panel-detail-row">
+                                        <i className="fas fa-check-circle"></i>
+                                        <div>
+                                            <span className="panel-detail-label">Verification Status</span>
+                                            <span className={`status-tag ${selectedUserForSummary.statusColor}`}>{selectedUserForSummary.status || 'Active'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="panel-detail-row">
+                                        <i className="fas fa-camera"></i>
+                                        <div>
+                                            <span className="panel-detail-label">Face Registration</span>
+                                            <span className={`status-tag ${selectedUserForSummary.face_registered ? 'green' : 'yellow'}`}>
+                                                {selectedUserForSummary.face_registered ? 'Registered' : 'Not Registered'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* RIGHT: Schedule Card */}
+                            <div className="panel-schedule-card">
+                                <div className="panel-schedule-header">
+                                    <i className="fas fa-calendar-alt"></i>
+                                    <h3>Class Schedule</h3>
+                                </div>
+                                <div className="panel-schedule-body">
+                                    {summaryScheduleLoading ? (
+                                        <div className="panel-schedule-empty">
+                                            <i className="fas fa-spinner fa-spin"></i>
+                                            <p>Loading schedule...</p>
+                                        </div>
+                                    ) : summarySchedule.length > 0 ? (
+                                        <table className="panel-schedule-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Subject</th>
+                                                    <th>Section</th>
+                                                    <th>Day</th>
+                                                    <th>Time</th>
+                                                    <th>Room</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {summarySchedule.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td><strong>{item.subject_code}</strong></td>
+                                                        <td>{item.section}</td>
+                                                        <td>{item.day}</td>
+                                                        <td>{item.time}</td>
+                                                        <td><span className="panel-room-badge">{item.room}</span></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <div className="panel-schedule-empty">
+                                            <i className="fas fa-calendar-times"></i>
+                                            <p>No schedule data available.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
             )}
         </div>
     );
