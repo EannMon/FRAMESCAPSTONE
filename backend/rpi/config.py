@@ -50,6 +50,9 @@ class KioskConfig:
     CAMERA_WIDTH: int = 640
     CAMERA_HEIGHT: int = 480
     CAMERA_FPS: int = 30
+    # On RPi Bookworm, the Pi Camera V2 requires picamera2 (libcamera stack).
+    # OpenCV's cv2.VideoCapture cannot read from the CSI camera on Bookworm.
+    USE_PICAMERA2: bool = field(default=None)  # Auto-set in __post_init__
     
     # ===========================================
     # Face Detection (MediaPipe BlazeFace)
@@ -138,6 +141,8 @@ class KioskConfig:
                 self.USE_GATED_DETECTION = True  # Gate InsightFace behind MediaPipe
             if self.RECOGNITION_FRAME_SKIP is None:
                 self.RECOGNITION_FRAME_SKIP = 5  # Process every 5th frame
+            if self.USE_PICAMERA2 is None:
+                self.USE_PICAMERA2 = True  # Pi Camera V2 on Bookworm needs picamera2
             # Lower camera resolution for RPi
             self.CAMERA_WIDTH = 480
             self.CAMERA_HEIGHT = 360
@@ -150,6 +155,8 @@ class KioskConfig:
                 self.USE_GATED_DETECTION = False  # InsightFace is fast enough
             if self.RECOGNITION_FRAME_SKIP is None:
                 self.RECOGNITION_FRAME_SKIP = 1  # Every frame
+            if self.USE_PICAMERA2 is None:
+                self.USE_PICAMERA2 = False  # Laptop uses OpenCV
 
 
 # Default configuration instance

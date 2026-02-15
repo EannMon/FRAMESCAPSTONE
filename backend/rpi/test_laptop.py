@@ -19,6 +19,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from rpi.config import KioskConfig
+from rpi.camera import Camera
 from rpi.face_detector import FaceDetector
 from rpi.face_recognizer import FaceRecognizer
 from rpi.gesture_detector import GestureDetector, Gesture
@@ -90,16 +91,23 @@ def main():
         print("❌ No enrolled faces in cache!")
         return
     
-    # Open webcam
-    print("\n📷 Opening webcam...")
-    cap = cv2.VideoCapture(0)
+    # Open camera (auto-selects picamera2 on RPi, OpenCV on laptop)
+    print(f"\n📷 Opening camera (picamera2={'ON' if config.USE_PICAMERA2 else 'OFF'})...")
+    cap = Camera(
+        index=config.CAMERA_INDEX,
+        width=config.CAMERA_WIDTH,
+        height=config.CAMERA_HEIGHT,
+        fps=config.CAMERA_FPS,
+        prefer_picamera2=config.USE_PICAMERA2
+    )
     
     if not cap.isOpened():
-        print("❌ Failed to open webcam!")
+        print("❌ Failed to open camera!")
+        print("   On RPi: Make sure picamera2 is installed (sudo apt install python3-picamera2)")
+        print("   On RPi: Ensure venv was created with --system-site-packages")
         return
     
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
+    print(f"   Backend: {cap.backend_name}")
     
     print("\n" + "-" * 60)
     print("  LIVE TEST")

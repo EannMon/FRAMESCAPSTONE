@@ -21,6 +21,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from rpi.config import KioskConfig
+from rpi.camera import Camera
 from rpi.face_detector import FaceDetector
 from rpi.face_recognizer import FaceRecognizer
 from rpi.gesture_detector import GestureDetector, Gesture
@@ -210,19 +211,21 @@ class AttendanceKiosk:
     
     def run(self):
         """Main kiosk loop."""
-        logger.info("📷 Opening camera...")
-        cap = cv2.VideoCapture(self.config.CAMERA_INDEX)
+        logger.info(f"📷 Opening camera (picamera2={'ON' if self.config.USE_PICAMERA2 else 'OFF'})...")
+        cap = Camera(
+            index=self.config.CAMERA_INDEX,
+            width=self.config.CAMERA_WIDTH,
+            height=self.config.CAMERA_HEIGHT,
+            fps=self.config.CAMERA_FPS,
+            prefer_picamera2=self.config.USE_PICAMERA2
+        )
         
         if not cap.isOpened():
             logger.error("❌ Failed to open camera!")
+            logger.error("   On RPi: sudo apt install python3-picamera2")
             return
         
-        # Set camera properties
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.CAMERA_WIDTH)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.CAMERA_HEIGHT)
-        cap.set(cv2.CAP_PROP_FPS, self.config.CAMERA_FPS)
-        
-        logger.info("✅ Camera opened | Press Ctrl+C to stop")
+        logger.info(f"✅ Camera opened ({cap.backend_name}) | Press Ctrl+C to stop")
         logger.info("-" * 60)
         
         # Sync schedule on startup

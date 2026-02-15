@@ -1,5 +1,7 @@
-# FRAMES Backend Dependencies
-# Updated: February 1, 2026
+# FRAMES Backend Dependencies (Server / Laptop)
+# Updated: February 15, 2026
+#
+# For Raspberry Pi kiosk dependencies, see: rpi/requirements-rpi.txt
 
 # ============================================
 # Web Framework - FastAPI
@@ -17,12 +19,19 @@ sqlalchemy
 python-dotenv
 
 # ============================================
-# Face Recognition - Enrollment (Backend)
+# Face Recognition - Enrollment
+# Uses InsightFace buffalo_l (ResNet-50 + ArcFace)
+# Produces 512-d normalized embeddings via ONNX Runtime
 # ============================================
 insightface>=0.7.3
 onnxruntime>=1.16.0
 opencv-python-headless
-numpy
+numpy>=1.26.4
+
+# ============================================
+# Hand Gesture Detection (backend test scripts)
+# ============================================
+mediapipe==0.10.14
 
 # ============================================
 # Security
