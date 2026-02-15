@@ -107,7 +107,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
             {showLogo ? (
                 <Link to={user ? (user.role === 'admin' ? "/admin-dashboard" : user.role === 'faculty' ? "/faculty-dashboard" : "/student-dashboard") : "/"} className="header-logo-link">
                     <div className="universal-header-logo">
-                        <Logo className="header-logo-icon" size={45} />
+                        <Logo className="header-logo-icon" size={42} colorShift />
                         <span>FRAMES</span>
                     </div>
                 </Link>
