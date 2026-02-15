@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './LandingPage.css';
-import heroImageUrl from '../../assets/images/TUP_Background.jpg';
+import landingBg from '../../assets/images/landing_bg.png';
 import Header from '../Common/Header';
 import Footer from '../Common/Footer';
 
@@ -178,25 +178,24 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
 // 3. HERO SECTION (UPDATED: Access Portal now opens Login)
 // ==========================================
 const HeroSection = ({ setPanel }) => (
-    <section className="hero-section" style={{ backgroundImage: `url(${heroImageUrl})` }}>
-        <div className="hero-overlay">
-            <div className="hero-content">
-                <h1 className="hero-title">FRA<span className="hero-title-red">MES</span></h1>
-                <p>
-                    Revolutionary campus security powered by Raspberry Pi, featuring facial recognition, gesture control, and Real-time monitoring for a safer, smarter educational environment.
-                </p>
+    <section className="hero-section" style={{ backgroundImage: `url(${landingBg})` }}>
+        <div className="hero-content">
+            <h1 className="hero-title">FRA<span className="hero-title-accent">MES</span></h1>
+            <p className="hero-subtitle">
+                Smart Campus Management System
+            </p>
+            <p className="hero-description">
+                Revolutionary campus security powered by Raspberry Pi, featuring facial recognition, gesture control, and real-time monitoring for a safer, smarter educational environment.
+            </p>
 
-                <div className="cta-buttons">
-                    {/* UPDATED: Changed from Link to Button calling setPanel('login') */}
-                    <button onClick={() => setPanel('login')} className="cta-primary">
-                        <i className="fas fa-lock"></i> Access Portal
-                    </button>
+            <div className="cta-buttons">
+                <button onClick={() => setPanel('login')} className="cta-primary">
+                    <i className="fas fa-lock"></i> Access Portal
+                </button>
 
-                    <button className="cta-secondary">
-                        <i className="fas fa-play-circle"></i> Watch Demo
-                    </button>
-                </div>
-
+                <button className="cta-secondary">
+                    <i className="fas fa-play-circle"></i> Watch Demo
+                </button>
             </div>
         </div>
     </section>
