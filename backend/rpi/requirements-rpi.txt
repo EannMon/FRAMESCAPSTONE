@@ -1,0 +1,50 @@
+# =============================================================
+# FRAMES RPi4 Kiosk — Python Dependencies
+# =============================================================
+# Raspberry Pi OS Bookworm 64-bit (aarch64), Python 3.11
+#
+# INSTALL ORDER MATTERS. Follow exactly.
+#
+# STEP 1 — System packages (apt, NOT pip):
+#   sudo apt install -y \
+#     python3-picamera2 python3-opencv python3-venv \
+#     libatlas-base-dev libopenblas-dev libhdf5-dev
+#
+# STEP 2 — Create venv with system packages:
+#   python3 -m venv --system-site-packages ~/frames_env
+#   source ~/frames_env/bin/activate
+#
+# STEP 3 — pip install from this file:
+#   pip install -r requirements-rpi.txt
+#
+# =============================================================
+
+# --- NumPy (MUST be installed first, MUST be this version) ---
+# 1.24.x (system) is too old for scipy/insightface
+# 2.x breaks picamera2's simplejpeg C ABI
+numpy==1.26.4
+
+# --- Face Detection Gate + Hand Gesture ---
+mediapipe==0.10.14
+
+# --- Face Recognition (InsightFace buffalo_l + ONNX Runtime) ---
+# First run downloads ~280MB model to ~/.insightface/models/
+onnxruntime>=1.16.0
+insightface>=0.7.3
+
+# --- HTTP client for backend API ---
+requests
+
+# =============================================================
+# DO NOT pip install these — they MUST come from apt:
+# 
+#   picamera2    → apt: python3-picamera2
+#                  (Pi Camera V2 on Bookworm's libcamera stack)
+#
+#   opencv       → apt: python3-opencv
+#                  (Has GTK support for cv2.imshow on display)
+#                  pip's opencv-python lacks GTK → crashes
+#
+# The --system-site-packages flag on the venv makes these
+# visible to pip packages inside the venv.
+# =============================================================
