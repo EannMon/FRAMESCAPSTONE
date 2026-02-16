@@ -1,26 +1,20 @@
 /* =========================================== */
-/* MAIN LAYOUT (Fixes Footer Position) */
+/* MAIN LAYOUT */
 /* =========================================== */
 .registration-page-wrapper {
     background-color: #f4f6f8;
     min-height: 100vh;
-    /* Takes full viewport height */
     display: flex;
     flex-direction: column;
-    /* Space for the fixed Header (65px + 10px buffer) */
     padding-top: 75px;
 }
 
 .registration-container {
     width: 100%;
-    max-width: 850px;
+    max-width: 550px;
     margin: 40px auto;
     padding: 0 20px;
-
-    /* This pushes the footer down to the bottom */
     flex: 1;
-
-    /* This ensures the footer never touches the card */
     margin-bottom: 60px;
 }
 
@@ -38,13 +32,11 @@
 /* =========================================== */
 .page-title {
     text-align: center;
-    color: #333;
     margin-top: 10px;
     margin-bottom: 30px;
     font-size: 1.8rem;
     font-weight: 800;
-    color: #dc3545;
-    /* TUP Red */
+    color: #0F172A;
 }
 
 .step-title {
@@ -58,25 +50,30 @@
 /* =========================================== */
 /* NAVIGATION BUTTONS */
 /* =========================================== */
-.top-back-btn {
-    position: absolute;
-    top: 30px;
-    left: 30px;
+.return-btn {
     background: none;
     border: none;
-    color: #666;
-    font-size: 0.95rem;
-    font-weight: 600;
+    color: #163269;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: color 0.2s;
-    z-index: 10;
+    gap: 6px;
+    padding: 5px 0 10px 0;
+    margin-bottom: 10px;
+    align-self: flex-start;
+    transition: 0.2s ease;
 }
 
-.top-back-btn:hover {
-    color: #dc3545;
+.return-btn i {
+    font-size: 15px;
+}
+
+.return-btn:hover {
+    color: #0F172A;
+    transform: translateX(-2px);
+    text-decoration: underline;
 }
 
 .step-buttons {
@@ -102,8 +99,8 @@
     content: '';
     position: absolute;
     top: 50%;
-    left: 15%;
-    right: 15%;
+    left: 25%;
+    right: 25%;
     height: 2px;
     background: #eee;
     z-index: 0;
@@ -127,10 +124,10 @@
 }
 
 .step-circle.active {
-    background: #dc3545;
-    border-color: #dc3545;
+    background: #0F172A;
+    border-color: #0F172A;
     color: white;
-    box-shadow: 0 4px 10px rgba(166, 37, 37, 0.3);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.3);
 }
 
 /* =========================================== */
@@ -146,37 +143,39 @@
     grid-column: 1 / -1;
 }
 
-.auth-form-group {
+.reg-form-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.auth-form-group label {
+.reg-form-group label {
     font-size: 0.9rem;
     font-weight: 600;
     color: #444;
 }
 
-.auth-form-group input,
-.auth-form-group select {
+.reg-form-group input,
+.reg-form-group select {
     padding: 12px;
     border: 1px solid #ccc;
     border-radius: 6px;
     font-size: 1rem;
     transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.auth-form-group input:focus,
-.auth-form-group select:focus {
+.reg-form-group input:focus,
+.reg-form-group select:focus {
     outline: none;
-    border-color: #dc3545;
-    box-shadow: 0 0 0 3px rgba(166, 37, 37, 0.1);
+    border-color: #163269;
+    box-shadow: 0 0 0 3px rgba(22, 50, 105, 0.1);
 }
 
-.auth-form-group input.input-error,
-.auth-form-group select.input-error {
-    border-color: #dc3545;
+.reg-form-group input.input-error,
+.reg-form-group select.input-error {
+    border-color: #ef4444;
     background-color: #fff8f8;
     animation: shake 0.3s ease-in-out;
 }
@@ -203,20 +202,6 @@
     }
 }
 
-/* --- Birthday Specific --- */
-.birthday-wrapper {
-    display: flex;
-    gap: 10px;
-}
-
-.birthday-select {
-    flex: 1;
-    padding: 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    background: white;
-}
-
 /* --- TUPM ID Specific --- */
 .tupm-id-wrapper {
     display: flex;
@@ -238,85 +223,38 @@
     flex: 1;
 }
 
-/* Back button INSIDE the form */
-.return-btn {
+/* =========================================== */
+/* PASSWORD TOGGLE */
+/* =========================================== */
+.reg-password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.reg-password-wrapper input {
+    padding-right: 45px;
+}
+
+.reg-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    color: #aaa;
+    cursor: pointer;
+    transition: color 0.2s;
     background: none;
     border: none;
-
-    color: #d22f49;
-    font-size: 14px;
-    font-weight: 500;
-
-    cursor: pointer;
-
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    padding: 5px 0 10px 0;
-
-    margin-bottom: 10px;
-    align-self: flex-start;
-
-    transition: 0.2s ease;
+    font-size: 1rem;
 }
 
-.return-btn i {
-    font-size: 15px;
-}
-
-.return-btn:hover {
-    color: #b71e3a;
-    transform: translateX(-2px);
-    text-decoration: underline;
+.reg-password-toggle:hover {
+    color: #555;
 }
 
 /* =========================================== */
-/* CAMERA & SUMMARY SECTIONS */
+/* SUMMARY SECTION */
 /* =========================================== */
-.camera-capture-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-}
-
-.camera-preview {
-    width: 100%;
-    max-width: 400px;
-    height: 300px;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.camera-video,
-.captured-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.validation-overlay {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 5px 15px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-}
-
-.validation-overlay.success {
-    background: #28a745;
-}
-
 .summary-section {
     background-color: #f8f9fa;
     padding: 20px;
@@ -341,6 +279,30 @@
 }
 
 /* =========================================== */
+/* SUBMIT BUTTON (Navy) */
+/* =========================================== */
+.reg-submit-button {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    background-color: #0F172A;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.reg-submit-button:hover {
+    background-color: #1E293B;
+}
+
+/* =========================================== */
 /* RESPONSIVE */
 /* =========================================== */
 @media (max-width: 768px) {
@@ -359,11 +321,6 @@
 
     .form-card {
         padding: 30px 20px;
-    }
-
-    .birthday-wrapper {
-        flex-direction: column;
-        gap: 8px;
     }
 }
 
@@ -430,7 +387,7 @@
 }
 
 .custom-alert-close-btn {
-    background-color: #dc3545;
+    background-color: #0F172A;
     color: white;
     border: none;
     padding: 10px 25px;
@@ -441,7 +398,7 @@
 }
 
 .custom-alert-close-btn:hover {
-    background-color: #bb2d3b;
+    background-color: #1E293B;
 }
 
 @keyframes fadeIn {

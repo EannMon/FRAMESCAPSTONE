@@ -8,132 +8,101 @@ import Footer from '../Common/Footer';
 
 // LandingPage.jsx
 
-// === LOGIN COMPONENT (MODIFIED) ===
+// === LOGIN COMPONENT ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
 
-    // States for inputs
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
-
-    // Password Visibility State
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = async () => {
+    const handleLogin = async (e) => {
+        if (e) e.preventDefault();
         try {
             setErrorMessage('');
-
-            // Updated to use new FastAPI endpoint
             const response = await axios.post('http://localhost:5000/api/auth/login', {
-                email: email,
-                password: password
+                email, password
             });
 
             if (response.data.message === "Login Successful") {
                 const userData = response.data.user;
-                const userRole = userData.role.toUpperCase(); // STUDENT, FACULTY, HEAD, ADMIN
-                const verificationStatus = userData.verification_status; // Pending, Verified, Rejected
+                const userRole = userData.role.toUpperCase();
+                const verificationStatus = userData.verification_status;
 
-                // --- NEW VERIFICATION CHECK LOGIC ---
                 if (verificationStatus === 'Verified') {
-                    // HAKBANG 1: VERIFIED - Payagan ang access sa Dashboard
                     localStorage.setItem('currentUser', JSON.stringify(userData));
                     alert(`Welcome back, ${userData.first_name}!`);
 
-                    if (userRole === 'ADMIN') {
-                        navigate('/admin-dashboard');
-                    } else if (userRole === 'STUDENT') {
-                        navigate('/student-dashboard');
-                    } else if (userRole === 'FACULTY') {
-                        navigate('/faculty-dashboard');
-                    } else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') {
-                        navigate('/dept-head-dashboard');
-                    }
+                    if (userRole === 'ADMIN') navigate('/admin-dashboard');
+                    else if (userRole === 'STUDENT') navigate('/student-dashboard');
+                    else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
+                    else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
                 } else if (verificationStatus === 'Pending') {
-                    // HAKBANG 2: PENDING - I-redirect sa Registration page para sa status message
                     navigate(`/register/${userRole.toLowerCase()}?s=pending`);
                 } else if (verificationStatus === 'Rejected') {
-                    // HAKBANG 3: REJECTED - I-redirect sa Registration page para sa status message
                     navigate(`/register/${userRole.toLowerCase()}?s=rejected`);
                 } else {
-                    // Fallback
                     setErrorMessage("Account status is invalid. Please contact administrator.");
                 }
-
             }
         } catch (error) {
             console.error("Login Error:", error);
-            // Handle FastAPI error response format
             setErrorMessage(error.response?.data?.detail || "Something went wrong. Try again.");
         }
     };
 
+    if (!isOpen) return null;
+
     return (
-        <>
-            <div
-                className={`auth-slider-overlay login-overlay ${isOpen ? 'visible' : ''}`}
-                onClick={onClose}
-            >
-                <div
-                    className={`auth-panel login-panel ${isOpen ? 'visible' : ''}`}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="auth-form-container">
-                        <h2 className="auth-form-title">Welcome <span className="auth-title-highlight">Back!</span></h2>
+        <div className="role-modal-overlay" onClick={onClose}>
+            <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+                <h3>Welcome Back</h3>
+                <p className="role-modal-subtitle">Sign in to your account</p>
 
-                        {errorMessage && (
-                            <div style={{ color: 'red', marginBottom: '10px', textAlign: 'center', background: '#ffe6e6', padding: '5px', borderRadius: '5px' }}>
-                                <i className="fas fa-exclamation-circle"></i> {errorMessage}
-                            </div>
-                        )}
-
-                        <div className="auth-form-group">
-                            <label className="auth-form-label">Email</label>
-                            <input
-                                className="auth-form-input"
-                                type="email"
-                                placeholder="example@tup.edu.ph"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-
-                        {/* PASSWORD FIELD SECTION */}
-                        <div className="auth-form-group">
-                            <label className="auth-form-label">Password</label>
-                            <div className="auth-password-wrapper">
-                                <input
-                                    className="auth-form-input"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                                <i
-                                    className={`auth-password-icon fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    style={{ cursor: 'pointer' }}
-                                ></i>
-                            </div>
-                        </div>
-
-                        <div className="auth-options-row">
-                            <label className="auth-checkbox-group">
-                                <input type="checkbox" /> Remember me
-                            </label>
-                            <a href="#" className="auth-forgot-link">Forgot Password?</a>
-                        </div>
-
-                        <button className="auth-submit-button" onClick={handleLogin}>Log In</button>
-
-                        <p className="auth-switch-prompt">
-                            Don't have an account? <span onClick={onSwitchToSignup}>Sign Up</span>
-                        </p>
+                {errorMessage && (
+                    <div className="login-error-msg">
+                        <i className="fas fa-exclamation-circle"></i> {errorMessage}
                     </div>
-                </div>
+                )}
+
+                <form onSubmit={handleLogin}>
+                    <div className="login-form-group">
+                        <label>Email</label>
+                        <input
+                            type="email"
+                            placeholder="example@tup.edu.ph"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            autoComplete="email"
+                        />
+                    </div>
+
+                    <div className="login-form-group">
+                        <label>Password</label>
+                        <div className="login-password-wrapper">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
+                            />
+                            <i
+                                className={`login-password-icon fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}
+                                onClick={() => setShowPassword(!showPassword)}
+                            ></i>
+                        </div>
+                    </div>
+
+                    <button type="submit" className="login-submit-btn">Log In</button>
+                </form>
+
+                <p className="login-switch-prompt">
+                    Don't have an account? <span onClick={onSwitchToSignup}>Sign Up</span>
+                </p>
             </div>
-        </>
+        </div>
     );
 };
 
@@ -150,21 +119,21 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="auth-slider-overlay signup-overlay visible" onClick={onClose}>
-            <div className="signup-panel" onClick={(e) => e.stopPropagation()}>
-                <h2 className="auth-form-title">Select Your Role</h2>
-                <p className="role-selection-subtitle">Please choose your role to continue registration</p>
+        <div className="role-modal-overlay" onClick={onClose}>
+            <div className="role-modal-card" onClick={(e) => e.stopPropagation()}>
+                <h3>Select Your Role</h3>
+                <p className="role-modal-subtitle">Please choose your role to continue registration</p>
 
-                <div className="role-cards-grid-auth">
+                <div className="role-modal-grid">
                     {/* Faculty Card */}
-                    <div className="role-card-auth faculty" onClick={() => handleSelect('faculty')}>
-                        <i className="fas fa-chalkboard-teacher role-icon-auth"></i>
+                    <div className="role-modal-item faculty" onClick={() => handleSelect('faculty')}>
+                        <i className="fas fa-chalkboard-teacher"></i>
                         <h3>Faculty</h3>
                         <p>Access to academic-related features.</p>
                     </div>
                     {/* Student Card */}
-                    <div className="role-card-auth student" onClick={() => handleSelect('student')}>
-                        <i className="fas fa-user-graduate role-icon-auth"></i>
+                    <div className="role-modal-item student" onClick={() => handleSelect('student')}>
+                        <i className="fas fa-user-graduate"></i>
                         <h3>Student</h3>
                         <p>View personal schedules and campus info.</p>
                     </div>
