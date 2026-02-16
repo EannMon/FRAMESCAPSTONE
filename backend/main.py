@@ -2,6 +2,14 @@
 FRAMES API - FastAPI Main Application
 Clean entry point with modular routers
 """
+import sys
+
+# Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
