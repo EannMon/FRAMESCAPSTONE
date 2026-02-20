@@ -129,9 +129,91 @@ You should now see the `defaultdb` database and its tables (e.g., `users`, `clas
 
 ---
 
+## 5. Raspberry Pi Kiosk Setup
+
+The RPi4 runs the face recognition kiosk. **Full step-by-step guide:** see [`backend/rpi/README.md`](backend/rpi/README.md).
+
+### 5.1. Hardware Required
+
+| Component | Specification |
+|-----------|---------------|
+| Board | Raspberry Pi 4 Model B (4GB RAM) |
+| OS | Raspberry Pi OS **Bookworm** 64-bit (aarch64) |
+| Camera | RPi Camera V2 (8MP, Sony IMX219) |
+| Cable | 150mm CSI flex cable |
+| Display | 7" HDMI IPS (1024×600), USB touch |
+
+### 5.2. SSH Into the Pi From Your Laptop
+
+Once the Pi is on the same WiFi as your laptop and SSH is enabled:
+
+```bash
+# From your laptop terminal (PowerShell on Windows):
+ssh emma@<PI_IP_ADDRESS>
+
+# Example:
+ssh emma@10.244.181.134
+```
+
+Find the Pi's IP by running `hostname -I` on the Pi's 7" screen. First-time connection asks to confirm — type `yes`.
+
+> **GUI commands via SSH** must be prefixed with `DISPLAY=:0` to route windows to the 7" display:
+> ```bash
+> DISPLAY=:0 python rpi/test_laptop.py
+> ```
+
+### 5.3. Quick Setup Summary (Run on Pi via SSH)
+
+```bash
+# 1. Enable camera + SSH via raspi-config
+sudo raspi-config
+
+# 2. Install system packages (these MUST come from apt, NOT pip)
+sudo apt update && sudo apt install -y \
+  python3-picamera2 python3-opencv python3-venv \
+  libatlas-base-dev libopenblas-dev libhdf5-dev
+
+# 3. Create venv WITH system packages (critical for picamera2 + opencv)
+python3 -m venv --system-site-packages ~/frames_env
+source ~/frames_env/bin/activate
+
+# 4. Install pip packages (order matters)
+pip install numpy==1.26.4          # MUST be 1.26.4 — see warning below
+pip install mediapipe requests
+pip install onnxruntime insightface
+
+# 5. Copy kiosk code from laptop
+# (from laptop terminal, NOT from Pi)
+scp -r backend/rpi/ emma@<PI_IP>:~/frames/rpi/
+
+# 6. Create .env on Pi
+echo "API_BASE_URL=http://<LAPTOP_IP>:5000" > ~/frames/.env
+
+# 7. Run test (from SSH with DISPLAY=:0 for GUI output to 7" screen)
+cd ~/frames
+DISPLAY=:0 python rpi/test_laptop.py
+```
+
+### 5.4. Critical Dependency Warnings
+
+| ⚠️ Rule | Why |
+|---------|-----|
+| **Never `pip install numpy`** (gets 2.x) | Breaks picamera2's simplejpeg C ABI — import crash |
+| **Always `pip install numpy==1.26.4`** | Compatible with both scipy/insightface AND picamera2 |
+| **Never `pip install opencv-python`** | Builds without GTK — `cv2.imshow()` crashes |
+| **Use system OpenCV** from `python3-opencv` apt | Has GTK/Wayland support for display output |
+| **venv must use `--system-site-packages`** | So pip packages can see apt packages (picamera2, opencv) |
+| **Use `DISPLAY=:0`** when running via SSH | SSH has no display server — routes GUI to the 7" screen |
+
+> For the full 10-phase guide with troubleshooting, see [`backend/rpi/README.md`](backend/rpi/README.md).
+
+---
+
 ## Quick Reference: Commands
 
 | Component | Command | Port |
 |-----------|---------|------|
 | Backend |`uvicorn main:app --reload --port 5000`| 5000 |
 | Frontend | `npm run dev` | 3000 |
+| RPi Kiosk | `DISPLAY=:0 python rpi/main_kiosk.py` | — |
+| RPi Test | `DISPLAY=:0 python rpi/test_laptop.py` | — |

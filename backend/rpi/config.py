@@ -92,7 +92,8 @@ class KioskConfig:
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
     GESTURE_CONFIDENCE: float = 0.5  # Lower for better hand detection rate
-    REQUIRE_GESTURE_FOR_ENTRY: bool = True
+    # ENTRY does NOT require gesture (face only). Gestures are for break/exit actions.
+    REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # More time to show gesture
     GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require gesture for N consecutive frames
@@ -106,8 +107,8 @@ class KioskConfig:
     # ===========================================
     # Backend API
     # ===========================================
-    BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:8000"))
-    API_TIMEOUT_SECONDS: int = 5
+    BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
+    API_TIMEOUT_SECONDS: int = 15  # Generous timeout for remote Aiven DB queries
     
     # ===========================================
     # Device Identity
