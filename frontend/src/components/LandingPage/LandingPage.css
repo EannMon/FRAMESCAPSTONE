@@ -17,7 +17,7 @@
     background-color: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     width: 100%;
-    box-sizing: border-box; 
+    box-sizing: border-box;
     position: fixed;
     top: 0;
     left: 0;
@@ -29,7 +29,7 @@
     align-items: center;
     font-size: 1.5em;
     font-weight: 700;
-    color: #dc3545;
+    color: #0F172A;
 }
 
 .logo-icon {
@@ -55,15 +55,16 @@
     margin-left: 20px;
     padding: 0;
 }
+
 .login-link:hover {
-    color: #dc3545;
+    color: #163269;
 }
 
 .get-started-button {
-    background-color: #dc3545;
+    background-color: #0F172A;
     color: white;
     padding: 8px 15px;
-    border-radius: 5px;
+    border-radius: 8px;
     transition: background-color 0.3s;
     border: none;
     cursor: pointer;
@@ -74,7 +75,7 @@
 }
 
 .get-started-button:hover {
-    background-color: #b02a37;
+    background-color: #1E293B;
 }
 
 /* =================================== */
@@ -82,64 +83,60 @@
 /* =================================== */
 .hero-section {
     position: relative;
-    height: 100vh; 
+    min-height: calc(100vh - 80px);
+    background-color: #EAF2FA;
     background-size: cover;
+    background-position: center right;
     background-repeat: no-repeat;
-    background-position: center;
     display: flex;
     align-items: center;
-    margin-top: 65px;
+    justify-content: flex-start;
+    margin-top: 80px;
+    padding: 40px 80px 60px;
+    box-sizing: border-box;
 }
 
 .hero-title {
-    font-size: 4em;
+    font-size: 4.5em;
     font-weight: 900;
+    margin-bottom: 10px;
+    color: #0F172A;
+    letter-spacing: -1px;
+}
+
+.hero-title-accent {
+    color: #163269;
+}
+
+.hero-subtitle {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #163269;
     margin-bottom: 20px;
-    color: white;
-    text-shadow: 
-        -1px -1px 0 rgba(0,0,0,0.2),
-        1px -1px 0 rgba(0,0,0,0.2),
-        -1px 1px 0 rgba(0,0,0,0.2),
-        1px 1px 0 rgba(0,0,0,0.2),
-        inset 0 0 10px rgba(0,0,0,0.3);
+    letter-spacing: 0.5px;
 }
 
-.hero-title-red {
-    color: #dc3545;
-}
-
-.hero-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to right, rgba(121, 0, 12, 0.3), rgba(121, 0, 12, 0.3)); 
-}
-
-.hero-content { 
+.hero-content {
     position: relative;
     z-index: 10;
     max-width: 600px;
-    top: 150px;
-    color: white;
-    padding-left: 50px;
+    text-align: left;
 }
 
 .hero-content h1 {
-    font-size: 4em;
+    font-size: 4.5em;
     font-weight: 900;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
-.hero-content p {
-    font-size: 1.2em;
-    line-height: 1.5;
-    margin-bottom: 30px;
-    opacity: 0.9;
+.hero-description {
+    font-size: 1.15em;
+    line-height: 1.7;
+    margin-bottom: 35px;
+    color: #64748B;
 }
 
-.cta-buttons a, 
+.cta-buttons a,
 .cta-buttons button {
     display: inline-flex;
     align-items: center;
@@ -154,20 +151,30 @@
     border: none;
 }
 
-.cta-buttons i { margin-right: 8px; }
+.cta-buttons i {
+    margin-right: 8px;
+}
 
 .cta-primary {
-    background-color: #dc3545;
+    background-color: #0F172A;
     color: white;
+    border-radius: 8px;
 }
-.cta-primary:hover { background-color: #b02a37; }
+
+.cta-primary:hover {
+    background-color: #1E293B;
+}
 
 .cta-secondary {
     background-color: transparent;
-    color: white;
-    border: 2px solid white;
+    color: #0F172A;
+    border: 2px solid #0F172A;
+    border-radius: 8px;
 }
-.cta-secondary:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+.cta-secondary:hover {
+    background-color: #F1F5F9;
+}
 
 /* =================================== */
 /* --- FEATURES SECTION --- */
@@ -211,14 +218,14 @@
 .icon-container {
     width: 60px;
     height: 60px;
-    background-color: #fbe9e7;
-    color: #dc3545;
+    background-color: #E8F1FC;
+    color: #163269;
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 1.8em;
-    margin: 0 auto 20px; 
+    margin: 0 auto 20px;
 }
 
 .feature-card h3 {
@@ -234,15 +241,32 @@
 
 /* Media Queries */
 @media (max-width: 992px) {
-    .features-grid { grid-template-columns: repeat(2, 1fr); }
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 576px) {
-    .header { padding: 10px 20px; }
-    .hero-content { padding-left: 20px; padding-right: 20px; }
-    .hero-content h1 { font-size: 3em; }
-    .features-section { padding: 50px 20px; }
-    .features-grid { grid-template-columns: 1fr; }
+    .header {
+        padding: 10px 20px;
+    }
+
+    .hero-content {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .hero-content h1 {
+        font-size: 3em;
+    }
+
+    .features-section {
+        padding: 50px 20px;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* =================================== */
@@ -257,18 +281,20 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.55); /* Dimmed Background */
-    backdrop-filter: blur(4px); /* Blur Effect */
-    
+    background-color: rgba(0, 0, 0, 0.55);
+    /* Dimmed Background */
+    backdrop-filter: blur(4px);
+    /* Blur Effect */
+
     /* FLEXBOX CENTERING - Crucial for both modals */
     display: flex;
     justify-content: center;
     align-items: center;
-    
+
     z-index: 3000;
     padding: 20px;
     box-sizing: border-box;
-    
+
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -292,23 +318,26 @@
     right: auto !important;
     bottom: auto !important;
     left: auto !important;
-    
+
     /* Dimensions */
     width: 100%;
-    max-width: 450px; /* Constrain width */
-    height: auto;     /* Fit content */
+    max-width: 450px;
+    /* Constrain width */
+    height: auto;
+    /* Fit content */
     max-height: 90vh;
-    
+
     /* Visuals */
     background: white;
     border-radius: 12px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-    
+
     /* Animation */
     transform: scale(0.95);
     transition: transform 0.3s ease;
-    
-    display: block; /* Ensure it behaves like a block/card */
+
+    display: block;
+    /* Ensure it behaves like a block/card */
     overflow: hidden;
 }
 
@@ -320,20 +349,21 @@
 /* Container inside Login Panel */
 .auth-panel.login-panel .auth-form-container {
     padding: 40px;
-    padding-top: 40px; /* Reset top padding */
+    padding-top: 40px;
+    /* Reset top padding */
     height: auto;
     width: 100%;
     box-sizing: border-box;
     overflow-y: auto;
 }
 
-/* Red Line under "Welcome Back" */
+/* Navy Line under "Welcome Back" */
 .login-panel .auth-form-title::after {
     content: '';
     display: block;
     width: 60px;
     height: 3px;
-    background-color: #dc3545;
+    background-color: #0F172A;
     margin: 15px auto 20px;
 }
 
@@ -348,19 +378,26 @@
     max-width: 500px;
     height: auto;
     max-height: 90vh;
-    
+
     background: white;
     border-radius: 12px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
     padding: 40px;
-    
+
     overflow-y: auto;
     animation: modalPopUp 0.3s ease-out forwards;
 }
 
 @keyframes modalPopUp {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 /* =================================== */
@@ -375,7 +412,9 @@
     text-align: center;
 }
 
-.auth-title-highlight { color: #dc3545; }
+.auth-title-highlight {
+    color: #163269;
+}
 
 .role-selection-subtitle {
     font-size: 1rem;
@@ -405,13 +444,13 @@
 .role-card-auth:hover {
     transform: translateY(-3px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: #dc3545;
+    border-color: #0F172A;
 }
 
 .role-icon-auth {
     font-size: 2.5rem;
     margin-bottom: 10px;
-    color: #dc3545;
+    color: #163269;
 }
 
 .role-card-auth h3 {
@@ -448,14 +487,15 @@
     font-size: 1rem;
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-sizing: border-box; /* Prevents overflow */
+    box-sizing: border-box;
+    /* Prevents overflow */
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .auth-form-input:focus {
     outline: none;
-    border-color: #dc3545;
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    border-color: #0F172A;
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12);
 }
 
 .auth-password-wrapper {
@@ -492,11 +532,11 @@
 
 .auth-checkbox-group input[type="checkbox"] {
     margin-right: 8px;
-    accent-color: #dc3545;
+    accent-color: #0F172A;
 }
 
 .auth-forgot-link {
-    color: #dc3545;
+    color: #163269;
     text-decoration: none;
     font-weight: 500;
 }
@@ -507,14 +547,16 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: white;
-    background-color: #dc3545;
+    background-color: #0F172A;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
-.auth-submit-button:hover { background-color: #b02a37; }
+.auth-submit-button:hover {
+    background-color: #1E293B;
+}
 
 .auth-switch-prompt {
     text-align: center;
@@ -524,13 +566,15 @@
 }
 
 .auth-switch-prompt span {
-    color: #dc3545;
+    color: #163269;
     font-weight: 600;
     cursor: pointer;
 }
 
 @media (max-width: 576px) {
-    .auth-panel.login-panel, .signup-panel {
+
+    .auth-panel.login-panel,
+    .signup-panel {
         width: 90%;
         padding: 20px;
     }
@@ -551,7 +595,7 @@
 .auth-form-container {
     padding: 40px;
     padding-top: 60px;
-    overflow-y: auto; 
+    overflow-y: auto;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -574,13 +618,13 @@
     text-align: center;
 }
 
-/* Red line under title for login */
+/* Navy line under title for login */
 .login-panel .auth-form-container::after {
     content: '';
     display: block;
     width: 60px;
     height: 3px;
-    background-color: #dc3545;
+    background-color: #0F172A;
     margin: 15px auto 30px;
 }
 
@@ -613,13 +657,13 @@
 .role-card-auth:hover {
     transform: translateY(-3px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: #dc3545;
+    border-color: #0F172A;
 }
 
 .role-card-auth.selected {
-    border-color: #dc3545;
-    background-color: #fff5f5;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+    border-color: #0F172A;
+    background-color: #E8F1FC;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .role-card-auth h3 {
@@ -639,7 +683,7 @@
 .role-icon-auth {
     font-size: 2.5rem;
     margin-bottom: 10px;
-    color: #dc3545;
+    color: #163269;
 }
 
 .selected-role-badge {
@@ -661,8 +705,8 @@
 
 .change-role-btn {
     background: none;
-    border: 1px solid #dc3545;
-    color: #dc3545;
+    border: 1px solid #0F172A;
+    color: #0F172A;
     padding: 5px 15px;
     border-radius: 5px;
     cursor: pointer;
@@ -672,7 +716,7 @@
 }
 
 .change-role-btn:hover {
-    background-color: #dc3545;
+    background-color: #0F172A;
     color: white;
 }
 
@@ -681,27 +725,29 @@
     .role-cards-grid-auth {
         gap: 12px;
     }
-    
+
     .role-card-auth {
         padding: 15px;
     }
-    
+
     .role-icon-auth {
         font-size: 2rem;
     }
 }
 
 .auth-form-title .auth-title-highlight {
-    color: #dc3545; /* RED */
+    color: #163269;
+    /* NAVY ACCENT */
 }
 
-/* This is the red line under the title */
+/* This is the accent line under the title */
 .auth-form-container::after {
     content: '';
     display: block;
     width: 60px;
     height: 3px;
-    background-color: #dc3545; /* RED */
+    background-color: #0F172A;
+    /* NAVY */
     margin: 15px auto 30px;
 }
 
@@ -725,14 +771,15 @@
     font-size: 1rem;
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-sizing: border-box; /* Fix padding issues */
+    box-sizing: border-box;
+    /* Fix padding issues */
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .auth-form-input:focus {
     outline: none;
-    border-color: #dc3545;
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    border-color: #0F172A;
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.12);
 }
 
 .auth-password-wrapper {
@@ -741,7 +788,8 @@
 }
 
 .auth-password-wrapper .auth-form-input {
-    padding-right: 45px; /* Make space for icon */
+    padding-right: 45px;
+    /* Make space for icon */
 }
 
 .auth-password-icon {
@@ -753,6 +801,7 @@
     cursor: pointer;
     transition: color 0.2s;
 }
+
 .auth-password-icon:hover {
     color: #555;
 }
@@ -773,14 +822,16 @@
 
 .auth-checkbox-group input[type="checkbox"] {
     margin-right: 8px;
-    accent-color: #dc3545; /* Style the check */
+    accent-color: #0F172A;
+    /* Style the check */
 }
 
 .auth-forgot-link {
-    color: #dc3545;
+    color: #163269;
     text-decoration: none;
     font-weight: 500;
 }
+
 .auth-forgot-link:hover {
     text-decoration: underline;
 }
@@ -791,14 +842,16 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: white;
-    background-color: #dc3545; /* RED */
+    background-color: #0F172A;
+    /* NAVY */
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.2s;
 }
+
 .auth-submit-button:hover {
-    background-color: #b02a37;
+    background-color: #1E293B;
 }
 
 /* Step Buttons */
@@ -839,10 +892,11 @@
 }
 
 .auth-switch-prompt span {
-    color: #dc3545;
+    color: #163269;
     font-weight: 600;
     cursor: pointer;
 }
+
 .auth-switch-prompt span:hover {
     text-decoration: underline;
 }
@@ -850,34 +904,40 @@
 
 /* --- Auth Media Queries --- */
 @media (max-width: 576px) {
+
     /* Auth panel full width on mobile */
     .auth-panel {
         max-width: 100%;
-        right: -100%; /* Start fully off-screen */
+        right: -100%;
+        /* Start fully off-screen */
     }
+
     .auth-panel.visible {
         right: 0;
     }
+
     .auth-form-container {
         padding: 25px;
-        padding-top: 60px; /* Reduced padding */
+        padding-top: 60px;
+        /* Reduced padding */
     }
 }
 
 /* --- NEW: Animation for form switching --- */
 @keyframes authFadeIn {
-    from { 
+    from {
         opacity: 0;
         transform: translateY(10px);
     }
-    to { 
+
+    to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
 /* Apply animation to all direct children when they are rendered */
-.auth-form-container > * {
+.auth-form-container>* {
     animation: authFadeIn 0.4s ease forwards;
 }
 
@@ -897,23 +957,26 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.55); /* Dimmed Background */
-    backdrop-filter: blur(4px); /* Blur Effect */
-    
+    background-color: rgba(0, 0, 0, 0.55);
+    /* Dimmed Background */
+    backdrop-filter: blur(4px);
+    /* Blur Effect */
+
     /* FLEXBOX CENTERING - This centers the box */
     display: flex;
     justify-content: center;
     align-items: center;
-    
-    z-index: 3000; 
+
+    z-index: 3000;
     padding: 20px;
     box-sizing: border-box;
-    
+
     /* Hidden state */
     visibility: hidden;
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s ease;
-    pointer-events: none; /* Important so it doesn't block clicks when hidden */
+    pointer-events: none;
+    /* Important so it doesn't block clicks when hidden */
 }
 
 /* Visible state */
@@ -926,29 +989,29 @@
 /* 2. The White Login Box (Card Style) */
 .auth-panel.login-panel {
     /* RESET POSITIONING - Override old styles */
-    position: relative !important; 
-    top: auto !important; 
+    position: relative !important;
+    top: auto !important;
     right: auto !important;
     bottom: auto !important;
     left: auto !important;
-    
+
     /* Size & Shape */
     width: 100%;
-    max-width: 450px; 
+    max-width: 450px;
     height: auto;
     max-height: 90vh;
-    
+
     background: white;
-    border-radius: 12px; 
+    border-radius: 12px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-    border: none; 
-    
+    border: none;
+
     /* Initial Animation State */
     transform: scale(0.95);
     transition: transform 0.3s ease;
-    
+
     /* Reset Flex properties */
-    display: block; 
+    display: block;
 }
 
 /* Animation when visible */
@@ -961,7 +1024,8 @@
 .auth-panel.login-panel .auth-form-container {
     padding: 40px;
     height: auto;
-    overflow-y: visible; /* Let content flow naturally */
+    overflow-y: visible;
+    /* Let content flow naturally */
 }
 
 /* Signup: Centered Modal Overlay */
@@ -975,49 +1039,59 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;  /* Full Viewport Width */
-    height: 100vh; /* Full Viewport Height */
-    background-color: rgba(0, 0, 0, 0.55); /* Dimmed background */
-    backdrop-filter: blur(4px); /* Optional: Blur effect */
-    
+    width: 100vw;
+    /* Full Viewport Width */
+    height: 100vh;
+    /* Full Viewport Height */
+    background-color: rgba(0, 0, 0, 0.55);
+    /* Dimmed background */
+    backdrop-filter: blur(4px);
+    /* Optional: Blur effect */
+
     /* FLEXBOX CENTERING - Ito ang solusyon sa "Gap" */
     display: flex;
-    justify-content: center; /* Gitna horizontally */
-    align-items: center;     /* Gitna vertically (May space na sa taas at baba) */
-    
+    justify-content: center;
+    /* Gitna horizontally */
+    align-items: center;
+    /* Gitna vertically (May space na sa taas at baba) */
+
     z-index: 3000;
-    padding: 20px; /* Safe padding para di dumikit sa gilid pag mobile */
+    padding: 20px;
+    /* Safe padding para di dumikit sa gilid pag mobile */
     box-sizing: border-box;
-    
+
     /* REMOVED: overflow-y para mawala ang double scrollbar */
-    visibility: visible; 
+    visibility: visible;
     opacity: 1;
 }
 
 /* 2. The White Box (Modal) */
 .signup-panel {
     /* Reset old positioning styles */
-    position: relative; 
+    position: relative;
     top: auto;
     bottom: auto;
     left: auto;
     right: auto;
-    
+
     /* Dimensions */
     width: 100%;
-    max-width: 500px; /* Tamang lapad lang para sa Role Selection */
-    height: auto;     /* Height: Auto lang para yumakap sa content (di sasagad sa baba) */
-    max-height: 90vh; /* Maximum height para di lumampas sa screen */
-    
+    max-width: 500px;
+    /* Tamang lapad lang para sa Role Selection */
+    height: auto;
+    /* Height: Auto lang para yumakap sa content (di sasagad sa baba) */
+    max-height: 90vh;
+    /* Maximum height para di lumampas sa screen */
+
     /* Visuals */
     background: white;
     border-radius: 12px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
     padding: 40px;
-    
+
     /* Scroll inside ONLY if needed (e.g. sobrang liit ng phone screen) */
-    overflow-y: auto; 
-    
+    overflow-y: auto;
+
     /* Smooth Animation */
     animation: modalPopUp 0.3s ease-out forwards;
 }
@@ -1028,6 +1102,7 @@
         opacity: 0;
         transform: scale(0.95) translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -1037,280 +1112,293 @@
 
 /* ======= Step Indicators ======= */
 .signup-step-indicators {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 85%;
-  margin: 0 auto 40px;
-  position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 85%;
+    margin: 0 auto 40px;
+    position: relative;
 }
 
 .signup-step-indicators::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 8%;
-  right: 8%;
-  height: 2px;
-  background: #ddd;
-  z-index: 0;
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    background: #ddd;
+    z-index: 0;
 }
 
 .step-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #ccc;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: 600;
-  color: #fff;
-  z-index: 1;
-  font-size: 1rem;
-  transition: background 0.3s;
-  margin: 0 12px; /* 👈 adds spacing between circles */
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 600;
+    color: #fff;
+    z-index: 1;
+    font-size: 1rem;
+    transition: background 0.3s;
+    margin: 0 12px;
+    /* 👈 adds spacing between circles */
 }
 
 .step-circle.active {
-  background: #e53935;
+    background: #e53935;
 }
 
 /* ======= Step Container ======= */
 .signup-step-container {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
 }
 
 .step-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 25px;
-  text-align: center;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #eee;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 25px;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
 }
 
 /* ======= Step 1 Form Layout ======= */
 .signup-step {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px 25px;
-  margin-bottom: 30px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px 25px;
+    margin-bottom: 30px;
 }
 
 .signup-step .auth-form-group.full-width {
-  grid-column: 1 / -1;
+    grid-column: 1 / -1;
 }
 
 .auth-form-group label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 8px;
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
 }
 
 .auth-form-group input,
 .auth-form-group select {
-  width: 100%;
-  padding: 12px 15px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  box-sizing: border-box;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: inherit;
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
 }
 
 .auth-form-group input:focus,
 .auth-form-group select:focus {
-  outline: none;
-  border-color: #dc3545;
-  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    outline: none;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
 }
 
 /* --- TUPM ID Wrapper (Edited 1) --- */
 .tupm-id-wrapper {
-  /* Ensure the children stay inline even on small inputs */
-  display: flex;
-  align-items: center;
-  gap: 5px; /* Reduced gap for a tighter look */
+    /* Ensure the children stay inline even on small inputs */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    /* Reduced gap for a tighter look */
 }
 
 /* Make the prefix span a smaller font to fit better if needed */
 .tupm-prefix {
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
-  padding: 0; /* Removed vertical padding */
-  font-size: 0.95rem; 
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+    padding: 0;
+    /* Removed vertical padding */
+    font-size: 0.95rem;
 }
 
 /* Make sure the inputs share space evenly */
 .tupm-id-wrapper input {
-  flex: 1; 
-  /* Reduce padding on the number inputs to make them smaller */
-  padding: 10px 8px; 
-  text-align: center; /* Center text in the small fields */
+    flex: 1;
+    /* Reduce padding on the number inputs to make them smaller */
+    padding: 10px 8px;
+    text-align: center;
+    /* Center text in the small fields */
 }
 
 .tupm-year-input {
-  max-width: 50px; /* Small fixed width for YY */
-  flex: none; /* Do not stretch */
+    max-width: 50px;
+    /* Small fixed width for YY */
+    flex: none;
+    /* Do not stretch */
 }
 
 .tupm-serial-input {
-  max-width: 80px; /* Small fixed width for #### */
-  flex: none; /* Do not stretch */
+    max-width: 80px;
+    /* Small fixed width for #### */
+    flex: none;
+    /* Do not stretch */
 }
 
 .tupm-sep {
-  font-weight: 600;
-  color: #555;
-  white-space: nowrap;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
 }
+
 /* ======= Information Summary (Step 4) ======= */
 .summary-section {
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 25px;
-  margin-bottom: 25px;
-  border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 25px;
+    border: 1px solid #e9ecef;
 }
 
 .summary-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  /* --- EDITED 4: Change divider to a subtle gray line for separation --- */
-  border-bottom: 2px solid #e9ecef; /* Changed from #dc3545 (RED) */
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    /* --- EDITED 4: Change divider to a subtle gray line for separation --- */
+    border-bottom: 2px solid #e9ecef;
+    /* Changed from #dc3545 (RED) */
 }
 
 .summary-content {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .summary-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .summary-label {
-  font-weight: 600;
-  color: #555;
-  font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
 }
 
 .summary-value {
-  color: #333;
-  font-size: 1rem;
+    color: #333;
+    font-size: 1rem;
 }
 
 .summary-courses-list {
-  margin-top: 5px;
+    margin-top: 5px;
 }
 
 .courses-summary-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .course-summary-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background-color: white;
-  border-radius: 5px;
-  border: 1px solid #dc3545;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background-color: white;
+    border-radius: 5px;
+    border: 1px solid #dc3545;
 }
 
 .course-summary-code {
-  font-weight: 600;
-  color: #dc3545;
-  min-width: 80px;
-  font-size: 0.9rem;
+    font-weight: 600;
+    color: #dc3545;
+    min-width: 80px;
+    font-size: 0.9rem;
 }
 
 .course-summary-name {
-  color: #333;
-  font-size: 0.9rem;
+    color: #333;
+    font-size: 0.9rem;
 }
 
 .password-setup-section {
-  margin-top: 25px;
-  padding-top: 25px;
-  border-top: 2px solid #e9ecef;
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 2px solid #e9ecef;
 }
 
 @media (max-width: 768px) {
-  .auth-panel.visible {
-    width: 95%;
-    padding: 30px 25px;
-  }
+    .auth-panel.visible {
+        width: 95%;
+        padding: 30px 25px;
+    }
 
-  .signup-step {
-    grid-template-columns: 1fr;
-  }
+    .signup-step {
+        grid-template-columns: 1fr;
+    }
 
-  .signup-step .auth-form-group.full-width {
-    grid-column: 1;
-  }
+    .signup-step .auth-form-group.full-width {
+        grid-column: 1;
+    }
 
-  .signup-step-indicators {
-    width: 100%;
-  }
+    .signup-step-indicators {
+        width: 100%;
+    }
 
-  .signup-step-indicators::before {
-    left: 10%;
-    right: 10%;
-  }
+    .signup-step-indicators::before {
+        left: 10%;
+        right: 10%;
+    }
 
-  /* Override the default flex column for TUPM ID (Edited 1) */
+    /* Override the default flex column for TUPM ID (Edited 1) */
     .tupm-id-wrapper {
-        flex-direction: row; /* Keep inline layout */
-        flex-wrap: nowrap; /* Prevent wrapping */
+        flex-direction: row;
+        /* Keep inline layout */
+        flex-wrap: nowrap;
+        /* Prevent wrapping */
         justify-content: space-between;
     }
-    
+
     .tupm-id-wrapper input {
-        padding: 12px 10px; /* Revert to default padding on mobile */
+        padding: 12px 10px;
+        /* Revert to default padding on mobile */
     }
 
-  .tupm-prefix {
-    padding: 0;
-  }
+    .tupm-prefix {
+        padding: 0;
+    }
 
-  .class-registration-container {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
+    .class-registration-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
 
-  .course-list,
-  .selected-courses-list {
-    max-height: 300px;
-  }
+    .course-list,
+    .selected-courses-list {
+        max-height: 300px;
+    }
 }
 
 /* Registration.css */
@@ -1320,16 +1408,19 @@
 /* Wrapper para sa City at Zip Code */
 .city-zip-wrapper {
     display: flex;
-    gap: 15px; /* Space sa pagitan ng City at Zip */
+    gap: 15px;
+    /* Space sa pagitan ng City at Zip */
     align-items: flex-start;
 }
 
 .city-part {
-    flex: 1; /* Kakainin ng City yung natitirang space */
+    flex: 1;
+    /* Kakainin ng City yung natitirang space */
 }
 
 .zip-part {
-    width: 110px; /* Fixed na maliit na width para sa Zip Code */
+    width: 110px;
+    /* Fixed na maliit na width para sa Zip Code */
 }
 
 /* Override labels inside custom wrapper if needed */
@@ -1349,4 +1440,272 @@
     border: 1px solid #ccc;
     border-radius: 5px;
     box-sizing: border-box;
+}
+
+/* ==========================================
+   Role Selection Modal (DeptHead Style)
+   ========================================== */
+.role-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    backdrop-filter: blur(4px);
+}
+
+.role-modal-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    text-align: center;
+    animation: roleModalPopUp 0.3s ease-out forwards;
+}
+
+@keyframes roleModalPopUp {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.role-modal-card h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+    margin-bottom: 10px;
+    color: #1e293b;
+}
+
+.role-modal-subtitle {
+    color: #64748b;
+    margin-bottom: 30px;
+    font-size: 0.95rem;
+}
+
+.role-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.role-modal-item {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 30px 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.role-modal-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: #163269;
+}
+
+.role-modal-item i {
+    font-size: 3rem;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.role-modal-item:hover i {
+    color: #163269;
+}
+
+.role-modal-item h3 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    color: #334155;
+    font-size: 1.2rem;
+}
+
+.role-modal-item p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* Faculty hover */
+.role-modal-item.faculty:hover {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.role-modal-item.faculty:hover i,
+.role-modal-item.faculty:hover h3 {
+    color: #3b82f6;
+}
+
+/* Student hover */
+.role-modal-item.student:hover {
+    background-color: #f0fdf4;
+    border-color: #22c55e;
+}
+
+.role-modal-item.student:hover i,
+.role-modal-item.student:hover h3 {
+    color: #16a34a;
+}
+
+@media (max-width: 576px) {
+    .role-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .role-modal-card {
+        padding: 20px;
+    }
+}
+
+/* ==========================================
+   Login Modal Card (Popup Style)
+   ========================================== */
+.login-modal-card {
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    text-align: center;
+    animation: roleModalPopUp 0.3s ease-out forwards;
+}
+
+.login-modal-card h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: #1e293b;
+    margin-bottom: 5px;
+}
+
+.login-error-msg {
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+    text-align: left;
+    border: 1px solid #fecaca;
+}
+
+.login-error-msg i {
+    margin-right: 6px;
+}
+
+.login-form-group {
+    text-align: left;
+    margin-bottom: 18px;
+}
+
+.login-form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.login-form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.login-form-group input:focus {
+    outline: none;
+    border-color: #163269;
+    box-shadow: 0 0 0 3px rgba(22, 50, 105, 0.1);
+}
+
+.login-password-wrapper {
+    position: relative;
+}
+
+.login-password-wrapper input {
+    padding-right: 42px;
+}
+
+.login-password-icon {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+}
+
+.login-password-icon:hover {
+    color: #4b5563;
+}
+
+.login-submit-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: white;
+    background-color: #0F172A;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 5px;
+}
+
+.login-submit-btn:hover {
+    background-color: #1E293B;
+}
+
+.login-switch-prompt {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.login-switch-prompt span {
+    color: #163269;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.login-switch-prompt span:hover {
+    color: #0F172A;
+    text-decoration: underline;
+}
+
+@media (max-width: 576px) {
+    .login-modal-card {
+        padding: 25px;
+    }
 }

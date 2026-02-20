@@ -80,6 +80,17 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         if (path.includes('/faculty-dept-management')) return 'Department Management';
         if (path.includes('/faculty-dept-reports')) return 'Department Reports';
 
+        // Dept Head Routes
+        if (path.includes('/dept-head-dashboard')) return 'Dashboard';
+        if (path.includes('/dept-head-management')) return 'Department Management';
+        if (path.includes('/dept-head-verification')) return 'User Verification';
+        if (path.includes('/dept-head-users')) return 'User Management';
+        if (path.includes('/dept-head-reports')) return 'Reports';
+        if (path.includes('/dept-head-logs')) return 'System Logs';
+        if (path.includes('/dept-head-settings')) return 'Settings';
+        if (path.includes('/dept-head-help')) return 'Help & Support';
+        if (path.includes('/dept-head-profile')) return 'My Profile';
+
         return '';
     };
 
@@ -96,7 +107,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
             {showLogo ? (
                 <Link to={user ? (user.role === 'admin' ? "/admin-dashboard" : user.role === 'faculty' ? "/faculty-dashboard" : "/student-dashboard") : "/"} className="header-logo-link">
                     <div className="universal-header-logo">
-                        <Logo className="header-logo-icon" size={45} />
+                        <Logo className="header-logo-icon" size={42} colorShift />
                         <span>FRAMES</span>
                     </div>
                 </Link>

@@ -84,20 +84,16 @@ const SettingsPage = ({ isEmbedded = false }) => {
                         <h3>Account</h3>
                         <p>Manage your account and security settings.</p>
 
-                        {/* Link to Profile for editing details */}
-                        <Link to="/profile" className="settings-link-button">
-                            <span>Go to My Profile</span>
-                            <i className="fas fa-arrow-right"></i>
-                        </Link>
+                        {/* 
+                            <Link to="/profile" className="settings-link-button">
+                                <span>Go to My Profile</span>
+                                <i className="fas fa-arrow-right"></i>
+                            </Link>
 
-                        {/* Since we implemented the password modal in MyProfilePage, 
-                            we can redirect there or simply use a button that implies functionality */}
-                        <button className="settings-action-button" onClick={() => navigate('/profile')}>
-                            <i className="fas fa-key"></i> Change Password
-                        </button>
-                        <button className="settings-action-button">
-                            <i className="fas fa-shield-alt"></i> Manage Two-Factor Auth
-                        </button>
+                            <button className="settings-action-button" onClick={() => navigate('/profile')}>
+                                <i className="fas fa-key"></i> Change Password
+                            </button> 
+                        */}
                     </div>
 
                     {/* Notification Settings Card */}

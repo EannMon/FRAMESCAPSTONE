@@ -45,6 +45,7 @@ USE THESE ACCOUNTS:
 | HTTP Client | Axios               |
 | Charts      | Chart.js / Recharts |
 | Styling     | Bootstrap 5.3       |
+| Dev Tooling | concurrently        |
 
 ---
 

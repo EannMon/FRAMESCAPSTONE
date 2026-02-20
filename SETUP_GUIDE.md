@@ -72,9 +72,14 @@ API Documentation: `http://localhost:5000/docs`.
 
 ## 3. Frontend Setup
 
-The frontend is built with **React** (Vite).
+The frontend is built with **React** (Vite). It uses **concurrently** to run both the frontend and backend servers with a single command.
 
-### 3.1. Installation
+### 3.1. Prerequisites
+
+- Node.js 18 or higher
+- npm
+
+### 3.2. Installation
 
 1.  Navigate to the frontend directory:
 
@@ -82,18 +87,40 @@ The frontend is built with **React** (Vite).
     cd frontend
     ```
 
-2.  Install Node.js dependencies:
+2.  Install Node.js dependencies (includes `concurrently` for running both servers):
     ```bash
     npm install
     ```
 
-### 3.2. Running the Client
+### 3.3. Running the Development Servers
+
+To start **both** the frontend and backend simultaneously:
 
 ```bash
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:3000` (or whatever port Vite assigns).
+This will launch:
+- **Frontend** (Vite) on `http://localhost:3000`
+- **Backend** (FastAPI/Uvicorn) on `http://localhost:5000`
+
+Both servers run in the same terminal, with color-coded output:
+- **Cyan** `[FRONTEND]` — Vite dev server logs
+- **Yellow** `[BACKEND]` — Uvicorn/FastAPI logs
+
+> **Note:** The backend virtual environment (`backend/venv`) must already be set up before running this command. See [Section 2](#2-backend-setup) for backend setup.
+
+#### Running Servers Individually
+
+If you need to run only one server:
+
+```bash
+# Frontend only
+npm run dev:frontend
+
+# Backend only
+npm run dev:backend
+```
 
 ---
 
@@ -211,9 +238,13 @@ DISPLAY=:0 python rpi/test_laptop.py
 
 ## Quick Reference: Commands
 
-| Component | Command | Port |
-|-----------|---------|------|
-| Backend |`uvicorn main:app --reload --port 5000`| 5000 |
-| Frontend | `npm run dev` | 3000 |
+| Command | What It Does | Ports |
+|---------|-------------|-------|
+| `npm run dev` | Starts **both** frontend + backend | 3000 + 5000 |
+| `npm run dev:frontend` | Starts frontend only (Vite) | 3000 |
+| `npm run dev:backend` | Starts backend only (Uvicorn) | 5000 |
+| `npm run build` | Builds frontend for production | — |
+
+> All commands should be run from the `frontend/` directory.
 | RPi Kiosk | `DISPLAY=:0 python rpi/main_kiosk.py` | — |
 | RPi Test | `DISPLAY=:0 python rpi/test_laptop.py` | — |

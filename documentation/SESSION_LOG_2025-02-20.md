@@ -380,3 +380,14 @@ These are tracked in `.claude/rules/FRAMES_DEPLOYMENT_CONSTRAINTS.instructions.m
   │  Camera V2     │   │                │
   └────────────────┘   └────────────────┘
 ```
+
+---
+---
+
+# PR Summary — 2026-02-20 (Eann's Session)
+
+**Date:** 2026-02-20  
+**Branch:** `main`  
+
+---
+

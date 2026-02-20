@@ -19,11 +19,9 @@ const facultyTheme = {
 // 1. Faculty Sidebar Component
 // ===========================================
 const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
-    const role = user?.role?.toUpperCase();
-    const isDeptHead = role === 'HEAD' ||
-        user?.faculty_status === 'Head' ||
-        user?.faculty_status === 'Department Head' ||
-        role === 'DEPT_HEAD';
+    // DeptHead logic removed - now handled by dedicated DeptHeadLayout
+    // const role = user?.role?.toUpperCase();
+    // const isDeptHead = role === 'HEAD' || ... (REMOVED)
 
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
@@ -34,15 +32,6 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
         { name: 'Settings', icon: 'fas fa-cog', to: '/faculty-settings' },
         { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/faculty-help' },
     ];
-
-    if (isDeptHead) {
-        // Insert Department Management items before divider
-        const insertIndex = 4; // Before divider
-        navItems.splice(insertIndex, 0,
-            { name: 'Department Mgmt', icon: 'fas fa-university', to: '/faculty-dept-management' },
-            { name: 'Dept Reports', icon: 'fas fa-file-alt', to: '/faculty-dept-reports' }
-        );
-    }
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
@@ -57,7 +46,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=163269&color=fff`;
 
     return (
-        <aside className={`frames-sidebar ${isDeptHead ? 'dept-head-sidebar' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`frames-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
             {/* BRANDING (Matched to Student Module) */}
             <div className="sidebar-brand">
                 <div className="sidebar-logo-container">
@@ -73,7 +62,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
             {/* Role Tag */}
             {!isCollapsed && (
                 <div className="frames-role-tag">
-                    {isDeptHead ? "Department Head" : "Faculty Member"}
+                    Faculty Member
                 </div>
             )}
 
@@ -105,7 +94,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
                     {!isCollapsed && (
                         <div className="sidebar-user-details" style={{ display: 'flex', flexDirection: 'column' }}>
                             <span className="sidebar-user-name" style={{ fontWeight: '600', fontSize: '0.9rem' }}>{displayName}</span>
-                            <span className="sidebar-user-role" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{isDeptHead ? "Dept. Head" : "Faculty"}</span>
+                            <span className="sidebar-user-role" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Faculty</span>
                         </div>
                     )}
                 </Link>

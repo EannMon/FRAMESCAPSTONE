@@ -5,15 +5,18 @@
     width: 100%;
     max-width: 1000px;
     margin: 0 auto;
-    padding: 100px 20px 50px 20px; /* 80px header + 20px space */
+    padding: 100px 20px 50px 20px;
+    /* 80px header + 20px space */
     box-sizing: border-box;
-    min-height: calc(100vh - 120px); /* Fill screen, minus header/footer */
+    min-height: calc(100vh - 120px);
+    /* Fill screen, minus header/footer */
 }
+
 .help-page-container.embedded {
-    padding: 0; /* Let main-content-area handle padding */
-    padding-bottom: 20px;
+    padding: 0;
     max-width: 100%;
     min-height: auto;
+    margin-top: 0;
 }
 
 /* --- Header Bar --- */
@@ -47,6 +50,7 @@
     font-weight: 500;
     transition: background-color 0.2s;
 }
+
 .help-back-button:hover {
     background-color: #e2e6ea;
 }
@@ -64,14 +68,15 @@
     text-align: center;
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #e0e0e0;
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
 }
+
 .help-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .help-card-icon {
@@ -84,15 +89,21 @@
     justify-content: center;
     margin: 0 auto 20px auto;
 }
+
 /* Card 1: FAQ */
 .help-grid-top .help-card:first-child .help-card-icon {
-    background-color: #e3f2fd; /* Light blue */
-    color: #1e88e5; /* Blue */
+    background-color: #e3f2fd;
+    /* Light blue */
+    color: #1e88e5;
+    /* Blue */
 }
+
 /* Card 2: User Guide */
 .help-grid-top .help-card:last-child .help-card-icon {
-    background-color: #e8f5e9; /* Light green */
-    color: #43a047; /* Green */
+    background-color: #e8f5e9;
+    /* Light green */
+    color: #43a047;
+    /* Green */
 }
 
 .help-card h3 {
@@ -100,6 +111,7 @@
     font-size: 1.3em;
     color: #333;
 }
+
 .help-card p {
     margin: 0;
     color: #666;
@@ -110,6 +122,7 @@
 .faq-section {
     width: 100%;
 }
+
 .faq-section h2 {
     font-size: 1.5em;
     font-weight: 600;
@@ -118,16 +131,18 @@
 }
 
 .faq-list-card {
-    padding: 10px 25px; /* Less padding for an accordion */
+    padding: 10px 25px;
+    /* Less padding for an accordion */
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #e0e0e0;
 }
 
 .faq-item {
     border-bottom: 1px solid #eee;
 }
+
 .faq-item:last-child {
     border-bottom: none;
 }
@@ -146,13 +161,17 @@
     font-weight: 600;
     color: #333;
 }
+
 .faq-question:hover {
-    color: #dc3545; /* Red hover */
+    color: #dc3545;
+    /* Red hover */
 }
+
 .faq-question i {
     font-size: 0.9em;
     transition: transform 0.3s ease;
 }
+
 .faq-question i.open {
     transform: rotate(180deg);
 }
@@ -165,12 +184,15 @@
     color: #555;
     line-height: 1.6;
 }
+
 .faq-answer p {
     margin: 0;
     padding-bottom: 20px;
 }
+
 .faq-answer.open {
-    max-height: 200px; /* Adjust as needed for answer length */
+    max-height: 200px;
+    /* Adjust as needed for answer length */
     padding-top: 5px;
 }
 
@@ -179,6 +201,7 @@
     .help-page-container {
         padding-top: 85px;
     }
+
     .help-header-bar {
         flex-direction: column;
         align-items: flex-start;
@@ -212,29 +235,152 @@
 }
 
 .help-page-container.faculty-theme .help-card-icon {
-    border-radius: 12px; /* Squircle */
+    border-radius: 12px;
+    /* Squircle */
     width: 60px;
     height: 60px;
 }
 
 /* Specific Colors for Faculty Theme */
 .help-page-container.faculty-theme .help-grid-top .help-card:first-child .help-card-icon {
-    background-color: #eff6ff; /* Soft Blue */
+    background-color: #eff6ff;
+    /* Soft Blue */
     color: #3b82f6;
 }
 
 .help-page-container.faculty-theme .help-grid-top .help-card:last-child .help-card-icon {
-    background-color: #ecfdf5; /* Soft Green */
+    background-color: #ecfdf5;
+    /* Soft Green */
     color: #10b981;
 }
 
 /* 3. FAQ Section */
 .help-page-container.faculty-theme .faq-question:hover {
-    color: #163269; /* Navy instead of Red */
+    color: #163269;
+    /* Navy instead of Red */
 }
 
 .help-page-container.faculty-theme .faq-list-card {
-    border-radius: 16px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     border: 1px solid #f1f5f9;
+}
+
+/* =========================================== */
+/* 4. NEW LAYOUT: Full Width FAQ */
+/* =========================================== */
+
+.faq-section-full {
+    width: 100%;
+    /* max-width removed to fill container */
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.section-title i {
+    font-size: 1.2em;
+    color: #A62525;
+    /* Default Red */
+}
+
+.section-title h3 {
+    font-size: 1.3em;
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+}
+
+/* Overrides for Faculty Theme */
+.faculty-theme .section-title i {
+    color: #163269;
+}
+
+/* =========================================== */
+/* 5. Contact Support Section (Mock) */
+/* =========================================== */
+
+.contact-support-section {
+    width: 100%;
+    margin-top: 40px;
+}
+
+.contact-form-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.contact-subtitle {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 0.95em;
+}
+
+.mock-contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9em;
+}
+
+.form-input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: #A62525;
+    outline: none;
+}
+
+.btn-submit-support {
+    align-self: flex-start;
+    background: #A62525;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.btn-submit-support:hover {
+    background: #8E1F1F;
+}
+
+/* Faculty Theme Overrides for Contact Form */
+.faculty-theme .form-input:focus {
+    border-color: #163269;
+}
+
+.faculty-theme .btn-submit-support {
+    background: #163269;
+}
+
+.faculty-theme .btn-submit-support:hover {
+    background: #0f244d;
 }

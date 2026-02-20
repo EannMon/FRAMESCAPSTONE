@@ -1,0 +1,157 @@
+/* =========================================== */
+/* DeptHeadSystemLogsPage.css */
+/* =========================================== */
+.system-logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-left: 30px;
+}
+
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.logs-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.logs-filters {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.logs-filter-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    background-color: white;
+    font-size: 0.9em;
+}
+
+.logs-search-bar {
+    display: flex;
+    align-items: center;
+    background: #f5f6fa;
+    border: 1px solid #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.logs-search-bar i {
+    color: #999;
+    margin-right: 8px;
+}
+
+.logs-search-bar input {
+    border: none;
+    background: none;
+    outline: none;
+    font-size: 0.9em;
+}
+
+.logs-table-card {
+    padding: 0;
+}
+
+.logs-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+}
+
+.logs-table th,
+.logs-table td {
+    padding: 15px 25px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.logs-table th {
+    background-color: #fcfcfc;
+    font-size: 0.85em;
+    color: #777;
+    text-transform: uppercase;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.log-timestamp {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    color: #555;
+    white-space: nowrap;
+}
+
+.log-service {
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+}
+
+.log-message {
+    font-size: 0.95em;
+    color: #333;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.log-status-tag {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.log-status-tag.red {
+    background-color: #fde8e8;
+    color: #dc3545;
+}
+
+.log-status-tag.yellow {
+    background-color: #fff8e6;
+    color: #e6a800;
+}
+
+.log-status-tag.green {
+    background-color: #e6f7ec;
+    color: #28a745;
+}
+
+.log-status-tag.grey {
+    background-color: #f0f2f5;
+    color: #6c757d;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .logs-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .logs-filters {
+        flex-direction: column;
+    }
+
+    .logs-filter-select,
+    .logs-search-bar {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
