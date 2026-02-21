@@ -15,9 +15,9 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
 
     useEffect(() => {
         const fetchNotifications = async () => {
-            if (!user) return;
+            if (!user?.id) return;
             try {
-                const response = await axios.get('http://localhost:5000/api/dept/notifications');
+                const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.id}`);
                 setNotifications(response.data || []);
             } catch (error) {
                 console.error("Error fetching notifications:", error);
