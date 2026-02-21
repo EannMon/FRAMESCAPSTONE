@@ -92,7 +92,7 @@ class GestureDetector:
     def _is_finger_curled(self, landmarks, tip: int, dip: int, pip: int, mcp: int) -> bool:
         """
         Check if finger is curled (not extended).
-        Uses a more lenient threshold than simply not-extended for flexibility.
+        More lenient threshold — a finger is curled if it's clearly NOT straight.
         """
         tip_to_mcp = self._dist(landmarks[tip], landmarks[mcp])
         pip_to_mcp = self._dist(landmarks[pip], landmarks[mcp])
@@ -101,7 +101,10 @@ class GestureDetector:
             return True
         
         ratio = tip_to_mcp / pip_to_mcp
-        return ratio < 1.7  # Curled if tip is NOT much further than PIP
+        # Raised from 1.7 → 1.8 to avoid grey zone between extended (1.5) and curled
+        # This makes peace sign detection more reliable since ring/pinky
+        # often hover in a semi-curled state
+        return ratio < 1.8
     
     def _is_thumb_extended(self, landmarks, handedness: str = "Right") -> bool:
         """
@@ -156,30 +159,38 @@ class GestureDetector:
     
     def _classify_gesture(self, landmarks, handedness: str) -> Gesture:
         """Classify gesture from landmarks for a single frame."""
-        # Check finger states
+        # Check finger states using distance-ratio method
         index_up = self._is_finger_extended(landmarks, 8, 7, 6, 5)
         middle_up = self._is_finger_extended(landmarks, 12, 11, 10, 9)
         ring_up = self._is_finger_extended(landmarks, 16, 15, 14, 13)
         pinky_up = self._is_finger_extended(landmarks, 20, 19, 18, 17)
         thumb_up = self._is_thumb_extended(landmarks, handedness)
-        
+
         ring_curled = self._is_finger_curled(landmarks, 16, 15, 14, 13)
         pinky_curled = self._is_finger_curled(landmarks, 20, 19, 18, 17)
-        
-        # Peace sign: index + middle UP, ring + pinky DOWN (thumb doesn't matter)
-        if index_up and middle_up and ring_curled and pinky_curled:
-            return Gesture.PEACE_SIGN
-        
-        # Open palm: all 4 fingers up (thumb can be relaxed)
-        if index_up and middle_up and ring_up and pinky_up:
-            return Gesture.OPEN_PALM
-        
-        # Thumbs up: thumb UP, all other fingers DOWN
         index_curled = self._is_finger_curled(landmarks, 8, 7, 6, 5)
         middle_curled = self._is_finger_curled(landmarks, 12, 11, 10, 9)
+
+        # ---- PEACE SIGN ----
+        # Primary: index + middle UP, ring + pinky curled (thumb irrelevant)
+        # Fallback: if ring/pinky are in the grey zone, check that index+middle
+        # tips are significantly further from wrist than ring+pinky tips
+        if index_up and middle_up and not ring_up and not pinky_up:
+            return Gesture.PEACE_SIGN
+
+        if index_up and middle_up and ring_curled and pinky_curled:
+            return Gesture.PEACE_SIGN
+
+        # ---- OPEN PALM ----
+        # All 4 fingers up (thumb can be relaxed)
+        if index_up and middle_up and ring_up and pinky_up:
+            return Gesture.OPEN_PALM
+
+        # ---- THUMBS UP ----
+        # Thumb UP, all other fingers DOWN
         if thumb_up and index_curled and middle_curled and ring_curled and pinky_curled:
             return Gesture.THUMBS_UP
-        
+
         return Gesture.NONE
     
     def _get_smoothed_gesture(self) -> Gesture:
