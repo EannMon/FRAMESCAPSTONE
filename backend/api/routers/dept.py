@@ -192,49 +192,6 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
     # We will raise error if no class exists.
     raise HTTPException(400, "Please assign a faculty member first before assigning a room.")
 
-@router.get("/notifications")
-def get_notifications(db: Session = Depends(get_db)):
-    """
-    Get dynamic notifications for the Department Head:
-    1. Pending user verifications
-    2. Recent audit logs (filtered for relevance)
-    """
-    from models.user import User, VerificationStatus
-    from models.audit_log import AuditLog
-    from datetime import datetime, timedelta
-
-    notifications = []
-
-    # 1. Fetch Pending Users
-    pending_users = db.query(User).filter(User.verification_status == VerificationStatus.PENDING).order_by(User.created_at.desc()).all()
-    for user in pending_users:
-        notifications.append({
-            "id": f"verify-{user.id}",
-            "type": "VERIFICATION",
-            "icon": "fas fa-user-clock",
-            "text": f"Pending verification: {user.first_name} {user.last_name}",
-            "time": "Recent", # Could calculate time ago
-            "read": False,
-            "link": "/dept-head-dashboard" # Dashboard has the review list
-        })
-
-    # 2. Fetch Recent Audit Logs (last 24 hours)
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    logs = db.query(AuditLog).filter(AuditLog.timestamp >= yesterday).order_by(AuditLog.timestamp.desc()).limit(10).all()
-    
-    for log in logs:
-        # Skip verification logs to avoid redundancy if they are already in the list
-        if log.action_type in ["USER_VERIFY", "USER_REJECT"]:
-            continue
-            
-        notifications.append({
-            "id": f"audit-{log.id}",
-            "type": "AUDIT",
-            "icon": "fas fa-history",
-            "text": f"Action: {log.action_type.replace('_', ' ')}",
-            "time": log.timestamp.strftime("%I:%M %p"),
-            "read": True,
-            "link": "/dept-head-logs"
-        })
-
-    return notifications
+    # For now, if no schedule_id, we can't create a class without faculty.
+    # We will raise error if no class exists.
+    raise HTTPException(400, "Please assign a faculty member first before assigning a room.")
