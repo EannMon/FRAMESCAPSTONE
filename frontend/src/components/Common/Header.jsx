@@ -1,24 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import './Header.css';
 import Logo from './Logo';
-
-// const LOGO_ICON = '/shield-icon-white.svg';
-
-const mockNotifications = [
-    { id: 1, icon: 'fas fa-user-shield', text: 'New admin alert: Unauthorized access attempt.', time: '5m ago', read: false },
-    { id: 2, icon: 'fas fa-chalkboard-teacher', text: 'Prof. Cruz updated CS 101 grades.', time: '1h ago', read: false },
-    { id: 3, icon: 'fas fa-calendar-check', text: 'Your room booking for tomorrow is confirmed.', time: '3h ago', read: true },
-    { id: 4, icon: 'fas fa-exclamation-triangle', text: 'System Maintenance is scheduled for 8 PM.', time: '1d ago', read: true },
-];
 
 const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSidebarCollapsed }) => {
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
 
     const profileRef = useRef(null);
     const notificationRef = useRef(null);
+
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            if (!user) return;
+            try {
+                const response = await axios.get('http://localhost:5000/api/dept/notifications');
+                setNotifications(response.data || []);
+            } catch (error) {
+                console.error("Error fetching notifications:", error);
+            }
+        };
+
+        fetchNotifications();
+        // Optional: Poll for new notifications
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [user]);
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
@@ -49,19 +59,14 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         '--notif-dot-text': '#333'
     } : {};
 
-    // --- 1. NAME LOGIC ---
-    // Backend returns snake_case (first_name, last_name), fallback to camelCase
     const firstName = user?.first_name || user?.firstName || '';
     const lastName = user?.last_name || user?.lastName || '';
     const displayName = (firstName && lastName)
         ? `${firstName} ${lastName}`
         : (user?.name || 'User');
 
-    // --- 2. AVATAR LOGIC (MATCHES PROFILE PAGE) ---
-    // Background is now fixed to A62525 (Red) instead of 'random'
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
 
-    // --- 3. PAGE TITLE & DATE LOGIC (Student Context) ---
     const location = useLocation();
 
     const getPageTitle = (path) => {
@@ -102,6 +107,13 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         day: 'numeric'
     });
 
+    const handleNotificationClick = (link) => {
+        if (link) {
+            navigate(link);
+            setIsNotificationOpen(false);
+        }
+    };
+
     return (
         <header className="universal-header" style={dynamicStyle}>
             {showLogo ? (
@@ -112,7 +124,6 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                     </div>
                 </Link>
             ) : (
-                /* Contextual Header for Student/Faculty (Logo Hidden) */
                 <div className={`header-context-section ${isSidebarCollapsed ? 'collapsed' : ''}`}>
                     {toggleSidebar && (
                         <button className="header-sidebar-toggle" onClick={toggleSidebar}>
@@ -132,9 +143,9 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                         <div className="notification-bell-container" ref={notificationRef}>
                             <button className="icon-button notification-trigger" onClick={toggleNotifications}>
                                 <i className="far fa-bell"></i>
-                                {mockNotifications.some(n => !n.read) && (
+                                {notifications.some(n => !n.read) && (
                                     <span className="notification-count-text">
-                                        {mockNotifications.filter(n => !n.read).length}
+                                        {notifications.filter(n => !n.read).length}
                                     </span>
                                 )}
                             </button>
@@ -146,30 +157,39 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                                         <span className="mark-as-read">Mark all as read</span>
                                     </div>
                                     <div className="notification-list">
-                                        {mockNotifications.map(notif => (
-                                            <div key={notif.id} className={`notification-item ${notif.read ? 'read' : 'unread'}`}>
-                                                <div className="notification-icon-bg">
-                                                    <i className={notif.icon}></i>
+                                        {notifications.length > 0 ? (
+                                            notifications.map(notif => (
+                                                <div 
+                                                    key={notif.id} 
+                                                    className={`notification-item ${notif.read ? 'read' : 'unread'}`}
+                                                    onClick={() => handleNotificationClick(notif.link)}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <div className="notification-icon-bg">
+                                                        <i className={notif.icon}></i>
+                                                    </div>
+                                                    <div className="notification-content">
+                                                        <p className="notification-text">{notif.text}</p>
+                                                        <span className="notification-time">{notif.time}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="notification-content">
-                                                    <p className="notification-text">{notif.text}</p>
-                                                    <span className="notification-time">{notif.time}</span>
-                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="notification-item" style={{ justifyContent: 'center', color: '#94a3b8' }}>
+                                                No new notifications
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
                                     <div className="notification-dropdown-footer">
                                         <Link to={
                                             user?.role?.toLowerCase() === 'student' ? '/student-notifications' :
-                                                (user?.role?.toLowerCase() === 'faculty' || user?.role?.toLowerCase() === 'head') ? '/faculty-notifications' :
+                                                (user?.role?.toLowerCase() === 'faculty' || user?.role?.toLowerCase() === 'head' || user?.role?.toLowerCase() === 'dept_head') ? '/dept-head-logs' :
                                                     '/notifications'
-                                        }>View All Notifications</Link>
+                                        }>View All Logs</Link>
                                     </div>
                                 </div>
                             )}
                         </div>
-
-                        {/* Profile Dropdown Removed - Moved to Sidebar */}
                     </>
                 ) : (
                     <nav className="guest-nav">
