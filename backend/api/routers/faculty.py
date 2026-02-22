@@ -49,6 +49,8 @@ class DashboardStats(BaseModel):
     total_students: int
     todays_classes: int
     average_attendance: float
+    recent_attendance: list = []
+    all_logs: list = []
 
 
 class SubjectCreate(BaseModel):
@@ -126,10 +128,11 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
     return result
 
 
-@router.get("/dashboard-stats/{user_id}", response_model=DashboardStats)
+@router.get("/dashboard-stats/{user_id}")
 def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
     """
     Get dashboard statistics for a faculty member.
+    Returns summary cards data, recent activity, and all logs for charts.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -150,20 +153,69 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
     ).count()
     
     # Total unique students across all classes
-    class_ids = [c.id for c in db.query(Class).filter(Class.faculty_id == user_id).all()]
+    faculty_classes = db.query(Class).filter(Class.faculty_id == user_id).all()
+    class_ids = [c.id for c in faculty_classes]
     total_students = db.query(Enrollment).filter(
         Enrollment.class_id.in_(class_ids)
     ).distinct(Enrollment.student_id).count() if class_ids else 0
     
-    # Average attendance (simplified calculation)
-    average_attendance = 85.0  # TODO: Calculate from actual logs
+    # ---- REAL Average Attendance Calculation ----
+    average_attendance = 0.0
+    if class_ids:
+        total_enrolled = db.query(Enrollment).filter(Enrollment.class_id.in_(class_ids)).count()
+        total_entries = db.query(AttendanceLog).filter(
+            AttendanceLog.class_id.in_(class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY
+        ).count()
+        # Simple rate: entries / enrolled (capped at 100)
+        if total_enrolled > 0:
+            average_attendance = round(min((total_entries / max(total_enrolled, 1)) * 100, 100), 1)
     
-    return DashboardStats(
-        total_classes=total_classes,
-        total_students=total_students,
-        todays_classes=todays_classes,
-        average_attendance=average_attendance
-    )
+    # ---- Recent Activity (last 5 attendance events in faculty's classes) ----
+    recent_logs_raw = db.query(AttendanceLog).filter(
+        AttendanceLog.class_id.in_(class_ids)
+    ).order_by(AttendanceLog.timestamp.desc()).limit(5).all() if class_ids else []
+    
+    recent_attendance = []
+    for log in recent_logs_raw:
+        cls = db.query(Class).filter(Class.id == log.class_id).first()
+        subject = db.query(Subject).filter(Subject.id == cls.subject_id).first() if cls else None
+        student = db.query(User).filter(User.id == log.user_id).first()
+        recent_attendance.append({
+            "timestamp": str(log.timestamp),
+            "event_type": log.action.value.lower(),
+            "subject_code": subject.code if subject else None,
+            "subject_description": subject.title if subject else None,
+            "room_name": cls.room if cls else None,
+            "student_name": f"{student.first_name} {student.last_name}" if student else "Unknown",
+            "time": log.timestamp.strftime("%I:%M %p") if log.timestamp else None,
+            "is_late": log.is_late or False
+        })
+    
+    # ---- All logs for chart data (last 365 days) ----
+    from datetime import timedelta
+    one_year_ago = datetime.now() - timedelta(days=365)
+    all_logs_raw = db.query(AttendanceLog).filter(
+        AttendanceLog.class_id.in_(class_ids),
+        AttendanceLog.timestamp >= one_year_ago
+    ).order_by(AttendanceLog.timestamp.desc()).all() if class_ids else []
+    
+    all_logs = []
+    for log in all_logs_raw:
+        all_logs.append({
+            "timestamp": str(log.timestamp),
+            "event_type": log.action.value.lower(),
+            "is_late": log.is_late or False
+        })
+    
+    return {
+        "total_classes": total_classes,
+        "total_students": total_students,
+        "todays_classes": todays_classes,
+        "average_attendance": average_attendance,
+        "recent_attendance": recent_attendance,
+        "all_logs": all_logs
+    }
 
 
 @router.post("/subjects", response_model=dict)
@@ -611,3 +663,193 @@ def get_all_session_exceptions_for_faculty(
         }
         for e in exceptions
     ]
+
+
+# ============================================
+# Reports Data Endpoint
+# ============================================
+
+@router.get("/reports/data/{user_id}")
+def get_faculty_report_data(
+    user_id: int,
+    report_type: str = "CLASS_MONTHLY",
+    class_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    section: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get report data for faculty. Supports both personal and class reports.
+    All data comes directly from DB - no mock data.
+    """
+    from datetime import timedelta
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Parse date filters
+    dt_from = None
+    dt_to = None
+    if date_from:
+        try:
+            dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+        except ValueError:
+            try:
+                dt_from = datetime.strptime(date_from + "-01", "%Y-%m-%d")
+            except ValueError:
+                pass
+    if date_to:
+        try:
+            dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+        except ValueError:
+            try:
+                # Month format: get last day of month
+                dt_to = datetime.strptime(date_to + "-01", "%Y-%m-%d")
+                if dt_to.month == 12:
+                    dt_to = dt_to.replace(year=dt_to.year + 1, month=1)
+                else:
+                    dt_to = dt_to.replace(month=dt_to.month + 1)
+            except ValueError:
+                pass
+    
+    # Determine if personal or class report
+    is_personal = report_type.startswith('PERSONAL') or report_type in ['HISTORY_30D', 'INSTRUCTOR_DELAY']
+    
+    # Get faculty's classes
+    faculty_classes = db.query(Class).filter(Class.faculty_id == user_id).all()
+    faculty_class_ids = [c.id for c in faculty_classes]
+    
+    if is_personal:
+        # ---- PERSONAL REPORTS: Faculty's own attendance logs ----
+        query = db.query(AttendanceLog).filter(AttendanceLog.user_id == user_id)
+        
+        if dt_from:
+            query = query.filter(AttendanceLog.timestamp >= dt_from)
+        if dt_to:
+            query = query.filter(AttendanceLog.timestamp < dt_to)
+        elif report_type == 'HISTORY_30D':
+            query = query.filter(AttendanceLog.timestamp >= datetime.now() - timedelta(days=30))
+        
+        logs = query.order_by(AttendanceLog.timestamp.desc()).all()
+        
+        result = []
+        for log in logs:
+            cls = db.query(Class).filter(Class.id == log.class_id).first() if log.class_id else None
+            subject = db.query(Subject).filter(Subject.id == cls.subject_id).first() if cls else None
+            
+            status = "On Time"
+            if log.is_late:
+                status = "Late"
+            elif log.action == AttendanceAction.BREAK_OUT:
+                status = "Break Out"
+            elif log.action == AttendanceAction.BREAK_IN:
+                status = "Break In"
+            elif log.action == AttendanceAction.EXIT:
+                status = "Exit"
+            
+            result.append({
+                "id": f"LOG-{log.id}",
+                "col1": log.timestamp.strftime("%b %d, %Y") if log.timestamp else "N/A",
+                "col2": f"{subject.code} ({cls.room})" if subject and cls else "Unknown",
+                "status": status,
+                "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "--:--",
+                "remarks": log.remarks or ("Instructor Delay" if log.is_late else "Regular Class")
+            })
+        
+        return result
+    
+    else:
+        # ---- CLASS REPORTS: Student attendance in faculty's classes ----
+        query = db.query(AttendanceLog).filter(
+            AttendanceLog.class_id.in_(faculty_class_ids)
+        )
+        
+        if class_id:
+            query = query.filter(AttendanceLog.class_id == class_id)
+        if dt_from:
+            query = query.filter(AttendanceLog.timestamp >= dt_from)
+        if dt_to:
+            query = query.filter(AttendanceLog.timestamp < dt_to)
+        
+        logs = query.order_by(AttendanceLog.timestamp.desc()).all()
+        
+        result = []
+        for log in logs:
+            student = db.query(User).filter(User.id == log.user_id).first()
+            cls = db.query(Class).filter(Class.id == log.class_id).first() if log.class_id else None
+            
+            # Section filter
+            if section and section != 'All' and cls and cls.section != section:
+                continue
+            
+            status = "Present"
+            remarks = "On Time"
+            if log.is_late:
+                status = "Late"
+                remarks = "Late Arrival"
+            if log.action == AttendanceAction.BREAK_OUT:
+                status = "Break"
+                remarks = "Break Out"
+            elif log.action == AttendanceAction.BREAK_IN:
+                status = "Present"
+                remarks = "Returned from Break"
+            elif log.action == AttendanceAction.EXIT:
+                status = "Exit"
+                remarks = "Early Exit" if log.remarks and "early" in log.remarks.lower() else "Session End"
+            
+            # Filter by specific report types
+            if report_type == 'UNRECOGNIZED_LOGS' and log.confidence_score and log.confidence_score > 0.5:
+                continue  # Skip recognized individuals for unrecognized report
+            if report_type == 'CLASS_LATE' and not log.is_late:
+                continue
+            if report_type == 'EARLY_EXITS' and log.action != AttendanceAction.EXIT:
+                continue
+            if report_type in ['BREAK_ABUSE', 'BREAK_DURATION'] and log.action not in [AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN]:
+                continue
+            
+            student_name = f"{student.last_name}, {student.first_name}" if student else "Unknown"
+            student_section = cls.section if cls else "N/A"
+            
+            result.append({
+                "id": student.tupm_id if student else f"UNK-{log.id}",
+                "col1": student_name,
+                "col2": student_section,
+                "status": status,
+                "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "--:--",
+                "remarks": remarks
+            })
+        
+        return result
+
+
+@router.get("/attendance-history/{user_id}")
+def get_faculty_attendance_history(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get faculty's own attendance history for chart display.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all attendance logs for this user
+    logs = db.query(AttendanceLog).filter(
+        AttendanceLog.user_id == user_id
+    ).order_by(AttendanceLog.timestamp.desc()).all()
+    
+    result = []
+    for log in logs:
+        cls = db.query(Class).filter(Class.id == log.class_id).first() if log.class_id else None
+        subject = db.query(Subject).filter(Subject.id == cls.subject_id).first() if cls else None
+        
+        result.append({
+            "id": log.id,
+            "timestamp": str(log.timestamp),
+            "event_type": log.action.value.lower(),
+            "class_name": subject.title if subject else None,
+            "room_name": cls.room if cls else None,
+            "is_late": log.is_late or False
+        })
+    
+    return result

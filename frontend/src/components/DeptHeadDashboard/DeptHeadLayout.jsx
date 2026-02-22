@@ -18,6 +18,7 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
     // Navigation Items for Department Head
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/dept-head-dashboard' },
+        { name: 'My Classes', icon: 'fas fa-book-reader', to: '/dept-head-classes' },
         { name: 'Department Mgmt', icon: 'fas fa-university', to: '/dept-head-management' },
 
         { name: 'User Management', icon: 'fas fa-users-cog', to: '/dept-head-users' },
