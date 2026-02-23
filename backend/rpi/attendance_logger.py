@@ -115,12 +115,12 @@ class AttendanceLogger:
         # Queue for later if API fails
         self._queue_offline(record)
         logger.warning(f"⚠️ Queued offline: user={user_id}, action={action.value}")
-        return True  # Still return True since it's queued
+        return False  # Return False — caller should NOT update state until DB confirms
     
     def _post_to_api(self, record: AttendanceRecord) -> bool:
         """Post attendance record to backend API."""
         try:
-            url = f"{self.backend_url}/api/attendance/log"
+            url = f"{self.backend_url}/api/kiosk/attendance/log"
             payload = {
                 "user_id": record.user_id,
                 "class_id": record.class_id,

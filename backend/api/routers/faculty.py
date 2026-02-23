@@ -611,3 +611,55 @@ def get_all_session_exceptions_for_faculty(
         }
         for e in exceptions
     ]
+
+
+# ============================================
+# Late Threshold Management
+# ============================================
+
+class LateThresholdUpdate(BaseModel):
+    late_threshold_minutes: int
+
+
+@router.put("/class/{class_id}/late-threshold")
+def update_class_late_threshold(
+    class_id: int,
+    data: LateThresholdUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update the late threshold (minutes after start_time) for a class.
+    Only the faculty who teaches this class (or HEAD of the department) can update.
+    """
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
+        raise HTTPException(
+            status_code=400,
+            detail="Late threshold must be between 1 and 120 minutes"
+        )
+
+    cls.late_threshold_minutes = data.late_threshold_minutes
+    db.commit()
+
+    return {
+        "success": True,
+        "class_id": class_id,
+        "late_threshold_minutes": data.late_threshold_minutes,
+        "message": f"Late threshold set to {data.late_threshold_minutes} minutes"
+    }
+
+
+@router.get("/class/{class_id}/late-threshold")
+def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
+    """Get the current late threshold for a class."""
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    return {
+        "class_id": class_id,
+        "late_threshold_minutes": cls.late_threshold_minutes or 15
+    }

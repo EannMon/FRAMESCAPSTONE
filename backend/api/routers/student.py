@@ -1,21 +1,23 @@
 """
 Student Router - Student-specific endpoints
-Dashboard, schedule, attendance history
+Dashboard, schedule, attendance history, live status
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
+import logging
 
 from db.database import get_db
 from models.user import User, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
 from models.enrollment import Enrollment
-from models.attendance_log import AttendanceLog
+from models.attendance_log import AttendanceLog, AttendanceAction
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -43,6 +45,18 @@ class AttendanceRecord(BaseModel):
     verified_by: Optional[str] = None
 
 
+class LiveStatusResponse(BaseModel):
+    """Real-time attendance status for the student dashboard."""
+    status: str          # PRESENT, BREAK, EXITED, IDLE
+    status_color: str    # green, amber, grey
+    status_text: str     # Human-readable status
+    room: Optional[str] = None
+    subject_code: Optional[str] = None
+    subject_title: Optional[str] = None
+    last_action: Optional[str] = None
+    last_timestamp: Optional[str] = None
+
+
 class StudentDashboard(BaseModel):
     attendance_rate: str
     enrolled_courses: int
@@ -54,10 +68,75 @@ class StudentDashboard(BaseModel):
 # Endpoints
 # ============================================
 
+@router.get("/live-status/{user_id}", response_model=LiveStatusResponse)
+def get_live_status(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get real-time attendance status for a student.
+    Returns current state (PRESENT/BREAK/EXITED/IDLE) with room and class info.
+    Used by the student dashboard for the live status indicator.
+    
+    Single query with joinedload — no N+1.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get today's date range
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Single query: latest attendance log today with class + subject eagerly loaded
+    latest_log = (
+        db.query(AttendanceLog)
+        .options(
+            joinedload(AttendanceLog.class_).joinedload(Class.subject)
+        )
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.timestamp >= today_start,
+        )
+        .order_by(AttendanceLog.timestamp.desc())
+        .first()
+    )
+
+    # No attendance today — IDLE
+    if not latest_log:
+        return LiveStatusResponse(
+            status="IDLE",
+            status_color="grey",
+            status_text="No activity today",
+        )
+
+    action = latest_log.action
+    cls = latest_log.class_
+    subject = cls.subject if cls else None
+
+    # Map action → live status
+    status_map = {
+        AttendanceAction.ENTRY: ("PRESENT", "green", "In class"),
+        AttendanceAction.BREAK_IN: ("PRESENT", "green", "Returned from break"),
+        AttendanceAction.BREAK_OUT: ("BREAK", "amber", "On break"),
+        AttendanceAction.EXIT: ("EXITED", "grey", "Exited class"),
+    }
+    status_info = status_map.get(action, ("IDLE", "grey", "Unknown"))
+
+    return LiveStatusResponse(
+        status=status_info[0],
+        status_color=status_info[1],
+        status_text=status_info[2],
+        room=cls.room if cls else None,
+        subject_code=subject.code if subject else None,
+        subject_title=subject.title if subject else None,
+        last_action=action.value,
+        last_timestamp=str(latest_log.timestamp),
+    )
+
+
 @router.get("/dashboard/{user_id}", response_model=StudentDashboard)
 def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     """
     Get dashboard statistics for a student.
+    Uses eager loading to avoid N+1 queries.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -82,16 +161,22 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     # Calculate attendance rate (simplified)
     attendance_rate = f"{min(total_attendance * 10, 100)}%"
     
-    # Get recent attendance
-    recent_logs = db.query(AttendanceLog).filter(
-        AttendanceLog.user_id == user_id
-    ).order_by(AttendanceLog.timestamp.desc()).limit(3).all()
+    # Get recent attendance — eager load Class + Subject in one query (no N+1)
+    recent_logs = (
+        db.query(AttendanceLog)
+        .options(
+            joinedload(AttendanceLog.class_).joinedload(Class.subject)
+        )
+        .filter(AttendanceLog.user_id == user_id)
+        .order_by(AttendanceLog.timestamp.desc())
+        .limit(3)
+        .all()
+    )
     
     recent_attendance = []
     for log in recent_logs:
-        cls = db.query(Class).filter(Class.id == log.class_id).first() if log.class_id else None
-        subject = db.query(Subject).filter(Subject.id == cls.subject_id).first() if cls else None
-        
+        cls = log.class_
+        subject = cls.subject if cls else None
         recent_attendance.append({
             "timestamp": str(log.timestamp),
             "course_name": subject.title if subject else "Unknown",
@@ -110,6 +195,7 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
 def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
     """
     Get class schedule for a student based on enrollments.
+    Uses eager loading to avoid N+1 queries.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -118,16 +204,23 @@ def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
     if user.verification_status != VerificationStatus.VERIFIED:
         raise HTTPException(status_code=403, detail="Account not verified")
     
-    # Get enrolled classes
-    enrollments = db.query(Enrollment).filter(Enrollment.student_id == user_id).all()
+    # Single query: enrollments → class → subject + faculty via JOINs
+    enrollments = (
+        db.query(Enrollment)
+        .options(
+            joinedload(Enrollment.class_).joinedload(Class.subject),
+            joinedload(Enrollment.class_).joinedload(Class.faculty),
+        )
+        .filter(Enrollment.student_id == user_id)
+        .all()
+    )
     
     schedule = []
     for enrollment in enrollments:
-        cls = db.query(Class).filter(Class.id == enrollment.class_id).first()
+        cls = enrollment.class_
         if cls:
-            subject = db.query(Subject).filter(Subject.id == cls.subject_id).first()
-            faculty = db.query(User).filter(User.id == cls.faculty_id).first()
-            
+            subject = cls.subject
+            faculty = cls.faculty
             schedule.append(ScheduleItem(
                 class_id=cls.id,
                 subject_code=subject.code if subject else None,
@@ -143,9 +236,15 @@ def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/history/{user_id}", response_model=List[AttendanceRecord])
-def get_attendance_history(user_id: int, db: Session = Depends(get_db)):
+def get_attendance_history(
+    user_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
     """
-    Get full attendance history for a student.
+    Get paginated attendance history for a student.
+    Uses eager loading — no N+1 queries.
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -154,15 +253,30 @@ def get_attendance_history(user_id: int, db: Session = Depends(get_db)):
     if user.verification_status != VerificationStatus.VERIFIED:
         raise HTTPException(status_code=403, detail="Account not verified")
     
-    logs = db.query(AttendanceLog).filter(
+    # Cap limit to prevent abuse (Rule 1.2)
+    limit = min(limit, 100)
+    
+    # Single query with eager loading for class + subject
+    logs = (
+        db.query(AttendanceLog)
+        .options(
+            joinedload(AttendanceLog.class_).joinedload(Class.subject)
+        )
+        .filter(AttendanceLog.user_id == user_id)
+        .order_by(AttendanceLog.timestamp.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    
+    total = db.query(func.count(AttendanceLog.id)).filter(
         AttendanceLog.user_id == user_id
-    ).order_by(AttendanceLog.timestamp.desc()).all()
+    ).scalar()
     
     result = []
     for log in logs:
-        cls = db.query(Class).filter(Class.id == log.class_id).first() if log.class_id else None
-        subject = db.query(Subject).filter(Subject.id == cls.subject_id).first() if cls else None
-        
+        cls = log.class_
+        subject = cls.subject if cls else None
         result.append(AttendanceRecord(
             id=log.id,
             timestamp=log.timestamp,

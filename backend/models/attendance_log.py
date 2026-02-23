@@ -30,8 +30,10 @@ class AttendanceLog(Base):
     device_id = Column(Integer, ForeignKey("devices.id"))
     
     # Attendance Info
-    action = Column(Enum(AttendanceAction), nullable=False)
-    verified_by = Column(Enum(VerifiedBy))           # FACE for entry, FACE+GESTURE for breaks/exit
+    # values_callable ensures SQLAlchemy uses enum .value (not .name) for DB storage
+    # This matters for VerifiedBy where name=FACE_GESTURE but DB value=FACE+GESTURE
+    action = Column(Enum(AttendanceAction, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    verified_by = Column(Enum(VerifiedBy, values_callable=lambda x: [e.value for e in x]))  # FACE or FACE+GESTURE
     is_late = Column(Boolean, default=False)         # For faster late arrival queries
     
     # Recognition metadata
