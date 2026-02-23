@@ -5,16 +5,16 @@ This replaces the JSON 'enrolled_courses' field in the old User table.
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Enrollment(Base):
     __tablename__ = "enrollments"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    class_id = Column(Integer, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    enrolled_at = Column(DateTime, default=datetime.utcnow)
+    class_id = Column(Integer, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    enrolled_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Ensure a student can only be enrolled once per class
     __table_args__ = (
