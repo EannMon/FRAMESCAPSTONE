@@ -75,25 +75,42 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
     if user.verification_status != VerificationStatus.VERIFIED:
         raise HTTPException(status_code=403, detail="Account not verified")
     
-    # Get classes taught by this faculty
-    classes = db.query(Class).filter(Class.faculty_id == user_id).all()
+    # Get classes taught by this faculty (Eager load Subject to avoid N+1)
+    from sqlalchemy.orm import joinedload
+    classes = db.query(Class).options(joinedload(Class.subject)).filter(Class.faculty_id == user_id).all()
+    
+    if not classes:
+        return []
+        
+    class_ids = [c.id for c in classes]
+    
+    # Batch Query 1: Total enrolled students per class
+    enrollment_counts = dict(
+        db.query(Enrollment.class_id, func.count(Enrollment.id))
+        .filter(Enrollment.class_id.in_(class_ids))
+        .group_by(Enrollment.class_id)
+        .all()
+    )
+    
+    # Batch Query 2: Total present today per class
+    present_counts = dict(
+        db.query(AttendanceLog.class_id, func.count(AttendanceLog.user_id.distinct()))
+        .filter(
+            AttendanceLog.class_id.in_(class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            func.date(AttendanceLog.timestamp) == func.current_date()
+        )
+        .group_by(AttendanceLog.class_id)
+        .all()
+    )
     
     today = datetime.now().strftime('%A')
     result = []
     
     for cls in classes:
-        # Get subject info
-        subject = db.query(Subject).filter(Subject.id == cls.subject_id).first()
-        
-        # Count enrolled students
-        total_students = db.query(Enrollment).filter(Enrollment.class_id == cls.id).count()
-        
-        # Count present today
-        present_count = db.query(AttendanceLog).filter(
-            AttendanceLog.class_id == cls.id,
-            AttendanceLog.action == AttendanceAction.ENTRY,
-            func.date(AttendanceLog.timestamp) == func.current_date()
-        ).distinct(AttendanceLog.user_id).count()
+        subject = cls.subject
+        total_students = enrollment_counts.get(cls.id, 0)
+        present_count = present_counts.get(cls.id, 0)
         
         # Calculate rate
         rate = round((present_count / total_students * 100)) if total_students > 0 else 0
@@ -196,17 +213,18 @@ def get_class_details(class_id: int, db: Session = Depends(get_db)):
     Get detailed information about a specific class.
     Includes enrolled students and attendance logs.
     """
-    cls = db.query(Class).filter(Class.id == class_id).first()
+    from sqlalchemy.orm import joinedload
+    cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == class_id).first()
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
     
-    subject = db.query(Subject).filter(Subject.id == cls.subject_id).first()
+    subject = cls.subject
     
-    # Get enrolled students
-    enrollments = db.query(Enrollment).filter(Enrollment.class_id == class_id).all()
+    # Get enrolled students via eager loading
+    enrollments = db.query(Enrollment).options(joinedload(Enrollment.student)).filter(Enrollment.class_id == class_id).all()
     students = []
     for enrollment in enrollments:
-        student = db.query(User).filter(User.id == enrollment.student_id).first()
+        student = enrollment.student
         if student:
             students.append({
                 "id": student.id,
@@ -442,25 +460,35 @@ def get_class_details_by_schedule_id(schedule_id: int, db: Session = Depends(get
     Get class details including student attendance list.
     Alias for /class/{class_id} to match frontend expectations.
     """
-    cls = db.query(Class).filter(Class.id == schedule_id).first()
+    from sqlalchemy.orm import joinedload
+    cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == schedule_id).first()
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
+        
+    # Get enrolled students via eager loading
+    enrollments = db.query(Enrollment).options(joinedload(Enrollment.student)).filter(Enrollment.class_id == schedule_id).all()
     
-    subject = db.query(Subject).filter(Subject.id == cls.subject_id).first()
+    if not enrollments:
+        return []
+        
+    student_ids = [e.student_id for e in enrollments]
     
-    # Get enrolled students with today's attendance
-    enrollments = db.query(Enrollment).filter(Enrollment.class_id == schedule_id).all()
+    # Batch Query: Get all today's attendance logs for enrolled students in this class
+    today_logs = db.query(AttendanceLog).filter(
+        AttendanceLog.user_id.in_(student_ids),
+        AttendanceLog.class_id == schedule_id,
+        func.date(AttendanceLog.timestamp) == func.current_date()
+    ).all()
+    
+    # Map logs by user_id for O(1) lookup
+    logs_by_user = {log.user_id: log for log in today_logs}
+    
     students = []
     
     for enrollment in enrollments:
-        student = db.query(User).filter(User.id == enrollment.student_id).first()
+        student = enrollment.student
         if student:
-            # Check if student has attendance log for today
-            today_log = db.query(AttendanceLog).filter(
-                AttendanceLog.user_id == student.id,
-                AttendanceLog.class_id == schedule_id,
-                func.date(AttendanceLog.timestamp) == func.current_date()
-            ).first()
+            today_log = logs_by_user.get(student.id)
             
             students.append({
                 "user_id": student.id,

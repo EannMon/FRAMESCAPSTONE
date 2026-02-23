@@ -44,12 +44,18 @@ def get_all_users(db: Session = Depends(get_db)):
     return result
 
 
+from pydantic import BaseModel
+
+class VerificationRequest(BaseModel):
+    user_id: int
+    verification_status: str = None # Optional, for logging or extended logic
+
 @router.post("/verification/approve", response_model=MessageResponse)
-def approve_user(user_id: int, db: Session = Depends(get_db)):
+def approve_user(req: VerificationRequest, db: Session = Depends(get_db)):
     """
     Approve a user's verification status.
     """
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == req.user_id).first()
     
     if not user:
         raise HTTPException(
@@ -60,16 +66,16 @@ def approve_user(user_id: int, db: Session = Depends(get_db)):
     user.verification_status = VerificationStatus.VERIFIED
     db.commit()
     
-    print(f"✅ User {user_id} approved")
-    return MessageResponse(message=f"User {user_id} has been approved")
+    print(f"✅ User {req.user_id} approved")
+    return MessageResponse(message=f"User {req.user_id} has been approved")
 
 
 @router.post("/verification/reject", response_model=MessageResponse)
-def reject_user(user_id: int, db: Session = Depends(get_db)):
+def reject_user(req: VerificationRequest, db: Session = Depends(get_db)):
     """
     Reject a user's verification status.
     """
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == req.user_id).first()
     
     if not user:
         raise HTTPException(
@@ -80,8 +86,8 @@ def reject_user(user_id: int, db: Session = Depends(get_db)):
     user.verification_status = VerificationStatus.REJECTED
     db.commit()
     
-    print(f"✅ User {user_id} rejected")
-    return MessageResponse(message=f"User {user_id} has been rejected")
+    print(f"✅ User {req.user_id} rejected")
+    return MessageResponse(message=f"User {req.user_id} has been rejected")
 
 
 @router.delete("/user/{user_id}", response_model=MessageResponse)

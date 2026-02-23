@@ -4,7 +4,7 @@ Department Model - Represents academic departments (e.g., College of Science)
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Department(Base):
@@ -13,7 +13,7 @@ class Department(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False)
     code = Column(String(20), unique=True)  # e.g., "COS" for College of Science
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     users = relationship("User", back_populates="department")

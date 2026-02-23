@@ -5,7 +5,7 @@ Simplified from the original 35+ field table to essential fields only.
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 
 
@@ -33,8 +33,8 @@ class User(Base):
     tupm_id = Column(String(50), unique=True, nullable=False)  # e.g., "TUPM-21-1234"
     
     # Role & Status
-    role = Column(Enum(UserRole), nullable=False)
-    verification_status = Column(Enum(VerificationStatus), default=VerificationStatus.PENDING)
+    role = Column(Enum(UserRole), nullable=False, index=True)
+    verification_status = Column(Enum(VerificationStatus), default=VerificationStatus.PENDING, index=True)
     face_registered = Column(Boolean, default=False)
     
     # Personal Info
@@ -46,8 +46,8 @@ class User(Base):
     home_address = Column(String(500))
     
     # Academic Info (Foreign Keys)
-    department_id = Column(Integer, ForeignKey("departments.id"))
-    program_id = Column(Integer, ForeignKey("programs.id"))
+    department_id = Column(Integer, ForeignKey("departments.id"), index=True)
+    program_id = Column(Integer, ForeignKey("programs.id"), index=True)
     
     # For Students
     year_level = Column(String(20))  # e.g., "1st Year", "4th Year"
@@ -63,8 +63,8 @@ class User(Base):
     emergency_contact_address = Column(String(255))
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_active = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_active = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     department = relationship("Department", back_populates="users")

@@ -4,7 +4,7 @@ Subject Model - Represents academic subjects/courses
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Subject(Base):
@@ -14,7 +14,7 @@ class Subject(Base):
     code = Column(String(50), unique=True, nullable=False)  # e.g., "CS101", "IT302"
     title = Column(String(255), nullable=False)  # e.g., "Introduction to Computing"
     units = Column(Integer, default=3)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     classes = relationship("Class", back_populates="subject")
