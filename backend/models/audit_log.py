@@ -4,7 +4,7 @@ Audit Log Model - Tracks all administrative actions for accountability
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class AuditLog(Base):
@@ -19,7 +19,7 @@ class AuditLog(Base):
     new_value = Column(JSON, nullable=True)                           # New state
     ip_address = Column(String(45))                                   # Request IP address
     user_agent = Column(String(255))                                  # Browser/client info
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", backref="audit_logs")

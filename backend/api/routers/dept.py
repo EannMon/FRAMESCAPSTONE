@@ -90,8 +90,12 @@ def get_management_data(db: Session = Depends(get_db)):
                     "schedule": schedule_str
                 })
     
-    # 3. Fetch Faculty
-    faculty = db.query(User).filter(User.role == UserRole.FACULTY).all()
+    # 3. Fetch Faculty (Only VERIFIED)
+    from models.user import VerificationStatus
+    faculty = db.query(User).filter(
+        User.role == UserRole.FACULTY,
+        User.verification_status == VerificationStatus.VERIFIED
+    ).all()
     faculty_list = [{"user_id": f.id, "name": f.full_name, "email": f.email} for f in faculty]
     
     # 4. Mock Rooms (could be a DB table later)
@@ -135,9 +139,14 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
         raise HTTPException(404, "Subject not found")
 
     # Verify Faculty
-    faculty = db.query(User).filter(User.id == req.faculty_id, User.role == UserRole.FACULTY).first()
+    from models.user import VerificationStatus
+    faculty = db.query(User).filter(
+        User.id == req.faculty_id, 
+        User.role == UserRole.FACULTY,
+        User.verification_status == VerificationStatus.VERIFIED
+    ).first()
     if not faculty:
-        raise HTTPException(404, "Faculty not found")
+        raise HTTPException(404, "Faculty not found or not verified")
 
     # Check if we are updating an existing class or creating a new one
     if req.schedule_id:
@@ -184,13 +193,6 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
             db.commit()
             return {"message": "Room assigned to existing class"}
             
-    # If no class exists, we can't really assign a room without a faculty?
-    # Logic in existing frontend implies we can assign room first?
-    # But Class model REQUIRES faculty_id (nullable=False in model: faculty_id = Column(..., nullable=False))
-    # Let's check model...
-    # backend/models/class_.py: faculty_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    # SO WE CANNOT CREATE A CLASS WITHOUT FACULTY.
-    
     # Workaround: Check if there's any faculty, or assign to a default "TBA" placeholder if needed.
     # OR: The user flow "Assign Room" might fail if no faculty assigned yet.
     # Let's try to find if there is an existing class for this subject with no room.
@@ -198,3 +200,37 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
     # For now, if no schedule_id, we can't create a class without faculty.
     # We will raise error if no class exists.
     raise HTTPException(400, "Please assign a faculty member first before assigning a room.")
+
+@router.get("/user-schedule/{user_id}")
+def get_user_schedule(user_id: int, db: Session = Depends(get_db)):
+    """
+    Fetch schedule for a specific user (Faculty or Student).
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+        
+    schedule = []
+    
+    # 1. If Faculty, get classes they teach
+    if user.role == UserRole.FACULTY:
+        classes = db.query(Class).filter(Class.faculty_id == user.id).options(joinedload(Class.subject)).all()
+        for cls in classes:
+            s_time = cls.start_time.strftime("%I:%M %p") if cls.start_time else "TBA"
+            e_time = cls.end_time.strftime("%I:%M %p") if cls.end_time else "TBA"
+            day = cls.day_of_week if cls.day_of_week else "TBA"
+            
+            schedule.append({
+                "subject_code": cls.subject.code,
+                "subject_name": cls.subject.title,
+                "day": day,
+                "time": f"{s_time} - {e_time}" if s_time != "TBA" else "TBA",
+                "room": cls.room or "TBA",
+                "section": cls.section or "TBA"
+            })
+            
+    # 2. If Student, get classes they are enrolled in 
+    # (Assuming Enrollment model exists, otherwise return empty for now)
+    # TODO: Implement Student Schedule when Enrollment model is ready
+    
+    return schedule

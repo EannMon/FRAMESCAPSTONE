@@ -4,7 +4,7 @@ SessionException Model - Tracks exceptions (cancellations, online mode) for spec
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, DateTime, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 
 
@@ -19,12 +19,12 @@ class SessionException(Base):
     __tablename__ = "session_exceptions"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
-    session_date = Column(Date, nullable=False)
-    exception_type = Column(SQLEnum(ExceptionType), default=ExceptionType.ONSITE)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False, index=True)
+    session_date = Column(Date, nullable=False, index=True)
+    exception_type = Column(SQLEnum(ExceptionType), default=ExceptionType.ONSITE, index=True)
     reason = Column(String(255))
-    created_by = Column(Integer, ForeignKey("users.id"))  # Faculty who created this
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), index=True)  # Faculty who created this
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     class_ = relationship("Class", backref="session_exceptions")

@@ -1,0 +1,284 @@
+/* DeptHeadDashboardPage.css */
+
+.pending-verifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.verification-row {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.verification-row:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    transform: translateX(4px);
+}
+
+.v-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    font-size: 1.2rem;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.v-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.v-name {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.v-meta {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.v-role-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-right: 8px;
+}
+
+.v-role-badge.faculty { background: #dbeafe; color: #1e40af; }
+.v-role-badge.student { background: #fef9c3; color: #854d0e; }
+
+.v-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 15px;
+}
+
+.v-btn-review {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #163269;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.v-btn-review:hover {
+    background: #1e4ba1;
+    transform: translateY(-1px);
+}
+
+/* --- MODAL STYLES --- */
+.v-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.v-modal-content {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.v-modal-header {
+    background: #163269;
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.v-modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.v-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.v-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.v-modal-body {
+    padding: 24px;
+}
+
+.v-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.v-detail-label {
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.v-detail-value {
+    color: #1e293b;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.v-modal-footer {
+    padding: 20px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.v-action-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.v-action-btn.approve {
+    background: #16a34a;
+    color: white;
+}
+
+.v-action-btn.approve:hover {
+    background: #15803d;
+    transform: scale(1.02);
+}
+
+.v-action-btn.reject {
+    background: white;
+    color: #dc2626;
+    border: 1px solid #fee2e2;
+}
+
+.v-action-btn.reject:hover {
+    background: #fef2f2;
+}
+
+/* Quick Action Item Enhancements */
+.quick-action-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    margin-bottom: 10px;
+}
+
+.quick-action-item:hover {
+    background: #eff6ff;
+    border-color: #dbeafe;
+    transform: translateX(4px);
+}
+
+.quick-action-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 1rem;
+}
+
+.alert-type.green { background: #dcfce7; color: #166534; }
+.alert-type.blue { background: #dbeafe; color: #1e40af; }
+
+.quick-action-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #334155;
+}
+
+.v-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px dashed #e2e8f0;
+}
+
+.v-empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.5;
+}
+
+.loading-inline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #64748b;
+    gap: 10px;
+}

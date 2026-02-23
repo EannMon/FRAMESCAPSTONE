@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios'; // Import Axios
-import { generateFramesPDF } from '../../utils/ReportGenerator';
+import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
 import './DeptHeadReportsPage.css';
+import DeptHeadReportModal from './DeptHeadReportModal';
 
 const reportOptions = [
     // FACULTY REPORTS (Matching TestPDFPage Template)
@@ -19,6 +20,7 @@ const DeptHeadReportsPage = () => {
     const [selectedReportId, setSelectedReportId] = useState('FAC_PERFORMANCE');
     const [reportData, setReportData] = useState([]); // Holds DB data
     const [loading, setLoading] = useState(false);
+    const [showModal, setShowModal] = useState(false);
 
     const currentReport = reportOptions.find(r => r.id === selectedReportId);
     const isRoomReport = currentReport?.type === 'ROOM';
@@ -43,6 +45,16 @@ const DeptHeadReportsPage = () => {
             fetchData();
         }
     }, [currentReport]);
+
+    // --- REPORT GENERATION HANDLER ---
+    const handleConfirmGeneration = (format) => {
+        if (format === 'PDF') {
+            handleDownloadPDF();
+        } else if (format === 'CSV') {
+            handleDownloadCSV();
+        }
+        setShowModal(false);
+    };
 
     // --- PDF GENERATOR ---
     const handleDownloadPDF = () => {
@@ -81,6 +93,35 @@ const DeptHeadReportsPage = () => {
         }, tableInput);
     };
 
+    // --- CSV GENERATOR ---
+    const handleDownloadCSV = () => {
+        // 1. Map Data for Report
+        let tableInput = [];
+
+        if (isRoomReport) {
+            tableInput = reportData.map(r => ({
+                "Room": r.room_name,
+                "Capacity": r.capacity,
+                "Current": r.peak_hour,
+                "Utilization": r.utilization,
+                "Status": r.status
+            }));
+        } else {
+            tableInput = reportData.map(f => ({
+                "Faculty": f.name,
+                "Subject_Load": f.subject_load,
+                "Attendance": f.attendance_rate,
+                "Average_Lates": f.lates,
+                "Status": f.remarks
+            }));
+        }
+
+        // 2. Generate CSV
+        generateCSV({
+            title: currentReport.label
+        }, tableInput);
+    };
+
     return (
         <div className="dept-reports-container fade-in">
             <div className="dept-reports-header">
@@ -116,7 +157,7 @@ const DeptHeadReportsPage = () => {
             <div className="dept-table-card">
                 <div className="dept-card-header">
                     <h3>Report Data {loading && <span style={{ fontSize: '0.7em', color: '#888' }}>(Loading...)</span>}</h3>
-                    <button className="btn-export" onClick={handleDownloadPDF} disabled={reportData.length === 0}>
+                    <button className="btn-export" onClick={() => setShowModal(true)} disabled={reportData.length === 0}>
                         <i className="fas fa-file-pdf"></i> Generate Official Report
                     </button>
                 </div>
@@ -188,6 +229,17 @@ const DeptHeadReportsPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* REPORT GENERATION MODAL */}
+            <DeptHeadReportModal 
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onGenerate={handleConfirmGeneration}
+                reportTitle={currentReport.label}
+                scope={isRoomReport ? "Facility Occupancy" : "Faculty Performance"}
+                dateRange={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                filters="None"
+            />
         </div>
     );
 };

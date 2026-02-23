@@ -5,14 +5,14 @@ This enables efficient face recognition queries and model versioning.
 from sqlalchemy import Column, Integer, String, ForeignKey, LargeBinary, DateTime, Float
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class FacialProfile(Base):
     __tablename__ = "facial_profiles"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
     
     # Face embedding (512-d InsightFace vector = 2048 bytes when stored as float32)
     embedding = Column(LargeBinary)
@@ -27,8 +27,8 @@ class FacialProfile(Base):
     enrollment_quality = Column(Float, default=0.0)  # Average face quality score (0-1)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", back_populates="facial_profile")

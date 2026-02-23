@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 // import jsPDF from 'jspdf'; <-- Removed
 // import autoTable from 'jspdf-autotable'; <-- Removed
 import './FacultyReportsPage.css';
+import FacultyReportModal from './FacultyReportModal';
 
 const reportOptions = [
     // --- CLASS SPECIFIC REPORTS ---
@@ -172,8 +173,6 @@ const FacultyReportsPage = () => {
 
     // Modal & Generation States
     const [showModal, setShowModal] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [reportFormat, setReportFormat] = useState('PDF');
     const [validationError, setValidationError] = useState('');
 
     // Logic to switch data source
@@ -234,18 +233,16 @@ const FacultyReportsPage = () => {
         setShowModal(true);
     };
 
-    const confirmGeneration = () => {
-        setIsGenerating(true);
-
-        // Simulate API / Processing Delay
-        setTimeout(() => {
-            handleDownloadPDF(); // Re-use existing logic
-            setIsGenerating(false);
-            setShowModal(false);
-        }, 2000); // 2 second delay to show spinner
+    const handleConfirmGeneration = (format) => {
+        if (format === 'PDF') {
+            handleDownloadPDF();
+        } else if (format === 'CSV') {
+            handleDownloadCSV();
+        }
+        setShowModal(false);
     };
 
-    // --- PDF GENERATOR (Existing Logic) ---
+    // --- PDF GENERATOR ---
     const handleDownloadPDF = () => {
         // 1. Map Data for Report
         const tableInput = displayData.map(row => {
@@ -278,6 +275,37 @@ const FacultyReportsPage = () => {
                     ? { name: "Faculty User", id: "FAC-SELF" } // Could be dynamic based on user prop
                     : { classCode: selectedSubject, section: selectedSection === 'All' ? 'All Sections' : selectedSection },
                 dateRange: dateFilter || monthFilter || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            }, tableInput);
+        });
+    };
+
+    // --- CSV GENERATOR ---
+    const handleDownloadCSV = () => {
+        // 1. Map Data for Report
+        const tableInput = displayData.map(row => {
+            if (isPersonal) {
+                return {
+                    "Date": row.col1,
+                    "Subject_Room": row.col2,
+                    "Status": row.status.toUpperCase(),
+                    "Time_In": row.col3,
+                    "Remarks": row.remarks
+                };
+            } else {
+                return {
+                    "Student_Name": row.col1,
+                    "Section": row.col2,
+                    "Status": row.status.toUpperCase(),
+                    "Time_In_Out": row.col3,
+                    "Remarks": row.remarks
+                };
+            }
+        });
+
+        // 2. Generate CSV using Shared Utility
+        import('../../utils/ReportGenerator').then(({ generateCSV }) => {
+            generateCSV({
+                title: currentReport.label
             }, tableInput);
         });
     };
@@ -507,83 +535,15 @@ const FacultyReportsPage = () => {
             </div>
 
             {/* CONFIRMATION MODAL */}
-            {showModal && (
-                <div className="report-modal-overlay">
-                    <div className="report-modal-content">
-                        <div className="modal-header">
-                            <h3>Generate Official Report</h3>
-                            <button className="close-btn" onClick={() => setShowModal(false)}>&times;</button>
-                        </div>
-
-                        <div className="modal-body">
-                            <p className="modal-desc">
-                                Please review your report settings before generating.
-                                The system will process <strong>128-dimensional embedding logs</strong> to create this summary.
-                            </p>
-
-                            <div className="summary-box">
-                                <div className="summary-item">
-                                    <span className="label">Report Type:</span>
-                                    <span className="value">{currentReport.label}</span>
-                                </div>
-                                <div className="summary-item">
-                                    <span className="label">Subject/Scope:</span>
-                                    <span className="value">{isPersonal ? 'My Personal Logs' : selectedSubject}</span>
-                                </div>
-                                <div className="summary-item">
-                                    <span className="label">Target Date:</span>
-                                    <span className="value">
-                                        {dateFilter || monthFilter || "All Time"}
-                                        {!dateFilter && !monthFilter && <span className="warning-text"> (No date selected)</span>}
-                                    </span>
-                                </div>
-                                <div className="summary-item">
-                                    <span className="label">Filters Applied:</span>
-                                    <span className="value">
-                                        {selectedSection !== 'All' ? selectedSection : 'All Sections'},
-                                        {statusFilter !== 'All' ? ` ${statusFilter}` : ' All Statuses'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="format-selection">
-                                <label>Output Format:</label>
-                                <div className="toggle-group">
-                                    <button
-                                        className={`toggle-btn ${reportFormat === 'PDF' ? 'active' : ''}`}
-                                        onClick={() => setReportFormat('PDF')}
-                                    >
-                                        <i className="fas fa-file-pdf"></i> PDF
-                                    </button>
-                                    <button
-                                        className={`toggle-btn ${reportFormat === 'CSV' ? 'active' : ''}`}
-                                        onClick={() => setReportFormat('CSV')}
-                                    >
-                                        <i className="fas fa-file-csv"></i> CSV
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="modal-footer">
-                            <button className="btn-cancel" onClick={() => setShowModal(false)} disabled={isGenerating}>
-                                Cancel
-                            </button>
-                            <button className="btn-confirm" onClick={confirmGeneration} disabled={isGenerating}>
-                                {isGenerating ? (
-                                    <>
-                                        <span className="spinner-small"></span> Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        Generate Report <i className="fas fa-chevron-right"></i>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <FacultyReportModal 
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onGenerate={handleConfirmGeneration}
+                reportTitle={currentReport.label}
+                scope={isPersonal ? 'My Personal Logs' : selectedSubject}
+                dateRange={dateFilter || monthFilter || "All Time"}
+                filters={`${selectedSection !== 'All' ? selectedSection : 'All Sections'}, ${statusFilter !== 'All' ? statusFilter : 'All Statuses'}`}
+            />
         </div>
     );
 };
