@@ -137,15 +137,25 @@ erDiagram
         string password_hash "Bcrypt hash"
         string tupm_id UK "TUPM-21-1234"
         enum role "STUDENT/FACULTY/HEAD/ADMIN"
-        enum verification_status "Pending/Verified/Rejected"
+        enum verification_status "PENDING/VERIFIED/REJECTED"
         boolean face_registered "true/false"
         string first_name "John"
         string last_name "Doe"
         string middle_name "Smith"
+        string contact_number "09171234567"
+        datetime birthday "Date of birth"
+        string home_address "Residential address"
         int department_id FK "→ departments.id"
         int program_id FK "→ programs.id"
         string year_level "4th Year"
         string section "BSIT-4A"
+        string current_term "1st Semester"
+        string academic_advisor "Dr. Santos"
+        string gpa "1.75"
+        string emergency_contact_name "Maria Doe"
+        string emergency_contact_relationship "Mother"
+        string emergency_contact_phone "09181234567"
+        string emergency_contact_address "456 Oak Ave"
         datetime created_at "UTC timestamp"
         datetime last_active "UTC timestamp"
     }
@@ -172,6 +182,7 @@ erDiagram
         string section "BSIT-4A"
         string semester "1st Semester"
         string academic_year "2025-2026"
+        int late_threshold_minutes "15"
         datetime created_at "UTC timestamp"
     }
     
@@ -232,6 +243,7 @@ erDiagram
         int device_id FK "→ devices.id"
         enum action "ENTRY/BREAK_OUT/BREAK_IN/EXIT"
         enum verified_by "FACE/FACE+GESTURE"
+        boolean is_late "false"
         float confidence_score "0.92"
         string gesture_detected "PEACE_SIGN"
         datetime timestamp "UTC timestamp"
@@ -383,15 +395,25 @@ flowchart TB
 | `password_hash` | VARCHAR(255) | NOT NULL | Bcrypt encrypted password | "$2b$12$..." |
 | `tupm_id` | VARCHAR(50) | UNIQUE, NOT NULL | School ID number | "TUPM-21-1234" |
 | `role` | ENUM | NOT NULL | User type | `STUDENT`, `FACULTY`, `HEAD`, `ADMIN` |
-| `verification_status` | ENUM | DEFAULT 'Pending' | Account status | `Pending`, `Verified`, `Rejected` |
+| `verification_status` | ENUM | DEFAULT 'PENDING' | Account status | `PENDING`, `VERIFIED`, `REJECTED` |
 | `face_registered` | BOOLEAN | DEFAULT FALSE | Has enrolled face? | `true` / `false` |
 | `first_name` | VARCHAR(100) | NOT NULL | First name | "John" |
 | `last_name` | VARCHAR(100) | NOT NULL | Last name | "Doe" |
 | `middle_name` | VARCHAR(100) | | Middle name (optional) | "Smith" |
+| `contact_number` | VARCHAR(20) | | Phone number | "09171234567" |
+| `birthday` | DATETIME | | Date of birth | 2003-05-15 |
+| `home_address` | VARCHAR(500) | | Residential address | "123 Main St, Manila" |
 | `department_id` | INTEGER | FK → departments.id | Associated department | `1` |
 | `program_id` | INTEGER | FK → programs.id | Enrolled program | `1` |
 | `year_level` | VARCHAR(20) | | Student's year | "4th Year" |
 | `section` | VARCHAR(50) | | Student's section | "BSIT-4A" |
+| `current_term` | VARCHAR(50) | | Current academic term | "1st Semester" |
+| `academic_advisor` | VARCHAR(100) | | Assigned advisor name | "Dr. Santos" |
+| `gpa` | VARCHAR(10) | | Grade point average | "1.75" |
+| `emergency_contact_name` | VARCHAR(100) | | Emergency contact person | "Maria Doe" |
+| `emergency_contact_relationship` | VARCHAR(50) | | Relationship to user | "Mother" |
+| `emergency_contact_phone` | VARCHAR(20) | | Emergency contact number | "09181234567" |
+| `emergency_contact_address` | VARCHAR(255) | | Emergency contact address | "456 Oak Ave, Manila" |
 | `created_at` | DATETIME | DEFAULT NOW() | Account creation | 2026-01-15 08:00:00 |
 | `last_active` | DATETIME | AUTO UPDATE | Last activity | 2026-02-02 10:30:00 |
 
@@ -444,6 +466,7 @@ flowchart TB
 | `section` | VARCHAR(50) | | Section name | "BSIT-4A" |
 | `semester` | VARCHAR(50) | | Semester | "1st Semester" |
 | `academic_year` | VARCHAR(20) | | School year | "2025-2026" |
+| `late_threshold_minutes` | INTEGER | DEFAULT 15 | Minutes after start_time before marked late | `15` |
 | `created_at` | DATETIME | DEFAULT NOW() | Record creation | 2026-01-15 08:00:00 |
 
 **Relationships:**
@@ -605,9 +628,9 @@ class UserRole(enum.Enum):
 ### VerificationStatus
 ```python
 class VerificationStatus(enum.Enum):
-    PENDING = "Pending"    # Awaiting verification
-    VERIFIED = "Verified"  # Account approved
-    REJECTED = "Rejected"  # Account rejected
+    PENDING = "PENDING"    # Awaiting verification
+    VERIFIED = "VERIFIED"  # Account approved
+    REJECTED = "REJECTED"  # Account rejected
 ```
 
 ### DeviceStatus
@@ -736,6 +759,6 @@ All tables use auto-incrementing integer primary keys.
 
 ---
 
-**Document updated:** February 8, 2026  
-**Version:** 1.1  
-**Schema verified against:** SQLAlchemy models in `/backend/models/`
+**Document updated:** February 23, 2026  
+**Version:** 1.2  
+**Schema verified against:** SQLAlchemy models in `/backend/models/` and `updatedSchema` SQL dump
