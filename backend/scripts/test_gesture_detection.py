@@ -12,9 +12,9 @@ Controls:
     s - Save screenshot
 
 Gestures to test:
-    👌 OK Sign → BREAK_IN
-    🖐️ Open Palm → BREAK_OUT
-    👍 Thumbs Up → EXIT
+    ✌️ Peace sign → BREAK OUT
+    👍 Thumbs up → BREAK IN
+    ✋ Open palm → EXIT
 """
 import sys
 import os

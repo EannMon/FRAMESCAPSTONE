@@ -3,9 +3,10 @@ Gesture Detection Service for FRAMES
 Uses MediaPipe Hands to detect hand gestures for attendance verification.
 
 Supported gestures:
-- OK_SIGN (👌) → BREAK_IN
-- OPEN_PALM (🖐️) → BREAK_OUT
-- THUMBS_UP (👍) → EXIT
+- PEACE_SIGN (✌️) → BREAK_OUT
+- THUMBS_UP (👍) → BREAK_IN
+- OPEN_PALM (✋) → EXIT
+No gesture needed for entry.
 """
 import numpy as np
 import cv2
@@ -208,6 +209,30 @@ def is_thumbs_up(hand_landmarks) -> Tuple[bool, float]:
     return thumb_only, confidence
 
 
+def is_peace_sign(hand_landmarks) -> Tuple[bool, float]:
+    """
+    Detect peace sign (✌️): index and middle fingers extended, others closed.
+    
+    Returns: (is_peace_sign, confidence)
+    """
+    finger_states = get_finger_states(hand_landmarks)
+    
+    index_middle_extended = (
+        finger_states["index"] and
+        finger_states["middle"] and
+        not finger_states["ring"] and
+        not finger_states["pinky"]
+    )
+    # Thumb can be either way for peace sign
+    peace = index_middle_extended
+
+    confidence = 0.0
+    if peace:
+        confidence = 0.85
+
+    return peace, confidence
+
+
 def classify_gesture(hand_landmarks) -> Tuple[str, float]:
     """
     Classify the gesture shown by the hand.
@@ -216,14 +241,14 @@ def classify_gesture(hand_landmarks) -> Tuple[str, float]:
     """
     from services.gesture_constants import GestureType
     
-    # Check each gesture type
-    is_ok, ok_conf = is_ok_sign(hand_landmarks)
+    # Check each gesture type (✌️ BREAK_OUT, 👍 BREAK_IN, ✋ EXIT)
+    is_peace, peace_conf = is_peace_sign(hand_landmarks)
     is_palm, palm_conf = is_open_palm(hand_landmarks)
     is_thumbs, thumbs_conf = is_thumbs_up(hand_landmarks)
     
     # Return the gesture with highest confidence
     gestures = [
-        (GestureType.OK_SIGN.value, ok_conf if is_ok else 0),
+        (GestureType.PEACE_SIGN.value, peace_conf if is_peace else 0),
         (GestureType.OPEN_PALM.value, palm_conf if is_palm else 0),
         (GestureType.THUMBS_UP.value, thumbs_conf if is_thumbs else 0),
     ]

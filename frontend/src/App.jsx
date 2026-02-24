@@ -46,6 +46,9 @@ import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
 
+// --- Import Kiosk Page ---
+import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
+
 function App() {
     return (
         <Router>
@@ -122,6 +125,9 @@ function App() {
 
                     {/* Template Sandbox */}
                     <Route path="/test-pdf" element={<TestPDFPage />} />
+
+                    {/* Kiosk Standalone View */}
+                    <Route path="/kiosk" element={<KioskDashboardPage />} />
 
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
