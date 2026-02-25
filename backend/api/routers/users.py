@@ -4,8 +4,10 @@ Users Router - Profile management endpoints
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import bcrypt
+import logging
 
 from db.database import get_db
+from core.errors import api_error
 from models.user import User
 from schemas.user import (
     UserResponse, 
@@ -14,6 +16,8 @@ from schemas.user import (
     PasswordVerify,
     MessageResponse
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -27,9 +31,10 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     return UserResponse(
@@ -72,9 +77,10 @@ def update_user_profile(user_id: int, update_data: UserUpdate, db: Session = Dep
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     # Update only provided fields
@@ -85,7 +91,7 @@ def update_user_profile(user_id: int, update_data: UserUpdate, db: Session = Dep
     
     db.commit()
     
-    print(f"✅ Updated user {user_id}: {user.first_name} {user.last_name}")
+    logger.info("Updated user %d: %s %s", user_id, user.first_name, user.last_name)
     return MessageResponse(message="Profile updated successfully")
 
 
@@ -97,9 +103,10 @@ def verify_password(data: PasswordVerify, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == data.user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     # Check password
@@ -110,9 +117,10 @@ def verify_password(data: PasswordVerify, db: Session = Depends(get_db)):
     if bcrypt.checkpw(data.password.encode('utf-8'), stored_hash):
         return {"valid": True}
     else:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect password"
+            code="INCORRECT_PASSWORD",
+            message="Incorrect password"
         )
 
 
@@ -124,9 +132,10 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == data.user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     # Hash new password
@@ -135,7 +144,7 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
     
     db.commit()
     
-    print(f"✅ Password changed for user {data.user_id}")
+    logger.info("Password changed for user %d", data.user_id)
     return MessageResponse(message="Password updated successfully")
 
 @router.get("/notifications/{user_id}")
@@ -152,7 +161,7 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
 
     notifications = []
     

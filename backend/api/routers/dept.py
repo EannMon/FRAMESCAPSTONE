@@ -2,15 +2,19 @@
 Department Head Router
 Handles subject creation, course loading, and faculty assignments.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from pydantic import BaseModel
+import logging
 
 from db.database import get_db
+from core.errors import api_error
 from models.subject import Subject
 from models.class_ import Class
 from models.user import User, UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -45,26 +49,24 @@ def get_management_data(db: Session = Depends(get_db)):
     - Available Rooms (Mock for now)
     """
     
-    # 1. Fetch all subjects
-    subjects = db.query(Subject).all()
-    
-    # 2. Build course list
-    # We want to show ALL subjects. If a subject has a class, show class info.
-    # If a subject has multiple classes (sections), show them all.
-    # If a subject has NO class, show it with "Unassigned".
+    # 1. Fetch all subjects with eager loaded classes and their faculties
+    # This prevents the N+1 loop (querying classes per subject)
+    subjects = db.query(Subject).options(
+        joinedload(Subject.classes).joinedload(Class.faculty)
+    ).all()
     
     courses_data = []
     
     for subject in subjects:
-        # Check if classes exist for this subject
-        classes = db.query(Class).filter(Class.subject_id == subject.id).options(joinedload(Class.faculty)).all()
+        # Avoid N+1 mapping since classes are eagerly loaded
+        classes = subject.classes
         
         if not classes:
             # No class created yet -> Show as unassigned
             courses_data.append({
                 "subject_code": subject.code,
                 "name": subject.title,
-                "schedule_id": None, # No class ID yet
+                "schedule_id": None, 
                 "assigned_faculty": None,
                 "room_name": None,
                 "schedule": None
@@ -119,7 +121,11 @@ def create_subject(req: SubjectCreate, db: Session = Depends(get_db)):
     # Check if exists
     existing = db.query(Subject).filter(Subject.code == req.code).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Subject code already exists")
+        raise api_error(
+            status_code=400,
+            code="SUBJECT_EXISTS",
+            message="Subject code already exists"
+        )
     
     new_sub = Subject(
         code=req.code,
@@ -136,7 +142,7 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
     # Find Subject
     subject = db.query(Subject).filter(Subject.code == req.subject_code).first()
     if not subject:
-        raise HTTPException(404, "Subject not found")
+        raise api_error(404, "SUBJECT_NOT_FOUND", "Subject not found")
 
     # Verify Faculty
     from models.user import VerificationStatus
@@ -146,7 +152,7 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
         User.verification_status == VerificationStatus.VERIFIED
     ).first()
     if not faculty:
-        raise HTTPException(404, "Faculty not found or not verified")
+        raise api_error(404, "FACULTY_INVALID", "Faculty not found or not verified")
 
     # Check if we are updating an existing class or creating a new one
     if req.schedule_id:
@@ -173,7 +179,7 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
     # Find Subject
     subject = db.query(Subject).filter(Subject.code == req.subject_code).first()
     if not subject:
-        raise HTTPException(404, "Subject not found")
+        raise api_error(404, "SUBJECT_NOT_FOUND", "Subject not found")
 
     # Time parsing
     try:
@@ -181,7 +187,7 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
         start_t = datetime.strptime(req.start_time, "%I:%M %p").time()
         end_t = datetime.strptime(req.end_time, "%I:%M %p").time()
     except ValueError:
-        raise HTTPException(400, "Invalid time format. Use HH:MM AM/PM")
+        raise api_error(400, "INVALID_TIME", "Invalid time format. Use HH:MM AM/PM")
 
     if req.schedule_id:
         cls = db.query(Class).filter(Class.id == req.schedule_id).first()
@@ -199,7 +205,7 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
     
     # For now, if no schedule_id, we can't create a class without faculty.
     # We will raise error if no class exists.
-    raise HTTPException(400, "Please assign a faculty member first before assigning a room.")
+    raise api_error(400, "NO_FACULTY", "Please assign a faculty member first before assigning a room.")
 
 @router.get("/user-schedule/{user_id}")
 def get_user_schedule(user_id: int, db: Session = Depends(get_db)):
@@ -208,7 +214,7 @@ def get_user_schedule(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
         
     schedule = []
     

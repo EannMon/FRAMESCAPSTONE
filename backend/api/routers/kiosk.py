@@ -3,7 +3,7 @@ Kiosk Router - API endpoints for Raspberry Pi / Laptop attendance kiosks
 Provides active class lookup, schedule sync, attendance logging,
 enrolled student verification, and late threshold management.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func
 from pydantic import BaseModel
@@ -18,6 +18,8 @@ from models.subject import Subject
 from models.user import User
 from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
 from models.enrollment import Enrollment
+from core.errors import api_error
+from main import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
@@ -120,7 +122,7 @@ class LateThresholdUpdate(BaseModel):
 # ============================================
 
 @router.get("/active-class", response_model=ActiveClassResponse)
-def get_active_class(device_id: int, db: Session = Depends(get_db)):
+def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
     Get the currently active class for a device based on room and time.
     
@@ -130,10 +132,14 @@ def get_active_class(device_id: int, db: Session = Depends(get_db)):
     # Get device info
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
     
     if not device.room:
-        raise HTTPException(status_code=400, detail="Device has no room assignment")
+        raise api_error(400, "NO_ROOM_ASSIGNED", "Device has no room assignment")
+    
+    # Authenticate device
+    if not device.api_key or device.api_key != x_device_key:
+        raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     now = datetime.now()
     current_day = now.strftime("%A")  # e.g., "Monday"
@@ -195,17 +201,21 @@ def get_active_class(device_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/schedule", response_model=ScheduleResponse)
-def get_device_schedule(device_id: int, db: Session = Depends(get_db)):
+def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
     Get full weekly schedule for a device's room.
     Used by kiosks to cache schedule for offline operation.
     """
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
     
     if not device.room:
-        raise HTTPException(status_code=400, detail="Device has no room assignment")
+        raise api_error(400, "NO_ROOM_ASSIGNED", "Device has no room assignment")
+    
+    # Authenticate device
+    if not device.api_key or device.api_key != x_device_key:
+        raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
     classes = (
@@ -253,43 +263,48 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/attendance/log", response_model=AttendanceLogResponse)
-def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db)):
+@limiter.limit("6/minute")
+def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
     Log attendance from kiosk device.
     Validates user, class, enrollment, and determines if late.
     """
     # Validate user exists
-    user = db.query(User).filter(User.id == request.user_id).first()
+    user = db.query(User).filter(User.id == body.user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
 
     # Validate class exists
-    class_ = db.query(Class).filter(Class.id == request.class_id).first()
+    class_ = db.query(Class).filter(Class.id == body.class_id).first()
     if not class_:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
     # Validate device exists
-    device = db.query(Device).filter(Device.id == request.device_id).first()
+    device = db.query(Device).filter(Device.id == body.device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+
+    # Authenticate device
+    if not device.api_key or device.api_key != x_device_key:
+        raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
 
     # Determine if user belongs to this class (faculty or enrolled student)
-    is_faculty = (class_.faculty_id == request.user_id)
+    is_faculty = (class_.faculty_id == body.user_id)
     is_enrolled = False
 
     if not is_faculty:
         enrollment = db.query(Enrollment).filter(
-            Enrollment.student_id == request.user_id,
-            Enrollment.class_id == request.class_id
+            Enrollment.student_id == body.user_id,
+            Enrollment.class_id == body.class_id
         ).first()
         is_enrolled = enrollment is not None
 
     if not is_faculty and not is_enrolled:
         # Recognized but not part of this class — still log with remark
-        request.remarks = (request.remarks or "") + " [NOT_IN_CLASS]"
+        body.remarks = (body.remarks or "") + " [NOT_IN_CLASS]"
         logger.warning(
-            f"⚠️ User {request.user_id} ({user.first_name} {user.last_name}) "
-            f"recognized but NOT enrolled in class {request.class_id}"
+            f"⚠️ User {body.user_id} ({user.first_name} {user.last_name}) "
+            f"recognized but NOT enrolled in class {body.class_id}"
         )
 
         # --- Server-side NOT_IN_CLASS duplicate guard ---
@@ -297,8 +312,8 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         existing_nic = db.query(AttendanceLog).filter(
-            AttendanceLog.user_id == request.user_id,
-            AttendanceLog.class_id == request.class_id,
+            AttendanceLog.user_id == body.user_id,
+            AttendanceLog.class_id == body.class_id,
             AttendanceLog.remarks.like("%[NOT_IN_CLASS]%"),
             AttendanceLog.timestamp >= today_start,
             AttendanceLog.timestamp < today_end
@@ -306,8 +321,8 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
 
         if existing_nic:
             logger.info(
-                f"⏭️ Duplicate NOT_IN_CLASS skipped: user={request.user_id}, "
-                f"class={request.class_id}"
+                f"⏭️ Duplicate NOT_IN_CLASS skipped: user={body.user_id}, "
+                f"class={body.class_id}"
             )
             return AttendanceLogResponse(
                 success=True,
@@ -318,9 +333,9 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
 
     # Parse timestamp
     timestamp = datetime.now()
-    if request.timestamp:
+    if body.timestamp:
         try:
-            timestamp = datetime.fromisoformat(request.timestamp)
+            timestamp = datetime.fromisoformat(body.timestamp)
         except Exception:
             pass
 
@@ -328,12 +343,12 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
     # Uses same walk-through logic as the state machine for consistency.
     # Block ENTRY only if user is currently in an active session (entered, not exited).
     is_not_in_class = not is_faculty and not is_enrolled
-    if request.action == "ENTRY" and not is_not_in_class:
+    if body.action == "ENTRY" and not is_not_in_class:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
         today_logs = db.query(AttendanceLog).filter(
-            AttendanceLog.user_id == request.user_id,
-            AttendanceLog.class_id == request.class_id,
+            AttendanceLog.user_id == body.user_id,
+            AttendanceLog.class_id == body.class_id,
             AttendanceLog.timestamp >= today_start,
             AttendanceLog.timestamp < today_end
         ).order_by(AttendanceLog.timestamp.asc()).all()
@@ -351,8 +366,8 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
             last_log = today_logs[-1] if today_logs else None
             last_action_val = last_log.action.value if last_log and isinstance(last_log.action, AttendanceAction) else (last_log.action if last_log else "ENTRY")
             logger.info(
-                f"⏭️ Duplicate ENTRY skipped: user={request.user_id}, "
-                f"class={request.class_id} (last action: {last_action_val})"
+                f"⏭️ Duplicate ENTRY skipped: user={body.user_id}, "
+                f"class={body.class_id} (last action: {last_action_val})"
             )
             return AttendanceLogResponse(
                 success=True,
@@ -363,7 +378,7 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
 
     # Determine if late (only for ENTRY action)
     is_late = False
-    if request.action == "ENTRY" and class_.start_time:
+    if body.action == "ENTRY" and class_.start_time:
         late_threshold = class_.late_threshold_minutes or 15
         start = class_.start_time
         if isinstance(start, str):
@@ -375,50 +390,50 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
         if timestamp > late_cutoff:
             is_late = True
             minutes_late = int((timestamp - class_start_dt).total_seconds() / 60)
-            request.remarks = (request.remarks or "") + f" [LATE by {minutes_late} min]"
+            body.remarks = (body.remarks or "") + f" [LATE by {minutes_late} min]"
 
     # Create attendance log
     # Convert raw strings to proper enum members (kiosk sends .value strings)
     try:
-        action_enum = AttendanceAction(request.action)
+        action_enum = AttendanceAction(body.action)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid action: {request.action}")
+        raise api_error(400, "INVALID_ACTION", f"Invalid action: {body.action}")
 
     verified_enum = None
-    if request.verified_by:
+    if body.verified_by:
         try:
             # Try by value first (e.g. "FACE+GESTURE")
-            verified_enum = VerifiedBy(request.verified_by)
+            verified_enum = VerifiedBy(body.verified_by)
         except ValueError:
             # Fall back to name lookup (e.g. "FACE_GESTURE")
             try:
-                verified_enum = VerifiedBy[request.verified_by]
+                verified_enum = VerifiedBy[body.verified_by]
             except KeyError:
-                raise HTTPException(status_code=400, detail=f"Invalid verified_by: {request.verified_by}")
+                raise api_error(400, "INVALID_VERIFICATION", f"Invalid verified_by: {body.verified_by}")
 
     try:
         log = AttendanceLog(
-            user_id=request.user_id,
-            class_id=request.class_id,
-            device_id=request.device_id,
+            user_id=body.user_id,
+            class_id=body.class_id,
+            device_id=body.device_id,
             action=action_enum,
             verified_by=verified_enum,
-            confidence_score=request.confidence_score,
-            gesture_detected=request.gesture_detected,
+            confidence_score=body.confidence_score,
+            gesture_detected=body.gesture_detected,
             is_late=is_late,
             timestamp=timestamp,
-            remarks=request.remarks
+            remarks=body.remarks
         )
 
         db.add(log)
         db.commit()
         db.refresh(log)
 
-        action_label = request.action
+        action_label = body.action
         late_label = " (LATE)" if is_late else ""
         logger.info(
-            f"✅ Attendance logged: user={request.user_id}, "
-            f"class={request.class_id}, action={action_label}{late_label}"
+            f"✅ Attendance logged: user={body.user_id}, "
+            f"class={body.class_id}, action={action_label}{late_label}"
         )
 
         return AttendanceLogResponse(
@@ -431,7 +446,7 @@ def log_attendance(request: AttendanceLogRequest, db: Session = Depends(get_db))
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Failed to log attendance: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to log attendance: {str(e)}")
+        raise api_error(500, "INTERNAL_ERROR", f"Failed to log attendance: {str(e)}")
 
 
 @router.get("/class/{class_id}/enrolled", response_model=ClassEnrolledResponse)
@@ -442,7 +457,7 @@ def get_class_enrolled_users(class_id: int, db: Session = Depends(get_db)):
     """
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
     subject = db.query(Subject).filter(Subject.id == cls.subject_id).first()
 
@@ -566,10 +581,10 @@ def update_late_threshold(class_id: int, data: LateThresholdUpdate, db: Session 
     """
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
     if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
-        raise HTTPException(status_code=400, detail="Late threshold must be between 1 and 120 minutes")
+        raise api_error(400, "INVALID_THRESHOLD", "Late threshold must be between 1 and 120 minutes")
 
     cls.late_threshold_minutes = data.late_threshold_minutes
     db.commit()
@@ -585,14 +600,18 @@ def update_late_threshold(class_id: int, data: LateThresholdUpdate, db: Session 
 
 
 @router.get("/device/{device_id}")
-def get_device_info(device_id: int, db: Session = Depends(get_db)):
+def get_device_info(device_id: int, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
     Get device information including room assignment.
     Used by kiosk on startup to verify configuration.
     """
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+    
+    # Authenticate device
+    if not device.api_key or device.api_key != x_device_key:
+        raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     return {
         "device_id": device.id,
@@ -605,14 +624,18 @@ def get_device_info(device_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/device/{device_id}/heartbeat")
-def device_heartbeat(device_id: int, db: Session = Depends(get_db)):
+def device_heartbeat(device_id: int, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
     Update device heartbeat timestamp.
     Called periodically by kiosk to indicate it's online.
     """
     device = db.query(Device).filter(Device.id == device_id).first()
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+    
+    # Authenticate device
+    if not device.api_key or device.api_key != x_device_key:
+        raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     device.last_heartbeat = datetime.now()
     db.commit()

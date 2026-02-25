@@ -1,13 +1,15 @@
 """
 Face Router - Face enrollment and verification endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 import logging
 
 from db.database import get_db
+from core.errors import api_error
+from main import limiter
 from models.user import User
 from models.facial_profile import FacialProfile
 
@@ -44,7 +46,8 @@ class FaceStatusResponse(BaseModel):
 # ============================================
 
 @router.post("/enroll", response_model=EnrollmentResponse)
-async def enroll_face(request: EnrollmentRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = Depends(get_db)):
     """
     Enroll a user's face using multiple webcam frames.
     Extracts embeddings using InsightFace and stores averaged result.
@@ -53,32 +56,26 @@ async def enroll_face(request: EnrollmentRequest, db: Session = Depends(get_db))
     from sqlalchemy import text
     
     # Validate user exists
-    user = db.query(User).filter(User.id == request.user_id).first()
+    user = db.query(User).filter(User.id == body.user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     # Validate number of frames
-    if len(request.frames) < 5:
-        raise HTTPException(
-            status_code=400, 
-            detail="At least 5 frames required for enrollment"
-        )
+    if len(body.frames) < 5:
+        raise api_error(400, "INSUFFICIENT_FRAMES", "At least 5 frames required for enrollment")
     
-    if len(request.frames) > 30:
-        raise HTTPException(
-            status_code=400, 
-            detail="Maximum 30 frames allowed"
-        )
+    if len(body.frames) > 30:
+        raise api_error(400, "TOO_MANY_FRAMES", "Maximum 30 frames allowed")
     
-    logger.info(f"📸 Starting face enrollment for user {request.user_id}...")
+    logger.info(f"📸 Starting face enrollment for user {body.user_id}...")
     
     try:
         # Process frames and extract embeddings
-        embedding_bytes, num_samples, avg_quality = process_enrollment_frames(request.frames)
+        embedding_bytes, num_samples, avg_quality = process_enrollment_frames(body.frames)
         
         # Check if user already has a facial profile
         existing_profile = db.query(FacialProfile).filter(
-            FacialProfile.user_id == request.user_id
+            FacialProfile.user_id == body.user_id
         ).first()
         
         if existing_profile:
@@ -96,13 +93,13 @@ async def enroll_face(request: EnrollmentRequest, db: Session = Depends(get_db))
                 'num_samples': num_samples,
                 'quality': avg_quality,
                 'model_version': 'insightface_buffalo_l_v1',
-                'user_id': request.user_id
+                'user_id': body.user_id
             })
             logger.info(f"   📝 Updated existing facial profile")
         else:
             # Create new profile
             new_profile = FacialProfile(
-                user_id=request.user_id,
+                user_id=body.user_id,
                 embedding=embedding_bytes,
                 num_samples=num_samples,
                 enrollment_quality=avg_quality,
@@ -116,11 +113,11 @@ async def enroll_face(request: EnrollmentRequest, db: Session = Depends(get_db))
             UPDATE users 
             SET face_registered = true 
             WHERE id = :user_id
-        """), {'user_id': request.user_id})
+        """), {'user_id': body.user_id})
         
         db.commit()
         
-        logger.info(f"✅ Face enrollment complete for user {request.user_id}")
+        logger.info(f"✅ Face enrollment complete for user {body.user_id}")
         
         return EnrollmentResponse(
             success=True,
@@ -131,11 +128,11 @@ async def enroll_face(request: EnrollmentRequest, db: Session = Depends(get_db))
         
     except ValueError as e:
         logger.error(f"❌ Enrollment failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise api_error(400, "ENROLLMENT_FAILED", str(e))
     except Exception as e:
         logger.error(f"❌ Enrollment error: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Enrollment failed: {str(e)}")
+        raise api_error(500, "INTERNAL_ERROR", f"Enrollment failed: {str(e)}")
 
 
 @router.get("/status/{user_id}", response_model=FaceStatusResponse)
@@ -145,7 +142,7 @@ def get_face_status(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     # Check for facial profile
     profile = db.query(FacialProfile).filter(FacialProfile.user_id == user_id).first()

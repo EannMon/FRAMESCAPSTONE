@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import logging
 
 from db.database import get_db
+from core.errors import api_error
 from models.user import User, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -79,7 +80,7 @@ def get_live_status(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
 
     # Get today's date range
     now = datetime.utcnow()
@@ -140,7 +141,7 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     if user.verification_status != VerificationStatus.VERIFIED:
         return StudentDashboard(
@@ -199,10 +200,10 @@ def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     if user.verification_status != VerificationStatus.VERIFIED:
-        raise HTTPException(status_code=403, detail="Account not verified")
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
     # Single query: enrollments → class → subject + faculty via JOINs
     enrollments = (
@@ -248,10 +249,10 @@ def get_attendance_history(
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     if user.verification_status != VerificationStatus.VERIFIED:
-        raise HTTPException(status_code=403, detail="Account not verified")
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
     # Cap limit to prevent abuse (Rule 1.2)
     limit = min(limit, 100)

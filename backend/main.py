@@ -3,6 +3,28 @@ FRAMES API - FastAPI Main Application
 Clean entry point with modular routers
 """
 import sys
+import os
+import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Initialize logging configuration before routers
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# Silence noisy third-party loggers
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
+# Initialize Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
+
 
 # Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -10,9 +32,13 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
+from db.database import get_db
 
 # Create FastAPI app
 app = FastAPI(
@@ -20,6 +46,10 @@ app = FastAPI(
     description="Facial Recognition Attendance Management Educational System",
     version="2.0.0"
 )
+
+# Setup slowapi exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS - Allow all origins for development
 app.add_middleware(
@@ -47,10 +77,27 @@ def root():
     return {"status": "ok", "message": "FRAMES API is running", "version": "2.0.0"}
 
 
-@app.get("/health")
-def health_check():
-    """Health check for monitoring"""
-    return {"status": "healthy"}
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    Health check endpoint for monitoring.
+    Returns system status and component health.
+    No authentication required.
+    """
+    health = {"status": "healthy", "components": {}}
+    
+    # Check database connectivity
+    try:
+        db.execute(text("SELECT 1"))
+        health["components"]["database"] = "up"
+    except Exception:
+        health["status"] = "degraded"
+        health["components"]["database"] = "down"
+    
+    # Check timestamp for uptime tracking
+    health["timestamp"] = datetime.now(timezone.utc).isoformat()
+    
+    return health
 
 
 if __name__ == "__main__":
