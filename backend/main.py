@@ -3,12 +3,28 @@ FRAMES API - FastAPI Main Application
 Clean entry point with modular routers
 """
 import sys
+import os
+import logging
 
 # Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+# --- Logging Configuration (MUST be before any router imports) ---
+# Per FRAMES Observability Rules §1.1
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# Silence noisy third-party loggers
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

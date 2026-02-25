@@ -3,14 +3,15 @@ Gesture Detection Service for FRAMES
 Uses MediaPipe Hands to detect hand gestures for attendance verification.
 
 Supported gestures:
-- PEACE_SIGN (✌️) → BREAK_OUT
-- THUMBS_UP (👍) → BREAK_IN
-- OPEN_PALM (✋) → EXIT
+- PEACE_SIGN -> BREAK_OUT
+- THUMBS_UP -> BREAK_IN
+- OPEN_PALM -> EXIT
 No gesture needed for entry.
 """
 import numpy as np
 import cv2
 import base64
+import time
 from typing import Tuple, Optional, List
 import os
 import urllib.request
@@ -35,12 +36,13 @@ def get_hands_detector():
         try:
             # Download model if missing
             if not os.path.exists(MODEL_PATH):
-                print(f"⬇️ Downloading MediaPipe Hand Landmarker model to {MODEL_PATH}...")
+                logger.info("Downloading MediaPipe Hand Landmarker model to %s", MODEL_PATH)
                 url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
                 urllib.request.urlretrieve(url, MODEL_PATH)
-                print("✅ Model downloaded successfully!")
+                logger.info("MediaPipe model downloaded successfully")
             
             # Initialize HandLandmarker
+            start = time.perf_counter()
             base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
             options = vision.HandLandmarkerOptions(
                 base_options=base_options,
@@ -50,10 +52,11 @@ def get_hands_detector():
                 min_tracking_confidence=0.5
             )
             _hands_detector = vision.HandLandmarker.create_from_options(options)
-            logger.info("✅ MediaPipe HandLandmarker loaded successfully!")
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info("MediaPipe HandLandmarker loaded in %.1fms", elapsed_ms)
             
         except Exception as e:
-            logger.error(f"❌ Failed to load MediaPipe: {e}")
+            logger.critical("Failed to load MediaPipe HandLandmarker: %s", str(e))
             raise
     
     return _hands_detector
@@ -283,8 +286,12 @@ def detect_gesture(image: np.ndarray) -> Tuple[Optional[str], float]:
     # Create MediaPipe Image
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
     
-    # Process image
+    # Process image — timed per FRAMES Observability Rules §3.1
+    start = time.perf_counter()
     detection_result = detector.detect(mp_image)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    
+    logger.debug("Gesture detection: %.1fms", elapsed_ms)
     
     # Check if hand was detected
     if not detection_result.hand_landmarks:
@@ -322,7 +329,7 @@ def detect_gesture_from_base64(base64_image: str) -> Tuple[Optional[str], float]
         image = decode_base64_image(base64_image)
         return detect_gesture(image)
     except Exception as e:
-        logger.error(f"Error detecting gesture: {e}")
+        logger.error("Gesture detection from base64 failed: %s", str(e))
         return None, 0.0
 
 
@@ -353,19 +360,23 @@ def validate_gesture_for_action(base64_image: str, expected_action: str) -> dict
     # Get the expected gesture for this action
     expected_gesture = ACTION_GESTURE_MAP.get(expected_action)
     if expected_gesture is None:
+        logger.warning("Invalid gesture action requested: %s", expected_action)
         return {
             "valid": False,
             "detected_gesture": None,
             "expected_gesture": None,
             "confidence": 0.0,
-            "message": f"Invalid action: {expected_action}"
+            "message": "Invalid action: %s" % expected_action
         }
     
-    # Detect gesture
+    # Detect gesture — timed for full validation pipeline
+    start = time.perf_counter()
     detected_gesture, confidence = detect_gesture_from_base64(base64_image)
+    elapsed_ms = (time.perf_counter() - start) * 1000
     
     # Validate
     if detected_gesture is None:
+        logger.debug("No hand detected for action=%s (%.1fms)", expected_action, elapsed_ms)
         return {
             "valid": False,
             "detected_gesture": None,
@@ -379,13 +390,19 @@ def validate_gesture_for_action(base64_image: str, expected_action: str) -> dict
         confidence >= GESTURE_CONFIDENCE_THRESHOLD
     )
     
+    # Build user-facing message (emoji OK here — these are UI strings, not log lines)
     if is_valid:
-        message = f"✅ Gesture verified: {detected_gesture}"
+        message = "Gesture verified: %s" % detected_gesture
     elif detected_gesture != expected_gesture.value:
         expected_desc = GESTURE_DESCRIPTIONS.get(expected_gesture, expected_gesture.value)
-        message = f"❌ Wrong gesture. Please {expected_desc}"
+        message = "Wrong gesture. Please %s" % expected_desc
     else:
-        message = f"⚠️ Low confidence ({confidence:.0%}). Please show gesture more clearly."
+        message = "Low confidence (%.0f%%). Please show gesture more clearly." % (confidence * 100)
+    
+    logger.info(
+        "Gesture validation: action=%s detected=%s valid=%s confidence=%.2f (%.1fms)",
+        expected_action, detected_gesture, is_valid, confidence, elapsed_ms
+    )
     
     return {
         "valid": is_valid,

@@ -87,15 +87,15 @@ class Camera:
                 if test_frame is not None and test_frame.size > 0:
                     self._backend = 'picamera2'
                     self._opened = True
-                    logger.info(f"Camera opened via picamera2 ({width}x{height} @ {fps}fps)")
-                    logger.info(f"  Test frame shape: {test_frame.shape}, dtype: {test_frame.dtype}")
+                    logger.info("Camera opened via picamera2 (%dx%d @ %dfps)", width, height, fps)
+                    logger.info("  Test frame shape: %s, dtype: %s", test_frame.shape, test_frame.dtype)
                 else:
                     logger.warning("picamera2 started but test capture returned empty frame")
                     self._cap.stop()
                     self._cap.close()
                     self._cap = None
             except Exception as e:
-                logger.warning(f"picamera2 failed ({e}), falling back to OpenCV")
+                logger.warning("picamera2 failed (%s), falling back to OpenCV", str(e))
                 self._cap = None
 
         # Fallback to OpenCV
@@ -107,7 +107,7 @@ class Camera:
                 self._cap.set(cv2.CAP_PROP_FPS, fps)
                 self._backend = 'opencv'
                 self._opened = True
-                logger.info(f"Camera opened via OpenCV ({width}x{height} @ {fps}fps)")
+                logger.info("Camera opened via OpenCV (%dx%d @ %dfps)", width, height, fps)
             else:
                 logger.error("Failed to open camera via OpenCV")
                 self._opened = False
@@ -137,7 +137,7 @@ class Camera:
                 bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
                 return True, bgr_frame
             except Exception as e:
-                logger.error(f"picamera2 capture error: {e}")
+                logger.error("picamera2 capture error: %s", str(e))
                 return False, None
         else:
             return self._cap.read()

@@ -4,8 +4,15 @@ Migrated from legacy Flask app.py to work with SQLAlchemy
 """
 import pdfplumber
 import re
+import time
+import logging
 from io import BytesIO
 from typing import Optional, Dict, List, Any, Tuple
+
+logger = logging.getLogger(__name__)
+
+# Maximum PDF file size: 10MB (per FRAMES Security Rules §5.2)
+MAX_PDF_SIZE = 10 * 1024 * 1024
 
 
 def clean_section(section_str: str) -> str:
@@ -36,7 +43,7 @@ def parse_time_slot(days_str: str, time_str: str) -> List[Tuple[str, str, str]]:
     }
     
     # Parse time range first
-    time_str = time_str.replace('–', '-')
+    time_str = time_str.replace('\u2013', '-')
     if '-' in time_str:
         times = time_str.split('-')
         start = times[0].strip()
@@ -78,11 +85,27 @@ def parse_time_slot(days_str: str, time_str: str) -> List[Tuple[str, str, str]]:
 
 def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[str, Any]]:
     """
-    Parse COR PDF - ONE course with MANY students across pages
+    Parse COR PDF - ONE course with MANY students across pages.
     The result structure 'courses' list will contain ONE entry per DAY/TIME slot.
     So a T/TH class will result in TWO entries in 'courses' list, both with the same students.
+
+    Args:
+        file_content: Raw PDF bytes
+        faculty_id: ID of the uploading faculty member
+
+    Returns:
+        Parsed schedule dict or None on failure
     """
-    print("\n🔍 Parsing Schedule PDF...")
+    # Validate file size (per FRAMES Security Rules §5.2)
+    if len(file_content) > MAX_PDF_SIZE:
+        logger.warning(
+            "PDF file too large: %d bytes (max %d bytes), faculty_id=%d",
+            len(file_content), MAX_PDF_SIZE, faculty_id
+        )
+        return None
+
+    logger.info("SCHEDULE | Parsing PDF for faculty_id=%d, size=%d bytes", faculty_id, len(file_content))
+    parse_start = time.perf_counter()
     
     try:
         with pdfplumber.open(BytesIO(file_content)) as pdf:
@@ -120,19 +143,18 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                         subject_code = code_search.group(1)
                         subject_code = re.sub(r'-+', '-', subject_code)
             
-            print(f"   Subject Code: {subject_code}")
-            print(f"   Subject Name: {subject_name}")
+            logger.info("SCHEDULE | Subject: %s - %s", subject_code, subject_name)
             
             # Find section
             section_match = re.search(r'Course/Section\s*:\s*([^\n]+)', page1_text)
             section_raw = section_match.group(1).strip() if section_match else "UNKNOWN"
             section = clean_section(section_raw)
-            print(f"   Section: {section}")
+            logger.info("SCHEDULE | Section: %s", section)
             
             # Find venue
             venue_match = re.search(r'Venue\s*:\s*([^\n]+)', page1_text)
             venue = venue_match.group(1).strip() if venue_match else "Room 324"
-            print(f"   Venue: {venue}")
+            logger.debug("SCHEDULE | Venue: %s", venue)
             
             # Find TOTAL students count
             all_text = ""
@@ -178,7 +200,10 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                         all_students.append({'tupm_id': tupm_id, 'name': name})
                         student_counter += 1
 
-            print(f"   👥 Students found: {len(all_students)} (Expected: {total_students_expected})")
+            logger.info(
+                "SCHEDULE | Students found: %d (expected: %d)",
+                len(all_students), total_students_expected
+            )
 
             # Find day/time and generate course slots
             course_slots = []
@@ -209,7 +234,7 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                     days_raw = time_full.replace(time_raw, '').strip()
 
                 parsed_slots = parse_time_slot(days_raw, time_raw)
-                print(f"   Parsed Schedule Slots: {parsed_slots}")
+                logger.info("SCHEDULE | Parsed schedule slots: %s", parsed_slots)
                 
                 for day, start, end in parsed_slots:
                     course_slots.append({
@@ -225,7 +250,7 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                     })
             else:
                 # No time found, default to TBA
-                print("   ⚠️ No Day/Time found")
+                logger.warning("SCHEDULE | No Day/Time found in PDF for faculty_id=%d", faculty_id)
                 course_slots.append({
                     'subject_code': subject_code,
                     'subject_name': subject_name,
@@ -238,6 +263,12 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                     'enrolled_students': all_students
                 })
             
+            elapsed_ms = (time.perf_counter() - parse_start) * 1000
+            if elapsed_ms > 2000:
+                logger.warning("SCHEDULE | Slow PDF parsing: %.1fms, faculty_id=%d", elapsed_ms, faculty_id)
+            else:
+                logger.info("SCHEDULE | PDF parsed in %.1fms, %d slots", elapsed_ms, len(course_slots))
+            
             return {
                 'semester': "1st Semester",
                 'academic_year': "2025-2026",
@@ -245,7 +276,5 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
             }
 
     except Exception as e:
-        print(f"❌ PDF Parsing Error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("SCHEDULE | PDF parsing failed for faculty_id=%d", faculty_id)
         return None

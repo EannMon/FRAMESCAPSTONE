@@ -11,6 +11,7 @@ both outputting 512-d vectors. Cross-model similarity will be near-random.
 """
 import numpy as np
 import cv2
+import time
 import logging
 from typing import Optional, Tuple
 
@@ -33,20 +34,22 @@ def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] =
         try:
             from insightface.app import FaceAnalysis
             
-            logger.info(f"🔄 Loading InsightFace model ({model_name})...")
+            logger.info("Loading InsightFace model (%s)...", model_name)
+            start = time.perf_counter()
             _face_analyzer = FaceAnalysis(
                 name=model_name,
                 providers=['CPUExecutionProvider']
             )
             _face_analyzer.prepare(ctx_id=0, det_size=det_size)
             _loaded_model_name = model_name
-            logger.info(f"✅ InsightFace model loaded: {model_name} (det_size={det_size})")
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info("InsightFace model loaded: %s (det_size=%s) in %.1fms", model_name, det_size, elapsed_ms)
             
         except ImportError:
-            logger.error("❌ InsightFace not installed. Run: pip install insightface onnxruntime")
+            logger.error("InsightFace not installed. Run: pip install insightface onnxruntime")
             raise ImportError("InsightFace not installed")
         except Exception as e:
-            logger.error(f"❌ Failed to load InsightFace: {e}")
+            logger.critical("Failed to load InsightFace model: %s", str(e))
             raise
     
     return _face_analyzer
@@ -55,7 +58,7 @@ def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] =
 class FaceRecognizer:
     """Face embedding extraction using InsightFace."""
     
-    def __init__(self, model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (320, 320)):
+    def __init__(self, model_name: str = "buffalo_l", det_size: Tuple[int, int] = (320, 320)):
         """
         Initialize recognizer with InsightFace model.
         

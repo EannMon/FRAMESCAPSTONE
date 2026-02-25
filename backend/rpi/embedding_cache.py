@@ -57,7 +57,7 @@ class EmbeddingCache:
             True if loaded successfully
         """
         if not os.path.exists(json_path):
-            logger.warning(f"⚠️ Cache file not found: {json_path}")
+            logger.warning("Cache file not found: %s", json_path)
             return False
         
         try:
@@ -87,11 +87,11 @@ class EmbeddingCache:
             self._last_loaded = datetime.now()
             self._cache_path = json_path
             
-            logger.info(f"✅ Loaded {len(self.faces)} embeddings from {json_path}")
+            logger.info("Loaded %d embeddings from %s", len(self.faces), json_path)
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to load embeddings: {e}")
+            logger.error("Failed to load embeddings: %s", str(e))
             return False
     
     def load_from_bytes_dict(self, embeddings_data: List[Dict]) -> bool:
@@ -125,11 +125,11 @@ class EmbeddingCache:
                 self._embeddings_matrix = np.vstack([f.embedding for f in self.faces])
             
             self._last_loaded = datetime.now()
-            logger.info(f"✅ Loaded {len(self.faces)} embeddings from database")
+            logger.info("Loaded %d embeddings from database", len(self.faces))
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to load embeddings from bytes: {e}")
+            logger.error("Failed to load embeddings from bytes: %s", str(e))
             return False
     
     def find_match(
@@ -215,11 +215,11 @@ class EmbeddingCache:
             with open(json_path, 'w') as f:
                 json.dump(export_data, f, indent=2)
             
-            logger.info(f"✅ Saved {len(self.faces)} embeddings to {json_path}")
+            logger.info("Saved %d embeddings to %s", len(self.faces), json_path)
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to save cache: {e}")
+            logger.error("Failed to save cache: %s", str(e))
             return False
     
     def get_user_by_id(self, user_id: int) -> Optional[EnrolledFace]:
