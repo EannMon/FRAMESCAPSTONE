@@ -29,6 +29,7 @@ from rpi.gesture_detector import GestureDetector, Gesture
 from rpi.embedding_cache import EmbeddingCache
 from rpi.schedule_resolver import ScheduleResolver
 from rpi.attendance_logger import AttendanceLogger, AttendanceAction, VerifiedBy
+from rpi.metrics_collector import KioskMetricsCollector
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)-8s | %(message)s')
 logger = logging.getLogger(__name__)
@@ -119,6 +120,8 @@ class StreamingAttendanceKiosk:
         self._current_class_id: Optional[int] = None
         self._not_in_class_logged: Set[int] = set()
         self._enrollment_loaded: bool = False
+        self._last_cache_refresh: Optional[float] = None
+        self._metrics = KioskMetricsCollector(report_interval_sec=60, platform=self.config.PLATFORM)
         
         # State tracking for UI
         self.current_state = {
@@ -313,22 +316,59 @@ class StreamingAttendanceKiosk:
                 time.sleep(0.01)
                 continue
 
-            # Process Frame for Face Recognition
+            # Periodic embedding cache refresh
+            now_sec = time.time()
+            cache_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), self.config.EMBEDDINGS_CACHE_PATH)
+            if (
+                self._last_cache_refresh is None
+                or (now_sec - self._last_cache_refresh) >= self.config.CACHE_REFRESH_MINUTES * 60
+            ) and os.path.exists(cache_path):
+                if self.embedding_cache.load_from_json(cache_path):
+                    self._last_cache_refresh = now_sec
+                    logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
+
+            # Process Frame for Face Recognition (with timing for observability)
+            t_frame_start = time.perf_counter()
+            recognition_ms = None
+            match_ms = None
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             if self.config.USE_GATED_DETECTION:
                 face_bbox = self.face_detector.get_largest_face(frame_rgb)
                 if face_bbox is None:
                     self._update_mjepg(display)
+                    frame_elapsed = (time.perf_counter() - t_frame_start) * 1000
+                    self._metrics.record_frame(frame_elapsed, num_faces=0)
+                    self._metrics.maybe_report(cache_size=self.embedding_cache.count)
                     continue
+                t_rec = time.perf_counter()
                 embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+                recognition_ms = (time.perf_counter() - t_rec) * 1000
             else:
+                t_rec = time.perf_counter()
                 embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+                recognition_ms = (time.perf_counter() - t_rec) * 1000
 
             if embedding is None:
                 self._update_mjepg(display)
+                frame_elapsed = (time.perf_counter() - t_frame_start) * 1000
+                self._metrics.record_frame(frame_elapsed, num_faces=1, recognition_ms=recognition_ms)
+                self._metrics.maybe_report(cache_size=self.embedding_cache.count)
                 continue
 
+            t_match_start = time.perf_counter()
             match, confidence = self.embedding_cache.find_match(embedding, self.config.MATCH_THRESHOLD)
+            match_ms = (time.perf_counter() - t_match_start) * 1000
+            frame_elapsed = (time.perf_counter() - t_frame_start) * 1000
+            self._metrics.record_frame(
+                frame_elapsed, num_faces=1, matched=match is not None,
+                recognition_ms=recognition_ms, match_ms=match_ms
+            )
+            try:
+                import psutil
+                mem_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+            except Exception:
+                mem_mb = None
+            self._metrics.maybe_report(cache_size=self.embedding_cache.count, memory_mb=mem_mb)
 
             if match is None:
                 if bbox is not None:

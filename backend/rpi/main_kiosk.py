@@ -27,7 +27,7 @@ import sys
 import os
 import requests
 from datetime import datetime
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, Set, Any
 
 # Add parent directory for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +40,7 @@ from rpi.gesture_detector import GestureDetector, Gesture
 from rpi.embedding_cache import EmbeddingCache
 from rpi.schedule_resolver import ScheduleResolver
 from rpi.attendance_logger import AttendanceLogger, AttendanceAction, VerifiedBy
+from rpi.metrics_collector import KioskMetricsCollector
 
 # Configure logging
 logging.basicConfig(
@@ -139,6 +140,8 @@ class AttendanceKiosk:
         self._not_in_class_logged: Set[int] = set()  # user_ids already logged as NOT_IN_CLASS this session
         self._enrollment_loaded: bool = False  # True only after successful enrollment fetch
         self._frame_count: int = 0
+        self._last_cache_refresh: Optional[float] = None  # timestamp of last embedding cache refresh
+        self._metrics = KioskMetricsCollector(report_interval_sec=60, platform=self.config.PLATFORM)
 
         logger.info("=" * 60)
         logger.info(f"✅ Kiosk initialized | Device ID: {self.config.DEVICE_ID}")
@@ -211,14 +214,19 @@ class AttendanceKiosk:
         """Check if user is enrolled in current class or is the faculty."""
         return user_id in self._class_enrolled_ids or user_id == self._class_faculty_id
 
-    def process_frame(self, frame_bgr):
+    def process_frame(
+        self, frame_bgr, timings: Optional[Dict[str, float]] = None
+    ) -> tuple:
         """
         Process a single frame for face recognition.
 
         Returns:
             (face_match, confidence, bbox) or (None, 0.0, None)
+        If timings dict is provided, fills recognition_ms and match_ms (for observability).
         """
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        recognition_ms: Optional[float] = None
+        match_ms: Optional[float] = None
 
         if self.config.USE_GATED_DETECTION:
             # STAGE 1: Fast face detection with MediaPipe
@@ -232,19 +240,31 @@ class AttendanceKiosk:
                 return None, 0.0, None
 
             # STAGE 2: InsightFace embedding extraction
+            t0 = time.perf_counter()
             embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+            recognition_ms = (time.perf_counter() - t0) * 1000
         else:
+            t0 = time.perf_counter()
             embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+            recognition_ms = (time.perf_counter() - t0) * 1000
 
         if embedding is None:
+            if timings and recognition_ms is not None:
+                timings["recognition_ms"] = recognition_ms
             return None, 0.0, None
 
         # Match against cache
+        t0 = time.perf_counter()
         match, confidence = self.embedding_cache.find_match(
             embedding,
             threshold=self.config.MATCH_THRESHOLD
         )
+        match_ms = (time.perf_counter() - t0) * 1000
 
+        if timings:
+            if recognition_ms is not None:
+                timings["recognition_ms"] = recognition_ms
+            timings["match_ms"] = match_ms
         return match, confidence, bbox
 
     def check_gesture(self, cap, timeout: float = None) -> Optional[Gesture]:
@@ -388,8 +408,42 @@ class AttendanceKiosk:
                         time.sleep(2)
                         continue
 
-                # 3. Face recognition
-                match, confidence, bbox = self.process_frame(frame)
+                # Periodic embedding cache refresh (CACHE_REFRESH_MINUTES)
+                now_sec = time.time()
+                cache_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    self.config.EMBEDDINGS_CACHE_PATH
+                )
+                if (
+                    self._last_cache_refresh is None
+                    or (now_sec - self._last_cache_refresh) >= self.config.CACHE_REFRESH_MINUTES * 60
+                ) and os.path.exists(cache_path):
+                    if self.embedding_cache.load_from_json(cache_path):
+                        self._last_cache_refresh = now_sec
+                        logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
+
+                # 3. Face recognition (with per-step timing for observability)
+                frame_timings: Dict[str, float] = {}
+                t_frame_start = time.perf_counter()
+                match, confidence, bbox = self.process_frame(frame, timings=frame_timings)
+                frame_elapsed_ms = (time.perf_counter() - t_frame_start) * 1000
+                num_faces = 1 if (match is not None or bbox is not None) else 0
+                self._metrics.record_frame(
+                    frame_elapsed_ms,
+                    num_faces=num_faces,
+                    matched=match is not None,
+                    recognition_ms=frame_timings.get("recognition_ms"),
+                    match_ms=frame_timings.get("match_ms"),
+                )
+                try:
+                    import psutil
+                    mem_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+                except Exception:
+                    mem_mb = None
+                self._metrics.maybe_report(
+                    cache_size=self.embedding_cache.count,
+                    memory_mb=mem_mb,
+                )
 
                 display = frame.copy()
 
