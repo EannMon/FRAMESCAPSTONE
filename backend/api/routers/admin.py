@@ -1,24 +1,33 @@
 """
 Admin Router - User verification and management endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
+import logging
 
 from db.database import get_db
 from models.user import User, VerificationStatus
 from schemas.user import UserResponse, MessageResponse
+from core.errors import api_error
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 @router.get("/verification/list", response_model=List[UserResponse])
-def get_all_users(db: Session = Depends(get_db)):
+def get_all_users(
+    skip: int = Query(0, ge=0), 
+    limit: int = Query(50, ge=1, le=100), 
+    db: Session = Depends(get_db)
+):
     """
     Get all users for admin verification panel.
     Returns list sorted by registration date.
+    Supports pagination.
     """
-    users = db.query(User).order_by(User.created_at.desc()).all()
+    users = db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     for user in users:
@@ -40,7 +49,7 @@ def get_all_users(db: Session = Depends(get_db)):
             last_active=user.last_active
         ))
     
-    print(f"✅ Retrieved {len(result)} users for verification list")
+    logger.info("Retrieved %d users for verification list (skip=%d, limit=%d)", len(result), skip, limit)
     return result
 
 
@@ -58,15 +67,16 @@ def approve_user(req: VerificationRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == req.user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     user.verification_status = VerificationStatus.VERIFIED
     db.commit()
     
-    print(f"✅ User {req.user_id} approved")
+    logger.info("User %d approved", req.user_id)
     return MessageResponse(message=f"User {req.user_id} has been approved")
 
 
@@ -78,15 +88,16 @@ def reject_user(req: VerificationRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == req.user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     user.verification_status = VerificationStatus.REJECTED
     db.commit()
     
-    print(f"✅ User {req.user_id} rejected")
+    logger.info("User %d rejected", req.user_id)
     return MessageResponse(message=f"User {req.user_id} has been rejected")
 
 
@@ -98,13 +109,14 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     db.delete(user)
     db.commit()
     
-    print(f"✅ User {user_id} deleted permanently")
+    logger.info("User %d deleted permanently", user_id)
     return MessageResponse(message=f"User {user_id} deleted successfully")

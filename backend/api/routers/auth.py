@@ -1,11 +1,14 @@
 """
 Auth Router - Login and Registration endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 import bcrypt
+import logging
 
 from db.database import get_db
+from core.errors import api_error
+from main import limiter
 from models.user import User, UserRole, VerificationStatus
 from models.facial_profile import FacialProfile
 from schemas.user import (
@@ -16,6 +19,8 @@ from schemas.user import (
     MessageResponse,
     ErrorResponse
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -33,7 +38,8 @@ def hash_password(password: str) -> str:
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db)):
     """
     Login with email/TUPM ID and password.
     Returns user data on success.
@@ -44,19 +50,21 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     ).first()
     
     if not user:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            code="USER_NOT_FOUND",
+            message="User not found"
         )
     
     # Verify password
     if not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            code="INVALID_CREDENTIALS",
+            message="Invalid email or password"
         )
     
-    print(f"✅ Login Successful for: {user.first_name} {user.last_name}")
+    logger.info("Login Successful for: %s %s", user.first_name, user.last_name)
     
     return LoginResponse(
         message="Login Successful",
@@ -81,7 +89,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, user_data: UserRegister, db: Session = Depends(get_db)):
     """
     Register a new user (Faculty/Head).
     Students are created via faculty COR upload.
@@ -89,17 +98,19 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     # Check if email already exists
     existing_email = db.query(User).filter(User.email == user_data.email).first()
     if existing_email:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists"
+            code="EMAIL_EXISTS",
+            message="Email already exists"
         )
     
     # Check if TUPM ID already exists
     existing_tupm = db.query(User).filter(User.tupm_id == user_data.tupm_id).first()
     if existing_tupm:
-        raise HTTPException(
+        raise api_error(
             status_code=status.HTTP_409_CONFLICT,
-            detail="TUPM ID already exists"
+            code="TUPM_ID_EXISTS",
+            message="TUPM ID already exists"
         )
     
     # Hash password
@@ -130,13 +141,14 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    print(f"✅ Registered: {new_user.first_name} {new_user.last_name} (ID: {new_user.id})")
+    logger.info("Registered: %s %s (ID: %d)", new_user.first_name, new_user.last_name, new_user.id)
     
     return MessageResponse(message=f"Registration Successful! User ID: {new_user.id}")
 
 
 @router.post("/validate-face")
-def validate_face(data: dict):
+@limiter.limit("5/minute")
+def validate_face(request: Request, data: dict):
     """
     Validate if a face is present in the captured image.
     This is a placeholder - real face detection will be added in Phase 4.

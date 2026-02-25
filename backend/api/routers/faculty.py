@@ -2,14 +2,17 @@
 Faculty Router - Faculty-specific endpoints
 Schedule, dashboard, class management, COR upload
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, date
 from pydantic import BaseModel
+import logging
 
 from db.database import get_db
+from core.errors import api_error
+from main import limiter
 from models.user import User, UserRole, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -17,6 +20,7 @@ from models.enrollment import Enrollment
 from models.attendance_log import AttendanceLog, AttendanceAction
 from models.session_exception import SessionException, ExceptionType
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -70,10 +74,10 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
     # Check user exists and is verified
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     if user.verification_status != VerificationStatus.VERIFIED:
-        raise HTTPException(status_code=403, detail="Account not verified")
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
     # Get classes taught by this faculty (Eager load Subject to avoid N+1)
     from sqlalchemy.orm import joinedload
@@ -150,10 +154,10 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     if user.verification_status != VerificationStatus.VERIFIED:
-        raise HTTPException(status_code=403, detail="Account not verified")
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
     today = datetime.now().strftime('%A')
     
@@ -191,7 +195,7 @@ def create_subject(subject_data: SubjectCreate, db: Session = Depends(get_db)):
     # Check if subject code already exists
     existing = db.query(Subject).filter(Subject.code == subject_data.code).first()
     if existing:
-        raise HTTPException(status_code=409, detail="Subject code already exists")
+        raise api_error(409, "SUBJECT_EXISTS", "Subject code already exists")
     
     new_subject = Subject(
         code=subject_data.code,
@@ -203,7 +207,7 @@ def create_subject(subject_data: SubjectCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_subject)
     
-    print(f"✅ Created subject: {new_subject.code} - {new_subject.title}")
+    logger.info("Created subject: %s - %s", new_subject.code, new_subject.title)
     return {"message": "Subject created", "id": new_subject.id}
 
 
@@ -216,7 +220,7 @@ def get_class_details(class_id: int, db: Session = Depends(get_db)):
     from sqlalchemy.orm import joinedload
     cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(status_code=404, code="CLASS_NOT_FOUND", message="Class not found")
     
     subject = cls.subject
     
@@ -255,14 +259,16 @@ def get_upload_history(user_id: int, db: Session = Depends(get_db)):
     """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
     
     # Return empty list for now - file upload tracking will be added in future phase
     return []
 
 
 @router.post("/upload-schedule", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def upload_schedule(
+    request: Request,
     file: UploadFile = File(...),
     faculty_id: Optional[int] = Form(None),
     semester: Optional[str] = Form("1st Semester"),
@@ -277,19 +283,19 @@ async def upload_schedule(
     import bcrypt
     
     if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+        raise api_error(400, "INVALID_FILE_TYPE", "Only PDF files are accepted")
     
     # Read file content
     content = await file.read()
     
-    print(f"📤 Received schedule upload: {file.filename} ({len(content)} bytes)")
+    logger.info("Received schedule upload: %s (%d bytes)", file.filename, len(content))
     
     try:
         # Parse PDF
         parsed_data = parse_schedule_pdf(content, faculty_id)
         
         if not parsed_data:
-            raise HTTPException(status_code=400, detail="Could not parse PDF")
+            raise api_error(400, "PARSE_FAILED", "Could not parse PDF")
         
         created_schedules = []
         updated_schedules = []
@@ -357,7 +363,7 @@ async def upload_schedule(
                 db.refresh(existing_class)
                 updated_schedules.append(existing_class.id)
                 current_class = existing_class
-                print(f"   🔄 Updated class: {subject.code} - {course_data['section']} ({course_data['day']})")
+                logger.info("Updated class: %s - %s (%s)", subject.code, course_data['section'], course_data['day'])
             else:
                 # Create new Class
                 new_class = Class(
@@ -376,7 +382,7 @@ async def upload_schedule(
                 db.refresh(new_class)
                 created_schedules.append(new_class.id)
                 current_class = new_class
-                print(f"   ✅ Created class: {subject.code} - {course_data['section']} ({course_data['day']})")
+                logger.info("Created class: %s - %s (%s)", subject.code, course_data['section'], course_data['day'])
             
             # Create/Update Student Accounts and Enrollments
             # Get current enrollments for this class to avoid duplicates
@@ -416,7 +422,7 @@ async def upload_schedule(
                     db.refresh(student_user)
                     
                     created_students.append(tupm_id)
-                    print(f"      Created student: {tupm_id}")
+                    logger.debug("Created student: %s", tupm_id)
                 
                 # Check if already enrolled in THIS class instance
                 if student_user.id not in existing_enrollments:
@@ -447,11 +453,9 @@ async def upload_schedule(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Upload Error: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("Upload Error: %s", str(e), exc_info=True)
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise api_error(500, "INTERNAL_ERROR", "An internal error occurred during processing.")
 
 
 @router.get("/class-details/{schedule_id}")
@@ -463,7 +467,7 @@ def get_class_details_by_schedule_id(schedule_id: int, db: Session = Depends(get
     from sqlalchemy.orm import joinedload
     cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == schedule_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
         
     # Get enrolled students via eager loading
     enrollments = db.query(Enrollment).options(joinedload(Enrollment.student)).filter(Enrollment.class_id == schedule_id).all()
@@ -537,7 +541,7 @@ def create_session_exceptions(
     """
     class_obj = db.query(Class).filter(Class.id == data.class_id).first()
     if not class_obj:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
     
     # Map string to enum
     type_map = {
@@ -605,6 +609,8 @@ def get_all_session_exceptions_for_faculty(
     faculty_id: int,
     month: Optional[int] = None,
     year: Optional[int] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
     """
@@ -627,6 +633,7 @@ def get_all_session_exceptions_for_faculty(
             extract('year', SessionException.session_date) == year
         )
     
+    query = query.offset(skip).limit(limit)
     exceptions = query.all()
     
     return [
@@ -661,12 +668,13 @@ def update_class_late_threshold(
     """
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
     if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
-        raise HTTPException(
+        raise api_error(
             status_code=400,
-            detail="Late threshold must be between 1 and 120 minutes"
+            code="INVALID_THRESHOLD",
+            message="Late threshold must be between 1 and 120 minutes"
         )
 
     cls.late_threshold_minutes = data.late_threshold_minutes
@@ -685,7 +693,7 @@ def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
     """Get the current late threshold for a class."""
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
     return {
         "class_id": class_id,
