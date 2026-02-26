@@ -57,10 +57,8 @@ class GestureDetector:
         self._consecutive_frames = consecutive_frames
         self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 2, 8))
         
-        logger.info(
-            "GestureDetector initialized (confidence=%.2f, consecutive=%d)",
-            min_confidence, consecutive_frames
-        )
+        logger.info(f"✅ GestureDetector initialized (confidence={min_confidence}, "
+                     f"consecutive={consecutive_frames})")
     
     def _dist(self, a, b) -> float:
         """Euclidean distance between two landmarks."""

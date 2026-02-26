@@ -109,12 +109,12 @@ class AttendanceLogger:
         
         # Try API first
         if self._post_to_api(record):
-            logger.info("Logged attendance: user=%d, action=%s", user_id, action.value)
+            logger.info(f"✅ Logged attendance: user={user_id}, action={action.value}")
             return True
         
         # Queue for later if API fails
         self._queue_offline(record)
-        logger.warning("Queued offline: user=%d, action=%s", user_id, action.value)
+        logger.warning(f"⚠️ Queued offline: user={user_id}, action={action.value}")
         return False  # Return False — caller should NOT update state until DB confirms
     
     def _post_to_api(self, record: AttendanceRecord) -> bool:
@@ -142,11 +142,11 @@ class AttendanceLogger:
             if response.status_code in (200, 201):
                 return True
             else:
-                logger.warning("API returned %d: %s", response.status_code, response.text)
+                logger.warning(f"⚠️ API returned {response.status_code}: {response.text}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            logger.warning("API request failed: %s", str(e))
+            logger.warning(f"⚠️ API request failed: {e}")
             return False
     
     def _queue_offline(self, record: AttendanceRecord):
@@ -164,7 +164,7 @@ class AttendanceLogger:
         if not self._offline_queue:
             return 0
         
-        logger.info("Flushing %d offline records", len(self._offline_queue))
+        logger.info(f"🔄 Flushing {len(self._offline_queue)} offline records...")
         
         success_count = 0
         remaining = []
@@ -178,7 +178,7 @@ class AttendanceLogger:
         self._offline_queue = remaining
         self._save_offline_queue()
         
-        logger.info("Flushed %d records, %d still queued", success_count, len(remaining))
+        logger.info(f"✅ Flushed {success_count} records, {len(remaining)} still queued")
         return success_count
     
     def _save_offline_queue(self):
@@ -195,7 +195,7 @@ class AttendanceLogger:
                 json.dump(queue_data, f, indent=2)
                 
         except Exception as e:
-            logger.error("Failed to save offline queue: %s", str(e))
+            logger.error(f"❌ Failed to save offline queue: {e}")
     
     def _load_offline_queue(self):
         """Load offline queue from file."""
@@ -211,10 +211,10 @@ class AttendanceLogger:
                 self._offline_queue.append(AttendanceRecord(**record_dict))
             
             if self._offline_queue:
-                logger.info("Loaded %d queued offline records", len(self._offline_queue))
+                logger.info(f"📦 Loaded {len(self._offline_queue)} queued offline records")
                 
         except Exception as e:
-            logger.error("Failed to load offline queue: %s", str(e))
+            logger.error(f"❌ Failed to load offline queue: {e}")
     
     @property
     def offline_count(self) -> int:

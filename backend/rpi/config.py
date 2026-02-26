@@ -68,9 +68,6 @@ class KioskConfig:
     # On RPi, use smaller det_size for speed (recognition model stays the same).
     INSIGHTFACE_MODEL: str = "buffalo_l"
     RECOGNITION_DET_SIZE: tuple = field(default=None)  # Auto-set in __post_init__
-    # Minimum time between heavy recognition runs (seconds)
-    # This caps how often we run InsightFace even if frames arrive faster.
-    RECOGNITION_MIN_INTERVAL_SECONDS: float = 0.0
     
     # ===========================================
     # Two-Stage Gated Detection (RPi optimization)
@@ -99,7 +96,7 @@ class KioskConfig:
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # More time to show gesture
-    GESTURE_CONSECUTIVE_FRAMES: int = 2  # Require gesture for N consecutive frames (lower = more responsive)
+    GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require gesture for N consecutive frames
     
     # ===========================================
     # Attendance Rules
@@ -112,9 +109,6 @@ class KioskConfig:
     # ===========================================
     BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
     API_TIMEOUT_SECONDS: int = 15  # Generous timeout for remote Aiven DB queries
-    # Control active-class API usage and failure backoff
-    USE_ACTIVE_CLASS_API: bool = True
-    ACTIVE_CLASS_FAILURE_BACKOFF_SEC: int = 300  # After failures, rely on cache for this long
     
     # ===========================================
     # Device Identity
@@ -137,10 +131,6 @@ class KioskConfig:
     LOG_LEVEL: str = "INFO"
     SAVE_RECOGNITION_FRAMES: bool = False  # Save frames for debugging
     RECOGNITION_FRAMES_PATH: str = "rpi/data/recognition_frames"
-    # Metrics reporting interval (seconds) for FPS/latency logs
-    METRICS_REPORT_INTERVAL_SEC: int = 15
-    # Sleep duration when there is no active class (controls idle FPS)
-    IDLE_NO_CLASS_SLEEP_SECONDS: float = 0.1
     
     def __post_init__(self):
         """Auto-configure platform-specific defaults."""
@@ -158,25 +148,16 @@ class KioskConfig:
             self.CAMERA_WIDTH = 480
             self.CAMERA_HEIGHT = 360
             self.CAMERA_FPS = 15
-            # On RPi we still allow frequent recognition; set small interval
-            if self.RECOGNITION_MIN_INTERVAL_SECONDS <= 0.0:
-                self.RECOGNITION_MIN_INTERVAL_SECONDS = 0.5
         else:
-            # Laptop defaults (optimize for smoother real-time performance)
+            # Laptop defaults (full quality)
             if self.RECOGNITION_DET_SIZE is None:
-                # Use smaller det_size even on laptop to reduce CPU load
-                self.RECOGNITION_DET_SIZE = (320, 320)
+                self.RECOGNITION_DET_SIZE = (640, 640)
             if self.USE_GATED_DETECTION is None:
-                # Enable gated detection so we can use fast MediaPipe + cropped InsightFace
-                self.USE_GATED_DETECTION = True
+                self.USE_GATED_DETECTION = False  # InsightFace is fast enough
             if self.RECOGNITION_FRAME_SKIP is None:
-                # Skip some frames for recognition while keeping video smooth
-                self.RECOGNITION_FRAME_SKIP = 2
+                self.RECOGNITION_FRAME_SKIP = 1  # Every frame
             if self.USE_PICAMERA2 is None:
                 self.USE_PICAMERA2 = False  # Laptop uses OpenCV
-            # On laptop, cap recognition to at most ~1 run per 0.7s by default
-            if self.RECOGNITION_MIN_INTERVAL_SECONDS <= 0.0:
-                self.RECOGNITION_MIN_INTERVAL_SECONDS = 0.7
 
 
 # Default configuration instance
