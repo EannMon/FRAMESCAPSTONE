@@ -1,8 +1,132 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './DeptHeadManagePage.css';
+
+// ============================================
+// Weekly Calendar View (Read-Only)
+// ============================================
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7AM to 9PM
+
+const FACULTY_COLORS = [
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
+];
+
+const WeeklyCalendarView = ({ courses }) => {
+    // Parse schedule strings like "Monday 9:00 AM - 12:00 PM" into structured data
+    const calendarEvents = useMemo(() => {
+        const events = [];
+        const facultyColorMap = {};
+        let colorIdx = 0;
+
+        courses.forEach(course => {
+            if (!course.schedule || !course.room_name) return;
+
+            // Assign color per faculty
+            const faculty = course.assigned_faculty || 'Unassigned';
+            if (!facultyColorMap[faculty]) {
+                facultyColorMap[faculty] = FACULTY_COLORS[colorIdx % FACULTY_COLORS.length];
+                colorIdx++;
+            }
+
+            // Parse schedule: "Monday 9:00 AM - 12:00 PM"
+            const match = course.schedule.match(/^(\w+)\s+(\d{1,2}:\d{2}\s*[APap][Mm])\s*-\s*(\d{1,2}:\d{2}\s*[APap][Mm])$/);
+            if (!match) return;
+
+            const day = match[1];
+            const startStr = match[2].toUpperCase().trim();
+            const endStr = match[3].toUpperCase().trim();
+
+            const parseTime = (str) => {
+                const [time, period] = str.split(/\s+/);
+                let [h, m] = time.split(':').map(Number);
+                if (period === 'PM' && h !== 12) h += 12;
+                if (period === 'AM' && h === 12) h = 0;
+                return h + m / 60;
+            };
+
+            events.push({
+                day,
+                startHour: parseTime(startStr),
+                endHour: parseTime(endStr),
+                subject: course.subject_code,
+                faculty,
+                room: course.room_name,
+                color: facultyColorMap[faculty]
+            });
+        });
+
+        return { events, facultyColorMap };
+    }, [courses]);
+
+    const { events, facultyColorMap } = calendarEvents;
+
+    return (
+        <div className="weekly-calendar-container card">
+            <div className="calendar-header-row">
+                <h3><i className="fas fa-calendar-week"></i> Weekly Schedule Overview</h3>
+                <div className="calendar-legend">
+                    {Object.entries(facultyColorMap).map(([name, color]) => (
+                        <span key={name} className="legend-item">
+                            <span className="legend-dot" style={{ background: color }}></span>
+                            {name}
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <div className="calendar-scroll-wrapper">
+                <table className="calendar-grid">
+                    <thead>
+                        <tr>
+                            <th className="time-col">Time</th>
+                            {DAYS.map(d => <th key={d}>{d.slice(0, 3)}</th>)}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {HOURS.map(hour => (
+                            <tr key={hour}>
+                                <td className="time-cell">
+                                    {hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`}
+                                </td>
+                                {DAYS.map(day => {
+                                    // Find events that occupy this cell
+                                    const cellEvents = events.filter(e =>
+                                        e.day === day && e.startHour <= hour && e.endHour > hour
+                                    );
+                                    // Only render block at start hour
+                                    const startsHere = cellEvents.filter(e => Math.floor(e.startHour) === hour);
+                                    const occupied = cellEvents.length > 0 && startsHere.length === 0;
+
+                                    return (
+                                        <td key={day} className={`calendar-cell ${occupied ? 'occupied' : ''}`}>
+                                            {startsHere.map((evt, i) => {
+                                                const span = Math.ceil(evt.endHour - evt.startHour);
+                                                return (
+                                                    <div key={i} className="cal-event-block" style={{
+                                                        background: evt.color,
+                                                        height: `${span * 100}%`,
+                                                        minHeight: `${span * 44}px`
+                                                    }}>
+                                                        <span className="cal-evt-subject">{evt.subject}</span>
+                                                        <span className="cal-evt-faculty">{evt.faculty}</span>
+                                                        <span className="cal-evt-room">{evt.room}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 const DeptHeadManagePage = () => {
     // --- STATE MANAGEMENT ---
@@ -11,6 +135,7 @@ const DeptHeadManagePage = () => {
     const [facultyList, setFacultyList] = useState([]);
     const [availableRooms, setAvailableRooms] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
 
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -174,89 +299,104 @@ const DeptHeadManagePage = () => {
                 </div>
             </div>
 
-            <div className="mgmt-layout">
-                {/* TABLE */}
-                <div className="course-list-section card">
-                    <h3>Course Loads & Room Assignments {loading && <span style={{ fontSize: '0.8em', color: '#888' }}>(Refreshing...)</span>}</h3>
-                    <div className="table-responsive">
-                        <table className="mgmt-table">
-                            <thead>
-                                <tr>
-                                    <th>Subject Code</th>
-                                    <th>Assigned Faculty</th>
-                                    <th>Room & Schedule</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {courses.map(course => (
-                                    <tr key={course.subject_code + (course.schedule_id || Math.random())}>
-                                        <td>
-                                            <span className="code-pill">{course.subject_code}</span>
-                                            <div className="small-desc">{course.name}</div>
-                                        </td>
-
-                                        {/* Faculty Column */}
-                                        <td>
-                                            {course.assigned_faculty ? (
-                                                <div className="assigned-pill">
-                                                    <i className="fas fa-user-check"></i> {course.assigned_faculty}
-                                                </div>
-                                            ) : (
-                                                <span className="unassigned-text">-- No Instructor --</span>
-                                            )}
-                                        </td>
-
-                                        {/* Room Column */}
-                                        <td>
-                                            {course.room_name ? (
-                                                <div className="room-info-box">
-                                                    <div className="room-name">{course.room_name}</div>
-                                                    <div className="sched-time">{course.schedule}</div>
-                                                </div>
-                                            ) : (
-                                                <span className="tba-text">TBA</span>
-                                            )}
-                                        </td>
-
-                                        {/* Actions */}
-                                        <td>
-                                            <div className="action-row">
-                                                <button className="icon-action assign" title="Assign Faculty" onClick={() => openAssignModal(course)}>
-                                                    <i className="fas fa-chalkboard-teacher"></i>
-                                                </button>
-                                                <button className="icon-action room" title="Assign Room" onClick={() => openRoomModal(course)}>
-                                                    <i className="fas fa-door-open"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {courses.length === 0 && !loading && (
-                                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No subjects found. Create one!</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* LOGS */}
-                <div className="logs-section card">
-                    <h3>Activity Log</h3>
-                    <div className="logs-list">
-                        {logs.map((log, index) => (
-                            <div key={index} className="log-item">
-                                <div className="log-icon"><i className="fas fa-history"></i></div>
-                                <div className="log-details">
-                                    <span className="log-action">{log.action}</span>
-                                    <span className="log-meta">{log.time}</span>
-                                </div>
-                            </div>
-                        ))}
-                        {logs.length === 0 && <div style={{ color: '#999', fontSize: '0.9em' }}>No recent activities.</div>}
-                    </div>
-                </div>
+            {/* View Toggle */}
+            <div className="view-toggle-bar">
+                <button className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>
+                    <i className="fas fa-list"></i> List View
+                </button>
+                <button className={`view-toggle-btn ${viewMode === 'calendar' ? 'active' : ''}`} onClick={() => setViewMode('calendar')}>
+                    <i className="fas fa-calendar-week"></i> Calendar View
+                </button>
             </div>
+
+            {viewMode === 'calendar' ? (
+                <WeeklyCalendarView courses={courses} />
+            ) : (
+                <div className="mgmt-layout">
+                    {/* TABLE */}
+                    <div className="course-list-section card">
+                        <h3>Course Loads & Room Assignments {loading && <span style={{ fontSize: '0.8em', color: '#888' }}>(Refreshing...)</span>}</h3>
+                        <div className="table-responsive">
+                            <table className="mgmt-table">
+                                <thead>
+                                    <tr>
+                                        <th>Subject Code</th>
+                                        <th>Assigned Faculty</th>
+                                        <th>Room & Schedule</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {courses.map(course => (
+                                        <tr key={course.subject_code + (course.schedule_id || Math.random())}>
+                                            <td>
+                                                <span className="code-pill">{course.subject_code}</span>
+                                                <div className="small-desc">{course.name}</div>
+                                            </td>
+
+                                            {/* Faculty Column */}
+                                            <td>
+                                                {course.assigned_faculty ? (
+                                                    <div className="assigned-pill">
+                                                        <i className="fas fa-user-check"></i> {course.assigned_faculty}
+                                                    </div>
+                                                ) : (
+                                                    <span className="unassigned-text">-- No Instructor --</span>
+                                                )}
+                                            </td>
+
+                                            {/* Room Column */}
+                                            <td>
+                                                {course.room_name ? (
+                                                    <div className="room-info-box">
+                                                        <div className="room-name">{course.room_name}</div>
+                                                        <div className="sched-time">{course.schedule}</div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="tba-text">TBA</span>
+                                                )}
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td>
+                                                <div className="action-row">
+                                                    <button className="icon-action assign" title="Assign Faculty" onClick={() => openAssignModal(course)}>
+                                                        <i className="fas fa-chalkboard-teacher"></i>
+                                                    </button>
+                                                    <button className="icon-action room" title="Assign Room" onClick={() => openRoomModal(course)}>
+                                                        <i className="fas fa-door-open"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {courses.length === 0 && !loading && (
+                                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No subjects found. Create one!</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* LOGS */}
+                    <div className="logs-section card">
+                        <h3>Activity Log</h3>
+                        <div className="logs-list">
+                            {logs.map((log, index) => (
+                                <div key={index} className="log-item">
+                                    <div className="log-icon"><i className="fas fa-history"></i></div>
+                                    <div className="log-details">
+                                        <span className="log-action">{log.action}</span>
+                                        <span className="log-meta">{log.time}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {logs.length === 0 && <div style={{ color: '#999', fontSize: '0.9em' }}>No recent activities.</div>}
+                        </div>
+                    </div>
+                </div>
+
+            )}
 
             {/* --- MODALS --- */}
 
