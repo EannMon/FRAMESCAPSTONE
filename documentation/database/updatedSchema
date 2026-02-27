@@ -1,0 +1,440 @@
+-- DROP SCHEMA public;
+
+CREATE SCHEMA public AUTHORIZATION pg_database_owner;
+
+COMMENT ON SCHEMA public IS 'standard public schema';
+
+-- DROP TYPE public."attendanceaction";
+
+CREATE TYPE public."attendanceaction" AS ENUM (
+	'ENTRY',
+	'BREAK_OUT',
+	'BREAK_IN',
+	'EXIT');
+
+-- DROP TYPE public."devicestatus";
+
+CREATE TYPE public."devicestatus" AS ENUM (
+	'ACTIVE',
+	'INACTIVE',
+	'MAINTENANCE');
+
+-- DROP TYPE public."exceptiontype";
+
+CREATE TYPE public."exceptiontype" AS ENUM (
+	'ONSITE',
+	'ONLINE',
+	'CANCELLED',
+	'HOLIDAY');
+
+-- DROP TYPE public."securityeventtype";
+
+CREATE TYPE public."securityeventtype" AS ENUM (
+	'UNRECOGNIZED_FACE',
+	'GESTURE_FAILURE',
+	'SPOOF_ATTEMPT',
+	'UNAUTHORIZED_ACCESS');
+
+-- DROP TYPE public."userrole";
+
+CREATE TYPE public."userrole" AS ENUM (
+	'STUDENT',
+	'FACULTY',
+	'HEAD',
+	'ADMIN');
+
+-- DROP TYPE public."verificationstatus";
+
+CREATE TYPE public."verificationstatus" AS ENUM (
+	'PENDING',
+	'VERIFIED',
+	'REJECTED');
+
+-- DROP TYPE public."verifiedby";
+
+CREATE TYPE public."verifiedby" AS ENUM (
+	'FACE',
+	'FACE+GESTURE');
+
+-- DROP SEQUENCE public.attendance_logs_id_seq;
+
+CREATE SEQUENCE public.attendance_logs_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.attendance_logs_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.attendance_logs_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.audit_logs_id_seq;
+
+CREATE SEQUENCE public.audit_logs_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.audit_logs_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.audit_logs_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.classes_id_seq;
+
+CREATE SEQUENCE public.classes_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.classes_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.classes_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.departments_id_seq;
+
+CREATE SEQUENCE public.departments_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.departments_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.departments_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.devices_id_seq;
+
+CREATE SEQUENCE public.devices_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.devices_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.devices_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.enrollments_id_seq;
+
+CREATE SEQUENCE public.enrollments_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.enrollments_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.enrollments_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.facial_profiles_id_seq;
+
+CREATE SEQUENCE public.facial_profiles_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.facial_profiles_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.facial_profiles_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.programs_id_seq;
+
+CREATE SEQUENCE public.programs_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.programs_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.programs_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.security_logs_id_seq;
+
+CREATE SEQUENCE public.security_logs_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.security_logs_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.security_logs_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.session_exceptions_id_seq;
+
+CREATE SEQUENCE public.session_exceptions_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.session_exceptions_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.session_exceptions_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.subjects_id_seq;
+
+CREATE SEQUENCE public.subjects_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.subjects_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.subjects_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.system_metrics_id_seq;
+
+CREATE SEQUENCE public.system_metrics_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.system_metrics_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.system_metrics_id_seq TO avnadmin;
+
+-- DROP SEQUENCE public.users_id_seq;
+
+CREATE SEQUENCE public.users_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+-- Permissions
+
+ALTER SEQUENCE public.users_id_seq OWNER TO avnadmin;
+GRANT ALL ON SEQUENCE public.users_id_seq TO avnadmin;
+-- public.departments definition
+
+-- Drop table
+
+-- DROP TABLE public.departments;
+
+CREATE TABLE public.departments ( id serial4 NOT NULL, "name" varchar(100) NOT NULL, code varchar(20) NULL, created_at timestamp NULL, CONSTRAINT departments_code_key UNIQUE (code), CONSTRAINT departments_name_key UNIQUE (name), CONSTRAINT departments_pkey PRIMARY KEY (id));
+
+-- Permissions
+
+ALTER TABLE public.departments OWNER TO avnadmin;
+GRANT ALL ON TABLE public.departments TO avnadmin;
+
+
+-- public.devices definition
+
+-- Drop table
+
+-- DROP TABLE public.devices;
+
+CREATE TABLE public.devices ( id serial4 NOT NULL, room varchar(100) NULL, ip_address varchar(45) NULL, device_name varchar(100) NULL, status public."devicestatus" NULL, created_at timestamp NULL, last_heartbeat timestamp NULL, room_capacity int4 DEFAULT 40 NULL, CONSTRAINT devices_pkey PRIMARY KEY (id));
+
+-- Permissions
+
+ALTER TABLE public.devices OWNER TO avnadmin;
+GRANT ALL ON TABLE public.devices TO avnadmin;
+
+
+-- public.subjects definition
+
+-- Drop table
+
+-- DROP TABLE public.subjects;
+
+CREATE TABLE public.subjects ( id serial4 NOT NULL, code varchar(50) NOT NULL, title varchar(255) NOT NULL, units int4 NULL, created_at timestamp NULL, CONSTRAINT subjects_code_key UNIQUE (code), CONSTRAINT subjects_pkey PRIMARY KEY (id));
+
+-- Permissions
+
+ALTER TABLE public.subjects OWNER TO avnadmin;
+GRANT ALL ON TABLE public.subjects TO avnadmin;
+
+
+-- public.programs definition
+
+-- Drop table
+
+-- DROP TABLE public.programs;
+
+CREATE TABLE public.programs ( id serial4 NOT NULL, department_id int4 NOT NULL, "name" varchar(100) NOT NULL, code varchar(20) NULL, created_at timestamp NULL, CONSTRAINT programs_pkey PRIMARY KEY (id), CONSTRAINT programs_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id));
+
+-- Permissions
+
+ALTER TABLE public.programs OWNER TO avnadmin;
+GRANT ALL ON TABLE public.programs TO avnadmin;
+
+
+-- public.security_logs definition
+
+-- Drop table
+
+-- DROP TABLE public.security_logs;
+
+CREATE TABLE public.security_logs ( id serial4 NOT NULL, device_id int4 NULL, event_type public."securityeventtype" NOT NULL, embedding_data bytea NULL, confidence_score float8 NULL, room varchar(100) NULL, details varchar(500) NULL, "timestamp" timestamp NULL, CONSTRAINT security_logs_pkey PRIMARY KEY (id), CONSTRAINT security_logs_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id));
+
+-- Permissions
+
+ALTER TABLE public.security_logs OWNER TO avnadmin;
+GRANT ALL ON TABLE public.security_logs TO avnadmin;
+
+
+-- public.system_metrics definition
+
+-- Drop table
+
+-- DROP TABLE public.system_metrics;
+
+CREATE TABLE public.system_metrics ( id serial4 NOT NULL, device_id int4 NULL, metric_type varchar(50) NOT NULL, value float8 NOT NULL, unit varchar(20) NULL, "timestamp" timestamp NULL, CONSTRAINT system_metrics_pkey PRIMARY KEY (id), CONSTRAINT system_metrics_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id));
+
+-- Permissions
+
+ALTER TABLE public.system_metrics OWNER TO avnadmin;
+GRANT ALL ON TABLE public.system_metrics TO avnadmin;
+
+
+-- public.users definition
+
+-- Drop table
+
+-- DROP TABLE public.users;
+
+CREATE TABLE public.users ( id serial4 NOT NULL, email varchar(255) NOT NULL, password_hash varchar(255) NOT NULL, tupm_id varchar(50) NOT NULL, "role" public."userrole" NOT NULL, verification_status public."verificationstatus" NULL, face_registered bool NULL, first_name varchar(100) NOT NULL, last_name varchar(100) NOT NULL, middle_name varchar(100) NULL, department_id int4 NULL, program_id int4 NULL, year_level varchar(20) NULL, "section" varchar(50) NULL, created_at timestamp NULL, last_active timestamp NULL, contact_number varchar(20) NULL, birthday timestamp NULL, home_address varchar(500) NULL, current_term varchar(50) NULL, academic_advisor varchar(100) NULL, gpa varchar(10) NULL, emergency_contact_name varchar(100) NULL, emergency_contact_relationship varchar(50) NULL, emergency_contact_phone varchar(20) NULL, emergency_contact_address varchar(255) NULL, CONSTRAINT users_email_key UNIQUE (email), CONSTRAINT users_pkey PRIMARY KEY (id), CONSTRAINT users_tupm_id_key UNIQUE (tupm_id), CONSTRAINT users_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id), CONSTRAINT users_program_id_fkey FOREIGN KEY (program_id) REFERENCES public.programs(id));
+
+-- Permissions
+
+ALTER TABLE public.users OWNER TO avnadmin;
+GRANT ALL ON TABLE public.users TO avnadmin;
+
+
+-- public.audit_logs definition
+
+-- Drop table
+
+-- DROP TABLE public.audit_logs;
+
+CREATE TABLE public.audit_logs ( id serial4 NOT NULL, user_id int4 NULL, action_type varchar(50) NOT NULL, target_table varchar(50) NULL, target_id int4 NULL, old_value json NULL, new_value json NULL, ip_address varchar(45) NULL, user_agent varchar(255) NULL, "timestamp" timestamp NULL, CONSTRAINT audit_logs_pkey PRIMARY KEY (id), CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id));
+
+-- Permissions
+
+ALTER TABLE public.audit_logs OWNER TO avnadmin;
+GRANT ALL ON TABLE public.audit_logs TO avnadmin;
+
+
+-- public.classes definition
+
+-- Drop table
+
+-- DROP TABLE public.classes;
+
+CREATE TABLE public.classes ( id serial4 NOT NULL, subject_id int4 NOT NULL, faculty_id int4 NOT NULL, room varchar(100) NULL, day_of_week varchar(20) NULL, start_time time NULL, end_time time NULL, "section" varchar(50) NULL, semester varchar(50) NULL, academic_year varchar(20) NULL, created_at timestamp NULL, late_threshold_minutes int4 DEFAULT 15 NULL, CONSTRAINT classes_pkey PRIMARY KEY (id), CONSTRAINT classes_faculty_id_fkey FOREIGN KEY (faculty_id) REFERENCES public.users(id), CONSTRAINT classes_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id));
+
+-- Permissions
+
+ALTER TABLE public.classes OWNER TO avnadmin;
+GRANT ALL ON TABLE public.classes TO avnadmin;
+
+
+-- public.enrollments definition
+
+-- Drop table
+
+-- DROP TABLE public.enrollments;
+
+CREATE TABLE public.enrollments ( id serial4 NOT NULL, class_id int4 NOT NULL, student_id int4 NOT NULL, enrolled_at timestamp NULL, CONSTRAINT enrollments_pkey PRIMARY KEY (id), CONSTRAINT unique_enrollment UNIQUE (class_id, student_id), CONSTRAINT enrollments_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id) ON DELETE CASCADE, CONSTRAINT enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE);
+
+-- Permissions
+
+ALTER TABLE public.enrollments OWNER TO avnadmin;
+GRANT ALL ON TABLE public.enrollments TO avnadmin;
+
+
+-- public.facial_profiles definition
+
+-- Drop table
+
+-- DROP TABLE public.facial_profiles;
+
+CREATE TABLE public.facial_profiles ( id serial4 NOT NULL, user_id int4 NOT NULL, embedding bytea NULL, model_version varchar(50) DEFAULT 'insightface_buffalo_l_v1'::character varying NULL, created_at timestamp NULL, updated_at timestamp NULL, num_samples int4 DEFAULT 0 NULL, enrollment_quality float8 DEFAULT 0.0 NULL, CONSTRAINT facial_profiles_pkey PRIMARY KEY (id), CONSTRAINT facial_profiles_user_id_key UNIQUE (user_id), CONSTRAINT facial_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE);
+
+-- Permissions
+
+ALTER TABLE public.facial_profiles OWNER TO avnadmin;
+GRANT ALL ON TABLE public.facial_profiles TO avnadmin;
+
+
+-- public.session_exceptions definition
+
+-- Drop table
+
+-- DROP TABLE public.session_exceptions;
+
+CREATE TABLE public.session_exceptions ( id serial4 NOT NULL, class_id int4 NOT NULL, session_date date NOT NULL, exception_type public."exceptiontype" NULL, reason varchar(255) NULL, created_by int4 NULL, created_at timestamp NULL, CONSTRAINT session_exceptions_pkey PRIMARY KEY (id), CONSTRAINT session_exceptions_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id), CONSTRAINT session_exceptions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id));
+
+-- Permissions
+
+ALTER TABLE public.session_exceptions OWNER TO avnadmin;
+GRANT ALL ON TABLE public.session_exceptions TO avnadmin;
+
+
+-- public.attendance_logs definition
+
+-- Drop table
+
+-- DROP TABLE public.attendance_logs;
+
+CREATE TABLE public.attendance_logs ( id serial4 NOT NULL, user_id int4 NOT NULL, class_id int4 NULL, device_id int4 NULL, "action" public."attendanceaction" NOT NULL, verified_by public."verifiedby" NULL, confidence_score float8 NULL, gesture_detected varchar(50) NULL, "timestamp" timestamp NULL, remarks varchar(255) NULL, is_late bool DEFAULT false NULL, CONSTRAINT attendance_logs_pkey PRIMARY KEY (id), CONSTRAINT attendance_logs_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id), CONSTRAINT attendance_logs_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id), CONSTRAINT attendance_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id));
+
+-- Permissions
+
+ALTER TABLE public.attendance_logs OWNER TO avnadmin;
+GRANT ALL ON TABLE public.attendance_logs TO avnadmin;
+
+
+
+
+-- Permissions
+
+GRANT ALL ON SCHEMA public TO pg_database_owner;
+GRANT USAGE ON SCHEMA public TO public;

@@ -4,7 +4,7 @@ Security Log Model - Tracks security events like unrecognized faces and spoof at
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, LargeBinary, Enum
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 
 
@@ -19,13 +19,13 @@ class SecurityLog(Base):
     __tablename__ = "security_logs"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True)
-    event_type = Column(Enum(SecurityEventType), nullable=False)
+    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True, index=True)
+    event_type = Column(Enum(SecurityEventType), nullable=False, index=True)
     embedding_data = Column(LargeBinary, nullable=True)  # Store unrecognized face embedding
     confidence_score = Column(Float, nullable=True)      # Partial match score if any
-    room = Column(String(100))                           # Location
+    room = Column(String(100), index=True)                           # Location
     details = Column(String(500))                        # Additional context
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationships
     device = relationship("Device", backref="security_logs")

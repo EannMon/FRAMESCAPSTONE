@@ -32,8 +32,12 @@ mediapipe==0.10.14
 onnxruntime>=1.16.0
 insightface>=0.7.3
 
-# --- HTTP client for backend API ---
+# --- HTTP client and Server for backend API ---
 requests
+fastapi
+uvicorn[standard]
+python-multipart
+websockets
 
 # =============================================================
 # DO NOT pip install these — they MUST come from apt:

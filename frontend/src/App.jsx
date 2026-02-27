@@ -47,6 +47,9 @@ import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
+// --- Import Kiosk Page ---
+import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
+
 function App() {
     // Apply dark mode from localStorage on mount
     useEffect(() => {
@@ -131,6 +134,9 @@ function App() {
 
                     {/* Template Sandbox */}
                     <Route path="/test-pdf" element={<TestPDFPage />} />
+
+                    {/* Kiosk Standalone View */}
+                    <Route path="/kiosk" element={<KioskDashboardPage />} />
 
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />

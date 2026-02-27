@@ -1,0 +1,226 @@
+.kiosk-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: #0b1154;
+  /* Dark blue background */
+  color: white;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+/* Left side: Video Feed */
+.kiosk-video-section {
+  flex: 2;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk-video-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.kiosk-video-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.kiosk-video-id {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.kiosk-video-wrapper {
+  flex-grow: 1;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.kiosk-video-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kiosk-offline-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 0, 0, 0.8);
+  padding: 20px 40px;
+  border-radius: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 10;
+}
+
+/* Right side: Panels */
+.kiosk-sidebar {
+  flex: 1;
+  background: #f4f7fe;
+  color: #1b2559;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+}
+
+.kiosk-panel {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.kiosk-panel h3 {
+  font-size: 14px;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+/* Time & Date */
+.kiosk-datetime {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kiosk-time-value {
+  font-size: 48px;
+  font-weight: 700;
+  color: #1b2559;
+  line-height: 1;
+}
+
+.kiosk-date-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2b3674;
+}
+
+/* Subject Room */
+.kiosk-subject-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1b2559;
+  margin: 0 0 5px 0;
+}
+
+.kiosk-room-name {
+  font-size: 16px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+/* Gestures */
+.kiosk-gesture-entry-note {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 12px 0;
+}
+
+.kiosk-gestures-grid {
+  display: flex;
+  gap: 15px;
+}
+
+.kiosk-gesture-card {
+  flex: 1;
+  background: linear-gradient(135deg, #1b2559 0%, #2b3674 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 25px 15px;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid transparent;
+}
+
+.kiosk-gesture-card.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.kiosk-gesture-card.active {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 150, 255, 0.4);
+  border: 2px solid #0096ff;
+}
+
+.kiosk-gesture-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.kiosk-gesture-label {
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Check-ins */
+.kiosk-checkins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.kiosk-checkin-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #4CAF50;
+}
+
+.kiosk-checkin-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk-checkin-name {
+  font-weight: 600;
+  color: #1b2559;
+  font-size: 15px;
+}
+
+.kiosk-checkin-time {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.kiosk-checkin-badge {
+  background: #4CAF50;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+}

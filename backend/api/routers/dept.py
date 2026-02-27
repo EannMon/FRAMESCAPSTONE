@@ -8,8 +8,10 @@ from sqlalchemy import func, desc
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+import logging
 
 from db.database import get_db
+from core.errors import api_error
 from models.subject import Subject
 from models.class_ import Class
 from models.user import User, UserRole
@@ -17,6 +19,8 @@ from models.device import Device
 from models.audit_log import AuditLog
 from models.attendance_log import AttendanceLog, AttendanceAction
 from models.enrollment import Enrollment
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -51,14 +55,17 @@ def get_management_data(db: Session = Depends(get_db)):
     - Available Rooms (from devices table)
     """
     
-    # 1. Fetch all subjects
-    subjects = db.query(Subject).all()
+    # 1. Fetch all subjects with eager loaded classes and their faculties
+    # This prevents the N+1 loop (querying classes per subject)
+    subjects = db.query(Subject).options(
+        joinedload(Subject.classes).joinedload(Class.faculty)
+    ).all()
     
-    # 2. Build course list
     courses_data = []
     
     for subject in subjects:
-        classes = db.query(Class).filter(Class.subject_id == subject.id).options(joinedload(Class.faculty)).all()
+        # Avoid N+1 mapping since classes are eagerly loaded
+        classes = subject.classes
         
         if not classes:
             courses_data.append({
@@ -111,7 +118,11 @@ def get_management_data(db: Session = Depends(get_db)):
 def create_subject(req: SubjectCreate, db: Session = Depends(get_db)):
     existing = db.query(Subject).filter(Subject.code == req.code).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Subject code already exists")
+        raise api_error(
+            status_code=400,
+            code="SUBJECT_EXISTS",
+            message="Subject code already exists"
+        )
     
     new_sub = Subject(
         code=req.code,
@@ -127,11 +138,11 @@ def create_subject(req: SubjectCreate, db: Session = Depends(get_db)):
 def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
     subject = db.query(Subject).filter(Subject.code == req.subject_code).first()
     if not subject:
-        raise HTTPException(404, "Subject not found")
+        raise api_error(404, "SUBJECT_NOT_FOUND", "Subject not found")
 
     faculty = db.query(User).filter(User.id == req.faculty_id, User.role.in_([UserRole.FACULTY, UserRole.HEAD])).first()
     if not faculty:
-        raise HTTPException(404, "Faculty not found")
+        raise api_error(404, "FACULTY_INVALID", "Faculty not found or not verified")
 
     if req.schedule_id:
         cls = db.query(Class).filter(Class.id == req.schedule_id).first()
@@ -153,13 +164,13 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
 def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
     subject = db.query(Subject).filter(Subject.code == req.subject_code).first()
     if not subject:
-        raise HTTPException(404, "Subject not found")
+        raise api_error(404, "SUBJECT_NOT_FOUND", "Subject not found")
 
     try:
         start_t = datetime.strptime(req.start_time, "%I:%M %p").time()
         end_t = datetime.strptime(req.end_time, "%I:%M %p").time()
     except ValueError:
-        raise HTTPException(400, "Invalid time format. Use HH:MM AM/PM")
+        raise api_error(400, "INVALID_TIME", "Invalid time format. Use HH:MM AM/PM")
 
     if req.schedule_id:
         cls = db.query(Class).filter(Class.id == req.schedule_id).first()
@@ -171,7 +182,41 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
             db.commit()
             return {"message": "Room assigned to existing class"}
 
-    raise HTTPException(400, "Please assign a faculty member first before assigning a room.")
+    raise api_error(400, "NO_FACULTY", "Please assign a faculty member first before assigning a room.")
+
+
+@router.get("/user-schedule/{user_id}")
+def get_user_schedule(user_id: int, db: Session = Depends(get_db)):
+    """
+    Fetch schedule for a specific user (Faculty or Student).
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+        
+    schedule = []
+    
+    # 1. If Faculty, get classes they teach
+    if user.role == UserRole.FACULTY:
+        classes = db.query(Class).filter(Class.faculty_id == user.id).options(joinedload(Class.subject)).all()
+        for cls in classes:
+            s_time = cls.start_time.strftime("%I:%M %p") if cls.start_time else "TBA"
+            e_time = cls.end_time.strftime("%I:%M %p") if cls.end_time else "TBA"
+            day = cls.day_of_week if cls.day_of_week else "TBA"
+            
+            schedule.append({
+                "subject_code": cls.subject.code,
+                "subject_name": cls.subject.title,
+                "day": day,
+                "time": f"{s_time} - {e_time}" if s_time != "TBA" else "TBA",
+                "room": cls.room or "TBA",
+                "section": cls.section or "TBA"
+            })
+            
+    # 2. If Student, get classes they are enrolled in 
+    # TODO: Implement Student Schedule when Enrollment model is ready
+    
+    return schedule
 
 
 # ============================================

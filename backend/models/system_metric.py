@@ -4,18 +4,18 @@ System Metrics Model - Tracks system performance for health dashboard (Optional)
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from db.database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class SystemMetric(Base):
     __tablename__ = "system_metrics"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True)
-    metric_type = Column(String(50), nullable=False)  # e.g., RECOGNITION_LATENCY, ERROR_RATE
+    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True, index=True)
+    metric_type = Column(String(50), nullable=False, index=True)  # e.g., RECOGNITION_LATENCY, ERROR_RATE
     value = Column(Float, nullable=False)
     unit = Column(String(20))                         # e.g., "ms", "percent", "count"
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationships
     device = relationship("Device", backref="system_metrics")
