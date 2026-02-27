@@ -454,3 +454,236 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+   View Toggle Bar
+   ============================================ */
+.view-toggle-bar {
+    display: flex;
+    gap: 8px;
+}
+
+.view-toggle-btn {
+    padding: 8px 18px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.view-toggle-btn.active {
+    background: #163269;
+    color: white;
+    border-color: #163269;
+}
+
+.view-toggle-btn:hover:not(.active) {
+    border-color: #163269;
+    color: #163269;
+    background: #f8fafc;
+}
+
+/* ============================================
+   Weekly Calendar Grid
+   ============================================ */
+.weekly-calendar-container {
+    animation: fadeInPage 0.3s ease;
+}
+
+.calendar-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.calendar-header-row h3 {
+    margin: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.calendar-legend .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.calendar-scroll-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.calendar-grid {
+    width: 100%;
+    min-width: 700px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.calendar-grid th {
+    background: #163269;
+    color: white;
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid #0F2448;
+}
+
+.calendar-grid th.time-col {
+    width: 80px;
+    text-align: center;
+}
+
+.calendar-grid td {
+    border: 1px solid #e2e8f0;
+    padding: 0;
+    height: 44px;
+    vertical-align: top;
+    position: relative;
+}
+
+.calendar-grid td.time-cell {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    padding: 4px 6px;
+    background: #f8fafc;
+    vertical-align: middle;
+}
+
+.calendar-cell {
+    position: relative;
+}
+
+.calendar-cell.occupied {
+    /* Cells that are part of a multi-hour block but not the start */
+}
+
+/* Event Blocks */
+.cal-event-block {
+    position: absolute;
+    top: 0;
+    left: 2px;
+    right: 2px;
+    border-radius: 6px;
+    padding: 4px 6px;
+    z-index: 2;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    cursor: default;
+    transition: box-shadow 0.2s;
+}
+
+.cal-event-block:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.cal-evt-subject {
+    font-weight: 700;
+    font-size: 0.78rem;
+    line-height: 1.2;
+}
+
+.cal-evt-faculty {
+    font-size: 0.7rem;
+    opacity: 0.9;
+    line-height: 1.2;
+}
+
+.cal-evt-room {
+    font-size: 0.65rem;
+    opacity: 0.8;
+    line-height: 1.2;
+}
+
+/* Dark mode overrides for calendar */
+body.dark-mode .view-toggle-btn {
+    background: #1E293B;
+    border-color: #334155;
+    color: #94A3B8;
+}
+
+body.dark-mode .view-toggle-btn.active {
+    background: #163269;
+    color: white;
+    border-color: #163269;
+}
+
+body.dark-mode .view-toggle-btn:hover:not(.active) {
+    background: #334155;
+    color: #F8FAFC;
+}
+
+body.dark-mode .weekly-calendar-container {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .calendar-scroll-wrapper {
+    border-color: #334155;
+}
+
+body.dark-mode .calendar-grid th {
+    background: #0F172A;
+    border-color: #1E293B;
+}
+
+body.dark-mode .calendar-grid td {
+    border-color: #334155;
+}
+
+body.dark-mode .calendar-grid td.time-cell {
+    background: #0F172A;
+    color: #94A3B8;
+}
+
+body.dark-mode .calendar-legend {
+    color: #94A3B8;
+}
+
+@keyframes fadeInPage {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

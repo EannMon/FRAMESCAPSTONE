@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
@@ -45,11 +45,16 @@ import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
-
-// --- Import Kiosk Page ---
-import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
+import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
+    // Apply dark mode from localStorage on mount
+    useEffect(() => {
+        if (localStorage.getItem('frames-dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+    }, []);
+
     return (
         <Router>
             <div className="App">
@@ -75,6 +80,7 @@ function App() {
                     {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
                     <Route element={<DeptHeadLayout />}>
                         <Route path="/dept-head-dashboard" element={<DeptHeadDashboardPage />} />
+                        <Route path="/dept-head-classes" element={<MyClassesPage />} />
                         <Route path="/dept-head-management" element={<DeptHeadManagePage />} />
                         <Route path="/dept-head-reports" element={<DeptHeadReportsPage />} />
                         <Route path="/dept-head-users" element={<DeptHeadUserManagementPage />} />
@@ -125,9 +131,6 @@ function App() {
 
                     {/* Template Sandbox */}
                     <Route path="/test-pdf" element={<TestPDFPage />} />
-
-                    {/* Kiosk Standalone View */}
-                    <Route path="/kiosk" element={<KioskDashboardPage />} />
 
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
