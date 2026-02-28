@@ -9,7 +9,7 @@ import logging
 
 from db.database import get_db
 from core.errors import api_error
-from main import limiter
+from core.limiter import limiter
 from models.user import User
 from models.facial_profile import FacialProfile
 

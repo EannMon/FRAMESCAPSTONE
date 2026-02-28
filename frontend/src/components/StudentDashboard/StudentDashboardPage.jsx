@@ -53,15 +53,19 @@ const LiveClassStatus = ({ recentLog }) => {
         if (diffHours < 4) {
             roomName = recentLog.room_name || 'Unknown Room';
             if (recentLog.event_type === 'attendance_in' || recentLog.event_type === 'break_in') {
-                status = 'ACTIVE';
+                status = 'PRESENT';
                 statusColor = '#2E7D32'; // Success Green
-                statusText = `Currently Detected in ${roomName}`;
+                statusText = `Currently in ${roomName}`;
             } else if (recentLog.event_type === 'break_out') {
-                status = 'BREAK';
+                status = 'ON BREAK';
                 statusColor = '#F9A825'; // Warning Amber
                 statusText = `On Break from ${roomName}`;
+            } else if (recentLog.event_type === 'absent') {
+                status = 'ABSENT';
+                statusColor = '#C62828'; // Danger Red
+                statusText = `Absent from ${roomName}`;
             } else if (recentLog.event_type === 'attendance_out') {
-                status = 'OUT';
+                status = 'SESSION ENDED';
                 statusColor = 'grey';
                 statusText = 'Class Session Ended';
                 roomName = '---';
@@ -153,7 +157,7 @@ const AttendanceTrendChart = ({ logs }) => {
                 const dateStr = d.toLocaleDateString();
 
                 const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
-                
+
                 dataPoints.push({
                     label: dayStr,
                     present: dayLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
@@ -166,7 +170,7 @@ const AttendanceTrendChart = ({ logs }) => {
         } else if (timeFilter === 'MONTHLY') {
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
-            
+
             const quarters = [
                 { label: 'Week 1', start: 1, end: 7 },
                 { label: 'Week 2', start: 8, end: 14 },
@@ -177,10 +181,10 @@ const AttendanceTrendChart = ({ logs }) => {
             quarters.forEach(q => {
                 const qLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
-                    return d.getFullYear() === currentYear && 
-                           d.getMonth() === currentMonth && 
-                           d.getDate() >= q.start && 
-                           d.getDate() <= q.end;
+                    return d.getFullYear() === currentYear &&
+                        d.getMonth() === currentMonth &&
+                        d.getDate() >= q.start &&
+                        d.getDate() <= q.end;
                 });
 
                 dataPoints.push({
@@ -211,15 +215,15 @@ const AttendanceTrendChart = ({ logs }) => {
                 });
             });
         }
-        
+
         if (safeLogs.length === 0) {
             // Generate realistic dummy data based on filter
             if (timeFilter === 'YEARLY') {
-                 return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 30) + 20, break: Math.floor(Math.random() * 10) }));
+                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 30) + 20, break: Math.floor(Math.random() * 10) }));
             } else if (timeFilter === 'MONTHLY') {
-                 return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 10) + 5, break: Math.floor(Math.random() * 5) }));
+                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 10) + 5, break: Math.floor(Math.random() * 5) }));
             }
-             return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 5), break: Math.floor(Math.random() * 2) }));
+            return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 5), break: Math.floor(Math.random() * 2) }));
         }
 
         return dataPoints;
@@ -234,15 +238,15 @@ const AttendanceTrendChart = ({ logs }) => {
     }, [chartData, timeFilter]);
 
     // 4. Chart Rendering Config
-    const height = 300; 
+    const height = 300;
     const width = 800;
-    const padding = 50; 
-    
-    const rawMax = Math.max(...chartData.map(d => Math.max(d.present, d.break, d.absent)), 5); 
-    const maxVal = Math.ceil(rawMax / 5) * 5; 
+    const padding = 50;
+
+    const rawMax = Math.max(...chartData.map(d => Math.max(d.present, d.break, d.absent)), 5);
+    const maxVal = Math.ceil(rawMax / 5) * 5;
 
     const getCoords = (val, idx) => {
-        const x = (idx / (chartData.length - 1 || 1)) * (width - 2 * padding) + padding; 
+        const x = (idx / (chartData.length - 1 || 1)) * (width - 2 * padding) + padding;
         const y = height - padding - (val / maxVal) * (height - 2 * padding);
         return { x, y };
     };
@@ -263,12 +267,12 @@ const AttendanceTrendChart = ({ logs }) => {
             {/* TOP BAR: Title + Filters */}
             <div className="trend-chart-header">
                 <h3><i className="fas fa-chart-line"></i> Attendance Trends</h3>
-                
+
                 <div className="chart-filters-group">
                     <div className="filter-pill-group">
                         {['WEEKLY', 'MONTHLY', 'YEARLY'].map(t => (
-                            <button 
-                                key={t} 
+                            <button
+                                key={t}
                                 className={`filter-pill ${timeFilter === t ? 'active' : ''}`}
                                 onClick={() => setTimeFilter(t)}
                             >
@@ -282,10 +286,10 @@ const AttendanceTrendChart = ({ logs }) => {
             {/* SECONDARY FILTER: TYPE */}
             <div className="type-filter-bar">
                 {['ALL', 'PRESENT', 'ABSENT', 'BREAK'].map(t => (
-                    <button 
-                         key={t}
-                         className={`type-text-btn ${typeFilter === t ? 'active-type' : ''}`}
-                         onClick={() => setTypeFilter(t)}
+                    <button
+                        key={t}
+                        className={`type-text-btn ${typeFilter === t ? 'active-type' : ''}`}
+                        onClick={() => setTypeFilter(t)}
                     >
                         {t}
                     </button>
@@ -309,7 +313,7 @@ const AttendanceTrendChart = ({ logs }) => {
                             <stop offset="0%" stopColor={colors.absent} stopOpacity="0.4" />
                             <stop offset="100%" stopColor={colors.absent} stopOpacity="0" />
                         </linearGradient>
-                        
+
                         {/* Drop Shadow for Lines */}
                         <filter id="lineShadow" x="-20%" y="-20%" width="140%" height="140%">
                             <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.2" />
@@ -318,38 +322,38 @@ const AttendanceTrendChart = ({ logs }) => {
 
                     {/* Y-Axis Labels & Horizontal Grid Lines */}
                     {[0, 0.25, 0.5, 0.75, 1].map((t, i) => {
-                         const val = Math.round(maxVal * t);
-                         const y = height - padding - (t * (height - 2 * padding));
-                         return (
+                        const val = Math.round(maxVal * t);
+                        const y = height - padding - (t * (height - 2 * padding));
+                        return (
                             <g key={i}>
                                 <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f5f5f5" strokeDasharray="5,5" />
                                 <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#999" fontWeight="500">{val}</text>
                             </g>
-                         );
+                        );
                     })}
-                    
+
                     {/* Base Axis Line */}
                     <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#ddd" strokeWidth="2" strokeLinecap="round" />
 
                     {/* PATHS - Render Areas First */}
-                    {(typeFilter === 'ALL' || typeFilter === 'ABSENT') && 
-                        <path d={`${makePath('absent')} L ${width-padding},${height-padding} L ${padding},${height-padding} Z`} fill="url(#gradAbsent)" stroke="none" />
+                    {(typeFilter === 'ALL' || typeFilter === 'ABSENT') &&
+                        <path d={`${makePath('absent')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradAbsent)" stroke="none" />
                     }
-                    {(typeFilter === 'ALL' || typeFilter === 'BREAK') && 
-                        <path d={`${makePath('break')} L ${width-padding},${height-padding} L ${padding},${height-padding} Z`} fill="url(#gradBreak)" stroke="none" />
+                    {(typeFilter === 'ALL' || typeFilter === 'BREAK') &&
+                        <path d={`${makePath('break')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradBreak)" stroke="none" />
                     }
-                    {(typeFilter === 'ALL' || typeFilter === 'PRESENT') && 
-                        <path d={`${makePath('present')} L ${width-padding},${height-padding} L ${padding},${height-padding} Z`} fill="url(#gradPresent)" stroke="none" />
+                    {(typeFilter === 'ALL' || typeFilter === 'PRESENT') &&
+                        <path d={`${makePath('present')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradPresent)" stroke="none" />
                     }
 
                     {/* PATHS - Render Lines on Top */}
-                    {(typeFilter === 'ALL' || typeFilter === 'ABSENT') && 
+                    {(typeFilter === 'ALL' || typeFilter === 'ABSENT') &&
                         <path d={makePath('absent')} fill="none" stroke={colors.absent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
                     }
-                    {(typeFilter === 'ALL' || typeFilter === 'BREAK') && 
+                    {(typeFilter === 'ALL' || typeFilter === 'BREAK') &&
                         <path d={makePath('break')} fill="none" stroke={colors.break} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6,4" />
                     }
-                    {(typeFilter === 'ALL' || typeFilter === 'PRESENT') && 
+                    {(typeFilter === 'ALL' || typeFilter === 'PRESENT') &&
                         <path d={makePath('present')} fill="none" stroke={colors.present} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
                     }
 
@@ -363,7 +367,7 @@ const AttendanceTrendChart = ({ logs }) => {
                             <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                                 {/* Hit Area vertical stripe */}
                                 <rect x={xp - (width / chartData.length / 2)} y={0} width={width / chartData.length} height={height} fill="transparent" />
-                                
+
                                 {/* X-Axis Label */}
                                 <text x={xp} y={height - 15} textAnchor="middle" fill="#777" fontSize="12" fontWeight="500">{d.label}</text>
 
@@ -379,7 +383,7 @@ const AttendanceTrendChart = ({ logs }) => {
                                         <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#333">{d.label}</text>
                                         <rect x="-50" y="18" width="8" height="8" rx="2" fill={colors.present} />
                                         <text x="-38" y="26" textAnchor="start" fontSize="10" fill="#555">Present: {d.present}</text>
-                                        
+
                                         <rect x="10" y="18" width="8" height="8" rx="2" fill={colors.break} />
                                         <text x="22" y="26" textAnchor="start" fontSize="10" fill="#555">Break: {d.break}</text>
 
@@ -405,9 +409,9 @@ const AttendanceTrendChart = ({ logs }) => {
                     <i className="fas fa-lightbulb"></i> {insightText}
                 </div>
                 <div className="chart-legends">
-                    <div className="legend-item"><span className="dot" style={{background: colors.present}}></span> Present</div>
-                    <div className="legend-item"><span className="dot" style={{background: colors.break}}></span> Break</div>
-                    <div className="legend-item"><span className="dot" style={{background: colors.absent}}></span> Absent</div>
+                    <div className="legend-item"><span className="dot" style={{ background: colors.present }}></span> Present</div>
+                    <div className="legend-item"><span className="dot" style={{ background: colors.break }}></span> Break</div>
+                    <div className="legend-item"><span className="dot" style={{ background: colors.absent }}></span> Absent</div>
                 </div>
             </div>
         </div>

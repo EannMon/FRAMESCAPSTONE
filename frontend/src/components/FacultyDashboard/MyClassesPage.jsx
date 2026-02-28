@@ -16,6 +16,11 @@ const FacultyMyClassesPage = () => {
     const [selectedClass, setSelectedClass] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    // Edit Student State
+    const [editingStudent, setEditingStudent] = useState(null);
+    const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '', tupm_id: '' });
 
     // Calendar States
     const [calendarEvents, setCalendarEvents] = useState([]);
@@ -47,13 +52,18 @@ const FacultyMyClassesPage = () => {
         try {
             const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
             setMyClasses(response.data);
-            generateCalendarEvents(response.data); // Generate calendar based on DB schedule
             setLoading(false);
         } catch (error) {
             console.error("Error loading schedule:", error);
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (myClasses.length > 0) {
+            generateCalendarEvents(myClasses, currentMonth);
+        }
+    }, [myClasses, currentMonth]);
 
     const fetchUploadHistory = async (userId) => {
         try {
@@ -84,18 +94,21 @@ const FacultyMyClassesPage = () => {
     };
 
     // --- 3. CALENDAR GENERATOR (DB Schedule -> Calendar Dates) ---
-    const generateCalendarEvents = (classes) => {
+    const generateCalendarEvents = (classes, targetDate) => {
         const events = [];
-        const date = new Date();
+        const date = targetDate || new Date();
         const year = date.getFullYear();
         const month = date.getMonth(); // Current Month
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
             const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isPast = currentDate < today;
 
             // Find classes that meet on this day name
             classes.forEach(cls => {
@@ -107,7 +120,8 @@ const FacultyMyClassesPage = () => {
                         title: cls.subject_code,
                         time: cls.start_time,
                         section: cls.section,
-                        status: 'normal' // Default status
+                        status: 'normal', // Default status
+                        isPast: isPast
                     });
                 }
             });
@@ -173,8 +187,46 @@ const FacultyMyClassesPage = () => {
     };
 
     const handleViewStudent = (student) => {
+        if (editingStudent === student.user_id) return; // Prevent viewing when editing
         setSelectedStudent(student);
         setSubView('profile');
+    };
+
+    const handleEditStudentClick = (e, student) => {
+        e.stopPropagation();
+        setEditingStudent(student.user_id);
+        setEditFormData({
+            firstName: student.firstName,
+            lastName: student.lastName,
+            tupm_id: student.tupm_id
+        });
+    };
+
+    const handleCancelEdit = (e) => {
+        if (e) e.stopPropagation();
+        setEditingStudent(null);
+        setEditFormData({ firstName: '', lastName: '', tupm_id: '' });
+    };
+
+    const handleSaveStudentEdit = async (e, studentId) => {
+        e.stopPropagation();
+        try {
+            await axios.put(`http://localhost:5000/api/faculty/student/${studentId}`, editFormData);
+
+            // Update local state instantly
+            setStudentList(studentList.map(s => {
+                if (s.user_id === studentId) {
+                    return { ...s, ...editFormData };
+                }
+                return s;
+            }));
+
+            alert("✅ Student updated successfully!");
+            setEditingStudent(null);
+        } catch (error) {
+            console.error("Error updating student:", error);
+            alert("❌ Failed to update student: " + (error.response?.data?.error || error.message));
+        }
     };
 
     const handleBack = () => {
@@ -286,6 +338,32 @@ const FacultyMyClassesPage = () => {
         generateFramesPDF(reportInfo, tableData);
     };
 
+    const generateMonthlyPDF = () => {
+        const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+        const reportInfo = {
+            title: `Monthly Schedule - ${monthName}`,
+            type: "FACULTY SCHEDULE",
+            category: 'schedule',
+            context: {
+                name: `${user.first_name || user.firstName} ${user.last_name || user.lastName}`,
+                department: "Assigned Classes"
+            },
+            dateRange: monthName
+        };
+
+        const sortedEvents = [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const tableData = sortedEvents.map(ev => ({
+            "Date": new Date(ev.date).toLocaleDateString(),
+            "Time": ev.time,
+            "Subject": ev.title,
+            "Section": ev.section,
+            "Status": ev.status.toUpperCase()
+        }));
+
+        generateFramesPDF(reportInfo, tableData);
+    };
+
     // --- RENDERERS ---
 
     // A. LIST VIEW (Cards)
@@ -348,19 +426,54 @@ const FacultyMyClassesPage = () => {
             </div>
             <div className="students-list-wrapper">
                 <table className="styled-table">
-                    <thead><tr><th>Student Name</th><th>Time In</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Student Info</th><th>Time In</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                         {studentList
-                            .filter(s => s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || s.firstName.toLowerCase().includes(searchTerm.toLowerCase()))
+                            .filter(s => s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || s.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || s.tupm_id.includes(searchTerm))
                             .map(s => (
-                                <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
-                                    <td className="student-name-cell">
+                                <tr key={s.user_id} onClick={() => handleViewStudent(s)} className={`clickable-row ${editingStudent === s.user_id ? 'editing-row' : ''}`}>
+                                    <td className="student-name-cell" style={{ minWidth: '300px' }}>
                                         <div className="avatar-placeholder">{s.firstName.charAt(0)}</div>
-                                        <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
+                                        {editingStudent === s.user_id ? (
+                                            <div className="edit-student-inline-form" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={editFormData.lastName}
+                                                    onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                                                    placeholder="Last Name"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={editFormData.firstName}
+                                                    onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                                                    placeholder="First Name"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={editFormData.tupm_id}
+                                                    onChange={e => setEditFormData({ ...editFormData, tupm_id: e.target.value })}
+                                                    placeholder="TUPM ID"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
+                                        )}
                                     </td>
                                     <td>{s.timeIn}</td>
                                     <td><span className={`status-badge ${s.statusColor}`}>{s.status}</span></td>
-                                    <td><button className="icon-btn-view"><i className="fas fa-chevron-right"></i></button></td>
+                                    <td>
+                                        {editingStudent === s.user_id ? (
+                                            <div className="edit-actions" onClick={e => e.stopPropagation()}>
+                                                <button className="save-icon-btn" onClick={(e) => handleSaveStudentEdit(e, s.user_id)} title="Save"><i className="fas fa-check"></i></button>
+                                                <button className="cancel-icon-btn" onClick={handleCancelEdit} title="Cancel"><i className="fas fa-times"></i></button>
+                                            </div>
+                                        ) : (
+                                            <div className="student-row-actions">
+                                                <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
+                                                <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
+                                            </div>
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                         {studentList.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center' }}>No students found.</td></tr>}
@@ -393,8 +506,10 @@ const FacultyMyClassesPage = () => {
 
     // D. CALENDAR VIEW
     const renderCalendarView = () => {
-        const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        const startDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const startDay = new Date(year, month, 1).getDay();
         const calendarCells = [];
 
         for (let i = 0; i < startDay; i++) {
@@ -402,19 +517,34 @@ const FacultyMyClassesPage = () => {
         }
 
         for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const events = calendarEvents.filter(s => s.date === dateStr);
 
+            // Past Date Summary Hook
+            const isPast = new Date(year, month, day) < new Date(new Date().setHours(0, 0, 0, 0));
+            const completedCount = events.length;
+
             calendarCells.push(
-                <div key={day} className="cal-cell day">
-                    <div className="cal-day-number">{day}</div>
+                <div key={day} className={`cal-cell day ${isPast ? 'past-day' : ''}`}>
+                    <div className="cal-day-header">
+                        <span className="cal-day-number">{day}</span>
+                        {isPast && completedCount > 0 && (
+                            <span className="past-summary-badge" title={`${completedCount} sessions completed`}>
+                                <i className="fas fa-check-circle"></i> {completedCount}
+                            </span>
+                        )}
+                    </div>
                     <div className="cal-events-stack">
                         {events.map(ev => (
                             <div
                                 key={ev.id}
-                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : 'cal-event-green'} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
-                                onClick={(e) => { e.stopPropagation(); toggleSessionSelect(ev.id); }}
-                                title={`${ev.title} - Click to Select`}
+                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-grey' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
+                                onClick={(e) => {
+                                    if (ev.isPast) return; // Prevent updating past sessions
+                                    e.stopPropagation();
+                                    toggleSessionSelect(ev.id);
+                                }}
+                                title={ev.isPast ? `${ev.title} - Session Completed` : `${ev.title} - Click to Select`}
                             >
                                 {selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
                                 <span>{ev.time} {ev.title}</span>
@@ -426,19 +556,34 @@ const FacultyMyClassesPage = () => {
         }
 
         return (
-            <div className="real-calendar-container fade-in">
-                <div className="cal-controls-row">
-                    <div className="cal-title-group">
-                        <h3>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                        <span className="cal-instruction">Click events to select & update status (e.g. Cancel)</span>
-                    </div>
-                    {selectedSessions.length > 0 && (
-                        <button className="bulk-update-btn" onClick={() => setShowManageModal(true)}>
-                            Update {selectedSessions.length} Selected
+            <div className="schedule-view-container fade-in">
+                {/* MATCHED STUDENT SCHEDULE HEADER STYLE */}
+                <div className="schedule-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <button className="schedule-filter-btn" onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}>
+                            <i className="fas fa-chevron-left"></i>
                         </button>
-                    )}
+                        <h2 style={{ minWidth: '180px', textAlign: 'center' }}>
+                            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </h2>
+                        <button className="schedule-filter-btn" onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}>
+                            <i className="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div className="schedule-filters">
+                        <button className="schedule-filter-btn active" onClick={generateMonthlyPDF}>
+                            <i className="fas fa-file-pdf"></i> Download Month
+                        </button>
+                        {selectedSessions.length > 0 && (
+                            <button className="schedule-filter-btn" style={{ backgroundColor: '#F9A825', color: 'white' }} onClick={() => setShowManageModal(true)}>
+                                Update {selectedSessions.length} Selected
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <div className="calendar-grid-wrapper">
+
+                <div className="calendar-grid-wrapper" style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.04)' }}>
                     <div className="cal-header-row">
                         <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
                     </div>
