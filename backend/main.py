@@ -5,8 +5,7 @@ Clean entry point with modular routers
 import sys
 import os
 import logging
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 # Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
@@ -20,7 +19,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
 from db.database import get_db
 
 # --- Logging Configuration (MUST be before any router imports) ---
@@ -37,8 +35,8 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Initialize Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+# Import shared limiter from core to avoid circular imports
+from core.limiter import limiter
 
 # Create FastAPI app
 app = FastAPI(
@@ -59,6 +57,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Import routers after app and limiter are ready to avoid circular imports
+from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
 
 # Include routers with prefixes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])

@@ -108,7 +108,7 @@ class KioskConfig:
     # Backend API
     # ===========================================
     BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
-    API_TIMEOUT_SECONDS: int = 15  # Generous timeout for remote Aiven DB queries
+    API_TIMEOUT_SECONDS: int = 6   # 6s keeps backend calls fast; falls back to cache quickly
     
     # ===========================================
     # Device Identity
