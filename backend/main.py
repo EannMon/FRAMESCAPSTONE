@@ -7,6 +7,7 @@ import os
 import logging
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter
 
 # Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -35,8 +36,7 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Initialize Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+# Use the shared Rate Limiter from core.limiter (same instance used by all routers)
 
 # Create FastAPI app
 app = FastAPI(
