@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import '../StudentDashboard/AttendanceHistoryPage.css'; // Inheriting Student style
 
 const FacultyAttendancePage = () => {
+    const toast = useToast();
     // --- STATES ---
     const [selectedClassId, setSelectedClassId] = useState("");
     const [selectedClass, setSelectedClass] = useState(null);
@@ -56,7 +58,7 @@ const FacultyAttendancePage = () => {
             setStudentList(response.data);
         } catch (error) {
             console.error("Error loading students:", error);
-            alert("Could not load student list.");
+            toast.error("Could not load student list.");
         } finally {
             setLoading(false);
         }

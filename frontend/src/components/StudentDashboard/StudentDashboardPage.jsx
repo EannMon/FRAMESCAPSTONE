@@ -44,28 +44,24 @@ const LiveClassStatus = ({ recentLog }) => {
     let statusText = 'Not currently in any class';
     let roomName = '---';
 
-    if (recentLog && recentLog.event_type) {
+    if (recentLog && recentLog.action) {
         const logTime = new Date(recentLog.timestamp);
         const now = new Date();
         const diffHours = (now - logTime) / 1000 / 60 / 60;
 
         // If log is within last 4 hours (assumption for class duration)
         if (diffHours < 4) {
-            roomName = recentLog.room_name || 'Unknown Room';
-            if (recentLog.event_type === 'attendance_in' || recentLog.event_type === 'break_in') {
-                status = 'PRESENT';
+            roomName = recentLog.room || 'Unknown Room';
+            if (recentLog.action === 'ENTRY' || recentLog.action === 'BREAK_IN') {
+                status = 'ACTIVE';
                 statusColor = '#2E7D32'; // Success Green
-                statusText = `Currently in ${roomName}`;
-            } else if (recentLog.event_type === 'break_out') {
-                status = 'ON BREAK';
+                statusText = `Currently Detected in ${roomName}`;
+            } else if (recentLog.action === 'BREAK_OUT') {
+                status = 'BREAK';
                 statusColor = '#F9A825'; // Warning Amber
                 statusText = `On Break from ${roomName}`;
-            } else if (recentLog.event_type === 'absent') {
-                status = 'ABSENT';
-                statusColor = '#C62828'; // Danger Red
-                statusText = `Absent from ${roomName}`;
             } else if (recentLog.event_type === 'attendance_out') {
-                status = 'SESSION ENDED';
+                status = 'OUT';
                 statusColor = 'grey';
                 statusText = 'Class Session Ended';
                 roomName = '---';
@@ -102,9 +98,9 @@ const StudentRecentAttendance = ({ logs }) => (
         <div className="recent-activity-list">
             {logs.length > 0 ? (
                 logs.slice(0, 5).map((log, index) => {
-                    const eventType = log.event_type || 'attendance_in';
-                    const isEntry = eventType.includes('in');
-                    const displayType = eventType.replace('attendance_', '').replace('_', ' ').toUpperCase();
+                    const action = log.action || 'ENTRY';
+                    const isEntry = action === 'ENTRY' || action === 'BREAK_IN';
+                    const displayType = action.replace('_', ' ');
 
                     return (
                         <div key={index} className="student-attendance-item">
@@ -160,9 +156,9 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 dataPoints.push({
                     label: dayStr,
-                    present: dayLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
-                    absent: dayLogs.filter(l => l.event_type === 'absent').length,
-                    break: dayLogs.filter(l => l.event_type.includes('break')).length,
+                    present: dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
+                    absent: 0,
+                    break: dayLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: dayLogs.length
                 });
             }
@@ -189,9 +185,9 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 dataPoints.push({
                     label: q.label,
-                    present: qLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
-                    absent: qLogs.filter(l => l.event_type === 'absent').length,
-                    break: qLogs.filter(l => l.event_type.includes('break')).length,
+                    present: qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
+                    absent: 0,
+                    break: qLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: qLogs.length
                 });
             });
@@ -208,9 +204,9 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 dataPoints.push({
                     label: m,
-                    present: mLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
-                    absent: mLogs.filter(l => l.event_type === 'absent').length,
-                    break: mLogs.filter(l => l.event_type.includes('break')).length,
+                    present: mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
+                    absent: 0,
+                    break: mLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: mLogs.length
                 });
             });

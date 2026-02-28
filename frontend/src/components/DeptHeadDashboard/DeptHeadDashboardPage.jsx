@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import '../FacultyDashboard/FacultyDashboardPage.css'; // Reuse styles
-import './DeptHeadDashboardPage.css'; // Specific styles
+import { useToast } from '../Common/ToastProvider';
+import '../FacultyDashboard/FacultyDashboardPage.css';
+import './DeptHeadDashboardPage.css';
 import '../Common/Utility.css';
 
 // Summary Card Component
@@ -409,6 +410,7 @@ const ReviewModal = ({ user, onClose, onAction }) => {
 
 const DeptHeadDashboardPage = () => {
     const navigate = useNavigate();
+    const toast = useToast();
     const [stats, setStats] = useState({ pending_verifications: 0, total_faculty: 0, total_students: 0, issues_reported: 0 });
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -498,14 +500,15 @@ const DeptHeadDashboardPage = () => {
 
     const handleAction = async (userId, action, name) => {
         const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        if (!window.confirm(`Are you sure you want to ${action} ${name}'s account?`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to ${action} ${name}'s account?`);
+        if (!confirmed) return;
         try {
             await axios.post(`${API}/api/admin/verification/${action}`, null, { params: { user_id: userId } });
             setSelectedUser(null);
             fetchData();
         } catch (error) {
             console.error(`Error performing ${action}:`, error);
-            alert(`Failed to ${action} user. Please try again.`);
+            toast.error(`Failed to ${action} user. Please try again.`);
         }
     };
 

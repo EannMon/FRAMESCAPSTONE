@@ -211,30 +211,20 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | 8 | `first_name` | `varchar(100)` | NN | — | No | User's first name | `"John"` | 1–100 chars |
 | 9 | `last_name` | `varchar(100)` | NN | — | No | User's last name | `"Doe"` | 1–100 chars |
 | 10 | `middle_name` | `varchar(100)` | — | — | Yes | User's middle name | `"Smith"` | 0–100 chars, optional |
-| 11 | `contact_number` | `varchar(20)` | — | — | Yes | Phone/mobile number | `"09171234567"` | Up to 20 chars, Philippine mobile format recommended |
-| 12 | `birthday` | `timestamp` | — | — | Yes | Date of birth | `2003-05-15` | Valid date |
-| 13 | `home_address` | `varchar(500)` | — | — | Yes | Residential address | `"123 Main St, Manila"` | Up to 500 chars |
-| 14 | `department_id` | `int4` | FK → `departments.id` | — | Yes | Associated department | `1` | Must reference existing department (nullable for ADMIN users) |
-| 15 | `program_id` | `int4` | FK → `programs.id` | — | Yes | Enrolled program | `1` | Must reference existing program (nullable for FACULTY/ADMIN) |
-| 16 | `year_level` | `varchar(20)` | — | — | Yes | Student's year level | `"4th Year"` | Typically "1st Year" to "5th Year" |
-| 17 | `section` | `varchar(50)` | — | — | Yes | Student's section | `"BSIT-4A"` | Format: PROGRAM-YEAR+LETTER |
-| 18 | `current_term` | `varchar(50)` | — | — | Yes | Current academic term | `"1st Semester"` | Free text |
-| 19 | `academic_advisor` | `varchar(100)` | — | — | Yes | Assigned academic advisor | `"Dr. Santos"` | Free text |
-| 20 | `gpa` | `varchar(10)` | — | — | Yes | Grade point average | `"1.75"` | Stored as string for flexibility |
-| 21 | `emergency_contact_name` | `varchar(100)` | — | — | Yes | Emergency contact person | `"Maria Doe"` | Full name of emergency contact |
-| 22 | `emergency_contact_relationship` | `varchar(50)` | — | — | Yes | Relationship to user | `"Mother"` | E.g., Mother, Father, Guardian, Spouse |
-| 23 | `emergency_contact_phone` | `varchar(20)` | — | — | Yes | Emergency contact number | `"09181234567"` | Phone number format |
-| 24 | `emergency_contact_address` | `varchar(255)` | — | — | Yes | Emergency contact address | `"456 Oak Ave, Manila"` | Free text |
-| 25 | `created_at` | `timestamp` | — | `NOW()` | Yes | Account creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
-| 26 | `last_active` | `timestamp` | — | `NOW()` | Yes | Last activity timestamp | `2026-02-02 10:30:00` | Auto-updated on activity |
+| 11 | `department_id` | `int4` | FK → `departments.id` | — | Yes | Associated department | `1` | Must reference existing department (nullable for ADMIN users) |
+| 12 | `program_id` | `int4` | FK → `programs.id` | — | Yes | Enrolled program | `1` | Must reference existing program (nullable for FACULTY/ADMIN) |
+| 13 | `year_level` | `varchar(20)` | — | — | Yes | Student's year level | `"4th Year"` | Typically "1st Year" to "5th Year" |
+| 14 | `section` | `varchar(50)` | — | — | Yes | Student's section | `"BSIT-4A"` | Format: PROGRAM-YEAR+LETTER |
+| 15 | `current_term` | `varchar(50)` | — | — | Yes | Current academic term | `"1st Semester"` | Free text |
+| 16 | `created_at` | `timestamp` | — | `NOW()` | Yes | Account creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
+| 17 | `last_active` | `timestamp` | — | `NOW()` | Yes | Last activity timestamp | `2026-02-02 10:30:00` | Auto-updated on activity |
 
 **Column Groups:**
 - **Authentication** (2–4): Credentials and school ID
 - **Role & Status** (5–7): System role and verification state
-- **Personal Info** (8–13): Name, contact, address
-- **Academic Info** (14–20): Department, program, section, GPA
-- **Emergency Contact** (21–24): Emergency contact details
-- **Timestamps** (25–26): Creation and activity tracking
+- **Personal Info** (8–10): Name (first, last, middle)
+- **Academic Info** (11–15): Department, program, section, term
+- **Timestamps** (16–17): Creation and activity tracking
 
 **Relationships:**
 - Child of `departments` (N:1 via `department_id`)
@@ -597,6 +587,7 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 |------|---------|---------|
 | 2026-02-08 | 0.1 | Initial data dictionary draft |
 | 2026-02-23 | 1.0 | Full field-level documentation for all 13 tables; aligned with `updatedSchema` SQL dump; added new `users` columns (contact_number, birthday, home_address, emergency contacts, current_term, academic_advisor, gpa); added `classes.late_threshold_minutes`; added `attendance_logs.is_late`; added `devices.room_capacity`; updated `verificationstatus` enum values to UPPERCASE |
+| 2026-02-28 | 1.1 | Removed 9 columns from `users` table: `birthday`, `contact_number`, `home_address`, `academic_advisor`, `gpa`, `emergency_contact_name`, `emergency_contact_relationship`, `emergency_contact_phone`, `emergency_contact_address`. Simplified registration to essential fields only. |
 
 ---
 

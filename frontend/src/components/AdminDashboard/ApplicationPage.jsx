@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import './ApplicationPage.css';
 
 // Helper function para sa kulay batay sa status
@@ -17,6 +18,7 @@ const getStatusColor = (status) => {
 };
 
 const ApplicationPage = () => {
+    const toast = useToast();
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -90,25 +92,26 @@ const ApplicationPage = () => {
                         : app
                 )
             );
-            alert(`User ID ${id} set to ${apiStatus}.`);
+            toast.success(`User ID ${id} set to ${apiStatus}.`);
 
         } catch (error) {
             console.error(`Error setting status to ${newStatus}:`, error);
-            alert(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
     const deleteApplication = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
+        const confirmed = await toast.confirm("Are you sure you want to delete this user permanently?");
+        if (!confirmed) return;
 
         try {
             // Assuming you have a DELETE endpoint (e.g., /user/delete/:id)
             await axios.delete(`http://localhost:5000/api/admin/user/${id}`);
             setApplications(prev => prev.filter(app => app.id !== id));
-            alert(`User ID ${id} deleted.`);
+            toast.success(`User ID ${id} deleted.`);
         } catch (error) {
             console.error("Error deleting user:", error);
-            alert(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
         }
         setOpenMenuId(null);
     };

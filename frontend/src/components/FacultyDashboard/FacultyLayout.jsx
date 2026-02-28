@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import './FacultyLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css'; // Import Global Styles
@@ -113,6 +114,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
 // ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
+    const toast = useToast();
 
     // States for user data and loading
     const [user, setUser] = useState(null);
@@ -134,14 +136,14 @@ const FacultyLayout = () => {
 
             // --- 1. SECURITY CHECK ---
             if (parsedUser.verification_status !== 'Verified') {
-                alert("Access denied. Pending verification.");
+                toast.error("Access denied. Pending verification.");
                 localStorage.removeItem('currentUser');
                 navigate('/');
                 return;
             }
 
             if (role !== 'faculty' && role !== 'head' && role !== 'dept_head') {
-                alert("Access denied. Authorized for Faculty only.");
+                toast.error("Access denied. Authorized for Faculty only.");
                 navigate('/');
                 return;
             }
