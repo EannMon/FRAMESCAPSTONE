@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from './ToastProvider';
 import './MyProfilePage.css';
 import Header from './Header';
 import './Utility.css';
@@ -92,7 +93,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
                 user_id: userId,
                 new_password: newPassword
             });
-            alert("Password Changed Successfully!");
+            toast.success("Password Changed Successfully!");
             onClose();
         } catch (err) {
             setError("Failed to update password");
@@ -172,6 +173,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 // ===========================================
 const MyProfilePage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
+    const toast = useToast();
 
     // --- States ---
     const [user, setUser] = useState(() => {
@@ -207,12 +209,12 @@ const MyProfilePage = ({ isEmbedded = false }) => {
     const handleSave = async () => {
         try {
             await axios.put(`http://localhost:5000/api/users/${user.id || user.user_id}`, user);
-            alert("Profile Updated Successfully!");
+            toast.success("Profile Updated Successfully!");
             setIsEditing(false);
             localStorage.setItem('currentUser', JSON.stringify(user));
         } catch (error) {
             console.error("Update failed:", error);
-            alert("Failed to update profile.");
+            toast.error("Failed to update profile.");
         }
     };
 
@@ -292,12 +294,6 @@ const MyProfilePage = ({ isEmbedded = false }) => {
                         <ProfileField label="Last Name" name="last_name" value={user.last_name} onChange={handleChange} isEditing={isEditing} />
                         <ProfileField label="TUPM ID" value={user.tupm_id} disabled={true} isEditing={isEditing} />
                         <ProfileField label="Email" value={user.email} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Phone" name="contact_number" value={user.contact_number || ''} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="Birthday" name="birthday" type="date" value={user.birthday ? user.birthday.split('T')[0] : ''} onChange={handleChange} isEditing={isEditing} />
-                        <div className="profile-field">
-                            <label>Home Address</label>
-                            <textarea name="home_address" value={user.home_address || ''} onChange={handleChange} disabled={!isEditing} className={isEditing ? "profile-input-editable" : "profile-input-disabled"} rows="3"></textarea>
-                        </div>
                     </div>
 
                     {/* ACADEMIC INFO: Filter based on Role */}
@@ -312,8 +308,6 @@ const MyProfilePage = ({ isEmbedded = false }) => {
                                 <ProfileField label="Year Level" value={user.year_level} disabled={true} isEditing={isEditing} />
                                 <ProfileField label="Section" value={user.section} disabled={true} isEditing={isEditing} />
                                 <ProfileField label="Term" value={user.current_term} disabled={true} isEditing={isEditing} />
-                                {user.academic_advisor && <ProfileField label="Advisor" value={user.academic_advisor} disabled={true} isEditing={isEditing} />}
-                                {user.gpa && <ProfileField label="GPA" value={user.gpa} disabled={true} isEditing={isEditing} />}
                             </>
                         )}
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import './StudentLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css'; // Import Global Styles
@@ -123,6 +124,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
 // ===========================================
 const StudentLayout = () => {
     const navigate = useNavigate();
+    const toast = useToast();
 
     // State for user data and loading status
     const [user, setUser] = useState(null);
@@ -149,7 +151,7 @@ const StudentLayout = () => {
             // --- SECURITY CHECK: VERIFICATION STATUS ---
             // If the user is logged in but not Verified (e.g., Pending/Rejected), block access.
             if (storedUser.verification_status !== 'Verified') {
-                alert("Access denied. Your account is still pending verification.");
+                toast.error("Access denied. Your account is still pending verification.");
                 // Redirect to a specific status page if you have one, or back to login
                 // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
                 navigate('/');

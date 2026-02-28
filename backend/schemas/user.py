@@ -41,6 +41,7 @@ class UserRegister(BaseModel):
     middle_name: Optional[str] = None
     department_id: Optional[int] = None
     program_id: Optional[int] = None
+    current_term: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -50,16 +51,7 @@ class UserUpdate(BaseModel):
     middle_name: Optional[str] = None
     year_level: Optional[str] = None
     section: Optional[str] = None
-    contact_number: Optional[str] = None
-    birthday: Optional[datetime] = None
-    home_address: Optional[str] = None
-    current_term: Optional[str] = None 
-    academic_advisor: Optional[str] = None
-    gpa: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_relationship: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_address: Optional[str] = None
+    current_term: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
@@ -105,17 +97,7 @@ class UserResponse(UserBase):
     created_at: Optional[datetime] = None
     last_active: Optional[datetime] = None
     
-    # New Fields
-    contact_number: Optional[str] = None
-    birthday: Optional[datetime] = None
-    home_address: Optional[str] = None
     current_term: Optional[str] = None
-    academic_advisor: Optional[str] = None
-    gpa: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_relationship: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_address: Optional[str] = None
     
     class Config:
         from_attributes = True
