@@ -10,6 +10,8 @@ from datetime import datetime, date
 from pydantic import BaseModel
 
 from db.database import get_db
+from core.errors import api_error
+from core.limiter import limiter
 from models.user import User, UserRole, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -932,4 +934,179 @@ def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
     return {
         "class_id": class_id,
         "late_threshold_minutes": cls.late_threshold_minutes or 15
+    }
+
+
+# ============================================
+# Live Room Status Endpoints (Phase 1)
+# ============================================
+
+@router.get("/live-room-status/{user_id}")
+def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get real-time room occupancy for a faculty member's rooms.
+    Returns green dots (present) and yellow dots (on break) for each room.
+    """
+    from sqlalchemy.orm import joinedload, aliased
+    from sqlalchemy import and_
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    # Get today's classes for this faculty
+    today_name = datetime.now().strftime('%A')
+    faculty_classes = db.query(Class).options(
+        joinedload(Class.subject)
+    ).filter(
+        Class.faculty_id == user_id,
+        Class.day_of_week == today_name
+    ).all()
+
+    if not faculty_classes:
+        return {"rooms": [], "timestamp": str(datetime.now())}
+
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    rooms = {}
+
+    for cls in faculty_classes:
+        room_name = cls.room or "Unknown"
+        if room_name not in rooms:
+            rooms[room_name] = {
+                "room": room_name,
+                "subject_code": cls.subject.code if cls.subject else None,
+                "subject_title": cls.subject.title if cls.subject else None,
+                "class_id": cls.id,
+                "start_time": cls.start_time.strftime("%I:%M %p") if cls.start_time else None,
+                "end_time": cls.end_time.strftime("%I:%M %p") if cls.end_time else None,
+                "present": [],
+                "on_break": [],
+                "present_count": 0,
+                "break_count": 0,
+            }
+
+        # Get all people in this class today with their LATEST action
+        class_people_ids = [e.student_id for e in 
+            db.query(Enrollment).filter(Enrollment.class_id == cls.id).all()]
+        # Include faculty themselves
+        class_people_ids.append(user_id)
+
+        for person_id in class_people_ids:
+            latest = db.query(AttendanceLog).filter(
+                AttendanceLog.user_id == person_id,
+                AttendanceLog.class_id == cls.id,
+                AttendanceLog.timestamp >= today_start
+            ).order_by(AttendanceLog.timestamp.desc()).first()
+
+            if latest:
+                person = db.query(User).filter(User.id == person_id).first()
+                person_info = {
+                    "id": person_id,
+                    "name": f"{person.first_name} {person.last_name}" if person else "Unknown",
+                    "role": person.role.value if person else "STUDENT",
+                }
+                if latest.action in (AttendanceAction.ENTRY, AttendanceAction.BREAK_IN):
+                    rooms[room_name]["present"].append(person_info)
+                elif latest.action == AttendanceAction.BREAK_OUT:
+                    rooms[room_name]["on_break"].append(person_info)
+                # EXIT = not in room, skip
+
+    # Compute counts
+    for r in rooms.values():
+        r["present_count"] = len(r["present"])
+        r["break_count"] = len(r["on_break"])
+
+    return {
+        "rooms": list(rooms.values()),
+        "timestamp": str(datetime.now())
+    }
+
+
+@router.get("/live-room-status-dept/{department_id}")
+def get_live_room_status_dept(department_id: int, db: Session = Depends(get_db)):
+    """
+    Get real-time room occupancy for ALL rooms in a department.
+    Used by Dept Head for wide-view dashboard.
+    """
+    from sqlalchemy.orm import joinedload
+
+    today_name = datetime.now().strftime('%A')
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get all faculty in this department
+    dept_faculty = db.query(User).filter(
+        User.department_id == department_id,
+        User.role.in_([UserRole.FACULTY, UserRole.HEAD])
+    ).all()
+    faculty_ids = [f.id for f in dept_faculty]
+
+    if not faculty_ids:
+        return {"rooms": [], "timestamp": str(datetime.now())}
+
+    # Get all today's classes for dept faculty
+    dept_classes = db.query(Class).options(
+        joinedload(Class.subject)
+    ).filter(
+        Class.faculty_id.in_(faculty_ids),
+        Class.day_of_week == today_name
+    ).all()
+
+    rooms = {}
+    for cls in dept_classes:
+        room_name = cls.room or "Unknown"
+        if room_name not in rooms:
+            rooms[room_name] = {
+                "room": room_name,
+                "subject_code": cls.subject.code if cls.subject else None,
+                "subject_title": cls.subject.title if cls.subject else None,
+                "class_id": cls.id,
+                "faculty_name": None,
+                "start_time": cls.start_time.strftime("%I:%M %p") if cls.start_time else None,
+                "end_time": cls.end_time.strftime("%I:%M %p") if cls.end_time else None,
+                "present": [],
+                "on_break": [],
+                "present_count": 0,
+                "break_count": 0,
+            }
+            # Get faculty name
+            fac = db.query(User).filter(User.id == cls.faculty_id).first()
+            if fac:
+                rooms[room_name]["faculty_name"] = f"{fac.first_name} {fac.last_name}"
+
+        # Get enrolled students + faculty
+        class_people = [e.student_id for e in 
+            db.query(Enrollment).filter(Enrollment.class_id == cls.id).all()]
+        class_people.append(cls.faculty_id)
+
+        for pid in class_people:
+            latest = db.query(AttendanceLog).filter(
+                AttendanceLog.user_id == pid,
+                AttendanceLog.class_id == cls.id,
+                AttendanceLog.timestamp >= today_start
+            ).order_by(AttendanceLog.timestamp.desc()).first()
+
+            if latest:
+                person = db.query(User).filter(User.id == pid).first()
+                pinfo = {
+                    "id": pid,
+                    "name": f"{person.first_name} {person.last_name}" if person else "Unknown",
+                    "role": person.role.value if person else "STUDENT",
+                }
+                
+                # Check if this person is already in the list to prevent duplicates per room
+                existing_present = any(p["id"] == pid for p in rooms[room_name]["present"])
+                existing_break = any(p["id"] == pid for p in rooms[room_name]["on_break"])
+                
+                if latest.action in (AttendanceAction.ENTRY, AttendanceAction.BREAK_IN) and not existing_present:
+                    rooms[room_name]["present"].append(pinfo)
+                elif latest.action == AttendanceAction.BREAK_OUT and not existing_break:
+                    rooms[room_name]["on_break"].append(pinfo)
+
+    for r in rooms.values():
+        r["present_count"] = len(r["present"])
+        r["break_count"] = len(r["on_break"])
+
+    return {
+        "rooms": list(rooms.values()),
+        "timestamp": str(datetime.now())
     }

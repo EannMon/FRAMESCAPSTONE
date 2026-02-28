@@ -19,10 +19,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
+from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
 from db.database import get_db
 
-# --- Logging Configuration (MUST be before any router imports) ---
-# Per FRAMES Observability Rules §1.1
+# --- Logging Configuration ---
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 logging.basicConfig(
@@ -35,8 +35,8 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Import shared limiter from core to avoid circular imports
-from core.limiter import limiter
+# Initialize Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI app
 app = FastAPI(

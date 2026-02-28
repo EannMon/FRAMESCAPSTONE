@@ -19,7 +19,7 @@ from models.user import User
 from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
 from models.enrollment import Enrollment
 from core.errors import api_error
-from main import limiter
+from core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
