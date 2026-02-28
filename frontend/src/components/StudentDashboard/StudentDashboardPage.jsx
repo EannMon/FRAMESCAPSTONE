@@ -37,96 +37,36 @@ const StudentSummaryCards = ({ stats }) => (
 
 // --- RIGHT PANEL COMPONENTS ---
 
-const LiveClassStatus = ({ userId }) => {
-    const [liveStatus, setLiveStatus] = useState(null);
-    const [statusLoading, setStatusLoading] = useState(true);
-    const [statusError, setStatusError] = useState(null);
+const LiveClassStatus = ({ recentLog }) => {
+    // Determine Status based on latest log
+    let status = 'IDLE';
+    let statusColor = 'grey';
+    let statusText = 'Not currently in any class';
+    let roomName = '---';
 
-    useEffect(() => {
-        if (!userId) return;
+    if (recentLog && recentLog.event_type) {
+        const logTime = new Date(recentLog.timestamp);
+        const now = new Date();
+        const diffHours = (now - logTime) / 1000 / 60 / 60;
 
-        const controller = new AbortController();
-        let pollTimer = null;
-
-        const fetchLiveStatus = async () => {
-            try {
-                const response = await axios.get(
-                    `http://localhost:5000/api/student/live-status/${userId}`,
-                    { signal: controller.signal }
-                );
-                setLiveStatus(response.data);
-                setStatusError(null);
-            } catch (err) {
-                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-                    setStatusError('Unable to fetch live status');
-                    console.error('Live status fetch error:', err);
-                }
-            } finally {
-                if (!controller.signal.aborted) {
-                    setStatusLoading(false);
-                }
+        // If log is within last 4 hours (assumption for class duration)
+        if (diffHours < 4) {
+            roomName = recentLog.room_name || 'Unknown Room';
+            if (recentLog.event_type === 'attendance_in' || recentLog.event_type === 'break_in') {
+                status = 'ACTIVE';
+                statusColor = '#2E7D32'; // Success Green
+                statusText = `Currently Detected in ${roomName}`;
+            } else if (recentLog.event_type === 'break_out') {
+                status = 'BREAK';
+                statusColor = '#F9A825'; // Warning Amber
+                statusText = `On Break from ${roomName}`;
+            } else if (recentLog.event_type === 'attendance_out') {
+                status = 'OUT';
+                statusColor = 'grey';
+                statusText = 'Class Session Ended';
+                roomName = '---';
             }
-        };
-
-        // Initial fetch
-        fetchLiveStatus();
-
-        // Poll every 30 seconds for real-time updates
-        pollTimer = setInterval(() => {
-            if (!controller.signal.aborted) {
-                fetchLiveStatus();
-            }
-        }, 30000);
-
-        return () => {
-            controller.abort();
-            if (pollTimer) clearInterval(pollTimer);
-        };
-    }, [userId]);
-
-    // Color mapping from API status_color to actual CSS colors
-    const colorMap = {
-        green: '#2E7D32',
-        amber: '#F9A825',
-        grey: '#999',
-    };
-
-    // Derive display values from live status or defaults
-    const status = liveStatus?.status || 'IDLE';
-    const statusColor = colorMap[liveStatus?.status_color] || '#999';
-    const statusText = liveStatus?.status_text || 'Not currently in any class';
-    const roomName = liveStatus?.room || '---';
-    const subjectInfo = liveStatus?.subject_code
-        ? `${liveStatus.subject_code} — ${liveStatus.subject_title || ''}`
-        : null;
-
-    // Show/hide blinking dot based on status
-    const showDot = status === 'PRESENT' || status === 'BREAK';
-
-    if (statusLoading) {
-        return (
-            <div className="card live-status-card">
-                <div className="live-header">
-                    <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
-                </div>
-                <div className="live-body" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                    <i className="fas fa-spinner fa-spin"></i> Loading...
-                </div>
-            </div>
-        );
-    }
-
-    if (statusError) {
-        return (
-            <div className="card live-status-card">
-                <div className="live-header">
-                    <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
-                </div>
-                <div className="live-body" style={{ padding: '20px', textAlign: 'center', color: '#C62828' }}>
-                    <i className="fas fa-exclamation-circle"></i> {statusError}
-                </div>
-            </div>
-        );
+        }
     }
 
     return (
@@ -134,19 +74,16 @@ const LiveClassStatus = ({ userId }) => {
             <div className="live-header">
                 <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
                 <div className="live-indicator">
-                    {showDot && (
-                        <span className="blink-dot" style={{ backgroundColor: statusColor }}></span>
-                    )}
+                    <span className="blink-dot" style={{ backgroundColor: statusColor }}></span>
                     <span style={{ color: statusColor, fontWeight: 'bold' }}>{status}</span>
                 </div>
             </div>
             <div className="live-body">
                 <div className="room-display">
-                    <i className="fas fa-chalkboard-teacher room-icon" style={{ color: showDot ? statusColor : '#ccc' }}></i>
+                    <i className="fas fa-chalkboard-teacher room-icon" style={{ color: status === 'ACTIVE' ? statusColor : '#ccc' }}></i>
                     <div className="room-info">
                         <h4>{roomName}</h4>
                         <p>{statusText}</p>
-                        {subjectInfo && <p style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>{subjectInfo}</p>}
                     </div>
                 </div>
             </div>
@@ -161,9 +98,9 @@ const StudentRecentAttendance = ({ logs }) => (
         <div className="recent-activity-list">
             {logs.length > 0 ? (
                 logs.slice(0, 5).map((log, index) => {
-                    const action = log.action || 'ENTRY';
-                    const isEntry = action === 'ENTRY' || action === 'BREAK_IN';
-                    const displayType = action.replace('_', ' ');
+                    const eventType = log.event_type || 'attendance_in';
+                    const isEntry = eventType.includes('in');
+                    const displayType = eventType.replace('attendance_', '').replace('_', ' ').toUpperCase();
 
                     return (
                         <div key={index} className="student-attendance-item">
@@ -219,9 +156,9 @@ const AttendanceTrendChart = ({ logs }) => {
                 
                 dataPoints.push({
                     label: dayStr,
-                    present: dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
-                    break: dayLogs.filter(l => l.action === 'BREAK_OUT').length,
+                    present: dayLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
+                    absent: dayLogs.filter(l => l.event_type === 'absent').length,
+                    break: dayLogs.filter(l => l.event_type.includes('break')).length,
                     total: dayLogs.length
                 });
             }
@@ -248,9 +185,9 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 dataPoints.push({
                     label: q.label,
-                    present: qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
-                    break: qLogs.filter(l => l.action === 'BREAK_OUT').length,
+                    present: qLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
+                    absent: qLogs.filter(l => l.event_type === 'absent').length,
+                    break: qLogs.filter(l => l.event_type.includes('break')).length,
                     total: qLogs.length
                 });
             });
@@ -267,9 +204,9 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 dataPoints.push({
                     label: m,
-                    present: mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
-                    break: mLogs.filter(l => l.action === 'BREAK_OUT').length,
+                    present: mLogs.filter(l => l.event_type === 'attendance_in' || l.event_type === 'late').length,
+                    absent: mLogs.filter(l => l.event_type === 'absent').length,
+                    break: mLogs.filter(l => l.event_type.includes('break')).length,
                     total: mLogs.length
                 });
             });
@@ -481,7 +418,6 @@ const AttendanceTrendChart = ({ logs }) => {
 // --- MAIN PAGE COMPONENT ---
 const StudentDashboardPage = () => {
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [dashboardData, setDashboardData] = useState({
         attendance_rate: "0%",
         enrolled_courses: 0,
@@ -491,27 +427,18 @@ const StudentDashboardPage = () => {
     const [userData, setUserData] = useState({ firstName: "Student", tupm_id: "..." });
     const [allLogs, setAllLogs] = useState([]);
 
-    // Derive userId once for child components
-    const userId = userData.id || userData.user_id || null;
-
     useEffect(() => {
-        const controller = new AbortController();
-
         const fetchData = async () => {
             try {
                 const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-                if (!storedUser) {
-                    setError('No user session found. Please log in.');
-                    setLoading(false);
-                    return;
-                }
+                if (!storedUser) return;
                 setUserData(storedUser);
 
-                const uid = storedUser.id || storedUser.user_id;
+                const userId = storedUser.id || storedUser.user_id;
 
                 const [dashRes, histRes] = await Promise.all([
-                    axios.get(`http://localhost:5000/api/student/dashboard/${uid}`, { signal: controller.signal }),
-                    axios.get(`http://localhost:5000/api/student/history/${uid}`, { signal: controller.signal })
+                    axios.get(`http://localhost:5000/api/student/dashboard/${userId}`),
+                    axios.get(`http://localhost:5000/api/student/history/${userId}`)
                 ]);
 
                 setDashboardData(prev => ({
@@ -522,25 +449,20 @@ const StudentDashboardPage = () => {
                 }));
 
                 setAllLogs(histRes.data || []);
-                setError(null);
-            } catch (err) {
-                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-                    setError('Failed to load dashboard data. Please try again.');
-                    console.error("Error fetching dashboard:", err);
-                }
-            } finally {
-                if (!controller.signal.aborted) {
-                    setLoading(false);
-                }
+                setLoading(false);
+            } catch (error) {
+                console.error("Error fetching dashboard:", error);
+                setLoading(false);
             }
         };
         fetchData();
-
-        return () => controller.abort();
     }, []);
 
-    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}><i className="fas fa-spinner fa-spin"></i> Loading Dashboard...</div>;
-    if (error) return <div style={{ padding: '40px', textAlign: 'center', color: '#C62828' }}><i className="fas fa-exclamation-circle"></i> {error}</div>;
+    if (loading) return <div style={{ padding: '40px' }}>Loading Dashboard...</div>;
+
+    const latestLog = dashboardData.recent_attendance && dashboardData.recent_attendance.length > 0
+        ? dashboardData.recent_attendance[0]
+        : null;
 
     return (
         <div className="student-content-grid">
@@ -561,7 +483,7 @@ const StudentDashboardPage = () => {
 
                 {/* RIGHT: 30% Status & History */}
                 <div className="dashboard-right-column">
-                    <LiveClassStatus userId={userId} />
+                    <LiveClassStatus recentLog={latestLog} />
                     <StudentRecentAttendance logs={dashboardData.recent_attendance} />
                 </div>
             </div>
