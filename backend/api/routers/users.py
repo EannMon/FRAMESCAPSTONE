@@ -53,16 +53,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         verification_status=user.verification_status.value,
         year_level=user.year_level,
         section=user.section,
-        contact_number=user.contact_number,
-        birthday=user.birthday,
-        home_address=user.home_address,
         current_term=user.current_term,
-        academic_advisor=user.academic_advisor,
-        gpa=user.gpa,
-        emergency_contact_name=user.emergency_contact_name,
-        emergency_contact_relationship=user.emergency_contact_relationship,
-        emergency_contact_phone=user.emergency_contact_phone,
-        emergency_contact_address=user.emergency_contact_address,
         created_at=user.created_at,
         last_active=user.last_active
     )

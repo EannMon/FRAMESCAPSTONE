@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import './StudentLayout.css';
 import '../Common/Utility.css';
@@ -125,6 +126,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed, onLogou
 const StudentLayout = () => {
     const navigate = useNavigate();
     const { user: authUser, logout } = useAuth();
+    const toast = useToast();
 
     // State for user data and loading status
     const [user, setUser] = useState(null);
@@ -146,7 +148,7 @@ const StudentLayout = () => {
 
             // --- SECURITY CHECK: VERIFICATION STATUS ---
             if (authUser.verification_status !== 'Verified') {
-                alert("Access denied. Your account is still pending verification.");
+                toast.error("Access denied. Your account is still pending verification.");
                 logout();
                 navigate('/');
                 setLoading(false);

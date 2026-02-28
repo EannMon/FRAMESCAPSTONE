@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './ReportsPage.css';
@@ -145,6 +146,7 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
 // MAIN REPORTS PAGE COMPONENT
 // ===========================================
 const ReportsPage = () => {
+    const toast = useToast();
     const [viewMode, setViewMode] = useState('main'); 
     const [selectedReport, setSelectedReport] = useState(null); 
     const [reportData, setReportData] = useState([]);
@@ -190,12 +192,12 @@ const ReportsPage = () => {
             if (newData.length > 0) {
                 handleView(null, newReport);
             } else {
-                alert(`Report generated successfully, but no records were found for the selected dates.\n\nTry expanding the date range.`);
+                toast.warning(`Report generated successfully, but no records were found for the selected dates. Try expanding the date range.`);
             }
 
         } catch (error) {
             console.error("Report Gen Error:", error);
-            alert(error.userMessage || "Failed to generate report. Please check the backend connection.");
+            toast.error(error.userMessage || "Failed to generate report. Please check the backend connection.");
         }
     };
 

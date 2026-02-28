@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 import '../FacultyDashboard/FacultyDashboardPage.css'; // Reuse styles
 import './DeptHeadDashboardPage.css'; // Specific styles
 import '../Common/Utility.css';
@@ -85,6 +86,7 @@ const ReviewModal = ({ user, onClose, onAction }) => {
 
 const DeptHeadDashboardPage = () => {
     const navigate = useNavigate();
+    const toast = useToast();
     const [stats, setStats] = useState({
         pending_verifications: 0,
         total_faculty: 0,
@@ -130,14 +132,15 @@ const DeptHeadDashboardPage = () => {
     }, []);
 
     const handleAction = async (userId, action, name) => {
-        if (!window.confirm(`Are you sure you want to ${action} ${name}'s account?`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to ${action} ${name}'s account?`);
+        if (!confirmed) return;
 
         try {
             await api.post(`/api/admin/verification/${action}`, null, { params: { user_id: userId } });
             setSelectedUser(null);
             fetchData();
         } catch (error) {
-            alert(error.userMessage || `Failed to ${action} user. Please try again.`);
+            toast.error(error.userMessage || `Failed to ${action} user. Please try again.`);
         }
     };
 

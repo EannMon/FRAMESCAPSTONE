@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from './ToastProvider';
 import api from '../../services/api';
 import PasswordModal from './PasswordModal';
 import './MyProfilePage.css';
@@ -31,6 +32,7 @@ const ProfileField = ({ label, name, value, onChange, type = 'text', isEditing, 
 const MyProfilePage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
     const { user: authUser, updateUser } = useAuth();
+    const toast = useToast();
 
     // --- States ---
     const [user, setUser] = useState(authUser);
@@ -68,11 +70,11 @@ const MyProfilePage = ({ isEmbedded = false }) => {
     const handleSave = async () => {
         try {
             await api.put(`/api/users/${user.id || user.user_id}`, user);
-            alert("Profile Updated Successfully!");
+            toast.success("Profile Updated Successfully!");
             setIsEditing(false);
             updateUser(user);
         } catch (error) {
-            alert(error.userMessage || "Failed to update profile.");
+            toast.error(error.userMessage || "Failed to update profile.");
         }
     };
 

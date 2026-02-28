@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import '../FacultyDashboard/FacultyLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css';
@@ -107,6 +108,7 @@ const DeptHeadSidebar = ({ user, isCollapsed, onLogout }) => {
 const DeptHeadLayout = () => {
     const navigate = useNavigate();
     const { user: authUser, logout } = useAuth();
+    const toast = useToast();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -123,7 +125,7 @@ const DeptHeadLayout = () => {
 
             // Strict Role Check
             if (role !== 'head' && role !== 'dept_head') {
-                alert("Access denied. Authorized for Department Heads only.");
+                toast.error("Access denied. Authorized for Department Heads only.");
                 navigate('/');
                 return;
             }

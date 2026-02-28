@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 // Note: Assuming na ang classes na 'admin-reports-container', 'admin-recent-reports-table', atbp. ay available.
 
 const UserVerificationPage = ({ adminUser }) => {
+    const toast = useToast();
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const adminId = adminUser ? adminUser.user_id : 1; // Default to 1 if adminUser is null for testing
@@ -16,7 +18,7 @@ const UserVerificationPage = ({ adminUser }) => {
         } catch (error) {
             if (error.code !== 'ERR_CANCELED') {
                 console.error("Error fetching pending users:", error);
-                alert(error.userMessage || "Error fetching pending users.");
+                toast.error(error.userMessage || "Error fetching pending users.");
             }
         } finally {
             setLoading(false);
@@ -33,7 +35,8 @@ const UserVerificationPage = ({ adminUser }) => {
     const handleAction = async (userId, status, name) => {
         const action = status === 'Verified' ? 'Approve' : 'Reject';
 
-        if (!window.confirm(`Are you sure you want to ${action} the account for ${name}?`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to ${action} the account for ${name}?`);
+        if (!confirmed) return;
 
         try {
             // 1. Update verification_status
@@ -47,11 +50,11 @@ const UserVerificationPage = ({ adminUser }) => {
                 details: `${status} user ${userId}: ${name}`
             });
 
-            alert(`User ${name} successfully ${status}.`);
+            toast.success(`User ${name} successfully ${status}.`);
             fetchPendingUsers(); // Refresh the list
         } catch (error) {
             console.error(`Error ${action}ing user:`, error);
-            alert(error.userMessage || `Failed to ${action} user. Check console for details.`);
+            toast.error(error.userMessage || `Failed to ${action} user. Check console for details.`);
         }
     };
 

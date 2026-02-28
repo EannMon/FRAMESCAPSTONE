@@ -18,9 +18,12 @@
 .card {
     background: white;
     padding: 24px;
-    border-radius: 12px; /* Standard */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Standard Shadow */
-    border: 1px solid rgba(0,0,0,0.04); /* Standard Border */
+    border-radius: 12px;
+    /* Standard */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    /* Standard Shadow */
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    /* Standard Border */
 }
 
 /* STATS GRID */
@@ -91,7 +94,11 @@
     border-radius: 9999px;
     font-weight: 600;
 }
-.summary-badge.success { background-color: #dcfce7; color: #166534; } 
+
+.summary-badge.success {
+    background-color: #dcfce7;
+    color: #166534;
+}
 
 .summary-sub-value {
     font-size: 0.875rem;
@@ -110,12 +117,20 @@
     flex-shrink: 0;
 }
 
-.f-icon-soft-blue  { background-color: #eff6ff; color: #3b82f6; }
-.f-icon-soft-green { background-color: #ecfdf5; color: #10b981; }
+.f-icon-soft-blue {
+    background-color: #eff6ff;
+    color: #3b82f6;
+}
+
+.f-icon-soft-green {
+    background-color: #ecfdf5;
+    color: #10b981;
+}
 
 /* BUTTONS */
 .schedule-button {
-    background: #163269; /* Navy */
+    background: #163269;
+    /* Navy */
     color: white;
     border: none;
     padding: 10px 20px;
@@ -162,18 +177,18 @@
     justify-content: space-between;
     align-items: center;
     padding: 20px;
-    border: 1px solid rgba(0,0,0,0.04);
+    border: 1px solid rgba(0, 0, 0, 0.04);
     border-radius: 12px;
     margin-bottom: 15px;
     background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
     transition: all 0.2s;
 }
 
 .today-class-item:hover {
     border-color: #cbd5e1;
     transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.05);
 }
 
 /* ... (Progress Bar skipped) ... */
@@ -188,7 +203,7 @@
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.view:hover {
@@ -208,9 +223,17 @@
     margin-top: 5px;
 }
 
-.status-badge-row.green { color: #2e7d32; }
-.status-badge-row.amber { color: #f9a825; }
-.status-badge-row.grey { color: #94a3b8; }
+.status-badge-row.green {
+    color: #2e7d32;
+}
+
+.status-badge-row.amber {
+    color: #f9a825;
+}
+
+.status-badge-row.grey {
+    color: #94a3b8;
+}
 
 /* =========================================== */
 /* STUDENT LIST DETAILS VIEW                   */
@@ -219,8 +242,8 @@
 .details-view-container {
     background: white;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.04);
     padding: 30px;
     animation: fadeIn 0.3s ease-in-out;
 }
@@ -279,7 +302,8 @@
 }
 
 .export-pdf-btn {
-    background: #2E7D32; /* Green for Export */
+    background: #2E7D32;
+    /* Green for Export */
     color: white;
     border: none;
     padding: 10px 20px;
@@ -311,9 +335,11 @@
     border-collapse: collapse;
 }
 
-.styled-table thread { /* Typo correction: thead */
+.styled-table thread {
+    /* Typo correction: thead */
     background: #f8fafc;
-} 
+}
+
 /* Browsers usually normalize thread to thead but let's be safe and use standard selector if possible, 
    but since I'm appending I can just use the right one */
 
@@ -344,8 +370,15 @@
     background-color: #f8fafc;
 }
 
-.font-bold { font-weight: 600; color: #1e293b; }
-.text-muted { color: #64748b; font-size: 0.9em; }
+.font-bold {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.text-muted {
+    color: #64748b;
+    font-size: 0.9em;
+}
 
 /* Status Badges in Table */
 .status-badge {
@@ -356,5 +389,12 @@
     text-transform: uppercase;
 }
 
-.status-badge.green { background: #E6F4EA; color: #2E7D32; }
-.status-badge.red { background: #FFEBEE; color: #C62828; }
+.status-badge.green {
+    background: #E6F4EA;
+    color: #2E7D32;
+}
+
+.status-badge.red {
+    background: #FFEBEE;
+    color: #C62828;
+}

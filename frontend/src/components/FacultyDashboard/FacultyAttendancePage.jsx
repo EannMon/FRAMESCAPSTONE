@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './FacultyAttendancePage.css';
 
 const FacultyAttendancePage = () => {
     const { user: authUser } = useAuth();
+    const toast = useToast();
 
     // --- STATES ---
     const [viewMode, setViewMode] = useState('main'); // 'main' or 'details'
@@ -55,7 +57,7 @@ const FacultyAttendancePage = () => {
         } catch (error) {
             if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading students:", error);
-            alert(error.userMessage || "Could not load student list.");
+            toast.error(error.userMessage || "Could not load student list.");
         } finally {
             setLoading(false);
         }

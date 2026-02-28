@@ -270,6 +270,19 @@
     font-size: 0.85rem;
 }
 
+.academic-year-badge {
+    background: #e0e7ff;
+    color: #4338ca;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 /* --- Filters Bar --- */
 .reports-filters-bar {
     display: flex;
@@ -338,127 +351,9 @@
 }
 
 /* --- Layout --- */
-.reports-layout {
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 16px;
-    min-height: 500px;
-}
-
-/* --- Sidebar (Report Types) --- */
-.reports-sidebar {
-    background: white;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #f1f5f9;
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-.reports-sidebar::-webkit-scrollbar {
-    width: 4px;
-}
-
-.reports-sidebar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-
-.report-category {
-    margin-bottom: 16px;
-}
-
-.category-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #94a3b8;
-    margin: 0 0 8px;
-    padding-left: 8px;
-}
-
-.report-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-
-.report-option:hover {
-    background: #f1f5f9;
-}
-
-.report-option.active {
-    background: linear-gradient(135deg, #0F172A, #1e3a5f);
-    color: white;
-}
-
-.report-option.active .report-option-desc {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.report-option.active .report-type-badge {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
-}
-
-.report-option-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    flex: 1;
-}
-
-.report-option-label {
-    font-size: 0.82rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.report-option-desc {
-    font-size: 0.68rem;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.report-type-badge {
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    flex-shrink: 0;
-}
-
-.report-type-badge.class {
-    background: #dbeafe;
-    color: #1d4ed8;
-}
-
-.report-type-badge.personal {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.report-type-badge.dept {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.report-type-badge.facility {
-    background: #e0e7ff;
-    color: #4338ca;
+.reports-layout-full {
+    display: block;
+    width: 100%;
 }
 
 /* --- Content Area --- */
@@ -677,14 +572,9 @@
     text-align: right;
 }
 
-/* --- Responsive --- */
 @media (max-width: 900px) {
-    .reports-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .reports-sidebar {
-        max-height: none;
+    .reports-layout-full {
+        width: 100%;
     }
 
     .fac-reports-header {

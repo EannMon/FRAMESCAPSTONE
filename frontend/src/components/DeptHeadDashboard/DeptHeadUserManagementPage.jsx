@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from "react-router-dom";
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 import UserVerificationTab from './UserVerificationTab';
 import UserDirectoryTab from './UserDirectoryTab';
 import UserProfilePanel from './UserProfilePanel';
@@ -22,6 +23,7 @@ const getStatusColor = (status) => {
 };
 
 const DeptHeadUserManagementPage = () => {
+    const toast = useToast();
     const location = useLocation();
     const [activeTab, setActiveTab] = useState('directory');
 
@@ -186,21 +188,22 @@ const DeptHeadUserManagementPage = () => {
                         : app
                 )
             );
-            alert(`User ID ${id} set to ${apiStatus}.`);
+            toast.success(`User ID ${id} set to ${apiStatus}.`);
 
         } catch (error) {
-            alert(error.userMessage || `Failed to update status.`);
+            toast.error(error.userMessage || `Failed to update status.`);
         }
     };
 
     const deleteApplication = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
+        const confirmed = await toast.confirm("Are you sure you want to delete this user permanently?");
+        if (!confirmed) return;
         try {
             await api.delete(`/api/admin/user/${id}`);
             setVerificationUsers(prev => prev.filter(app => app.id !== id));
-            alert(`User ID ${id} deleted.`);
+            toast.success(`User ID ${id} deleted.`);
         } catch (error) {
-            alert(error.userMessage || "Failed to delete user.");
+            toast.error(error.userMessage || "Failed to delete user.");
         }
         setVerificationOpenMenuId(null);
     };

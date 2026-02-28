@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './components/Common/ToastProvider';
+import './components/Common/Toast.css';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
 
@@ -46,6 +48,7 @@ import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
+import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
@@ -58,6 +61,7 @@ function App() {
 
     return (
         <AuthProvider>
+        <ToastProvider>
         <Router>
             <div className="App">
                 <Routes>
@@ -134,11 +138,15 @@ function App() {
                     {/* Template Sandbox */}
                     <Route path="/test-pdf" element={<TestPDFPage />} />
 
+                    {/* Kiosk Dashboard */}
+                    <Route path="/kiosk" element={<KioskDashboardPage />} />
+
                     {/* Fallback route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </div>
         </Router>
+        </ToastProvider>
         </AuthProvider>
     );
 }

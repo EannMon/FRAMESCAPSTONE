@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { CreateSubjectModal, AssignFacultyModal, AssignRoomModal } from './DeptHeadManageModals';
 import './DeptHeadManagePage.css';
 
 const DeptHeadManagePage = () => {
+    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);
@@ -85,7 +87,7 @@ const DeptHeadManagePage = () => {
             setNewCourse({ code: '', name: '', units: 3 });
             fetchManagementData();
         } catch (error) {
-            alert(error.userMessage || "Error creating course.");
+            toast.error(error.userMessage || "Error creating course.");
         }
     };
 
@@ -107,7 +109,7 @@ const DeptHeadManagePage = () => {
             setShowAssignModal(false);
             fetchManagementData();
         } catch (error) {
-            alert(error.userMessage || "Assignment failed.");
+            toast.error(error.userMessage || "Assignment failed.");
         }
     };
 
@@ -134,7 +136,7 @@ const DeptHeadManagePage = () => {
             setShowRoomModal(false);
             fetchManagementData();
         } catch (error) {
-            alert(error.userMessage || "Room assignment failed.");
+            toast.error(error.userMessage || "Room assignment failed.");
         }
     };
 

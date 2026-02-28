@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import './AdminLayout.css';
 import '../Common/Utility.css';
 import Header from '../Common/Header';
@@ -62,6 +63,7 @@ const AdminSidebar = ({ user }) => {
 const AdminLayout = () => {
     const navigate = useNavigate();
     const { user: authUser } = useAuth();
+    const toast = useToast();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -74,14 +76,14 @@ const AdminLayout = () => {
 
         // HAKBANG 1: Check kung Admin (backend returns uppercase roles)
         if (authUser.role?.toLowerCase() !== 'admin') {
-            alert("Access denied. You are not authorized to view the Admin dashboard.");
+            toast.error("Access denied. You are not authorized to view the Admin dashboard.");
             navigate('/');
             return;
         }
 
         // HAKBANG 2: Check kung Verified
         if (authUser.verification_status !== 'Verified') {
-            alert("Access denied. Your admin account is pending full verification.");
+            toast.error("Access denied. Your admin account is pending full verification.");
             navigate(`/register/${authUser.role}?s=${authUser.verification_status.toLowerCase()}`);
             return;
         }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -17,6 +18,7 @@ const ClassItem = ({ time, title, room }) => (
 
 const SchedulePage = () => {
   const { user: authUser } = useAuth();
+  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState('This Week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekSchedule, setWeekSchedule] = useState({
@@ -74,7 +76,7 @@ const SchedulePage = () => {
 
     // Validate PDF
     if (file.type !== 'application/pdf') {
-      alert("Please upload a valid PDF file.");
+      toast.error("Please upload a valid PDF file.");
       return;
     }
 
@@ -89,11 +91,11 @@ const SchedulePage = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      alert(`Success! ${response.data.message}`);
+      toast.success(`Success! ${response.data.message}`);
       setRefreshTrigger(prev => prev + 1); // Trigger schedule re-fetch
     } catch (error) {
       console.error('Upload failed:', error);
-      alert(`Upload Failed: ${error.userMessage || 'Failed to parse CoR.'}`);
+      toast.error(`Upload Failed: ${error.userMessage || 'Failed to parse CoR.'}`);
     } finally {
       setUploading(false);
       // Clear the input so you can upload the same file again if needed

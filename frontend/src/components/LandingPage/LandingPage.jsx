@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import './LandingPage.css';
 import landingBg from '../../assets/images/landing_bg.png';
@@ -13,6 +14,7 @@ import Footer from '../Common/Footer';
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
     const { login } = useAuth();
+    const toast = useToast();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -49,7 +51,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                 const path = login(userData);
 
                 if (userData.verification_status === 'Verified') {
-                    alert(`Welcome back, ${userData.first_name}!`);
+                    toast.success(`Welcome back, ${userData.first_name}!`);
                 }
 
                 navigate(path);

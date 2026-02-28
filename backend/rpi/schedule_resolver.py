@@ -99,16 +99,24 @@ class ScheduleResolver:
             return self._resolve_from_cache()
 
         # Try API first
-        active = self._query_api_active_class()
-        if active:
-            return active
-        
-        # Fallback to local cache
+        api_result = self._query_api_active_class()
+        if api_result is not False:
+            # api_result is either an ActiveClass or None (no class right now)
+            return api_result
+
+        # API call failed — fall back to local cache
         logger.info("Using cached schedule (offline fallback)")
         return self._resolve_from_cache()
     
     def _query_api_active_class(self) -> Optional[ActiveClass]:
-        """Query backend API for active class."""
+        """
+        Query backend API for active class.
+
+        Returns:
+            ActiveClass  — class is currently in session
+            None         — API succeeded, no class active right now
+            False        — API call failed (triggers cache fallback)
+        """
         try:
             url = f"{self.backend_url}/api/kiosk/active-class"
             response = requests.get(
@@ -137,21 +145,25 @@ class ScheduleResolver:
                         room=cls['room']
                     )
                 else:
-                    logger.debug("No active class at this time")
-                    return None
-            
+                    # API succeeded — room has no class scheduled right now
+                    self._last_api_failure = None
+                    logger.debug("No active class scheduled in this room right now")
+                    return None  # None = success + no class; caller should NOT fall back to cache
+
             elif response.status_code == 404:
                 logger.warning("Device not registered in database")
-                return None
+                self._last_api_failure = datetime.now()
+                return False  # False = failure; caller may use cache
             else:
                 logger.warning("API returned status %d", response.status_code)
                 self._last_api_failure = datetime.now()
+                return False  # False = failure
                 
         except requests.exceptions.RequestException as e:
             logger.warning("API request failed: %s", str(e))
             self._last_api_failure = datetime.now()
-        
-        return None
+
+        return False  # False = failure
     
     def sync_schedule(self) -> bool:
         """
