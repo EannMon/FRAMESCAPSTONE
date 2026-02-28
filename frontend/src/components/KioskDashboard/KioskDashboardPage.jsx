@@ -125,13 +125,15 @@ const KioskDashboardPage = () => {
                             {kioskState.message}
                         </div>
                     )}
-                    <img
-                        src={offline ? '' : VIDEO_STREAM_URL}
-                        alt="Kiosk Camera Feed"
-                        className="kiosk-video-feed"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                        onLoad={(e) => { e.target.style.display = 'block'; }}
-                    />
+                    {!offline && (
+                        <img
+                            src={VIDEO_STREAM_URL}
+                            alt="Kiosk Camera Feed"
+                            className="kiosk-video-feed"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                            onLoad={(e) => { e.target.style.display = 'block'; }}
+                        />
+                    )}
                 </div>
             </div>
 
