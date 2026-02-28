@@ -97,6 +97,10 @@ class KioskConfig:
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # More time to show gesture
     GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require gesture for N consecutive frames
+    # Fast gesture mode: sleep between gesture polls (lower = more responsive)
+    # 0.02s = ~50fps polling. Only MediaPipe Hands runs during this loop,
+    # no InsightFace or schedule resolution, so CPU cost is minimal.
+    GESTURE_POLL_SLEEP_SECONDS: float = 0.02
     
     # ===========================================
     # Attendance Rules

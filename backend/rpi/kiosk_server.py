@@ -205,6 +205,191 @@ class StreamingAttendanceKiosk:
             self.current_state.update(overrides)
         push_state_update(self.current_state.copy())
 
+    def _run_gesture_fast_mode(self, match, confidence, bbox, allowed, active_class):
+        """
+        Dedicated fast gesture detection loop.
+
+        When a face is matched and gesture is required, this takes over from the
+        recognition loop and polls for gestures at HIGH FREQUENCY (~30-50fps)
+        WITHOUT running InsightFace, schedule resolution, or frame skipping.
+
+        Why this exists:
+            The old approach checked gestures inside the recognition loop which also
+            ran get_active_class(), broadcast_state() on every frame, and frame-skip
+            logic — adding 50-200ms+ overhead per gesture poll.  The user would show
+            the gesture but the system was too slow to catch it in consecutive frames,
+            causing timeouts.
+
+        Performance:
+            Each iteration: grab shared frame + MediaPipe Hands = ~20-40 ms
+            3 consecutive frames to confirm a gesture = ~60-120 ms total
+            vs old approach: ~150-500ms per gesture check cycle
+        """
+        # Build expected gesture list for UI
+        expected_gestures = []
+        gesture_prompt_parts = []
+        if "BREAK_OUT" in allowed:
+            expected_gestures.append("BREAK_OUT")
+            gesture_prompt_parts.append("Peace=Break Out")
+        if "BREAK_IN" in allowed:
+            expected_gestures.append("BREAK_IN")
+            gesture_prompt_parts.append("ThumbsUp=Break In")
+        if "EXIT" in allowed:
+            expected_gestures.append("EXIT")
+            gesture_prompt_parts.append("Palm=Exit")
+
+        tupm_id = getattr(match, "tupm_id", None)
+        prompt_msg = " | ".join(gesture_prompt_parts)
+
+        # Reset gesture temporal smoothing buffer for clean detection
+        self.gesture_detector.reset_buffer()
+
+        # Broadcast ONCE: entering gesture mode (avoids per-frame WebSocket spam)
+        self.broadcast_state({
+            "recognized_user": match.name,
+            "tupm_id": tupm_id,
+            "greeting_type": None,
+            "device_id": self.config.DEVICE_ID,
+            "required_gestures": expected_gestures,
+            "message": f"Show gesture: {prompt_msg}",
+        })
+
+        # Set overlay for MJPEG stream so camera thread draws the prompt
+        if bbox is not None:
+            with self._overlay_lock:
+                self._overlay = {
+                    "bbox": bbox,
+                    "label": f"{match.name} - Show gesture!",
+                    "color": (0, 255, 255),  # Yellow for gesture prompt
+                    "expires_at": time.time() + self.config.GESTURE_TIMEOUT_SECONDS + 1,
+                }
+
+        gesture_timeout = self.config.GESTURE_TIMEOUT_SECONDS
+        gesture_start = time.time()
+        poll_sleep = getattr(self.config, "GESTURE_POLL_SLEEP_SECONDS", 0.02)
+        detected_gesture = None
+        detected_action = None
+
+        logger.info(
+            "GESTURE | Fast mode started for %s, timeout=%.1fs, allowed=%s",
+            match.name, gesture_timeout, expected_gestures,
+        )
+
+        # ─── FAST GESTURE-ONLY LOOP ───────────────────────────────────
+        # No InsightFace, no schedule resolution, no frame skip.
+        # Only: grab frame → MediaPipe Hands → check result (~20-40ms/iter)
+        while self.running and (time.time() - gesture_start) < gesture_timeout:
+            # Grab latest frame from camera thread (non-blocking)
+            with self._frame_lock:
+                gframe = None if self._latest_frame is None else self._latest_frame.copy()
+
+            if gframe is None:
+                time.sleep(0.01)
+                continue
+
+            # Run gesture detection ONLY (lightweight: ~20-40ms)
+            frame_rgb = cv2.cvtColor(gframe, cv2.COLOR_BGR2RGB)
+            gesture, hand_landmarks = self.gesture_detector.detect(frame_rgb)
+
+            if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
+                action = GESTURE_ACTION_MAP.get(gesture)
+                if action and action.value in allowed:
+                    detected_gesture = gesture
+                    detected_action = action
+                    break
+
+            # Brief sleep to prevent CPU spinning (~50fps gesture polling)
+            time.sleep(poll_sleep)
+
+        elapsed_ms = (time.time() - gesture_start) * 1000
+
+        # ─── HANDLE RESULT ─────────────────────────────────────────────
+        if detected_gesture and detected_action:
+            logger.info(
+                "GESTURE | Detected %s in %.0fms -> %s for %s",
+                detected_gesture.value, elapsed_ms, detected_action.value, match.name,
+            )
+
+            success = self.attendance_logger.log_attendance(
+                user_id=match.user_id,
+                class_id=active_class.class_id,
+                device_id=self.config.DEVICE_ID,
+                action=detected_action,
+                verified_by=VerifiedBy.FACE_GESTURE,
+                confidence_score=confidence,
+                gesture_detected=detected_gesture.value,
+            )
+
+            if success:
+                self.add_checkin_event(match.name, detected_action.value)
+                cache_key = f"{match.user_id}_{active_class.class_id}"
+
+                if detected_action == AttendanceAction.BREAK_OUT:
+                    self._user_attendance_state[cache_key] = {
+                        "has_entered": True, "is_on_break": True,
+                        "has_exited": False, "last_action": "BREAK_OUT",
+                        "allowed_actions": ["BREAK_IN"],
+                    }
+                    self.broadcast_state({
+                        "recognized_user": None, "tupm_id": None,
+                        "greeting_type": None, "required_gestures": [],
+                        "message": "",
+                    })
+                elif detected_action == AttendanceAction.BREAK_IN:
+                    self._user_attendance_state[cache_key] = {
+                        "has_entered": True, "is_on_break": False,
+                        "has_exited": False, "last_action": "BREAK_IN",
+                        "allowed_actions": ["BREAK_OUT", "EXIT"],
+                    }
+                    self.broadcast_state({
+                        "recognized_user": None, "tupm_id": None,
+                        "greeting_type": None, "required_gestures": [],
+                        "message": "",
+                    })
+                elif detected_action == AttendanceAction.EXIT:
+                    self._user_attendance_state[cache_key] = {
+                        "has_entered": False, "is_on_break": False,
+                        "has_exited": True, "last_action": "EXIT",
+                        "allowed_actions": ["ENTRY"],
+                    }
+                    self.broadcast_state({
+                        "recognized_user": match.name, "tupm_id": tupm_id,
+                        "greeting_type": "bye", "required_gestures": [],
+                        "message": "Bye!",
+                    })
+
+            # Green overlay for success
+            if bbox is not None:
+                with self._overlay_lock:
+                    self._overlay = {
+                        "bbox": bbox,
+                        "label": f"{match.name} - {detected_action.value}",
+                        "color": (0, 255, 0),
+                        "expires_at": time.time() + 2.0,
+                    }
+        else:
+            # Gesture timeout
+            logger.warning(
+                "GESTURE | Timeout for %s after %.0fms", match.name, elapsed_ms,
+            )
+            self.broadcast_state({
+                "recognized_user": None, "tupm_id": None,
+                "greeting_type": None, "required_gestures": [],
+                "message": "Gesture timeout",
+            })
+            # Red overlay for timeout
+            if bbox is not None:
+                with self._overlay_lock:
+                    self._overlay = {
+                        "bbox": bbox,
+                        "label": f"{match.name} - Timeout",
+                        "color": (0, 0, 255),
+                        "expires_at": time.time() + 2.0,
+                    }
+
+        # Mark cooldown regardless of success/timeout
+        self._last_recognized[match.user_id] = time.time()
+
     def run(self):
         """
         Start camera and recognition threads.
@@ -273,18 +458,15 @@ class StreamingAttendanceKiosk:
                         latest_frame_bytes = buffer.tobytes()
 
         def recognition_loop():
-            """Run schedule/recognition/attendance logic on latest frames."""
+            """Run schedule/recognition/attendance logic on latest frames.
+
+            Gesture detection is handled by _run_gesture_fast_mode() which
+            runs a dedicated high-frequency inner loop (~50fps) using only
+            MediaPipe Hands — no InsightFace or schedule resolution overhead.
+            """
             frame_count = 0
             last_status_time = time.time()
             last_class_id = None
-
-            # Helper variables for gesture UI flow
-            gesture_timeout_end = 0
-            expected_gestures = []
-            pending_match = None
-            pending_confidence = 0
-            pending_bbox = None
-            pending_allowed = []
             last_recognition_ts = 0.0
 
             while self.running:
@@ -336,92 +518,6 @@ class StreamingAttendanceKiosk:
                         self._not_in_class_logged.clear()
                 elif not self._enrollment_loaded:
                     self._fetch_class_enrollment(active_class.class_id)
-
-                # Gesture handling using latest frame
-                if pending_match is not None and time.time() < gesture_timeout_end:
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    gesture, _ = self.gesture_detector.detect(frame_rgb)
-
-                    tupm_id = getattr(pending_match, 'tupm_id', None)
-                    self.broadcast_state({
-                        "recognized_user": pending_match.name,
-                        "tupm_id": tupm_id,
-                        "greeting_type": None,
-                        "device_id": self.config.DEVICE_ID,
-                        "required_gestures": expected_gestures,
-                        "message": "Please show required gesture",
-                    })
-
-                    if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
-                        action = GESTURE_ACTION_MAP.get(gesture)
-                        if action and action.value in pending_allowed:
-                            success = self.attendance_logger.log_attendance(
-                                user_id=pending_match.user_id,
-                                class_id=active_class.class_id,
-                                device_id=self.config.DEVICE_ID,
-                                action=action,
-                                verified_by=VerifiedBy.FACE_GESTURE,
-                                confidence_score=pending_confidence,
-                                gesture_detected=gesture.value,
-                            )
-                            if success:
-                                self.add_checkin_event(pending_match.name, action.value)
-                                cache_key = f"{pending_match.user_id}_{active_class.class_id}"
-                                tupm_id = getattr(pending_match, 'tupm_id', None)
-                                if action == AttendanceAction.BREAK_OUT:
-                                    self._user_attendance_state[cache_key]["allowed_actions"] = ["BREAK_IN"]
-                                    self.broadcast_state({
-                                        "recognized_user": None,
-                                        "tupm_id": None,
-                                        "greeting_type": None,
-                                        "required_gestures": [],
-                                        "message": "",
-                                    })
-                                elif action == AttendanceAction.BREAK_IN:
-                                    self._user_attendance_state[cache_key]["allowed_actions"] = ["BREAK_OUT", "EXIT"]
-                                    self.broadcast_state({
-                                        "recognized_user": None,
-                                        "tupm_id": None,
-                                        "greeting_type": None,
-                                        "required_gestures": [],
-                                        "message": "",
-                                    })
-                                elif action == AttendanceAction.EXIT:
-                                    self._user_attendance_state[cache_key]["allowed_actions"] = ["ENTRY"]
-                                    self.broadcast_state({
-                                        "recognized_user": pending_match.name,
-                                        "tupm_id": tupm_id,
-                                        "greeting_type": "bye",
-                                        "required_gestures": [],
-                                        "message": "Bye!",
-                                    })
-
-                            self._last_recognized[pending_match.user_id] = time.time()
-                            pending_match = None
-                            if success and action != AttendanceAction.EXIT:
-                                self.broadcast_state({
-                                    "recognized_user": None,
-                                    "tupm_id": None,
-                                    "greeting_type": None,
-                                    "required_gestures": [],
-                                    "message": "",
-                                })
-
-                    frame_elapsed = (time.perf_counter() - t_frame_start) * 1000
-                    self._metrics.record_frame(frame_elapsed, num_faces=0)
-                    self._metrics.maybe_report(cache_size=self.embedding_cache.count)
-                    continue
-                elif pending_match is not None:
-                    # Gesture timeout expired
-                    self._last_recognized[pending_match.user_id] = time.time()
-                    pending_match = None
-                    self.broadcast_state({
-                        "recognized_user": None,
-                        "tupm_id": None,
-                        "greeting_type": None,
-                        "required_gestures": [],
-                        "message": "Gesture timeout",
-                    })
 
                 # Frame skipping for recognition
                 if frame_count % self.config.RECOGNITION_FRAME_SKIP != 0:
@@ -630,24 +726,12 @@ class StreamingAttendanceKiosk:
                         }
                     )
                 else:
-                    # Requires gesture
-                    pending_match = match
-                    pending_confidence = confidence
-                    pending_bbox = bbox
-                    pending_allowed = allowed
-
-                    expected_gestures = []
-                    if "BREAK_OUT" in allowed:
-                        expected_gestures.append("BREAK_OUT")
-                    if "BREAK_IN" in allowed:
-                        expected_gestures.append("BREAK_IN")
-                    if "EXIT" in allowed:
-                        expected_gestures.append("EXIT")
-
-                    # Start gesture wait
-                    self.gesture_detector.reset_buffer()
-                    gesture_timeout_end = (
-                        time.time() + self.config.GESTURE_TIMEOUT_SECONDS
+                    # Requires gesture — enter fast gesture-only mode.
+                    # This runs a dedicated inner loop at ~50fps using only
+                    # MediaPipe Hands, bypassing InsightFace and schedule
+                    # resolution entirely for responsive gesture detection.
+                    self._run_gesture_fast_mode(
+                        match, confidence, bbox, allowed, active_class
                     )
 
         # Start threads

@@ -1,7 +1,7 @@
 {
   "device_id": 1,
   "device_room": "Room 306",
-  "synced_at": "2026-02-28T11:24:57.607845",
+  "synced_at": "2026-02-28T15:42:55.254634",
   "schedule": [
     {
       "class_id": 14,
@@ -25,8 +25,8 @@
       "faculty_name": "Elena Fernandez",
       "section": "BSIT-2B-M",
       "day_of_week": "Saturday",
-      "start_time": "11:00:00",
-      "end_time": "13:00:00",
+      "start_time": "15:00:00",
+      "end_time": "16:00:00",
       "room": "Room 306",
       "semester": "1st Semester",
       "academic_year": "2025-2026"
