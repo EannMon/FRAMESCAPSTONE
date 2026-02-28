@@ -1,0 +1,424 @@
+/* ============================================
+   Dark Mode CSS — FRAMES Theme
+   Applied via body.dark-mode class
+   Base: #0B1120 (deep navy), accent stays #00A859
+   ============================================ */
+
+body.dark-mode {
+    background-color: #0B1120 !important;
+    color: #E2E8F0;
+}
+
+/* --- Main Content Area --- */
+body.dark-mode .main-content-area {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .dashboard-body {
+    background-color: #0F172A;
+}
+
+/* --- Cards --- */
+body.dark-mode .card,
+body.dark-mode .frames-card,
+body.dark-mode .summary-card,
+body.dark-mode .settings-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #E2E8F0;
+}
+
+body.dark-mode .card h3,
+body.dark-mode .card h2,
+body.dark-mode .card h4,
+body.dark-mode .frames-card h3,
+body.dark-mode .settings-card h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .card p,
+body.dark-mode .card span,
+body.dark-mode .frames-card p {
+    color: #CBD5E1;
+}
+
+body.dark-mode .summary-card .summary-title {
+    color: #94A3B8;
+}
+
+body.dark-mode .summary-card .summary-value {
+    color: #F1F5F9;
+}
+
+/* --- Welcome Banner --- */
+body.dark-mode .welcome-banner {
+    background: linear-gradient(135deg, #1E293B, #0F172A) !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .welcome-banner h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .welcome-banner p {
+    color: #94A3B8 !important;
+}
+
+/* --- Reports Sidebar + Content --- */
+body.dark-mode .reports-sidebar,
+body.dark-mode .reports-content {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .report-option:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .report-option.active {
+    background: linear-gradient(135deg, #0F172A, #1e3a5f) !important;
+}
+
+body.dark-mode .report-option-label,
+body.dark-mode .report-content-header h3 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .report-option-desc,
+body.dark-mode .category-label {
+    color: #64748B;
+}
+
+body.dark-mode .report-content-header {
+    border-bottom-color: #334155;
+}
+
+/* --- Tables --- */
+body.dark-mode .report-table thead {
+    background: #0F172A;
+}
+
+body.dark-mode .report-table td {
+    color: #CBD5E1;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .report-table tbody tr:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .report-table tbody tr:nth-child(even) {
+    background: #1a2332;
+}
+
+body.dark-mode .report-table-container {
+    border-color: #334155;
+}
+
+/* --- Filters Bar --- */
+body.dark-mode .reports-filters-bar,
+body.dark-mode .logs-filters {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .filter-select,
+body.dark-mode .filter-input,
+body.dark-mode .logs-filter-select,
+body.dark-mode .logs-filter-input {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .logs-search-wrap {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .logs-search-wrap input {
+    color: #E2E8F0 !important;
+}
+
+/* --- System Logs --- */
+body.dark-mode .logs-list-container {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .log-entry {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .log-entry:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .log-message {
+    color: #F1F5F9;
+}
+
+body.dark-mode .logs-stat {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .stat-count {
+    color: #F1F5F9;
+}
+
+body.dark-mode .logs-footer {
+    background: #1E293B !important;
+    border-top-color: #334155 !important;
+    color: #94A3B8;
+}
+
+/* --- Header --- */
+body.dark-mode .header-container {
+    background-color: #1E293B !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .header-title {
+    color: #F8FAFC !important;
+}
+
+/* --- Settings Page --- */
+body.dark-mode .settings-page-container {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .settings-card p {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .settings-card h3 {
+    border-bottom-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .settings-select-input {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .toggle-switch-label {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .settings-field label {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .settings-link-button,
+body.dark-mode .settings-action-button {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #CBD5E1 !important;
+}
+
+/* --- Profile Page --- */
+body.dark-mode .profile-page-container {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .profile-card,
+body.dark-mode .profile-header-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+/* --- MyClasses Page --- */
+body.dark-mode .my-classes-page {
+    background-color: #0F172A;
+}
+
+body.dark-mode .class-card,
+body.dark-mode .myclasses-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .class-card h3,
+body.dark-mode .class-card h4 {
+    color: #F8FAFC;
+}
+
+/* --- Management Page --- */
+body.dark-mode .dept-management-page {
+    background-color: #0F172A;
+}
+
+body.dark-mode .management-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+/* --- Empty States --- */
+body.dark-mode .reports-empty-state,
+body.dark-mode .report-no-data,
+body.dark-mode .report-loading,
+body.dark-mode .logs-empty,
+body.dark-mode .logs-loading {
+    color: #64748B;
+}
+
+body.dark-mode .report-no-data h4,
+body.dark-mode .reports-empty-state h3,
+body.dark-mode .logs-empty h4 {
+    color: #94A3B8;
+}
+
+/* --- Charts --- */
+body.dark-mode .chart-card {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .chart-card h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .chart-toggle-btn {
+    background: #334155 !important;
+    color: #CBD5E1 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .chart-toggle-btn.active {
+    background: #0F172A !important;
+    color: #F8FAFC !important;
+}
+
+/* --- Modals --- */
+body.dark-mode .v-modal-content,
+body.dark-mode .modal-content {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #E2E8F0;
+}
+
+body.dark-mode .v-modal-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .v-modal-header h2,
+body.dark-mode .modal-content h2,
+body.dark-mode .modal-content h3 {
+    color: #F8FAFC !important;
+}
+
+/* --- Quick Actions --- */
+body.dark-mode .quick-action-btn {
+    background: #334155 !important;
+    color: #CBD5E1 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .quick-action-btn:hover {
+    background: #475569 !important;
+    color: #F8FAFC !important;
+}
+
+/* --- Activity List --- */
+body.dark-mode .activity-item {
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .activity-item strong {
+    color: #F1F5F9;
+}
+
+/* --- Pending Verification --- */
+body.dark-mode .pending-user-card {
+    border-color: #334155 !important;
+    background: #1a2332 !important;
+}
+
+body.dark-mode .pending-user-card:hover {
+    background: #334155 !important;
+}
+
+/* --- Calendar View --- */
+body.dark-mode .calendar-grid {
+    border-color: #334155;
+}
+
+body.dark-mode .calendar-grid th,
+body.dark-mode .calendar-grid td {
+    border-color: #334155;
+    color: #CBD5E1;
+}
+
+body.dark-mode .calendar-grid th {
+    background: #0F172A;
+    color: #F8FAFC;
+}
+
+body.dark-mode .calendar-grid td {
+    background: #1E293B;
+}
+
+/* --- Scrollbar --- */
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #1E293B;
+}
+
+/* --- Attendance Table --- */
+body.dark-mode .attendance-table {
+    background: #1E293B !important;
+}
+
+body.dark-mode .attendance-table th {
+    background: #0F172A;
+    color: #F8FAFC;
+}
+
+body.dark-mode .attendance-table td {
+    color: #CBD5E1;
+    border-color: #334155;
+}
+
+/* --- Inputs & Forms --- */
+body.dark-mode input[type="text"],
+body.dark-mode input[type="email"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="tel"],
+body.dark-mode input[type="password"],
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #0F172A;
+    border-color: #334155;
+    color: #E2E8F0;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+    color: #64748B;
+}
+
+/* --- Dividers --- */
+body.dark-mode .nav-divider {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- Help & Support Page --- */
+body.dark-mode .help-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .help-card h3 {
+    color: #F8FAFC !important;
+}
+
+/* --- Report Footer --- */
+body.dark-mode .report-footer {
+    color: #64748B;
+}

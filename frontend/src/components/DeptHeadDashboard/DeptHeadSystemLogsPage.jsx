@@ -1,113 +1,172 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import './DeptHeadSystemLogsPage.css';
 
-// Reusable Status Tag Component
-const LogStatusTag = ({ text, colorClass }) => (
-    <span className={`log-status-tag ${colorClass}`}>{text}</span>
-);
-
 const DeptHeadSystemLogsPage = () => {
-    // Mock data for the logs table
-    const logsData = [
-        {
-            timestamp: "2025-11-13 10:30:01", level: "ERROR", levelColor: "red", service: "AuthService",
-            message: "Failed login attempt for user 'admin' from IP 198.51.100.1"
-        },
-        {
-            timestamp: "2025-11-13 10:29:45", level: "INFO", levelColor: "green", service: "RecognitionEngine",
-            message: "Face recognized: student_id 2024001 at 'Library Entrance'"
-        },
-        {
-            timestamp: "2025-11-13 10:28:10", level: "WARN", levelColor: "yellow", service: "CameraService",
-            message: "Camera 'CAM-04B' connection reset. Re-establishing..."
-        },
-        {
-            timestamp: "2025-11-13 10:25:00", level: "INFO", levelColor: "green", service: "AuthService",
-            message: "User 'prof.emma.wilson' logged in successfully."
-        },
-        {
-            timestamp: "2025-11-13 10:22:15", level: "DEBUG", levelColor: "grey", service: "GestureControl",
-            message: "Gesture 'WAVE' detected from user_id 892."
-        },
-        {
-            timestamp: "2025-11-13 10:20:00", level: "INFO", levelColor: "green", service: "ApplicationService",
-            message: "New application received from 'alex.cunsani@student.edu'."
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [levelFilter, setLevelFilter] = useState('');
+    const [roomFilter, setRoomFilter] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [rooms, setRooms] = useState([]);
+
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    // Fetch rooms for filter
+    useEffect(() => {
+        axios.get(`${API}/api/dept/management-data`).then(res => {
+            setRooms(res.data?.rooms || []);
+        }).catch(() => { });
+    }, []);
+
+    const fetchLogs = async () => {
+        setLoading(true);
+        try {
+            const params = {};
+            if (levelFilter) params.level = levelFilter;
+            if (roomFilter) params.room = roomFilter;
+            if (searchTerm) params.search = searchTerm;
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
+
+            const res = await axios.get(`${API}/api/dept/system-logs`, { params });
+            setLogs(res.data || []);
+        } catch (err) {
+            console.error('System logs fetch error:', err);
+            setLogs([]);
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
-    const [logs, setLogs] = useState(logsData);
-    const [searchValue, setSearchValue] = useState("");
-    const [levelFilter, setLevelFilter] = useState("All Levels");
-    const [serviceFilter, setServiceFilter] = useState("All Services");
+    useEffect(() => { fetchLogs(); }, []);
 
-    // Filtered logs based on search and dropdown filters
-    const filteredLogs = logs.filter((log) => {
-        const levelMatch = levelFilter === "All Levels" || log.level === levelFilter;
-        const serviceMatch = serviceFilter === "All Services" || log.service === serviceFilter;
-        const searchMatch =
-            log.timestamp.toLowerCase().includes(searchValue.toLowerCase()) ||
-            log.service.toLowerCase().includes(searchValue.toLowerCase()) ||
-            log.message.toLowerCase().includes(searchValue.toLowerCase());
-        return levelMatch && serviceMatch && searchMatch;
-    });
+    // Stats computed from logs
+    const stats = useMemo(() => {
+        const total = logs.length;
+        const errors = logs.filter(l => l.level === 'ERROR').length;
+        const warns = logs.filter(l => l.level === 'WARN').length;
+        const infos = logs.filter(l => l.level === 'INFO').length;
+        return { total, errors, warns, infos };
+    }, [logs]);
+
+    const getLevelIcon = (level) => {
+        switch (level) {
+            case 'ERROR': return { icon: 'fa-times-circle', color: '#ef4444' };
+            case 'WARN': return { icon: 'fa-exclamation-triangle', color: '#f59e0b' };
+            case 'INFO': return { icon: 'fa-info-circle', color: '#3b82f6' };
+            default: return { icon: 'fa-circle', color: '#94a3b8' };
+        }
+    };
 
     return (
-        <div className="system-logs-container">
-            {/* Header and filters */}
+        <div className="system-logs-page">
             <div className="logs-header">
-                <h2>System Logs</h2>
-                <div className="logs-filters">
-                    <select className="logs-filter-select" value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
-                        <option>All Levels</option>
-                        <option>ERROR</option>
-                        <option>WARN</option>
-                        <option>INFO</option>
-                        <option>DEBUG</option>
-                    </select>
-                    <select className="logs-filter-select" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)}>
-                        <option>All Services</option>
-                        <option>AuthService</option>
-                        <option>RecognitionEngine</option>
-                        <option>CameraService</option>
-                        <option>GestureControl</option>
-                        <option>ApplicationService</option>
-                    </select>
-                    <div className="logs-search-bar">
-                        <i className="fas fa-search"></i>
-                        <input type="text" placeholder="Search logs..." value={searchValue} onChange={(e) => setSearchValue(e.target.value)} />
-                    </div>
+                <div>
+                    <h2><i className="fas fa-clipboard-list"></i> System Logs</h2>
+                    <p>Real-time audit and attendance logs from the database</p>
+                </div>
+                <button className="logs-refresh-btn" onClick={fetchLogs}>
+                    <i className="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+
+            {/* Stats Bar */}
+            <div className="logs-stats-bar">
+                <div className="logs-stat">
+                    <span className="stat-count">{stats.total}</span>
+                    <span className="stat-label">Total</span>
+                </div>
+                <div className="logs-stat info">
+                    <span className="stat-count">{stats.infos}</span>
+                    <span className="stat-label">Info</span>
+                </div>
+                <div className="logs-stat warn">
+                    <span className="stat-count">{stats.warns}</span>
+                    <span className="stat-label">Warnings</span>
+                </div>
+                <div className="logs-stat error">
+                    <span className="stat-count">{stats.errors}</span>
+                    <span className="stat-label">Errors</span>
                 </div>
             </div>
 
-            {/* Logs table */}
-            <div className="card logs-table-card">
-                <div className="logs-table-container">
-                    <table className="logs-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>Level</th>
-                                <th>Service</th>
-                                <th>Message</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredLogs.length > 0 ? (
-                                filteredLogs.map((log, index) => (
-                                    <tr key={index}>
-                                        <td className="log-timestamp">{log.timestamp}</td>
-                                        <td><LogStatusTag text={log.level} colorClass={log.levelColor} /></td>
-                                        <td className="log-service">{log.service}</td>
-                                        <td className="log-message">{log.message}</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr><td colSpan="4" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No logs found.</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+            {/* Filters */}
+            <div className="logs-filters">
+                <div className="logs-search-wrap">
+                    <i className="fas fa-search"></i>
+                    <input
+                        type="text"
+                        placeholder="Search logs..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
                 </div>
+                <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="logs-filter-select">
+                    <option value="">All Levels</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARN">WARN</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+                <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="logs-filter-select">
+                    <option value="">All Rooms</option>
+                    {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
+                </select>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="logs-filter-input" />
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="logs-filter-input" />
+                <button className="logs-apply-btn" onClick={fetchLogs}>
+                    <i className="fas fa-filter"></i> Apply
+                </button>
             </div>
+
+            {/* Logs List */}
+            <div className="logs-list-container">
+                {loading ? (
+                    <div className="logs-loading">
+                        <i className="fas fa-spinner fa-spin"></i>
+                        <p>Loading system logs...</p>
+                    </div>
+                ) : logs.length === 0 ? (
+                    <div className="logs-empty">
+                        <i className="fas fa-check-circle"></i>
+                        <h4>No Logs Found</h4>
+                        <p>No system logs match the current filters. Adjust your filters or check back later.</p>
+                    </div>
+                ) : (
+                    <div className="logs-list">
+                        {logs.map((log, i) => {
+                            const { icon, color } = getLevelIcon(log.level);
+                            return (
+                                <div key={i} className={`log-entry level-${log.level?.toLowerCase()}`}>
+                                    <div className="log-icon" style={{ color }}>
+                                        <i className={`fas ${icon}`}></i>
+                                    </div>
+                                    <div className="log-content">
+                                        <div className="log-message">{log.message}</div>
+                                        <div className="log-meta">
+                                            <span className="log-service">{log.service}</span>
+                                            <span className="log-room">{log.room}</span>
+                                            <span className="log-source">{log.source}</span>
+                                        </div>
+                                    </div>
+                                    <div className="log-time">
+                                        <span className={`log-level-badge ${log.level?.toLowerCase()}`}>{log.level}</span>
+                                        <span className="log-timestamp">{log.timestamp}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {logs.length > 0 && (
+                <div className="logs-footer">
+                    Showing {logs.length} log entries
+                </div>
+            )}
         </div>
     );
 };
