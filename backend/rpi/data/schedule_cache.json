@@ -1,8 +1,22 @@
 {
   "device_id": 1,
   "device_room": "Room 306",
-  "synced_at": "2026-02-23T23:59:55.106080",
+  "synced_at": "2026-02-28T16:49:06.482814",
   "schedule": [
+    {
+      "class_id": 14,
+      "subject_code": "CC303-M",
+      "subject_title": "Methods of Research in Computing",
+      "faculty_id": 4,
+      "faculty_name": "Anna Reyes",
+      "section": "BSIT-3A-M",
+      "day_of_week": "Friday",
+      "start_time": "16:00:00",
+      "end_time": "20:00:00",
+      "room": "Room 306",
+      "semester": "1st Semester",
+      "academic_year": "2024-2025"
+    },
     {
       "class_id": 3,
       "subject_code": "IT232-M",
@@ -10,9 +24,9 @@
       "faculty_id": 6,
       "faculty_name": "Elena Fernandez",
       "section": "BSIT-2B-M",
-      "day_of_week": "Monday",
-      "start_time": "22:00:00",
-      "end_time": "01:30:00",
+      "day_of_week": "Saturday",
+      "start_time": "16:00:00",
+      "end_time": "18:00:00",
       "room": "Room 306",
       "semester": "1st Semester",
       "academic_year": "2025-2026"

@@ -6,6 +6,7 @@ This runs on the backend (not Raspberry Pi).
 import numpy as np
 import cv2
 import base64
+import time
 from io import BytesIO
 from typing import List, Tuple, Optional
 import logging
@@ -27,19 +28,21 @@ def get_face_analyzer():
         try:
             from insightface.app import FaceAnalysis
             
-            logger.info("🔄 Loading InsightFace model (buffalo_l)...")
+            logger.info("Loading InsightFace model (buffalo_l)...")
+            start = time.perf_counter()
             _face_analyzer = FaceAnalysis(
                 name='buffalo_l',
                 providers=['CPUExecutionProvider']  # Use CPU for compatibility
             )
             _face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
-            logger.info("✅ InsightFace model loaded successfully!")
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info("InsightFace model loaded successfully in %.1fms", elapsed_ms)
             
         except ImportError:
-            logger.error("❌ InsightFace not installed. Run: pip install insightface onnxruntime")
+            logger.error("InsightFace not installed. Run: pip install insightface onnxruntime")
             raise ImportError("InsightFace not installed")
         except Exception as e:
-            logger.error(f"❌ Failed to load InsightFace: {e}")
+            logger.critical("Failed to load InsightFace model: %s", str(e))
             raise
     
     return _face_analyzer
@@ -78,8 +81,15 @@ def extract_embedding(image: np.ndarray) -> Tuple[Optional[np.ndarray], float]:
     """
     analyzer = get_face_analyzer()
     
-    # Detect faces
+    # Detect faces — timed per FRAMES Observability Rules §3.1
+    start = time.perf_counter()
     faces = analyzer.get(image)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    
+    if elapsed_ms > 200:
+        logger.warning("Slow face detection: %.1fms", elapsed_ms)
+    else:
+        logger.debug("Face detection: %.1fms, found %d faces", elapsed_ms, len(faces))
     
     if not faces:
         return None, 0.0
@@ -116,7 +126,8 @@ def process_enrollment_frames(base64_frames: List[str]) -> Tuple[bytes, int, flo
     embeddings = []
     qualities = []
     
-    logger.info(f"📸 Processing {len(base64_frames)} enrollment frames...")
+    logger.info("Processing %d enrollment frames", len(base64_frames))
+    pipeline_start = time.perf_counter()
     
     for i, frame_b64 in enumerate(base64_frames):
         try:
@@ -129,12 +140,12 @@ def process_enrollment_frames(base64_frames: List[str]) -> Tuple[bytes, int, flo
             if embedding is not None and quality > 0.5:  # Quality threshold
                 embeddings.append(embedding)
                 qualities.append(quality)
-                logger.info(f"   ✓ Frame {i+1}: quality={quality:.2f}")
+                logger.debug("Frame %d: quality=%.2f", i + 1, quality)
             else:
-                logger.warning(f"   ⚠ Frame {i+1}: low quality or no face detected")
+                logger.warning("Frame %d: low quality or no face detected", i + 1)
                 
         except Exception as e:
-            logger.error(f"   ❌ Frame {i+1}: {e}")
+            logger.error("Frame %d processing failed: %s", i + 1, str(e))
     
     if not embeddings:
         raise ValueError("No valid faces detected in any frame")
@@ -149,8 +160,12 @@ def process_enrollment_frames(base64_frames: List[str]) -> Tuple[bytes, int, flo
     embedding_bytes = avg_embedding.astype(np.float32).tobytes()
     
     avg_quality = float(np.mean(qualities))
+    pipeline_ms = (time.perf_counter() - pipeline_start) * 1000
     
-    logger.info(f"✅ Enrollment complete: {len(embeddings)} valid frames, avg quality={avg_quality:.2f}")
+    logger.info(
+        "Enrollment complete: %d valid frames, avg quality=%.2f, total=%.1fms",
+        len(embeddings), avg_quality, pipeline_ms
+    )
     
     return embedding_bytes, len(embeddings), avg_quality
 

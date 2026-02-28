@@ -27,7 +27,7 @@ class FaceDetector:
             model_selection=model_selection,
             min_detection_confidence=min_confidence
         )
-        logger.info(f"✅ FaceDetector initialized (confidence={min_confidence})")
+        logger.info("FaceDetector initialized (confidence=%.2f)", min_confidence)
     
     def detect(self, frame_rgb: np.ndarray) -> List[Tuple[int, int, int, int, float]]:
         """

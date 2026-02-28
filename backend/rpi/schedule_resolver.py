@@ -58,16 +58,22 @@ class ScheduleResolver:
         backend_url: str,
         device_id: int,
         cache_path: str = "rpi/data/schedule_cache.json",
-        api_timeout: int = 5
+        api_timeout: int = 5,
+        failure_backoff_sec: int = 30,
+        use_api: bool = True,
     ):
         self.backend_url = backend_url.rstrip('/')
         self.device_id = device_id
         self.cache_path = cache_path
         self.api_timeout = api_timeout
+        # When API is down, avoid blocking every frame by backing off for a while
+        self._failure_backoff_sec = failure_backoff_sec
+        self._use_api = use_api
         
         self._schedule_cache: List[ScheduleEntry] = []
         self._device_room: Optional[str] = None
         self._last_sync: Optional[datetime] = None
+        self._last_api_failure: Optional[datetime] = None
     
     def get_active_class(self) -> Optional[ActiveClass]:
         """
@@ -76,17 +82,41 @@ class ScheduleResolver:
         Returns:
             ActiveClass if a class is in session, None otherwise
         """
+        # If API usage is disabled (e.g., offline testing), rely solely on cache
+        if not self._use_api:
+            return self._resolve_from_cache()
+
+        # If API has been failing recently, skip network call and rely on cache only
+        now = datetime.now()
+        if (
+            self._last_api_failure is not None
+            and (now - self._last_api_failure).total_seconds() < self._failure_backoff_sec
+        ):
+            logger.debug(
+                "Skipping active-class API (backoff %.0fs since last failure); using cache",
+                self._failure_backoff_sec,
+            )
+            return self._resolve_from_cache()
+
         # Try API first
-        active = self._query_api_active_class()
-        if active:
-            return active
-        
-        # Fallback to local cache
-        logger.info("📦 Using cached schedule...")
+        api_result = self._query_api_active_class()
+        if api_result is not False:
+            # api_result is either an ActiveClass or None (no class right now)
+            return api_result
+
+        # API call failed — fall back to local cache
+        logger.info("Using cached schedule (offline fallback)")
         return self._resolve_from_cache()
     
     def _query_api_active_class(self) -> Optional[ActiveClass]:
-        """Query backend API for active class."""
+        """
+        Query backend API for active class.
+
+        Returns:
+            ActiveClass  — class is currently in session
+            None         — API succeeded, no class active right now
+            False        — API call failed (triggers cache fallback)
+        """
         try:
             url = f"{self.backend_url}/api/kiosk/active-class"
             response = requests.get(
@@ -101,6 +131,8 @@ class ScheduleResolver:
                     cls = data['active_class']
                     # Update device room from response
                     self._device_room = cls.get('room')
+                    # Clear failure marker on success
+                    self._last_api_failure = None
                     
                     return ActiveClass(
                         class_id=cls['class_id'],
@@ -113,19 +145,25 @@ class ScheduleResolver:
                         room=cls['room']
                     )
                 else:
-                    logger.info("ℹ️ No active class at this time")
-                    return None
-            
+                    # API succeeded — room has no class scheduled right now
+                    self._last_api_failure = None
+                    logger.debug("No active class scheduled in this room right now")
+                    return None  # None = success + no class; caller should NOT fall back to cache
+
             elif response.status_code == 404:
-                logger.warning("⚠️ Device not registered in database")
-                return None
+                logger.warning("Device not registered in database")
+                self._last_api_failure = datetime.now()
+                return False  # False = failure; caller may use cache
             else:
-                logger.warning(f"⚠️ API returned status {response.status_code}")
+                logger.warning("API returned status %d", response.status_code)
+                self._last_api_failure = datetime.now()
+                return False  # False = failure
                 
         except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ API request failed: {e}")
-        
-        return None
+            logger.warning("API request failed: %s", str(e))
+            self._last_api_failure = datetime.now()
+
+        return False  # False = failure
     
     def sync_schedule(self) -> bool:
         """
@@ -166,11 +204,11 @@ class ScheduleResolver:
                 self._last_sync = datetime.now()
                 self._save_cache()
                 
-                logger.info(f"✅ Synced {len(self._schedule_cache)} schedule entries")
+                logger.info("Synced %d schedule entries", len(self._schedule_cache))
                 return True
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Schedule sync failed: {e}")
+            logger.error("Schedule sync failed: %s", str(e))
         
         return False
     
@@ -180,7 +218,7 @@ class ScheduleResolver:
             self._load_cache()
         
         if not self._schedule_cache:
-            logger.warning("⚠️ No cached schedule available")
+            logger.warning("No cached schedule available")
             return None
         
         now = datetime.now()
@@ -224,10 +262,10 @@ class ScheduleResolver:
             with open(self.cache_path, 'w') as f:
                 json.dump(cache_data, f, indent=2)
             
-            logger.debug(f"💾 Saved schedule cache to {self.cache_path}")
+            logger.debug("Saved schedule cache to %s", self.cache_path)
             
         except Exception as e:
-            logger.error(f"❌ Failed to save cache: {e}")
+            logger.error("Failed to save cache: %s", str(e))
     
     def _load_cache(self):
         """Load schedule cache from file."""
@@ -247,10 +285,10 @@ class ScheduleResolver:
             if cache_data.get('synced_at'):
                 self._last_sync = datetime.fromisoformat(cache_data['synced_at'])
             
-            logger.info(f"📦 Loaded {len(self._schedule_cache)} cached schedule entries")
+            logger.info("Loaded %d cached schedule entries", len(self._schedule_cache))
             
         except Exception as e:
-            logger.error(f"❌ Failed to load cache: {e}")
+            logger.error("Failed to load cache: %s", str(e))
     
     @property
     def room(self) -> Optional[str]:

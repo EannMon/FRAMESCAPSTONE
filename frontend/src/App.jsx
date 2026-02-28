@@ -47,6 +47,7 @@ import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
+import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
@@ -134,6 +135,9 @@ function App() {
 
                         {/* Template Sandbox */}
                         <Route path="/test-pdf" element={<TestPDFPage />} />
+
+                        {/* Kiosk Dashboard - This is a standalone page that doesn't use any layout */}
+                        <Route path="/kiosk" element={<KioskDashboardPage />} />
 
                         {/* Fallback route */}
                         <Route path="*" element={<Navigate to="/" replace />} />

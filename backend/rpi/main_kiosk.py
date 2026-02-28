@@ -23,11 +23,12 @@ Supports two modes:
 import cv2
 import time
 import logging
+import signal
 import sys
 import os
 import requests
 from datetime import datetime
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, Set, Any
 
 # Add parent directory for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +41,7 @@ from rpi.gesture_detector import GestureDetector, Gesture
 from rpi.embedding_cache import EmbeddingCache
 from rpi.schedule_resolver import ScheduleResolver
 from rpi.attendance_logger import AttendanceLogger, AttendanceAction, VerifiedBy
+from rpi.metrics_collector import KioskMetricsCollector
 
 # Configure logging
 logging.basicConfig(
@@ -72,7 +74,7 @@ class AttendanceKiosk:
 
         # Validate device ID
         if not self.config.DEVICE_ID:
-            logger.error("❌ DEVICE_ID not set! Set via environment variable.")
+            logger.error("DEVICE_ID not set! Set via environment variable.")
             raise ValueError("DEVICE_ID required")
 
         # Initialize components
@@ -80,25 +82,25 @@ class AttendanceKiosk:
         logger.info("   FRAMES Attendance Kiosk - Initializing")
         logger.info("=" * 60)
 
-        logger.info("🔄 Loading face detector (MediaPipe)...")
+        logger.info("Loading face detector (MediaPipe)...")
         self.face_detector = FaceDetector(
             min_confidence=self.config.FACE_DET_CONFIDENCE,
             model_selection=self.config.FACE_DET_MODEL
         )
 
-        logger.info("🔄 Loading face recognizer (InsightFace)...")
+        logger.info("Loading face recognizer (InsightFace)...")
         self.face_recognizer = FaceRecognizer(
             model_name=self.config.INSIGHTFACE_MODEL,
             det_size=self.config.RECOGNITION_DET_SIZE
         )
 
-        logger.info("🔄 Loading gesture detector (MediaPipe Hands)...")
+        logger.info("Loading gesture detector (MediaPipe Hands)...")
         self.gesture_detector = GestureDetector(
             min_confidence=self.config.GESTURE_CONFIDENCE,
             consecutive_frames=getattr(self.config, 'GESTURE_CONSECUTIVE_FRAMES', 3)
         )
 
-        logger.info("📥 Loading embedding cache...")
+        logger.info("Loading embedding cache...")
         self.embedding_cache = EmbeddingCache()
         cache_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
@@ -107,9 +109,9 @@ class AttendanceKiosk:
         if os.path.exists(cache_path):
             self.embedding_cache.load_from_json(cache_path)
         else:
-            logger.warning(f"⚠️ No cache file found at {cache_path}")
+            logger.warning("No cache file found at %s", cache_path)
 
-        logger.info("📅 Initializing schedule resolver...")
+        logger.info("Initializing schedule resolver...")
         self.schedule_resolver = ScheduleResolver(
             backend_url=self.config.BACKEND_URL,
             device_id=self.config.DEVICE_ID,
@@ -117,10 +119,12 @@ class AttendanceKiosk:
                 os.path.dirname(os.path.dirname(__file__)),
                 self.config.SCHEDULE_CACHE_PATH
             ),
-            api_timeout=self.config.API_TIMEOUT_SECONDS
+            api_timeout=self.config.API_TIMEOUT_SECONDS,
+            failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 300),
+            use_api=getattr(self.config, "USE_ACTIVE_CLASS_API", True),
         )
 
-        logger.info("📤 Initializing attendance logger...")
+        logger.info("Initializing attendance logger...")
         self.attendance_logger = AttendanceLogger(
             backend_url=self.config.BACKEND_URL,
             offline_queue_path=os.path.join(
@@ -139,15 +143,32 @@ class AttendanceKiosk:
         self._not_in_class_logged: Set[int] = set()  # user_ids already logged as NOT_IN_CLASS this session
         self._enrollment_loaded: bool = False  # True only after successful enrollment fetch
         self._frame_count: int = 0
+        self._last_cache_refresh: Optional[float] = None  # timestamp of last embedding cache refresh
+        self._metrics = KioskMetricsCollector(
+            report_interval_sec=getattr(self.config, "METRICS_REPORT_INTERVAL_SEC", 60),
+            platform=self.config.PLATFORM,
+        )
+        self._last_recognition_ts: float = 0.0
+
+        # SIGTERM flag for systemd graceful shutdown
+        self._shutdown_requested = False
 
         logger.info("=" * 60)
-        logger.info(f"✅ Kiosk initialized | Device ID: {self.config.DEVICE_ID}")
-        logger.info(f"   Platform: {self.config.PLATFORM.upper()}")
-        logger.info(f"   Gated detection: {'ON' if self.config.USE_GATED_DETECTION else 'OFF'}")
-        logger.info(f"   Model: {self.config.INSIGHTFACE_MODEL} @ {self.config.RECOGNITION_DET_SIZE}")
-        logger.info(f"   Frame skip: every {self.config.RECOGNITION_FRAME_SKIP} frame(s)")
-        logger.info(f"   Enrolled faces: {self.embedding_cache.count}")
-        logger.info(f"   Backend URL: {self.config.BACKEND_URL}")
+        logger.info(
+            "Kiosk initialized | Device ID: %s | Platform: %s",
+            self.config.DEVICE_ID, self.config.PLATFORM.upper()
+        )
+        logger.info(
+            "Gated detection: %s | Model: %s @ %s | Frame skip: %d",
+            'ON' if self.config.USE_GATED_DETECTION else 'OFF',
+            self.config.INSIGHTFACE_MODEL,
+            self.config.RECOGNITION_DET_SIZE,
+            self.config.RECOGNITION_FRAME_SKIP
+        )
+        logger.info(
+            "Enrolled faces: %d | Backend URL: %s",
+            self.embedding_cache.count, self.config.BACKEND_URL
+        )
         logger.info("=" * 60)
 
     def _fetch_class_enrollment(self, class_id: int):
@@ -168,14 +189,14 @@ class AttendanceKiosk:
                 self._enrollment_loaded = True
 
                 logger.info(
-                    f"📋 Loaded enrollment for class {class_id}: "
-                    f"{len(self._class_enrolled_ids)} students, faculty={self._class_faculty_id}"
+                    "Loaded enrollment for class %d: %d students, faculty=%s",
+                    class_id, len(self._class_enrolled_ids), self._class_faculty_id
                 )
             else:
-                logger.warning(f"⚠️ Failed to fetch enrollment: {response.status_code}")
+                logger.warning("Failed to fetch enrollment: %d", response.status_code)
                 self._enrollment_loaded = False
         except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ Enrollment fetch failed: {e}")
+            logger.warning("Enrollment fetch failed: %s", str(e))
             self._enrollment_loaded = False
 
     def _fetch_attendance_state(self, user_id: int, class_id: int) -> dict:
@@ -196,7 +217,7 @@ class AttendanceKiosk:
                 return state
 
         except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ State fetch failed: {e}")
+            logger.warning("State fetch failed: %s", str(e))
 
         # Return default state if fetch fails
         return self._user_attendance_state.get(cache_key, {
@@ -211,14 +232,19 @@ class AttendanceKiosk:
         """Check if user is enrolled in current class or is the faculty."""
         return user_id in self._class_enrolled_ids or user_id == self._class_faculty_id
 
-    def process_frame(self, frame_bgr):
+    def process_frame(
+        self, frame_bgr, timings: Optional[Dict[str, float]] = None
+    ) -> tuple:
         """
         Process a single frame for face recognition.
 
         Returns:
             (face_match, confidence, bbox) or (None, 0.0, None)
+        If timings dict is provided, fills recognition_ms and match_ms (for observability).
         """
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        recognition_ms: Optional[float] = None
+        match_ms: Optional[float] = None
 
         if self.config.USE_GATED_DETECTION:
             # STAGE 1: Fast face detection with MediaPipe
@@ -227,29 +253,52 @@ class AttendanceKiosk:
             if face_bbox is None:
                 return None, 0.0, None
 
-            _, _, fw, fh, _ = face_bbox
+            x, y, fw, fh, _ = face_bbox
             if fw < self.config.MIN_FACE_SIZE_PX or fh < self.config.MIN_FACE_SIZE_PX:
                 return None, 0.0, None
 
-            # STAGE 2: InsightFace embedding extraction
-            embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+            # STAGE 2: InsightFace embedding extraction on cropped face
+            face_crop = self.face_detector.crop_face(
+                frame_rgb,
+                face_bbox,
+                target_size=(112, 112),
+                margin=getattr(self.config, "FACE_CROP_MARGIN", 0.3),
+            )
+            t0 = time.perf_counter()
+            embedding, det_score = self.face_recognizer.get_embedding_from_crop(face_crop)
+            recognition_ms = (time.perf_counter() - t0) * 1000
+            bbox = (x, y, x + fw, y + fh)
         else:
+            t0 = time.perf_counter()
             embedding, det_score, bbox = self.face_recognizer.get_embedding(frame_rgb)
+            recognition_ms = (time.perf_counter() - t0) * 1000
 
         if embedding is None:
+            if timings and recognition_ms is not None:
+                timings["recognition_ms"] = recognition_ms
             return None, 0.0, None
 
         # Match against cache
+        t0 = time.perf_counter()
         match, confidence = self.embedding_cache.find_match(
             embedding,
             threshold=self.config.MATCH_THRESHOLD
         )
+        match_ms = (time.perf_counter() - t0) * 1000
 
+        if timings:
+            if recognition_ms is not None:
+                timings["recognition_ms"] = recognition_ms
+            timings["match_ms"] = match_ms
         return match, confidence, bbox
 
     def check_gesture(self, cap, timeout: float = None) -> Optional[Gesture]:
         """
-        Wait for gesture confirmation within timeout.
+        Fast gesture-only detection loop.
+
+        Reads directly from camera and runs ONLY MediaPipe Hands at high
+        frequency (~50fps) without any InsightFace or schedule overhead.
+        Uses GESTURE_POLL_SLEEP_SECONDS from config for polling interval.
 
         Returns:
             Gesture enum if detected, None if timeout
@@ -257,8 +306,13 @@ class AttendanceKiosk:
         if timeout is None:
             timeout = self.config.GESTURE_TIMEOUT_SECONDS
 
+        poll_sleep = getattr(self.config, "GESTURE_POLL_SLEEP_SECONDS", 0.02)
         start_time = time.time()
         self.gesture_detector.reset_buffer()
+
+        logger.info(
+            "GESTURE | Fast detection started, timeout=%.1fs", timeout,
+        )
 
         while time.time() - start_time < timeout:
             ret, frame = cap.read()
@@ -286,10 +340,15 @@ class AttendanceKiosk:
             cv2.waitKey(1)
 
             if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
+                elapsed_ms = (time.time() - start_time) * 1000
+                logger.info(
+                    "GESTURE | Detected %s in %.0fms", gesture.value, elapsed_ms,
+                )
                 return gesture
 
-            time.sleep(0.03)
+            time.sleep(poll_sleep)
 
+        logger.warning("GESTURE | Timeout after %.0fms", timeout * 1000)
         return None
 
     def is_on_cooldown(self, user_id: int) -> bool:
@@ -305,7 +364,17 @@ class AttendanceKiosk:
 
     def run(self):
         """Main kiosk loop with full attendance state machine."""
-        logger.info(f"📷 Opening camera (picamera2={'ON' if self.config.USE_PICAMERA2 else 'OFF'})...")
+        # Register SIGTERM handler for systemd graceful shutdown
+        def _sigterm_handler(signum, frame):
+            logger.info("SIGTERM received, initiating graceful shutdown")
+            self._shutdown_requested = True
+
+        signal.signal(signal.SIGTERM, _sigterm_handler)
+
+        logger.info(
+            "Opening camera (picamera2=%s)",
+            'ON' if self.config.USE_PICAMERA2 else 'OFF'
+        )
         cap = Camera(
             index=self.config.CAMERA_INDEX,
             width=self.config.CAMERA_WIDTH,
@@ -315,10 +384,10 @@ class AttendanceKiosk:
         )
 
         if not cap.isOpened():
-            logger.error("❌ Failed to open camera!")
+            logger.error("Failed to open camera")
             return
 
-        logger.info(f"✅ Camera opened ({cap.backend_name}) | Press 'q' to stop")
+        logger.info("Camera opened (%s) | Press 'q' to stop", cap.backend_name)
         logger.info("-" * 60)
 
         # Sync schedule on startup
@@ -332,8 +401,11 @@ class AttendanceKiosk:
             frame_count = 0
             last_status_time = time.time()
             last_class_id = None
+            last_flush_time = time.time()
+            last_schedule_sync = time.time()
 
-            while True:
+            while not self._shutdown_requested:
+                t_loop_start = time.perf_counter()
                 ret, frame = cap.read()
                 if not ret:
                     continue
@@ -353,7 +425,7 @@ class AttendanceKiosk:
 
                 if active_class is None:
                     if time.time() - last_status_time > 30:
-                        logger.info("ℹ️ No active class at this time")
+                        logger.debug("No active class at this time")
                         last_status_time = time.time()
 
                     display = frame.copy()
@@ -364,7 +436,13 @@ class AttendanceKiosk:
                     cv2.imshow("FRAMES Attendance Kiosk", display)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
-                    time.sleep(0.5)
+
+                    # Record idle frame metrics so we can still see FPS/latency when backend is down
+                    frame_elapsed_ms = (time.perf_counter() - t_loop_start) * 1000
+                    self._metrics.record_frame(frame_elapsed_ms, num_faces=0, matched=False)
+                    self._metrics.maybe_report(cache_size=self.embedding_cache.count)
+
+                    time.sleep(getattr(self.config, "IDLE_NO_CLASS_SLEEP_SECONDS", 0.1))
                     continue
 
                 # 2. Load enrollment when class changes (or retry if previous fetch failed)
@@ -378,7 +456,7 @@ class AttendanceKiosk:
                         self._not_in_class_logged.clear()
                     else:
                         # Enrollment fetch failed — retry next iteration
-                        logger.warning("⚠️ Enrollment not loaded, will retry...")
+                        logger.warning("Enrollment not loaded, will retry")
                         time.sleep(2)
                         continue
                 elif not self._enrollment_loaded:
@@ -388,8 +466,82 @@ class AttendanceKiosk:
                         time.sleep(2)
                         continue
 
-                # 3. Face recognition
-                match, confidence, bbox = self.process_frame(frame)
+                # Periodic embedding cache refresh (CACHE_REFRESH_MINUTES)
+                now_sec = time.time()
+                cache_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    self.config.EMBEDDINGS_CACHE_PATH
+                )
+                if (
+                    self._last_cache_refresh is None
+                    or (now_sec - self._last_cache_refresh) >= self.config.CACHE_REFRESH_MINUTES * 60
+                ) and os.path.exists(cache_path):
+                    if self.embedding_cache.load_from_json(cache_path):
+                        self._last_cache_refresh = now_sec
+                        logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
+
+                # Periodic offline queue flush (every 5 minutes)
+                now_sec = time.time()
+                if (now_sec - last_flush_time) >= 300 and self.attendance_logger.offline_count > 0:
+                    logger.info("PERIODIC | Flushing offline queue (%d records)", self.attendance_logger.offline_count)
+                    self.attendance_logger.flush_offline_queue()
+                    last_flush_time = now_sec
+
+                # Periodic schedule re-sync (every 30 minutes)
+                if (now_sec - last_schedule_sync) >= 1800:
+                    logger.info("PERIODIC | Re-syncing schedule from API")
+                    self.schedule_resolver.sync_schedule()
+                    last_schedule_sync = now_sec
+
+                # 3. Face recognition (with per-step timing for observability)
+                # Throttle heavy recognition so we don't block every eligible frame
+                now_time = time.time()
+                min_interval = getattr(self.config, "RECOGNITION_MIN_INTERVAL_SECONDS", 0.0)
+                if min_interval > 0.0 and (now_time - self._last_recognition_ts) < min_interval:
+                    display = frame.copy()
+                    cv2.putText(display, f"{active_class.subject_code} - {active_class.section}", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    cv2.putText(display, f"Faculty: {active_class.faculty_name}", (10, 55),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
+                    cv2.imshow("FRAMES Attendance Kiosk", display)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+
+                    frame_elapsed_ms = (time.perf_counter() - t_loop_start) * 1000
+                    self._metrics.record_frame(frame_elapsed_ms, num_faces=0, matched=False)
+                    try:
+                        import psutil
+                        mem_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+                    except Exception:
+                        mem_mb = None
+                    self._metrics.maybe_report(
+                        cache_size=self.embedding_cache.count,
+                        memory_mb=mem_mb,
+                    )
+                    continue
+
+                frame_timings: Dict[str, float] = {}
+                t_frame_start = time.perf_counter()
+                match, confidence, bbox = self.process_frame(frame, timings=frame_timings)
+                frame_elapsed_ms = (time.perf_counter() - t_frame_start) * 1000
+                self._last_recognition_ts = now_time
+                num_faces = 1 if (match is not None or bbox is not None) else 0
+                self._metrics.record_frame(
+                    frame_elapsed_ms,
+                    num_faces=num_faces,
+                    matched=match is not None,
+                    recognition_ms=frame_timings.get("recognition_ms"),
+                    match_ms=frame_timings.get("match_ms"),
+                )
+                try:
+                    import psutil
+                    mem_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+                except Exception:
+                    mem_mb = None
+                self._metrics.maybe_report(
+                    cache_size=self.embedding_cache.count,
+                    memory_mb=mem_mb,
+                )
 
                 display = frame.copy()
 
@@ -407,7 +559,7 @@ class AttendanceKiosk:
                         cv2.rectangle(display, (x1, y1), (x2, y2), (0, 0, 255), 2)
                         cv2.putText(display, f"Unknown ({confidence:.1%})", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                        logger.debug(f"❓ Unknown face detected (best: {confidence:.1%})")
+                        logger.debug("Unknown face detected (best: %.1f%%)", confidence * 100)
 
                     cv2.imshow("FRAMES Attendance Kiosk", display)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -426,7 +578,7 @@ class AttendanceKiosk:
                         break
                     continue
 
-                logger.info(f"👤 Recognized: {match.name} ({confidence:.1%})")
+                logger.info("Recognized: %s (%.1f%%)", match.name, confidence * 100)
 
                 # Draw bounding box
                 if bbox is not None:
@@ -439,8 +591,8 @@ class AttendanceKiosk:
                 if not self._is_user_in_class(match.user_id):
                     # Recognized but NOT supposed to be here
                     logger.warning(
-                        f"⚠️ {match.name} recognized but NOT in class "
-                        f"{active_class.subject_code} {active_class.section}"
+                        "%s recognized but NOT in class %s %s",
+                        match.name, active_class.subject_code, active_class.section
                     )
                     cv2.putText(display, "NOT IN THIS CLASS", (10, 80),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
@@ -459,9 +611,9 @@ class AttendanceKiosk:
                             remarks=f"[NOT_IN_CLASS] {match.name} recognized but not enrolled"
                         )
                         self._not_in_class_logged.add(match.user_id)
-                        logger.info(f"📝 NOT_IN_CLASS logged once for {match.name}")
+                        logger.info("NOT_IN_CLASS logged once for %s", match.name)
                     else:
-                        logger.debug(f"ℹ️ {match.name} already logged as NOT_IN_CLASS, skipping")
+                        logger.debug("%s already logged as NOT_IN_CLASS, skipping", match.name)
 
                     self.mark_recognized(match.user_id)
                     continue
@@ -472,14 +624,14 @@ class AttendanceKiosk:
 
                 if not allowed:
                     # No allowed actions — skip (should rarely happen now)
-                    logger.info(f"ℹ️ {match.name} has no allowed actions")
+                    logger.info("%s has no allowed actions", match.name)
                     self.mark_recognized(match.user_id)
                     continue
 
                 # 6. Determine action based on state
                 if "ENTRY" in allowed:
                     # First time — ENTRY, no gesture needed
-                    logger.info(f"🚪 Logging ENTRY for {match.name} (face only)")
+                    logger.info("Logging ENTRY for %s (face only)", match.name)
                     cv2.putText(display, "ENTRY - Welcome!", (10, 80),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                     cv2.imshow("FRAMES Attendance Kiosk", display)
@@ -494,7 +646,7 @@ class AttendanceKiosk:
                     )
 
                     if success:
-                        logger.info(f"✅ ENTRY logged for {match.name}")
+                        logger.info("ENTRY logged for %s", match.name)
                         # Update local state
                         cache_key = f"{match.user_id}_{active_class.class_id}"
                         self._user_attendance_state[cache_key] = {
@@ -515,7 +667,7 @@ class AttendanceKiosk:
                         prompt_actions.append("🖐 Palm=Exit")
 
                     prompt_text = " | ".join(prompt_actions)
-                    logger.info(f"✋ {match.name} — show gesture: {prompt_text}")
+                    logger.info("%s -- show gesture: %s", match.name, prompt_text)
                     cv2.putText(display, f"Show gesture: {prompt_text}", (10, 80),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                     cv2.imshow("FRAMES Attendance Kiosk", display)
@@ -524,27 +676,27 @@ class AttendanceKiosk:
                     gesture = self.check_gesture(cap, self.config.GESTURE_TIMEOUT_SECONDS)
 
                     if gesture is None:
-                        logger.warning(f"⚠️ Gesture timeout for {match.name}")
+                        logger.warning("Gesture timeout for %s", match.name)
                         self.mark_recognized(match.user_id)
                         continue
 
                     # Map gesture to action
                     action = GESTURE_ACTION_MAP.get(gesture)
                     if action is None:
-                        logger.warning(f"⚠️ Unrecognized gesture: {gesture}")
+                        logger.warning("Unrecognized gesture: %s", gesture)
                         self.mark_recognized(match.user_id)
                         continue
 
                     # Validate action is allowed
                     if action.value not in allowed:
                         logger.warning(
-                            f"⚠️ {action.value} not allowed for {match.name} "
-                            f"(allowed: {allowed})"
+                            "%s not allowed for %s (allowed: %s)",
+                            action.value, match.name, allowed
                         )
                         self.mark_recognized(match.user_id)
                         continue
 
-                    logger.info(f"✓ Gesture: {gesture.value} → Action: {action.value}")
+                    logger.info("Gesture: %s -> Action: %s", gesture.value, action.value)
 
                     success = self.attendance_logger.log_attendance(
                         user_id=match.user_id,
@@ -557,7 +709,7 @@ class AttendanceKiosk:
                     )
 
                     if success:
-                        logger.info(f"✅ {action.value} logged for {match.name}")
+                        logger.info("%s logged for %s", action.value, match.name)
 
                         # Update local state cache
                         cache_key = f"{match.user_id}_{active_class.class_id}"
@@ -587,7 +739,7 @@ class AttendanceKiosk:
                 time.sleep(0.1)
 
         except KeyboardInterrupt:
-            logger.info("\n👋 Shutting down kiosk...")
+            logger.info("Shutting down kiosk (KeyboardInterrupt)")
 
         finally:
             cap.release()
@@ -596,10 +748,10 @@ class AttendanceKiosk:
             self.gesture_detector.close()
 
             if self.attendance_logger.offline_count > 0:
-                logger.info("📤 Flushing remaining offline records...")
+                logger.info("Flushing remaining %d offline records", self.attendance_logger.offline_count)
                 self.attendance_logger.flush_offline_queue()
 
-            logger.info("✅ Kiosk stopped")
+            logger.info("Kiosk stopped")
 
 
 def main():
@@ -629,8 +781,8 @@ def main():
             config.DEVICE_ID = int(device_id_env)
 
     if not config.DEVICE_ID:
-        print("❌ Error: DEVICE_ID required. Set via --device-id or DEVICE_ID env var.")
-        print("   Run: python scripts/setup_laptop_device.py  to register your laptop first.")
+        logger.error("DEVICE_ID required. Set via --device-id or DEVICE_ID env var.")
+        logger.error("Run: python scripts/setup_laptop_device.py  to register your laptop first.")
         sys.exit(1)
 
     # ENTRY does NOT require gesture (face only). Gesture is for break/exit.
