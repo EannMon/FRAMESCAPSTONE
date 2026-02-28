@@ -126,7 +126,7 @@ const FacultyAttendancePage = () => {
             {/* Statistics based on Real Data */}
             {/* Statistics based on Real Data (Premium Style) */}
             <div className="attendance-stats-grid">
-                
+
                 {/* Total Classes Card - Premium Style */}
                 <div className="summary-card premium">
                     <div className="summary-content-left">
