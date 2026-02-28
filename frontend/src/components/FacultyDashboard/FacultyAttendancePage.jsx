@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
+import api from '../../services/api';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
-import '../StudentDashboard/AttendanceHistoryPage.css'; // Inheriting Student style
+import './FacultyAttendancePage.css';
 
 const FacultyAttendancePage = () => {
+    const { user: authUser } = useAuth();
     const toast = useToast();
+
     // --- STATES ---
-    const [selectedClassId, setSelectedClassId] = useState("");
+    const [viewMode, setViewMode] = useState('main'); // 'main' or 'details'
     const [selectedClass, setSelectedClass] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
@@ -19,54 +22,56 @@ const FacultyAttendancePage = () => {
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
+        const controller = new AbortController();
+
+        if (authUser) {
+            const parsedUser = authUser;
             setUser(parsedUser);
-            fetchSchedule(parsedUser.user_id || parsedUser.id);
+            fetchSchedule(parsedUser.user_id || parsedUser.id, controller.signal);
         }
-    }, []);
+
+        return () => controller.abort();
+    }, [authUser]);
 
     // --- 2. FETCH SCHEDULE (API) ---
-    const fetchSchedule = async (userId) => {
+    const fetchSchedule = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            const response = await api.get(`/api/faculty/schedule/${userId}`, { signal });
             setMyClasses(response.data);
             setLoading(false);
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading schedule:", error);
             setLoading(false);
         }
     };
 
     // --- 3. FETCH CLASS DETAILS (API) ---
-    const handleClassChange = async (e) => {
-        const clsId = e.target.value;
-        setSelectedClassId(clsId);
-
-        if (!clsId) {
-            setSelectedClass(null);
-            setStudentList([]);
-            return;
-        }
-
-        const cls = myClasses.find(c => c.id.toString() === clsId);
+    const handleViewDetails = async (cls) => {
         setSelectedClass(cls);
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${clsId}`);
+            const response = await api.get(`/api/faculty/class-details/${cls.id}`);
             setStudentList(response.data);
+            setViewMode('details');
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading students:", error);
-            toast.error("Could not load student list.");
+            toast.error(error.userMessage || "Could not load student list.");
         } finally {
             setLoading(false);
         }
     };
 
+    // --- HANDLERS ---
+    const handleBack = () => {
+        setViewMode('main');
+        setSelectedClass(null);
+        setStudentList([]);
+    };
+
     // Export Single Class Report (FRAMES Template)
     const handleClassExport = () => {
-        if (!selectedClass) return;
         const reportInfo = {
             title: `${selectedClass.subject_title} Attendance`,
             type: "CLASS ATTENDANCE REPORT",
@@ -89,116 +94,197 @@ const FacultyAttendancePage = () => {
         generateFramesPDF(reportInfo, tableData);
     };
 
+    // Global Export (All Subjects - FRAMES Template)
+    const handleGlobalExport = () => {
+        const reportInfo = {
+            title: "Overall Attendance Summary",
+            type: "FACULTY REPORT",
+            category: 'system',
+            context: {
+                scope: "My Classes"
+            },
+            dateRange: new Date().toLocaleDateString()
+        };
+
+        const tableData = myClasses.map(cls => ({
+            "Subject": cls.subject_title,
+            "Code": cls.subject_code,
+            "Room": cls.room || "TBA",
+            "Attendance": `${cls.rate}%`,
+            "Status": cls.status.toUpperCase()
+        }));
+
+        generateFramesPDF(reportInfo, tableData);
+    };
+
+    // Helper: Status Badge
+    const renderStatusBadge = (status) => {
+        if (status === 'completed') return <span className="status-badge-row green"><i className="fas fa-check-circle"></i> Completed</span>;
+        if (status === 'ongoing') return <span className="status-badge-row blue"><i className="fas fa-sync-alt"></i> Ongoing</span>;
+        return <span className="status-badge-row grey"><i className="fas fa-clock"></i> Upcoming</span>;
+    };
+
+    // --- VIEW 1: MAIN DASHBOARD ---
+    const renderMainView = () => (
+        <div className="fade-in">
+            <div className="attendance-header-actions">
+                <button className="schedule-button view-button" onClick={handleGlobalExport}>
+                    <i className="fas fa-file-pdf"></i> Export Full Report
+                </button>
+            </div>
+
+            {/* Statistics based on Real Data */}
+            {/* Statistics based on Real Data (Premium Style) */}
+            <div className="attendance-stats-grid">
+                
+                {/* Total Classes Card - Premium Style */}
+                <div className="summary-card premium">
+                    <div className="summary-content-left">
+                        <div className="summary-title">Total Classes</div>
+                        <div className="summary-value-row">
+                            <span className="summary-value">{myClasses.length}</span>
+                        </div>
+                        <div className="summary-sub-value">Assigned Subjects</div>
+                    </div>
+                    <div className="summary-icon-container f-icon-soft-blue">
+                        <i className="fas fa-book-open"></i>
+                    </div>
+                </div>
+
+                {/* Avg Attendance Card - Premium Style */}
+                <div className="summary-card premium">
+                    <div className="summary-content-left">
+                        <div className="summary-title">Avg Attendance</div>
+                        <div className="summary-value-row">
+                            <span className="summary-value">
+                                {myClasses.length > 0
+                                    ? Math.round(myClasses.reduce((acc, curr) => acc + curr.rate, 0) / myClasses.length)
+                                    : 0}%
+                            </span>
+                            <span className="summary-badge success">Active</span>
+                        </div>
+                        <div className="summary-sub-value">Across all sections</div>
+                    </div>
+                    <div className="summary-icon-container f-icon-soft-green">
+                        <i className="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+
+            </div>
+
+            {/* Today's Classes */}
+            <div className="card">
+                <h3>My Class Schedule {loading && "(Loading...)"}</h3>
+                <div className="today-classes-list">
+                    {myClasses.length > 0 ? (
+                        myClasses.map((cls) => (
+                            <div key={cls.id} className={`today-class-item ${cls.status}`}>
+                                <div className="class-info">
+                                    <h4>{cls.subject_title} <span className="code-tag">{cls.subject_code}</span></h4>
+                                    <p>
+                                        <span style={{ fontWeight: 'bold', color: '#555' }}>{cls.section}</span> •
+                                        {cls.day_of_week} {cls.start_time} • {cls.room}
+                                    </p>
+                                    {renderStatusBadge(cls.status)}
+                                </div>
+
+                                <div className="attendance-visuals">
+                                    <div className="class-attendance-rate">{cls.rate}%</div>
+                                    <div className="attendance-progress">
+                                        <div className="progress-bar" style={{ width: `${cls.rate}%` }}></div>
+                                    </div>
+                                    <div style={{ fontSize: '0.8em', color: '#888', marginTop: '5px' }}>
+                                        {cls.present_count} / {cls.total_students} Present
+                                    </div>
+                                </div>
+
+                                <div className="class-actions">
+                                    <button className="action-btn view" onClick={() => handleViewDetails(cls)}>
+                                        <i className="fas fa-users"></i> View Students
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
+                            No classes assigned yet. Contact the Dept Head.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
+    // --- VIEW 2: STUDENT LIST DETAILS ---
+    const renderDetailsView = () => (
+        <div className="details-view-container fade-in">
+            <div className="details-header">
+                <button className="back-link-btn" onClick={handleBack}>
+                    <i className="fas fa-arrow-left"></i> Back to Dashboard
+                </button>
+                <div className="class-details-title">
+                    <h2>{selectedClass.subject_title} <span className="highlight-code">({selectedClass.subject_code})</span></h2>
+                    <p>{selectedClass.section} • {selectedClass.room}</p>
+                </div>
+            </div>
+
+            <div className="details-controls">
+                <input
+                    type="text"
+                    placeholder="Search student..."
+                    className="search-input"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <button className="export-pdf-btn" onClick={handleClassExport}>
+                    <i className="fas fa-download"></i> Download Report
+                </button>
+            </div>
+
+            <div className="details-table-wrapper">
+                <table className="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>ID Number</th>
+                            <th>Time In</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {studentList
+                            .filter(s =>
+                                s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                s.firstName.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                            .map((student) => (
+                                <tr key={student.user_id}>
+                                    <td className="font-bold">{student.lastName}, {student.firstName}</td>
+                                    <td className="text-muted">{student.tupm_id}</td>
+                                    <td>{student.timeIn}</td>
+                                    <td>
+                                        <span className={`status-badge ${student.status === 'Present' ? 'green' : 'red'}`}>
+                                            {student.status}
+                                        </span>
+                                    </td>
+                                    <td>{student.remarks}</td>
+                                </tr>
+                            ))}
+                        {studentList.length === 0 && (
+                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No students enrolled in this section.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
 
     if (!user) return <div className="loading">Please log in.</div>;
 
     return (
-        <div className="attendance-history-view">
-            {/* REPORT HEADER */}
-            <div className="reports-header-section">
-
-                {/* FLEX CONTAINER FOR ALIGNMENT */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', marginBottom: '10px', width: '100%' }}>
-                    <div className="report-selector-group" style={{ marginBottom: 0, flex: 1 }}>
-                        <label>Select Class Section:</label>
-                        <select
-                            className="app-select big-select"
-                            value={selectedClassId}
-                            onChange={handleClassChange}
-                        >
-                            <option value="">-- Choose a Class --</option>
-                            {myClasses.map(cls => (
-                                <option key={cls.id} value={cls.id}>
-                                    {cls.subject_title} ({cls.subject_code}) - {cls.section}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {selectedClass && (
-                        <div className="dynamic-date-filter" style={{ marginTop: 0 }}>
-                            <div className="filter-item">
-                                <label>Search Student:</label>
-                                <input
-                                    type="text"
-                                    style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', minWidth: '200px' }}
-                                    placeholder="Search name..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="report-description-box" style={{ marginTop: '0px' }}>
-                    <i className="fas fa-users"></i>
-                    <span>{selectedClass ? `Viewing today's attendance for ${selectedClass.subject_title} (${selectedClass.section}).` : "Select a class from the dropdown to view the enrolled students and their attendance status for today's session."}</span>
-                </div>
-            </div>
-
-            {/* TABLE CARD */}
-            {selectedClass && (
-                <div className="card recent-reports-card">
-                    <div className="recent-reports-header">
-                        <h3>Class Attendance List</h3>
-
-                        <div className="recent-reports-filters">
-                            <button className="export-all-button" onClick={handleClassExport}>
-                                <i className="fas fa-file-pdf"></i> Download Class Report
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="reports-table-container">
-                        {loading ? (
-                            <div style={{ padding: '40px', textAlign: 'center' }}>Loading Students...</div>
-                        ) : (
-                            <table className="recent-reports-table">
-                                <thead>
-                                    <tr>
-                                        <th>Student Name</th>
-                                        <th>ID Number</th>
-                                        <th>Time In</th>
-                                        <th>Status</th>
-                                        <th>Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {studentList
-                                        .filter(s =>
-                                            s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                            s.firstName.toLowerCase().includes(searchTerm.toLowerCase())
-                                        )
-                                        .map((student) => (
-                                            <tr key={student.user_id}>
-                                                <td style={{ fontWeight: '600', color: '#333' }}>{student.lastName}, {student.firstName}</td>
-                                                <td style={{ color: '#666' }}>{student.tupm_id}</td>
-                                                <td>{student.timeIn}</td>
-                                                <td>
-                                                    <span className={`log-status-tag ${student.status === 'Present' ? 'green' : 'red'}`}>
-                                                        {student.status.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td style={{ color: '#555' }}>{student.remarks || '-'}</td>
-                                            </tr>
-                                        ))}
-                                    {studentList.length === 0 && (
-                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>No students found in this class.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {!selectedClass && myClasses.length > 0 && !loading && (
-                <div style={{ textAlign: 'center', padding: '50px', color: '#888' }}>
-                    <i className="fas fa-chalkboard-teacher" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '15px' }}></i>
-                    <p>Please select a class from the dropdown menu to manage its attendance.</p>
-                </div>
-            )}
+        <div className="attendance-management">
+            {viewMode === 'main' ? renderMainView() : renderDetailsView()}
         </div>
     );
 };

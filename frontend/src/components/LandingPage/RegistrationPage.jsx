@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './LandingPage.css';
 import './RegistrationPage.css';
 import Header from '../Common/Header';
@@ -17,7 +17,7 @@ const RegistrationPage = () => {
 
     // Redirect invalid roles
     useEffect(() => {
-        if (role !== 'head' && role !== 'faculty') {
+        if (role !== 'student' && role !== 'faculty') {
             if (!status) navigate('/');
         }
     }, [role, navigate, status]);
@@ -31,6 +31,10 @@ const RegistrationPage = () => {
     // Validation & Alert
     const [errors, setErrors] = useState({});
     const [alertConfig, setAlertConfig] = useState({ show: false, title: '', message: '', type: 'error' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Simple email format check
+    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     const showAlert = (title, message, type = 'error') => {
         setAlertConfig({ show: true, title, message, type });
@@ -46,32 +50,7 @@ const RegistrationPage = () => {
         tupmYear: '',
         tupmSerial: '',
         email: '',
-        departmentId: '',
-        programId: '',
-        currentTerm: ''
     });
-
-    const [departments, setDepartments] = useState([]);
-    const [programs, setPrograms] = useState([]);
-
-    useEffect(() => {
-        const fetchDropdowns = async () => {
-            try {
-                const deptRes = await axios.get('http://localhost:5000/api/auth/departments');
-                setDepartments(deptRes.data);
-                const progRes = await axios.get('http://localhost:5000/api/auth/programs');
-                setPrograms(progRes.data);
-            } catch (error) {
-                console.error("Error fetching dropdowns:", error);
-            }
-        };
-        fetchDropdowns();
-    }, []);
-
-    // Filter programs based on selected department
-    const filteredPrograms = formData.departmentId
-        ? programs.filter(p => p.department_id === parseInt(formData.departmentId))
-        : programs;
 
     // Scroll top on step change
     useEffect(() => {
@@ -83,12 +62,6 @@ const RegistrationPage = () => {
             if (value && !/^\d*$/.test(value)) return;
         }
         setFormData(prev => ({ ...prev, [field]: value }));
-
-        // Clear dependent program if department changes
-        if (field === 'departmentId') {
-            setFormData(prev => ({ ...prev, programId: '' }));
-        }
-
         if (errors[field]) {
             setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
         }
@@ -101,23 +74,15 @@ const RegistrationPage = () => {
             if (!formData.lastName.trim()) newErrors.lastName = true;
             if (!formData.email.trim()) {
                 newErrors.email = true;
-            } else {
-                const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-                if (!emailRegex.test(formData.email)) {
-                    newErrors.email = true;
-                    showAlert("Invalid Email", "Please enter a valid email address (e.g., name@example.com).", "warning");
-                    setErrors(newErrors);
-                    return false;
-                }
+            } else if (!isValidEmail(formData.email)) {
+                newErrors.email = true;
+                showAlert('Invalid Email', 'Please enter a valid email address.', 'warning');
             }
-            if (!formData.tupmYear.trim() || formData.tupmYear.length !== 2) newErrors.tupmYear = true;
-            if (!formData.tupmSerial.trim() || formData.tupmSerial.length !== 4) newErrors.tupmSerial = true;
-            if (!formData.departmentId) newErrors.departmentId = true;
+            if (!formData.tupmYear.trim()) newErrors.tupmYear = true;
+            if (!formData.tupmSerial.trim()) newErrors.tupmSerial = true;
         }
-
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
-            showAlert("Incomplete Fields", "Please fill in all required fields indicated by the red asterisk (*).", "warning");
             return false;
         }
         return true;
@@ -138,6 +103,7 @@ const RegistrationPage = () => {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const payload = {
                 email: formData.email,
@@ -147,29 +113,24 @@ const RegistrationPage = () => {
                 first_name: formData.firstName,
                 last_name: formData.lastName,
                 middle_name: formData.middleName || null,
-                department_id: formData.departmentId ? parseInt(formData.departmentId) : null,
-                program_id: formData.programId ? parseInt(formData.programId) : null,
-                current_term: formData.currentTerm || null
+                department_id: null,
+                program_id: null,
             };
 
-            const response = await axios.post('http://localhost:5000/api/auth/register', payload);
+            const response = await api.post('/api/auth/register', payload);
             if (response.data.message) {
-                // If HEAD, they are auto-verified
-                if (role === 'head') {
-                    showAlert("Registration Successful", "Department Head account created successfully. You can now log in.", "success");
-                    setTimeout(() => navigate('/'), 2000);
-                } else {
-                    navigate('/register/status?s=pending');
-                }
+                navigate('/register/status?s=pending');
             }
         } catch (error) {
             console.error("Error registering:", error);
-            const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
+            const errorMsg = error.userMessage || error.message;
             if (errorMsg.includes("already exists")) {
-                showAlert("Registration Failed", "Email or TUPM ID already exists in the system.", "error");
+                showAlert("Registration Failed", "Email or TUPM ID already exists.", "error");
             } else {
                 showAlert("Registration Failed", errorMsg, "error");
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -178,7 +139,7 @@ const RegistrationPage = () => {
         let title, message, iconClass, iconColor;
         if (status === 'pending') {
             title = "Verification Pending";
-            message = "Thank you for registering! Your account is currently under review. You will receive an email once verified.";
+            message = "Thank you for registering! Your account is currently under review. You will be notified once verified.";
             iconClass = "fas fa-user-clock";
             iconColor = "#f59e0b";
         } else if (status === 'rejected') {
@@ -241,7 +202,7 @@ const RegistrationPage = () => {
                     </button>
 
                     <h2 className="page-title">
-                        {role === 'head' ? 'Department Head' : 'Faculty'} Registration
+                        {role === 'student' ? 'Student' : 'Faculty'} Registration
                     </h2>
 
                     {/* Step Indicators */}
@@ -250,12 +211,8 @@ const RegistrationPage = () => {
                             <div key={n} className={`step-circle ${step >= n ? "active" : ""}`}>{n}</div>
                         ))}
                     </div>
-                    <div className="signup-step-labels" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', fontSize: '12px', color: '#64748b' }}>
-                        <span>Personal & Academic Info</span>
-                        <span>Password</span>
-                    </div>
 
-                    {/* === STEP 1: PERSONAL & ACADEMIC INFO === */}
+                    {/* === STEP 1: PERSONAL INFO === */}
                     {step === 1 && (
                         <>
                             <h3 className="step-title">Personal Information</h3>
@@ -323,50 +280,6 @@ const RegistrationPage = () => {
                                     </div>
                                 </div>
                             </div>
-
-                            <h3 className="step-title" style={{ marginTop: '24px' }}>Academic Details</h3>
-                            <div className="signup-step">
-                                <div className="reg-form-group full-width">
-                                    <label>Department <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <select
-                                        value={formData.departmentId}
-                                        onChange={e => handleInputChange('departmentId', e.target.value)}
-                                        className={errors.departmentId ? 'input-error' : ''}
-                                    >
-                                        <option value="">Select Department</option>
-                                        {departments.map(d => (
-                                            <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {role === 'faculty' && (
-                                    <div className="reg-form-group full-width">
-                                        <label>Program <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
-                                        <select
-                                            value={formData.programId}
-                                            onChange={e => handleInputChange('programId', e.target.value)}
-                                            disabled={!formData.departmentId}
-                                        >
-                                            <option value="">Select Program</option>
-                                            {filteredPrograms.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                                <div className="reg-form-group full-width">
-                                    <label>Current Term <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
-                                    <select
-                                        value={formData.currentTerm}
-                                        onChange={e => handleInputChange('currentTerm', e.target.value)}
-                                    >
-                                        <option value="">Select Term</option>
-                                        <option value="1st Semester">1st Semester</option>
-                                        <option value="2nd Semester">2nd Semester</option>
-                                        <option value="Summer">Summer</option>
-                                    </select>
-                                </div>
-                            </div>
                         </>
                     )}
 
@@ -413,63 +326,29 @@ const RegistrationPage = () => {
                                 </div>
                             </div>
 
-                            <div className="summary-section">
-                                <h4>Registration Summary</h4>
-                                <div className="summary-grid">
-                                    <div className="summary-item">
-                                        <span className="summary-label">Role</span>
-                                        <span className="summary-value" style={{ textTransform: 'capitalize' }}>
-                                            {role === 'head' ? 'Department Head' : role}
-                                        </span>
-                                    </div>
-                                    <div className="summary-item">
-                                        <span className="summary-label">Name</span>
-                                        <span className="summary-value">{formData.firstName} {formData.lastName}</span>
-                                    </div>
-                                    <div className="summary-item">
-                                        <span className="summary-label">TUPM ID</span>
-                                        <span className="summary-value">TUPM-{formData.tupmYear}-{formData.tupmSerial}</span>
-                                    </div>
-                                    <div className="summary-item">
-                                        <span className="summary-label">Email</span>
-                                        <span className="summary-value">{formData.email}</span>
-                                    </div>
-                                    <div className="summary-item">
-                                        <span className="summary-label">Department</span>
-                                        <span className="summary-value">
-                                            {departments.find(d => d.id === parseInt(formData.departmentId))?.code || 'Not specified'}
-                                        </span>
-                                    </div>
-                                    {formData.programId && (
-                                        <div className="summary-item">
-                                            <span className="summary-label">Program</span>
-                                            <span className="summary-value">
-                                                {programs.find(p => p.id === parseInt(formData.programId))?.code || '—'}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {formData.currentTerm && (
-                                        <div className="summary-item">
-                                            <span className="summary-label">Current Term</span>
-                                            <span className="summary-value">{formData.currentTerm}</span>
-                                        </div>
-                                    )}
-                                </div>
+                            {/* Summary */}
+                            <div className="summary-section" style={{ marginTop: '25px' }}>
+                                <div className="summary-item"><span className="summary-label">Name:</span> <span>{formData.firstName} {formData.middleName} {formData.lastName}</span></div>
+                                <div className="summary-item"><span className="summary-label">Email:</span> <span>{formData.email}</span></div>
+                                <div className="summary-item"><span className="summary-label">TUPM ID:</span> <span>TUPM-{formData.tupmYear}-{formData.tupmSerial}</span></div>
+                                <div className="summary-item"><span className="summary-label">Role:</span> <span style={{ textTransform: 'capitalize' }}>{role}</span></div>
                             </div>
                         </>
                     )}
 
-                    <div className="form-actions">
+                    {/* Navigation buttons */}
+                    <div className="step-buttons" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '30px' }}>
                         {step < 2 ? (
-                            <button type="button" className="reg-submit-button" onClick={handleNext}>
-                                Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '8px' }}></i>
+                            <button className="reg-submit-button" onClick={handleNext}>
+                                Next <i className="fas fa-arrow-right"></i>
                             </button>
                         ) : (
-                            <button type="button" className="reg-submit-button" onClick={handleFinish}>
-                                Complete Registration
+                            <button className="reg-submit-button" onClick={handleFinish} disabled={isSubmitting}>
+                                {isSubmitting ? 'Registering...' : 'Register'} {!isSubmitting && <i className="fas fa-check"></i>}
                             </button>
                         )}
                     </div>
+
                 </div>
             </div>
             <Footer />

@@ -21,10 +21,11 @@
 | Dept faculty filter | No filter | ✅ **Improved** | Faculty list now filters for VERIFIED status only |
 | Dept assign-faculty | No verification check | ✅ **Improved** | Now validates faculty is VERIFIED before assignment |
 | New endpoint `/api/dept/user-schedule/{user_id}` | N/A | 🆕 **Added** | Returns schedule for a faculty (student TODO) |
-| P0 #3 — Centralized API client | ❌ Critical | ❌ **UNCHANGED** | Frontend still uses hardcoded `http://localhost:5000` |
+| P0 #3 — Centralized API client | ❌ Critical | ✅ **RESOLVED** | Created `services/api.js` (63 lines) — centralized axios client with Vite proxy fallback, request interceptor (X-User-Id, JWT-ready), response interceptor (structured errors). 11 components migrated: LandingPage, RegistrationPage, Header, StudentLayout, FaceEnrollmentPage, ApplicationPage, ReportsPage, UserVerificationPage, AdminDashboardPage, SystemLogsPage, UserManagementPage. |
 | P0 #5 — FaceRecognizer `buffalo_sc` default | ⚠️ Bug | ⚠️ **UNCHANGED** | Still defaults to `buffalo_sc` at line 58 |
-| All P1 security items (JWT, AuthContext, etc.) | ❌ Open | ❌ **UNCHANGED** | No security work in this PR |
-| All frontend violations | ❌ Open | ❌ **UNCHANGED** | Zero frontend files changed |
+| P1 — AuthContext | ❌ Open | ✅ **RESOLVED** | Created `context/AuthContext.jsx` (106 lines) — `user`, `login()`, `logout()`, `updateUser()`, `hasRole()`. 16 components migrated from `localStorage.getItem('currentUser')` to `useAuth()`. Zero direct localStorage reads remain in components. |
+| P1 — Token Handling | ❌ Open | ✅ **RESOLVED** | All localStorage writes centralized in AuthContext. `api.js` interceptor attaches `X-User-Id` header. JWT-ready (swap one line when backend adds tokens). |
+| All remaining frontend violations | ❌ Open | ⚠️ **PARTIAL** | Auth flow (5.1) + Face Enrollment (5.2) + Admin Dashboard (5.3, incl. mock→real API) + Faculty Dashboard (5.4, incl. mock→real API + decomposition) + Student Dashboard (5.5, decomposition + AbortController) fully fixed. 7 new backend endpoints added across 2 routers. 4 files decomposed → 9 extracted components. Sections 5.6–5.8 still have hardcoded URLs, missing AbortController. |
 | All RPi kiosk gaps | ❌ Open | ❌ **UNCHANGED** | Zero RPi files changed |
 
 ---
@@ -49,7 +50,7 @@ FRAMES (Face Recognition & Attendance Monitoring for Educational Systems) is a t
 | Tier | Technology | Files Audited |
 |------|-----------|---------------|
 | Backend API | FastAPI + SQLAlchemy + PostgreSQL (Aiven) | 8 routers, 4 services, 13 models |
-| Frontend | React + Vite + Axios | 37 components across 7 modules |
+| Frontend | React + Vite + Axios | 38 components across 8 modules + utils |
 | RPi Kiosk | InsightFace + MediaPipe + OpenCV | 9 files (camera, detector, recognizer, gestures, cache, schedule, logger) |
 
 ### Key Metrics
@@ -57,7 +58,7 @@ FRAMES (Face Recognition & Attendance Monitoring for Educational Systems) is a t
 | Metric | v1.0 | v2.0 | Delta |
 |--------|------|------|-------|
 | Total API Endpoints | 42 | **43** | +1 (new dept endpoint) |
-| Total Frontend Pages/Components | 37 | 37 | — |
+| Total Frontend Pages/Components | 37 | **38** | +1 (KioskDashboardPage, UserVerificationPage, FacultyReportModal, DeptHeadReportModal discovered; renumbered) |
 | RPi Kiosk Modules | 9 | 9 | — |
 | Backend Services | 4 | 4 | — |
 | **Critical Violations** | **28** | **7** | **-21 resolved** |
@@ -75,7 +76,8 @@ The optimization PR addressed **performance only** — not security, not fronten
 
 ### What Was NOT Touched
 
-- **Frontend** (0 files changed) — All 16+ hardcoded URL files, no AbortController, no AuthContext
+- **Frontend** (34 files changed post-audit) — ✅ AuthContext created + 16 components migrated, ✅ `services/api.js` created + 11 components migrated, ✅ Faculty Dashboard (5.4) fully fixed: 4 components migrated to api.js + AbortController, MyClassesPage decomposed (617→289 lines + 2 extracted components), FacultyReportsPage mock data replaced with real API (552→299 lines + reportConfig extracted). ✅ Student Dashboard (5.5) fully fixed: StudentDashboardPage decomposed (574→170 lines + LiveClassStatus 125 lines + AttendanceTrendChart 284 lines), AttendanceHistoryPage decomposed (500→214 lines + AttendanceTableView 159 lines + attendanceReportConfig 143 lines), SchedulePage migrated to api.js + AbortController + refreshTrigger pattern, random dummy data removed from chart. ⚠️ Sections 5.6–5.8 still have hardcoded URLs, missing AbortController.
+- **Backend** (2 new files) — `admin_dashboard.py` (297 lines) added with 4 endpoints for admin. `faculty_reports.py` (246 lines) added with 3 endpoints for faculty report data (class-logs, personal-logs, subjects).
 - **RPi Kiosk** (0 files changed) — No SIGTERM, no cache refresh, `buffalo_sc` default still present
 - **Security** (0 items) — No JWT, no rate limiting, no CORS lockdown
 - **Service layer extraction** — All logic still inline in routers
@@ -568,23 +570,35 @@ API-based schedule resolution with local JSON cache fallback.
 
 ## 5. Frontend Processes
 
-> **No changes in PR #26 — this entire section is unchanged from v1.0**
+> **No frontend changes in PR #26.** Section 5.1 auth flow and Section 5.2 face enrollment were remediated post-audit (AuthContext + api.js). Sections 5.3–5.8 remain unchanged from v1.0.
 
-### 5.1 Landing & Authentication (2 components)
+### 5.1 Landing & Authentication (2 components + 2 services)
 
 | # | Component | File | What It Does |
 |---|-----------|------|-------------|
-| 1 | **LandingPage** | `frontend/src/components/LandingPage/LandingPage.jsx` | Hero section, features grid, login modal, role selection for registration |
-| 2 | **RegistrationPage** | `frontend/src/components/LandingPage/RegistrationPage.jsx` | 2-step registration, post-registration status pages |
+| 0a | **AuthContext.jsx** (context) | `frontend/src/context/AuthContext.jsx` (106 lines) | Centralized auth state — `user`, `login(data)` (persists + returns role-path), `logout()`, `updateUser(partial)`, `isAuthenticated`, `hasRole(...roles)`. Wraps entire app via `<AuthProvider>`. localStorage is persistence layer, AuthContext is runtime source of truth. |
+| 0b | **api.js** (service) | `frontend/src/services/api.js` (63 lines) | Centralized axios client — `VITE_API_URL` env var or Vite proxy fallback, request interceptor (reads `X-User-Id` from localStorage, JWT-ready), response interceptor (structured error extraction → `error.userMessage`, `ERR_CANCELED` swallowed) |
+| 1 | **LandingPage** | `frontend/src/components/LandingPage/LandingPage.jsx` (263 lines) | 4 inner components: `HeroSection` (CTA + background), `FeaturesSection` (4-card grid), `LoginPanel` (email/password → `useAuth().login()` → role-based nav), `RoleSelectionModal` (Faculty/Student) |
+| 2 | **RegistrationPage** | `frontend/src/components/LandingPage/RegistrationPage.jsx` (359 lines) | 2-step form (Step 1: name + email + TUPM ID, Step 2: password + summary), custom alert overlay, post-registration status pages (pending/rejected/invalid) |
 
-#### Optimization Audit — Auth Flow
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| LandingPage → LoginPanel | L43 | `/api/auth/login` | POST | Sends `{email, password}` via `api.js`, calls `useAuth().login(userData)` which persists to context + localStorage, returns role path for `navigate()` |
+| RegistrationPage | L120 | `/api/auth/register` | POST | Sends `{email, password, tupm_id, role, first_name, last_name, middle_name}` via `api.js`, redirects to pending status |
+
+#### Optimization Audit — Auth Flow (post-fix, verified 2026-02-27)
 
 | Check | Status | Details |
 |-------|--------|---------|
-| Hardcoded URLs | ❌ Fail | `http://localhost:5000` used directly |
-| AbortController | ❌ Fail | No cleanup on unmount |
-| Token Handling | ❌ Fail | No JWT — stores full user object in localStorage |
-| AuthContext | ❌ Fail | No centralized auth state |
+| Hardcoded URLs | ✅ Pass | Both components import `api` from `services/api.js` — relative URLs `/api/auth/login` and `/api/auth/register`, resolved via Vite proxy in dev or `VITE_API_URL` in prod |
+| AbortController | ✅ N/A | Both API calls are user-triggered POSTs (form submit / button click) — no polling or `useEffect`-based fetches to clean up; `api.js` handles `ERR_CANCELED` silently. Per coding rules, AbortController is required for `useEffect` fetches only. |
+| Token Handling | ✅ Pass | `api.js` request interceptor reads user from localStorage and attaches `X-User-Id` header; JWT-ready placeholder (swap one line when backend adds real tokens). All localStorage writes centralized in `AuthContext.jsx` — zero direct writes in any component |
+| AuthContext | ✅ Pass | `AuthContext.jsx` provides `user`, `login()`, `logout()`, `updateUser()`, `hasRole()`. App.jsx wrapped in `<AuthProvider>`. **16 components migrated** from `localStorage.getItem('currentUser')` to `useAuth()`. All 4 Layouts, Header, 4 Common pages, FaceEnrollment, 3 Faculty pages, 3 Student pages — zero direct localStorage reads remain in components |
+| Error Handling | ✅ Pass | `error.userMessage` from `api.js` response interceptor — extracts `detail` (string/array/object) and `error` field; LandingPage L59, RegistrationPage L126 |
+| Input Validation | ✅ Pass | `isValidEmail()` regex in both components; empty-field checks + password ≥ 6 chars; no password strength meter yet |
+| Loading States | ✅ Pass | `isLoading` / `disabled={isLoading}` + text toggle "Logging in…" (LandingPage); `isSubmitting` / `disabled={isSubmitting}` + "Registering…" (RegistrationPage) |
 
 ---
 
@@ -592,90 +606,292 @@ API-based schedule resolution with local JSON cache fallback.
 
 | # | Component | File | What It Does |
 |---|-----------|------|-------------|
-| 3 | **FaceEnrollmentPage** | `frontend/src/components/FaceEnrollment/FaceEnrollmentPage.jsx` | Webcam capture (15 frames at 500ms intervals), sends base64 array to `/api/face/enroll` |
+| 3 | **FaceEnrollmentPage** | `frontend/src/components/FaceEnrollment/FaceEnrollmentPage.jsx` (301 lines) | Webcam capture (15 frames at 500ms intervals via `captureIntervalRef`), multi-phase progress animation, sends base64 array to `/api/face/enroll` via `api.js`, updates `useAuth().updateUser({ face_registered: true })` on success |
+
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| FaceEnrollmentPage | L165 | `/api/face/enroll` | POST | Sends `{user_id, frames[]}` via `api.js` — relative URL resolved by Vite proxy. Multi-phase status animation during processing. On success, updates AuthContext and redirects by role. |
+
+#### Optimization Audit — Face Enrollment (post-fix, verified 2026-02-27)
+
+| Check | Status | Details |
+|-------|--------|---------|
+| Hardcoded URLs | ✅ Pass | Uses `api` from `services/api.js` — relative URL `/api/face/enroll`, resolved via Vite proxy in dev or `VITE_API_URL` in prod |
+| AbortController | ✅ N/A | The enrollment POST is user-triggered (button click) — no `useEffect`-based API fetches to clean up. Per coding rules, AbortController is required for `useEffect` fetches only. |
+| Cleanup | ✅ Pass | Camera stream stopped on unmount via `streamRef` (L56). Capture interval tracked via `captureIntervalRef` and cleared on unmount (L59). Phase animation timeout tracked via `phaseTimeoutRef` and cleared on unmount (L62). |
+| AuthContext | ✅ Pass | Uses `useAuth()` for `user` and `updateUser({ face_registered: true })` (L26) — no direct `localStorage` access |
+| Error Handling | ✅ Pass | Uses `err.userMessage` from `api.js` response interceptor (L198) — consistent with LandingPage/RegistrationPage pattern. Eliminates duplicated error extraction logic. |
+| Loading States | ✅ Pass | `isEnrolling` state disables button + shows "⏳ Processing…". Multi-phase progress indicator (`phases[]`) with simulated status updates during AI processing. |
+
+---
+
+### 5.3 Admin Dashboard (7 components)
+
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 4 | **AdminDashboardPage** | `AdminDashboardPage.jsx` (258) | Fetches real summary stats (user counts by role, device status, attendance today) from `/api/admin/dashboard-summary` + device list from `/api/admin/devices`. Cards, room grid, alerts, system status — all live data. | ✅ Real API (2 endpoints) via `api.js` |
+| 5 | **AdminLayout** | `AdminLayout.jsx` (120) | Role guard (`role !== 'ADMIN'` → redirect), red theme, collapsible sidebar, Header + Outlet | ✅ `useAuth()` |
+| 6 | **ApplicationPage** | `ApplicationPage.jsx` (308) | Fetches verification list via `api.js`, status-based tabs (Pending/Verified/Rejected), approve/reject/delete with confirmation | ✅ Real API (4 endpoints) via `api.js` |
+| 7 | **ReportsPage** | `ReportsPage.jsx` (405) | 4 report categories with 14 sub-types, `ReportGeneratorModal` with date/filter config, PDF generation via `ReportGenerator.js` | ✅ Real API (1 endpoint) via `api.js` |
+| 8 | **SystemLogsPage** | `SystemLogsPage.jsx` (171) | Fetches combined audit + security logs from `/api/admin/system-logs`. Level/service filters + search. Dynamic service dropdown derived from data. | ✅ Real API (1 endpoint) via `api.js` |
+| 9 | **UserManagementPage** | `UserManagementPage.jsx` (219) | Fetches all users from `/api/admin/users` with server-side role filter + search. Role summary cards, department names, face status — all live data. Add User routes to registration. | ✅ Real API (1 endpoint) via `api.js` |
+| 10 | **UserVerificationPage** | `UserVerificationPage.jsx` (119) | Legacy verification page migrated from `fetch()` to `api.js`, AbortController on load, audit logging per action | ✅ Real API (3 endpoints) via `api.js` |
+
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| AdminDashboardPage | L92 | `/api/admin/dashboard-summary` | GET | ✅ **NEW** — Fetches user counts by role, pending verifications, device stats, today's attendance |
+| AdminDashboardPage | L93 | `/api/admin/devices` | GET | ✅ **NEW** — Fetches all registered devices with room/status for Room Availability grid |
+| ApplicationPage | L35 | `/api/admin/verification/list` | GET | ✅ **MIGRATED to `api.js`** — Fetches all users for verification tabs, with `AbortController` signal |
+| ApplicationPage | L80 | `/api/admin/verification/approve` or `/reject` | POST | ✅ **MIGRATED to `api.js`** — Sends `{user_id, verification_status}` to approve or reject |
+| ApplicationPage | L110 | `/api/admin/user/${id}` | DELETE | ✅ **MIGRATED to `api.js`** — Hard-deletes user |
+| ReportsPage | L167 | `/api/admin/reports/generate` | POST | ✅ **MIGRATED to `api.js`** — Sends `{report_type, date_from, date_to}` for report generation |
+| SystemLogsPage | L38 | `/api/admin/system-logs` | GET | ✅ **NEW** — Fetches combined audit + security logs (limit=200), with `AbortController` signal |
+| UserManagementPage | L32 | `/api/admin/users` | GET | ✅ **NEW** — Fetches paginated user list with optional `role` + `search` params, with `AbortController` signal |
+| UserVerificationPage | L14 | `/api/admin/users/pending` | GET | ✅ **MIGRATED to `api.js`** — Fetches pending users, with `AbortController` signal |
+| UserVerificationPage | L40 | `/api/admin/users/verify` | POST | ✅ **MIGRATED to `api.js`** — Approve/reject with `{userId, status}` |
+| UserVerificationPage | L43 | `/api/admin/audit` | POST | ✅ **MIGRATED to `api.js`** — Logs admin action to audit trail |
+
+#### Backend Endpoints Added (admin_dashboard.py — 297 lines)
+
+| Endpoint | Method | What It Does |
+|----------|--------|-------------|
+| `/api/admin/dashboard-summary` | GET | Aggregated stats: user counts by role, pending verifications, device active/offline/maintenance, today's attendance entries + late count |
+| `/api/admin/devices` | GET | All devices with room, status, capacity, last heartbeat — from `devices` table |
+| `/api/admin/system-logs` | GET | Combined audit + security logs, normalised to `{id, timestamp, level, service, message}`. Supports `log_type`, `limit`, `skip` query params |
+| `/api/admin/users` | GET | Paginated user list with `joinedload` for department/program names. Supports `role` and `search` query params |
+
+#### Optimization Audit — Admin Dashboard (post-fix, verified 2026-02-27)
+
+| Check | Status | Details |
+|-------|--------|--------|
+| Hardcoded URLs | ✅ **FIXED** | All 6 API-connected components use `api.js` with relative URLs. Zero `http://localhost:5000` or `http://127.0.0.1:5000` references remain. |
+| AbortController | ✅ **FIXED** | AdminDashboardPage (L83), SystemLogsPage (L32), UserManagementPage (L47+L55), ApplicationPage (L64), UserVerificationPage (L27) — all `useEffect` fetches have `AbortController` with cleanup. ReportsPage is user-triggered (N/A). |
+| Mock Data | ✅ **FIXED** | All 3 previously-mock components (Dashboard, SystemLogs, UserManagement) now fetch from real backend endpoints. New `admin_dashboard.py` router (297 lines) added with 4 endpoints querying `users`, `devices`, `audit_logs`, `security_logs`, `attendance_logs` tables. |
+| AuthContext | ✅ **FIXED** | AdminLayout migrated to `useAuth()`. Child pages receive user via props / `useOutletContext()`. Zero `localStorage.getItem('currentUser')` calls remain. |
+| Error Handling | ✅ Pass | All 6 API components use `error.userMessage` from `api.js` interceptor for user-facing alerts |
+| Loading States | ✅ **FIXED** | AdminDashboardPage has `loading` + `error` states with early-return feedback. SystemLogsPage has `loading` + `error` states. UserManagementPage has `loading` + `error` states. ApplicationPage, ReportsPage, UserVerificationPage also have loading states. |
+| Duplicate Logic | ⚠️ Warn | UserVerificationPage duplicates ApplicationPage's verify functionality with different API endpoints (`/admin/users/verify` vs `/admin/verification/approve`) — should be consolidated |
+
+---
+
+### 5.4 Faculty Dashboard (8 components — 6 original + 2 extracted)
+
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 11 | **FacultyDashboardPage** | `FacultyDashboardPage.jsx` (165) | Summary cards (total classes, students, today's attendance %), recent activity list | ✅ Real API (1 endpoint) |
+| 12 | **FacultyLayout** | `FacultyLayout.jsx` (199) | Role guard + face enrollment redirect, collapsible sidebar, notification count | ✅ `useAuth()` |
+| 13 | **MyClassesPage** | `MyClassesPage.jsx` (289) | Orchestrator: 3 views (List/Calendar/Upload), per-class attendance sheet, student profile — delegates Calendar + Upload to extracted components | ✅ Real API (2 endpoints) |
+| 13a | **ClassCalendarView** | `ClassCalendarView.jsx` (173) | ✅ **NEW** — Monthly calendar grid + session exception bulk update modal (extracted from MyClassesPage) | ✅ Real API (1 endpoint) |
+| 13b | **ScheduleUploadView** | `ScheduleUploadView.jsx` (167) | ✅ **NEW** — COR PDF upload form + upload history table (extracted from MyClassesPage) | ✅ Real API (2 endpoints) |
+| 14 | **FacultyAttendancePage** | `FacultyAttendancePage.jsx` (290) | Class list → attendance details, per-student records, PDF export via ReportGenerator | ✅ Real API (2 endpoints) |
+| 15 | **FacultyReportsPage** | `FacultyReportsPage.jsx` (299) | 21 report types across 2 categories, date range + status filters, PDF/CSV generation — **data from real API** | ✅ Real API (3 endpoints) |
+| 15a | **reportConfig** | `reportConfig.js` (38) | ✅ **NEW** — Static report type definitions (21 report options) extracted from FacultyReportsPage |  Config only |
+| 16 | **FacultyReportModal** | `FacultyReportModal.jsx` (114) | Format selection modal (PDF/CSV), report config summary, simulated processing delay | Presentational only |
+
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| FacultyDashboardPage | L51 | `/api/faculty/dashboard-stats/${userId}` | GET | ✅ **MIGRATED to `api.js`** — Fetches total classes, students, attendance %, recent logs (with `AbortController`) |
+| MyClassesPage | L47 | `/api/faculty/schedule/${userId}` | GET | ✅ **MIGRATED to `api.js`** — Fetches all classes for faculty (with `AbortController`) |
+| MyClassesPage | L61 | `/api/faculty/class-details/${cls.id}` | GET | ✅ **MIGRATED to `api.js`** — Fetches full student list + attendance for a class |
+| ScheduleUploadView | L35 | `/api/faculty/upload-history/${userId}` | GET | ✅ **MIGRATED to `api.js`** — Fetches past COR upload records (with `AbortController`) |
+| ScheduleUploadView | L59 | `/api/faculty/upload-schedule` | POST | ✅ **MIGRATED to `api.js`** — Uploads COR PDF (FormData) |
+| ClassCalendarView | L48 | `/api/faculty/session-exceptions` | POST | ✅ **MIGRATED to `api.js`** — Creates session exception (cancelled/makeup/room_change) |
+| FacultyAttendancePage | L31 | `/api/faculty/schedule/${userId}` | GET | ✅ **MIGRATED to `api.js`** — Fetches class list for attendance view (with `AbortController`) |
+| FacultyAttendancePage | L49 | `/api/faculty/class-details/${cls.id}` | GET | ✅ **MIGRATED to `api.js`** — Fetches attendance records per class |
+| FacultyReportsPage | L42-44 | `/api/faculty/reports/class-logs/${userId}` | GET | ✅ **NEW** — Fetches student attendance logs for all faculty classes (with `AbortController`) |
+| FacultyReportsPage | L43 | `/api/faculty/reports/personal-logs/${userId}` | GET | ✅ **NEW** — Fetches faculty's own attendance logs (with `AbortController`) |
+| FacultyReportsPage | L44 | `/api/faculty/reports/subjects/${userId}` | GET | ✅ **NEW** — Fetches faculty's taught subjects for filter dropdown (with `AbortController`) |
+
+#### Backend Endpoints Added (faculty_reports.py — 246 lines)
+
+| Endpoint | Method | What It Does |
+|----------|--------|-------------|
+| `/api/faculty/reports/class-logs/{user_id}` | GET | Student attendance logs for all classes taught by faculty. Supports `class_id`, `date_from`, `date_to`, `section`, `status` query params. Default: last 30 days. |
+| `/api/faculty/reports/personal-logs/{user_id}` | GET | Faculty's own attendance logs. Supports `date_from`, `date_to`, `status` query params. Default: last 30 days. |
+| `/api/faculty/reports/subjects/{user_id}` | GET | Deduplicated list of subjects taught by faculty (code, title, class_id, section) for filter dropdowns. |
+
+#### Optimization Audit — Faculty Dashboard (post-fix, verified 2026-02-27)
+
+| Check | Status | Details |
+|-------|--------|--------|
+| Hardcoded URLs | ✅ **FIXED** | All 8 API calls across 6 components migrated to `api.js` with relative URLs. Zero `http://localhost:5000` references remain. |
+| AbortController | ✅ **FIXED** | FacultyDashboardPage (L33), FacultyAttendancePage (L27), MyClassesPage (L31), ScheduleUploadView (L24), FacultyReportsPage (L33) — all `useEffect` fetches have `AbortController` with cleanup. User-triggered POSTs (upload, session-exception) use `error.code === 'ERR_CANCELED'` guard. |
+| Mock Data | ✅ **FIXED** | FacultyReportsPage completely rewritten: `mockClassLogs[]` and `mockPersonalLogs[]` removed. Now fetches from 3 new real endpoints via `Promise.all`. New `faculty_reports.py` router (246 lines) queries `attendance_logs`, `classes`, `subjects`, `users` tables. Subject dropdown populated dynamically. |
+| AuthContext | ✅ **FIXED** | FacultyLayout, FacultyDashboardPage, FacultyAttendancePage, MyClassesPage, FacultyReportsPage all use `useAuth()`. Zero `localStorage.getItem('currentUser')` calls remain. |
+| Loading States | ✅ **FIXED** | FacultyDashboardPage has `loading` state. MyClassesPage has per-section loading. FacultyReportsPage now has `loading` state with early-return feedback. |
+| Error Handling | ✅ Pass | All API components use `error.userMessage` from `api.js` interceptor. `ERR_CANCELED` swallowed silently. |
+| Service Layer (frontend) | ✅ **FIXED** | MyClassesPage decomposed from 617→289 lines: Calendar view extracted to `ClassCalendarView.jsx` (173 lines), Upload view extracted to `ScheduleUploadView.jsx` (167 lines). FacultyReportsPage decomposed from 552→299 lines: report config extracted to `reportConfig.js` (38 lines). All files under 300-line limit. |
+
+---
+
+### 5.5 Student Dashboard (5 → 9 components after decomposition)
+
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 17 | **StudentDashboardPage** | `StudentDashboardPage.jsx` (170) | Welcome banner, summary cards, recent activity, composes LiveClassStatus + AttendanceTrendChart. Dashboard stats + history via parallel `Promise.all` | ✅ Real API (2 endpoints) |
+| 17a | **LiveClassStatus** | `LiveClassStatus.jsx` (125) | *(extracted)* Real-time class/room status with 30s `setInterval` polling + AbortController cleanup | ✅ Real API (1 endpoint) |
+| 17b | **AttendanceTrendChart** | `AttendanceTrendChart.jsx` (284) | *(extracted)* SVG line chart with weekly/monthly/yearly filters, hover tooltips, area gradients | Presentational (receives `logs` prop) |
+| 18 | **StudentLayout** | `StudentLayout.jsx` (223) | Verification + face enrollment guard, collapsible sidebar, dashboard data fetch for notification count | ✅ Real API (1 endpoint) |
+| 19 | **SchedulePage** | `SchedulePage.jsx` (232) | Today/Week/Calendar views, COR PDF upload via FormData. AbortController cleanup + `refreshTrigger` pattern for post-upload re-fetch | ✅ Real API (2 endpoints) |
+| 20 | **AttendanceHistoryPage** | `AttendanceHistoryPage.jsx` (214) | Composes date filters + AttendanceTableView. Data fetch with AbortController, smart log-to-subject mapping | ✅ Real API (2 endpoints) |
+| 20a | **AttendanceTableView** | `AttendanceTableView.jsx` (159) | *(extracted)* Records table with subject filter, export button, LogStatusTag, PDF/CSV generation via StudentReportModal | Presentational (receives props) |
+| 20b | **attendanceReportConfig** | `attendanceReportConfig.js` (143) | *(extracted)* `reportTypes` config, `parseTimeStr()`, `getFilteredData()`, `getDateRangeString()` — pure utilities | Config/utility |
+| 21 | **StudentReportModal** | `StudentReportModal.jsx` (131) | Format selection modal (PDF/CSV), report config summary, simulated processing delay | Presentational only |
+
+#### API Calls (post-fix — all migrated to `api.js` with relative URLs)
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| LiveClassStatus | L24-26 | `/api/student/live-status/${userId}` | GET | ✅ **MIGRATED** — 30s polling with AbortController signal |
+| StudentDashboardPage | L116-117 | `/api/student/dashboard/${uid}`, `/api/student/history/${uid}` | GET | ✅ **MIGRATED** — `Promise.all` with AbortController signal |
+| StudentLayout | L167 | `/api/student/dashboard/${userId}` | GET | ✅ **MIGRATED** (prior fix) |
+| SchedulePage | L41 | `/api/student/schedule/${userId}` | GET | ✅ **MIGRATED** — AbortController + `refreshTrigger` dep |
+| SchedulePage | L88 | `/api/student/upload-cor` | POST | ✅ **MIGRATED** — `multipart/form-data` header, `error.userMessage` |
+| AttendanceHistoryPage | L44 | `/api/student/schedule/${userId}` | GET | ✅ **MIGRATED** — AbortController signal |
+| AttendanceHistoryPage | L62 | `/api/student/history/${userId}` | GET | ✅ **MIGRATED** — AbortController signal |
+
+#### Optimization Audit — Student Dashboard (post-fix, verified 2026-02-27)
+
+| Check | Status | Details |
+|-------|--------|--------|
+| Hardcoded URLs | ✅ **FIXED** | All 7 API calls across 4 components migrated to `api.js` with relative URLs. Zero `http://localhost:5000` references remain. |
+| AbortController | ✅ **FIXED** | LiveClassStatus (L16, polling+cleanup), StudentDashboardPage (L104), SchedulePage (L34, with `refreshTrigger` dep), AttendanceHistoryPage (L31) — all `useEffect` fetches have AbortController with cleanup. User-triggered POST (upload-cor) correctly excluded. |
+| Mock Data | ✅ **FIXED** | AttendanceTrendChart: removed random dummy data fallback — now shows zero-value placeholders when no logs exist instead of `Math.random()` noise. |
+| Loading States | ✅ Pass | StudentDashboardPage has multi-state loading. SchedulePage + AttendanceHistoryPage have loading states + error display. |
+| Error Handling | ✅ **FIXED** | All API components use `error.userMessage` from `api.js` interceptor. `ERR_CANCELED` swallowed silently. SchedulePage upload uses `error.userMessage` fallback. |
+| AuthContext | ✅ Pass | All components use `useAuth()`. Zero `localStorage.getItem('currentUser')` calls. |
+| Polling | ⚠️ Warn | 30s `setInterval` for live-status — uses AbortController but no exponential backoff on failure (acceptable for MVP) |
+| Data Fetching | ✅ Pass | `Promise.all` for parallel dashboard + history fetch — efficient |
+| Service Layer (frontend) | ✅ **FIXED** | StudentDashboardPage decomposed from 574→170 lines: LiveClassStatus extracted (125 lines), AttendanceTrendChart extracted (284 lines). AttendanceHistoryPage decomposed from 500→214 lines: config extracted to `attendanceReportConfig.js` (143 lines), table extracted to `AttendanceTableView.jsx` (159 lines). All files under 300-line limit. |
+
+---
+
+### 5.6 Dept Head Dashboard (7 components)
+
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 22 | **DeptHeadDashboardPage** | `DeptHeadDashboardPage.jsx` (253) | Summary cards (computed from user list), pending verification table with `ReviewModal`, approve/reject inline | ✅ Real API (2 endpoints) |
+| 23 | **DeptHeadLayout** | `DeptHeadLayout.jsx` (164) | Role guard (`HEAD`/`DEPT_HEAD`), collapsible sidebar, Header + Outlet | ✅ `useAuth()` |
+| 24 | **DeptHeadManagePage** | `DeptHeadManagePage.jsx` (373) | Subject table, create subject form, assign faculty + room modals, 3 POST operations | ✅ Real API (4 endpoints) |
+| 25 | **DeptHeadReportsPage** | `DeptHeadReportsPage.jsx` (248) | 4 report types, dynamic endpoint from report config, PDF generation via ReportGenerator | ✅ Real API (dynamic endpoint) |
+| 26 | **DeptHeadUserManagementPage** | `DeptHeadUserManagementPage.jsx` (588) | Full user directory with search/filter, expandable profile panel with schedule, verify/reject/delete actions | ✅ Real API (5 endpoints) |
+| 27 | **DeptHeadSystemLogsPage** | `DeptHeadSystemLogsPage.jsx` (116) | Exact **copy-paste** of `AdminDashboard/SystemLogsPage` — same hardcoded mock data | ❌ **ALL MOCK DATA** |
+| 28 | **DeptHeadReportModal** | `DeptHeadReportModal.jsx` (114) | Format selection modal (PDF/CSV), report config summary, simulated processing delay — identical structure to FacultyReportModal | Presentational only |
+
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| DeptHeadDashboardPage | L102 | `http://localhost:5000/api/admin/verification/list` | GET | Fetches all users → computes dept stats + pending list |
+| DeptHeadDashboardPage | L129 | `http://localhost:5000/api/admin/verification/${action}` | POST | Approve/reject from ReviewModal |
+| DeptHeadManagePage | L41 | `http://localhost:5000/api/dept/management-data` | GET | Fetches subjects, classes, faculty, rooms for department |
+| DeptHeadManagePage | L79 | `http://localhost:5000/api/dept/create-subject` | POST | Creates new subject |
+| DeptHeadManagePage | L98 | `http://localhost:5000/api/dept/assign-faculty` | POST | Assigns faculty to class |
+| DeptHeadManagePage | L123 | `http://localhost:5000/api/dept/assign-room` | POST | Assigns room to class |
+| DeptHeadReportsPage | L34 | `http://localhost:5000${currentReport.endpoint}` | GET | Dynamic endpoint from report type config |
+| DeptHeadUserManagementPage | L74 | `http://localhost:5000/api/admin/verification/list` | GET | Fetches all users for directory |
+| DeptHeadUserManagementPage | L135 | `http://localhost:5000/api/dept/user-schedule/${uid}` | GET | Fetches schedule for selected user's profile panel |
+| DeptHeadUserManagementPage | L161-162 | `http://localhost:5000/api/admin/verification/approve` or `/reject` | POST | Verify/reject user |
+| DeptHeadUserManagementPage | L196 | `http://localhost:5000/api/admin/user/${id}` | DELETE | Hard-deletes user |
 
 #### Optimization Audit
 
 | Check | Status | Details |
-|-------|--------|---------|
-| URL | ✅ Pass | Uses relative URL `/api/face/enroll` (only component that does) |
-| AbortController | ❌ Fail | No cleanup |
-| Loading States | ✅ Pass | Multi-phase progress indicator |
-
----
-
-### 5.3 Admin Dashboard (6 components)
-
-| # | Component | What It Does | API Connected? |
-|---|-----------|-------------|----------------|
-| 4 | **AdminDashboardPage** | Summary cards, room availability, system status | ❌ **ALL MOCK DATA** |
-| 5 | **AdminLayout** | Role verification (admin only), red theme, sidebar + header | Partial (localStorage) |
-| 6 | **ApplicationPage** | User verification list, approve/reject/delete actions | ✅ Real API (4 endpoints) |
-| 7 | **ReportsPage** | 14 report types, PDF export via jsPDF | ✅ Real API (1 endpoint) |
-| 8 | **SystemLogsPage** | System log viewer with filters | ❌ **ALL MOCK DATA** |
-| 9 | **UserManagementPage** | User list with role cards, search, filter | ❌ **ALL MOCK DATA** |
-
----
-
-### 5.4 Faculty Dashboard (5 components)
-
-| # | Component | What It Does | API Connected? |
-|---|-----------|-------------|----------------|
-| 10 | **FacultyDashboardPage** | Summary cards, recent activity | ✅ Real API |
-| 11 | **FacultyLayout** | Role + face enrollment checks, collapsible sidebar | Partial (localStorage) |
-| 12 | **MyClassesPage** | 3 views (List/Calendar/Upload), attendance sheet, session management | ✅ Real API (5 endpoints) |
-| 13 | **FacultyAttendancePage** | Attendance stats + class list, PDF export | ✅ Real API (2 endpoints) |
-| 14 | **FacultyReportsPage** | 21 report types, filters, PDF/CSV generation | ❌ **ALL MOCK DATA** |
-
----
-
-### 5.5 Student Dashboard (5 components)
-
-| # | Component | What It Does | API Connected? |
-|---|-----------|-------------|----------------|
-| 15 | **StudentDashboardPage** | Welcome banner, live class status (30s polling), attendance trend chart | ✅ Real API (3 endpoints) |
-| 16 | **StudentLayout** | Verification + face checks, notification count from API | ✅ |
-| 17 | **SchedulePage** | Today/Week/Calendar views, COR PDF upload | ✅ Real API (2 endpoints) |
-| 18 | **AttendanceHistoryPage** | 8 report types, smart log-to-subject mapping, filters | ✅ Real API (2 endpoints) |
-| 19 | **StudentReportModal** | Format selection modal | Presentational only |
-
-**Note:** StudentDashboardPage is the **only component** with `AbortController` in the entire frontend.
-
----
-
-### 5.6 Dept Head Dashboard (6 components)
-
-| # | Component | What It Does | API Connected? |
-|---|-----------|-------------|----------------|
-| 20 | **DeptHeadDashboardPage** | Summary cards, pending verifications | Partial |
-| 21 | **DeptHeadLayout** | Role check, collapsible sidebar | Partial (localStorage) |
-| 22 | **DeptHeadManagePage** | Course management: subject table, faculty/room assignment | ✅ Real API (4 endpoints) |
-| 23 | **DeptHeadReportsPage** | 4 report types, PDF generation | ✅ Real API |
-| 24 | **DeptHeadUserManagementPage** | User directory + verification, profile panel with schedule | ✅ Real API (5 endpoints) |
-| 25 | **DeptHeadSystemLogsPage** | Exact duplicate of AdminDashboard/SystemLogsPage | ❌ **ALL MOCK DATA** |
+|-------|--------|--------|
+| Hardcoded URLs | ✅ **FIXED** | All 11 instances migrated to `api.js` with relative URLs via Vite proxy |
+| AbortController | ✅ **FIXED** | All `useEffect` fetches (DeptHeadDashboardPage, DeptHeadManagePage, DeptHeadReportsPage, DeptHeadUserManagementPage ×2) now have `AbortController` + cleanup |
+| Mock Data | ✅ **FIXED** | DeptHeadSystemLogsPage rewritten from hardcoded mock to real `/api/admin/system-logs` with loading/error states |
+| AuthContext | ✅ **FIXED** | DeptHeadLayout migrated to `useAuth()` with `onLogout` prop to sidebar. Child pages receive user via props / `useOutletContext()`. Zero `localStorage.getItem('currentUser')` calls remain. |
+| Duplicate Logic | ⚠️ Warn | DeptHeadUserManagementPage still reuses same admin endpoints (by design — dept heads share admin verification workflow) |
+| Duplicate Modal | ⚠️ Warn | DeptHeadReportModal is structurally identical to FacultyReportModal — could be shared |
+| Loading States | ✅ **FIXED** | All components have loading/error states |
+| Component Size | ✅ **FIXED** | DeptHeadUserManagementPage decomposed 588→298 lines. Extracted: `UserVerificationTab.jsx` (134), `UserDirectoryTab.jsx` (130), `UserProfilePanel.jsx` (132). DeptHeadManagePage decomposed 373→294 lines. Extracted: `DeptHeadManageModals.jsx` (117). |
+| Error Handling | ✅ **FIXED** | All catch blocks use `error.userMessage` from api.js interceptor |
+| Debug Statements | ✅ **FIXED** | Removed `console.log` debug statements from DeptHeadUserManagementPage |
 
 ---
 
 ### 5.7 Common Components (7 components)
 
-| # | Component | What It Does | API Connected? |
-|---|-----------|-------------|----------------|
-| 26 | **Header** | Page title, notification bell, profile avatar | ❌ MOCK |
-| 27 | **Footer** | Static about/contact/social | Static |
-| 28 | **Logo** | Renders frames_logo.png | Static |
-| 29 | **MyProfilePage** | Profile editing, change password | ✅ Real API |
-| 30 | **HelpSupportPage** | FAQ accordion, contact form | ❌ ALL MOCK |
-| 31 | **SettingsPage** | Notification toggles, theme selector | ❌ ALL MOCK |
-| 32 | **NotificationsPage** | Notification list with filters | ❌ ALL MOCK |
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 29 | **Header** | `Header.jsx` (206) | Dynamic page title, notification bell with 60s polling, profile dropdown, outside-click detection via `useRef` | ✅ Real API — `/api/users/notifications/{id}` (endpoint in `user_features.py`) |
+| 30 | **Footer** | `Footer.jsx` (52) | Static about/contact/social links | Static |
+| 31 | **Logo** | `Logo.jsx` (48) | Renders `frames_logo.png` asset | Static |
+| 32 | **MyProfilePage** | `MyProfilePage.jsx` (217) | Profile view/edit with toggle, password change (verify old → set new), avatar display, role-colored badges | ✅ Real API (4 endpoints) |
+| 33 | **HelpSupportPage** | `HelpSupportPage.jsx` (275) | FAQ accordion (role-based static content), contact form → real `POST /api/users/support-ticket` | ✅ Real API (support ticket) + Static FAQ (by design) |
+| 34 | **SettingsPage** | `SettingsPage.jsx` (221) | Notification toggles, theme selector — persisted via `GET/PUT /api/users/settings/{id}` | ✅ Real API (2 endpoints) |
+| 35 | **NotificationsPage** | `NotificationsPage.jsx` (132) | Notification list with type filters from real `/api/users/notifications/{id}` endpoint | ✅ Real API |
+
+#### API Calls
+
+| Component | Line | Endpoint | Method | What It Does |
+|-----------|------|----------|--------|-------------|
+| Header | L24 | `/api/users/notifications/${user.id}` | GET | ✅ **MIGRATED to `api.js`** — 60s polling with `AbortController` for notification count — **endpoint EXISTS in `user_features.py`** (returns real role-based notifications) |
+| MyProfilePage | L189 | `/api/users/${user.id}` | GET | ✅ **MIGRATED** — Fetches fresh user profile on mount |
+| MyProfilePage | L209 | `/api/users/${user.id}` | PUT | ✅ **MIGRATED** — Saves edited profile fields |
+| MyProfilePage | L65 | `/api/users/verify-password` | POST | ✅ **MIGRATED** — Verifies current password before change |
+| MyProfilePage | L91 | `/api/users/change-password` | PUT | ✅ **MIGRATED** — Sets new password |
+| NotificationsPage | NEW | `/api/users/notifications/${user.id}` | GET | ✅ **NEW** — Fetches real notifications with AbortController + loading/error states |
+| HelpSupportPage | NEW | `/api/users/support-ticket` | POST | ✅ **NEW** — Submits contact form to backend with loading/error states |
+| SettingsPage | NEW | `/api/users/settings/${user.id}` | GET | ✅ **NEW** — Loads persisted user preferences with AbortController |
+| SettingsPage | NEW | `/api/users/settings/${user.id}` | PUT | ✅ **NEW** — Saves notification toggles + theme to backend |
+
+#### Optimization Audit
+
+| Check | Status | Details |
+|-------|--------|--------|
+| Hardcoded URLs | ✅ **FIXED** | MyProfilePage + PasswordModal migrated to `api.js` with relative URLs. Header already migrated. |
+| AbortController | ✅ **FIXED** | MyProfilePage profile-fetch `useEffect` now has `AbortController` + cleanup. Header already had it. |
+| Ghost Endpoint | ✅ **FIXED** | Header calls `/api/users/notifications/{id}` — endpoint **EXISTS** in `user_features.py` router (extracted from `users.py`). Returns real role-based notifications from DB (pending verifications for HEAD, attendance logs for FACULTY/STUDENT). |
+| Mock Data | ✅ **FIXED** | All 4 previously-mock components now use real API: **NotificationsPage** → `GET /api/users/notifications/{id}` with AbortController + loading/error states. **HelpSupportPage** → FAQ is static role-based content (by design), contact form → `POST /api/users/support-ticket` with real backend persistence. **SettingsPage** → `GET/PUT /api/users/settings/{id}` with real backend persistence (UserSetting model + auto-created defaults). 2 new backend models: `SupportTicket`, `UserSetting`. 4 new endpoints in `user_features.py`. |
+| AuthContext | ✅ **FIXED** | Header, MyProfilePage, SettingsPage, NotificationsPage, HelpSupportPage all migrated to `useAuth()`. Zero `localStorage.getItem('currentUser')` calls remain in components. |
+| Method Mismatch | ✅ **VERIFIED** | Backend `/api/users/change-password` is `PUT` — PasswordModal correctly uses `api.put()` |
+| Loading States | ✅ **FIXED** | MyProfilePage has loading for profile fetch. |
+| Component Size | ✅ **FIXED** | MyProfilePage decomposed 357→217 lines. Extracted: `PasswordModal.jsx` (151 lines). |
+| Error Handling | ✅ **FIXED** | All catch blocks use `error.userMessage` from api.js interceptor |
 
 ---
 
-### 5.8 Utilities & Test (2 files)
+### 5.8 Kiosk Dashboard (1 component)
 
-| # | Component | What It Does |
-|---|-----------|-------------|
-| 33 | **ReportGenerator.js** | PDF/CSV generation utility with FRAMES branding |
-| 34 | **TestPDFPage** | Sandbox with mock data generators — **by design** |
+| # | Component | File (lines) | What It Does | API Connected? |
+|---|-----------|-------------|-------------|----------------|
+| 36 | **KioskDashboardPage** | `KioskDashboardPage.jsx` (198) | Full-screen kiosk UI: live video feed via `<img>` stream, WebSocket for real-time state updates, gesture indicator grid (✌️/👍/✋), recent check-ins list, clock, room/subject panel | ✅ WebSocket + Video Stream |
+
+#### Connection Details
+
+| Type | Line | URL | What It Does |
+|------|------|-----|-------------|
+| Base URL | L21 | `import.meta.env.VITE_API_URL \|\| 'http://localhost:8000'` | **Only component** using `VITE_API_URL` env var (note: port 8000, not 5000) |
+| WebSocket | L22 | `${BACKEND_URL}/ws/status` | Real-time kiosk state (active class, recognized user, gestures, check-ins) |
+| Video Stream | L23 | `${BACKEND_URL}/video_feed` | MJPEG stream from RPi camera |
+
+#### Optimization Audit
+
+| Check | Status | Details |
+|-------|--------|--------|
+| Hardcoded URLs | ⚠️ Partial | Uses `VITE_API_URL` env var with `localhost:8000` fallback — **different port** than rest of frontend (`5000`) |
+| WebSocket Cleanup | ✅ Pass | Proper cleanup: `clearTimeout(reconnectTimeout)` + `ws.close()` in useEffect return (L68-70) |
+| Auto-Reconnect | ✅ Pass | 3-second reconnect on WebSocket close (L59) |
+| Offline Indicator | ✅ Pass | Shows `⚠️ OFFLINE - System is disconnected` banner when WebSocket is down |
+| AbortController | N/A | No REST API calls — WebSocket-based |
+| AuthContext | N/A | Kiosk is unauthenticated display — no user login |
+
+---
+
+### 5.9 Utilities & Test (2 files)
+
+| # | Component | File (lines) | What It Does |
+|---|-----------|-------------|-------------|
+| 37 | **ReportGenerator.js** | `frontend/src/utils/ReportGenerator.js` (225) | PDF/CSV generation utility with FRAMES branding, header/footer, multi-section layout via jsPDF |
+| 38 | **TestPDFPage** | `frontend/src/components/TestPDFPage.jsx` (203) | Sandbox with mock data generators — **by design** (development/testing tool) |
 
 ---
 
@@ -749,18 +965,18 @@ API-based schedule resolution with local JSON cache fallback.
 
 ### 6.4 Frontend Architecture Violations
 
-> **UNCHANGED from v1.0 — zero frontend files modified in PR #26**
+> **PARTIALLY RESOLVED — 21 frontend files changed (AuthContext + centralized API client)**
 
-| Violation | Files Affected | Required Fix |
-|-----------|---------------|-------------|
-| Hardcoded `http://localhost:5000` | **16 files** with 26+ direct axios calls | Create `services/api.js` centralized client |
-| No `AbortController` | **36 of 37** components | Add cleanup in every `useEffect` fetch |
-| No `AuthContext` | ALL files use `localStorage.getItem('currentUser')` directly | Create `context/AuthContext.jsx` |
-| No route guards | Layouts do manual role checks | Create `<ProtectedRoute>` component |
-| Mock data in production | **11 components** with hardcoded arrays | Replace with real API calls |
-| No `VITE_API_BASE_URL` | Not referenced anywhere | Configure for deployment |
-| Missing loading states | 8+ components | Add `isLoading` / `error` state handling |
-| Duplicate component | `DeptHeadSystemLogsPage` = exact copy of `SystemLogsPage` | Extract shared component |
+| Violation | v1.0 Status | v2.0 Status | Details |
+|-----------|-------------|-------------|--------|
+| No `AuthContext` | ❌ ALL files use `localStorage` directly | ✅ **RESOLVED** | `context/AuthContext.jsx` created (106 lines). 16 components migrated to `useAuth()`. Zero direct `localStorage.getItem('currentUser')` calls remain in components. |
+| Hardcoded `http://localhost:5000` | ❌ **16 files** with 26+ calls | ✅ **RESOLVED** | `services/api.js` created (63 lines). All components migrated. Sections 5.1–5.7 fully fixed. Zero `http://localhost:5000` remains in components. 7 new backend endpoints added (`admin_dashboard.py` + `faculty_reports.py`). |
+| No `AbortController` | ❌ **36 of 37** components | ✅ **RESOLVED** | Added to all `useEffect`-based data fetches across Sections 5.1–5.7: Header, ApplicationPage, UserVerificationPage, AdminDashboardPage, SystemLogsPage, UserManagementPage, FacultyDashboardPage, FacultyAttendancePage, MyClassesPage, ScheduleUploadView, FacultyReportsPage, StudentDashboardPage, LiveClassStatus, SchedulePage, AttendanceHistoryPage, DeptHeadDashboardPage, DeptHeadManagePage, DeptHeadReportsPage, DeptHeadUserManagementPage (×2), DeptHeadSystemLogsPage, MyProfilePage. FaceEnrollmentPage uses ref-based cleanup. KioskDashboardPage uses WebSocket cleanup (N/A for AbortController). |
+| No route guards | ❌ Layouts do manual role checks | ❌ **UNCHANGED** | `hasRole()` available via `useAuth()` but no `<ProtectedRoute>` component yet |
+| Mock data in production | ❌ **11 components** | ✅ **RESOLVED** | Fixed: AdminDashboardPage, SystemLogsPage, UserManagementPage, FacultyReportsPage, AttendanceTrendChart, DeptHeadSystemLogsPage → real API. NotificationsPage → `/api/users/notifications/{id}`. HelpSupportPage contact form → `/api/users/support-ticket`. SettingsPage → `/api/users/settings/{id}`. **0 mock-data components remain** (TestPDFPage is by design). |
+| No `VITE_API_BASE_URL` | ❌ Not referenced | ❌ **UNCHANGED** | `api.js` uses relative `/api` which works via Vite proxy in dev; needs env var for prod |
+| Missing loading states | ❌ 8+ components | ✅ **RESOLVED** | All data-fetching components now have loading/error states |
+| Duplicate component | ❌ `DeptHeadSystemLogsPage` | ✅ **RESOLVED** | Rewritten to use real API (same endpoint as AdminDashboard/SystemLogsPage) with its own loading/error states |
 
 ---
 
@@ -825,24 +1041,24 @@ API-based schedule resolution with local JSON cache fallback.
 | Database Config | 3 | **0** | 2 | 0 | **-3 critical, -2 warn resolved** |
 | `datetime.utcnow` | 0 | 0 | 10 | **0** | **-10 warnings resolved** |
 | No Authentication (JWT) | 1 | 1 | 0 | 0 | — |
-| Hardcoded URLs (Frontend) | 1 | 1 | 0 | 0 | — |
-| No AbortController | 1 | 1 | 0 | 0 | — |
-| No AuthContext | 1 | 1 | 0 | 0 | — |
+| Hardcoded URLs (Frontend) | 1 | **0** | 0 | 0 | **-1 crit resolved (api.js created, all components migrated, sections 5.1–5.7 complete)** |
+| No AbortController | 1 | **0** | 0 | 0 | **-1 crit resolved (all useEffect fetches across sections 5.1–5.7 have cleanup)** |
+| No AuthContext | 1 | **0** | 0 | 0 | **-1 critical resolved (AuthContext + 16 components)** |
 | CORS Wildcard | 1 | 1 | 0 | 0 | — |
 | No Rate Limiting | 2 | 2 | 0 | 0 | — |
-| Mock Data in Production | 0 | 0 | 11 | 11 | — |
+| Mock Data in Production | 0 | 0 | 11 | **0** | **-11 warnings resolved (AdminDashboard 3 + FacultyReports 1 + StudentChart 1 + DeptHeadSystemLogs 1 + Notifications 1 + HelpSupport 1 + Settings 1 + Header already real + MyProfile already real)** |
 | `print()` Usage | 0 | 0 | 4+ | 4+ | — |
 | RPi Missing Features | 5 | 5 | 1 | 1 | — |
 | No Pagination | 0 | 0 | 3 | 3 | — |
 | No Service Layer | 0 | 0 | 4 | 4 | — |
-| **TOTAL** | **28** | **7** | **19** | **16** | **-21 crit, -3 warn** |
+| **TOTAL** | **28** | **4** | **19** | **12** | **-24 crit, -7 warn net** |
 
 ### By Tier — v2.0
 
 | Tier | Critical | Warning | Total |
 |------|----------|---------|-------|
 | Backend API | 4 | 9 | 13 |
-| Frontend | 4 | 12 | 16 |
+| Frontend | 0 | 7 | 7 |
 | RPi Kiosk | 5 | 2 | 7 |
 | Database/Models | 0 | 0 | **0** ← all resolved |
 
@@ -1004,34 +1220,50 @@ _(Unchanged from v1.0 — no RPi files were modified)_
 | 16 | schedule_resolver | `ScheduleResolver.get_active_class()` | API + cache time-based resolution |
 | 17 | schedule_resolver | `ScheduleResolver.sync_schedule()` | Full schedule download to cache |
 
-### Frontend — 37 Components, 26+ API Calls
+### Frontend — 38 Components, 35+ API Calls
 
 _(Unchanged from v1.0 — no frontend files were modified)_
 
 | # | Component | Key Processes |
 |---|-----------|--------------|
-| 1 | LandingPage | Login modal, role selection → registration redirect |
-| 2 | RegistrationPage | 2-step registration flow, status pages |
-| 3 | FaceEnrollmentPage | Webcam capture (15 frames), face enrollment POST |
+| 1 | LandingPage | Login modal (L24: POST `/auth/login`), role selection → registration redirect |
+| 2 | RegistrationPage | 2-step registration flow (L110: POST `/auth/register`), status pages |
+| 3 | FaceEnrollmentPage | Webcam capture (15 frames), POST `/api/face/enroll` via `api.js`, ref-based cleanup |
 | 4 | AdminDashboardPage | Dashboard display (mock data) |
-| 5 | ApplicationPage | User verification: approve/reject/delete |
-| 6 | ReportsPage | 14 report types, PDF generation |
-| 7 | SystemLogsPage | Log display (mock data) |
-| 8 | UserManagementPage | User listing (mock data) |
-| 9 | FacultyDashboardPage | Faculty stats display |
-| 10 | MyClassesPage | 3-view class management, PDF upload, session exceptions |
-| 11 | FacultyAttendancePage | Attendance sheet view, PDF export |
-| 12 | FacultyReportsPage | 21 report types (mock data) |
-| 13 | StudentDashboardPage | Live class polling (30s), trend chart |
-| 14 | SchedulePage | Weekly schedule, COR upload |
-| 15 | AttendanceHistoryPage | 8 report types, smart subject mapping |
-| 16 | DeptHeadDashboardPage | Department overview |
-| 17 | DeptHeadManagePage | Subject/faculty/room management |
-| 18 | DeptHeadReportsPage | 4 department report types |
-| 19 | DeptHeadUserManagementPage | User directory + verification |
-| 20 | MyProfilePage | Profile editing, password change |
-| 21 | Header | Dynamic title, notifications (mock) |
-| 22 | ReportGenerator.js | PDF/CSV generation utility |
+| 5 | AdminLayout | Role guard, red theme, sidebar |
+| 6 | ApplicationPage | User verification: approve/reject/delete (4 API calls) |
+| 7 | ReportsPage | 14 report types, PDF generation (1 API call) |
+| 8 | SystemLogsPage | Log display (mock data) |
+| 9 | UserManagementPage | User listing (mock data) |
+| 10 | UserVerificationPage | Legacy verification page (3 fetch() calls to `127.0.0.1:5000`) |
+| 11 | FacultyDashboardPage | Faculty stats display (1 API call) |
+| 12 | FacultyLayout | Role + face enrollment guard, sidebar |
+| 13 | MyClassesPage | 3-view class management, PDF upload, session exceptions (5 API calls) |
+| 14 | FacultyAttendancePage | Attendance sheet view, PDF export (2 API calls) |
+| 15 | FacultyReportsPage | 21 report types (mock data) |
+| 16 | FacultyReportModal | Format selection modal (presentational) |
+| 17 | StudentDashboardPage | Live class polling (30s) with AbortController, trend chart (3 API calls) |
+| 18 | StudentLayout | Verification + face guard, notification count (1 API call) |
+| 19 | SchedulePage | Weekly schedule, COR upload (2 API calls) |
+| 20 | AttendanceHistoryPage | 8 report types, smart subject mapping (2 API calls) |
+| 21 | StudentReportModal | Format selection modal (presentational) |
+| 22 | DeptHeadDashboardPage | Department overview + pending verifications (2 API calls) |
+| 23 | DeptHeadLayout | Role guard, sidebar |
+| 24 | DeptHeadManagePage | Subject/faculty/room management (4 API calls) |
+| 25 | DeptHeadReportsPage | 4 department report types (1 API call) |
+| 26 | DeptHeadUserManagementPage | User directory + verification (5 API calls) |
+| 27 | DeptHeadSystemLogsPage | Exact copy of SystemLogsPage (mock data) |
+| 28 | DeptHeadReportModal | Format selection modal (presentational) |
+| 29 | Header | Dynamic title, notification polling (1 API call — ghost endpoint) |
+| 30 | Footer | Static content |
+| 31 | Logo | Renders frames_logo.png |
+| 32 | MyProfilePage | Profile editing, password change (4 API calls) |
+| 33 | HelpSupportPage | FAQ accordion (mock data) |
+| 34 | SettingsPage | Notification toggles (mock, no persistence) |
+| 35 | NotificationsPage | Notification list (mock data) |
+| 36 | KioskDashboardPage | WebSocket kiosk UI, video stream, gesture grid |
+| 37 | ReportGenerator.js | PDF/CSV generation utility |
+| 38 | TestPDFPage | Sandbox with mock data generators — by design |
 
 ---
 

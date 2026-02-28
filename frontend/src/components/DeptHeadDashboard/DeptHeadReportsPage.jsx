@@ -1,255 +1,249 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
-import '../FacultyDashboard/FacultyReportsPage.css';
-import FacultyReportModal from '../FacultyDashboard/FacultyReportModal';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
+import './DeptHeadReportsPage.css';
+import DeptHeadReportModal from './DeptHeadReportModal';
 
-// ============================================
-// DEPARTMENT HEAD REPORT OPTIONS
-// ============================================
 const reportOptions = [
-    // --- Faculty Oversight ---
-    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', category: 'Faculty Oversight' },
-    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', category: 'Faculty Oversight' },
-    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', category: 'Faculty Oversight' },
+    // FACULTY REPORTS (Matching TestPDFPage Template)
+    { id: 'FAC_PERFORMANCE', label: 'Faculty Attendance Performance', desc: 'Aggregates attendance and punctuality of instructors.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
+    { id: 'FAC_LATE', label: 'Faculty Late Arrival Report', desc: 'Identifies recurring delays by faculty.', type: 'FACULTY', endpoint: '/reports/faculty-summary' },
 
-    // --- Facility & Room Analytics ---
-    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', category: 'Facility & Room Analytics' },
-    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', category: 'Facility & Room Analytics' },
-    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', category: 'Facility & Room Analytics' },
-    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', category: 'Facility & Room Analytics' },
-
-    // --- Departmental Strategy ---
-    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', category: 'Departmental Strategy' },
+    // ROOM REPORTS
+    { id: 'ROOM_OCCUPANCY', label: 'Room Utilization & Occupancy', desc: 'Tracks occupants per room vs capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' },
+    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Detects rooms exceeding safety capacity.', type: 'ROOM', endpoint: '/reports/room-occupancy' }
 ];
 
-const getColumnConfig = () => ({
-    headers: ['ID', 'Name / Room', 'Detail', 'Status', 'Metric', 'Remarks'],
-    keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
-});
-
 const DeptHeadReportsPage = () => {
-    const [selectedReport, setSelectedReport] = useState(null);
-    const [reportData, setReportData] = useState([]);
+
+    // --- STATES ---
+    const [selectedReportId, setSelectedReportId] = useState('FAC_PERFORMANCE');
+    const [reportData, setReportData] = useState([]); // Holds DB data
     const [loading, setLoading] = useState(false);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState('');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [room, setRoom] = useState('');
-    const [rooms, setRooms] = useState([]);
+    const [showModal, setShowModal] = useState(false);
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const currentReport = reportOptions.find(r => r.id === selectedReportId);
+    const isRoomReport = currentReport?.type === 'ROOM';
 
-    const user = useMemo(() => {
-        const stored = localStorage.getItem('currentUser');
-        return stored ? JSON.parse(stored) : null;
-    }, []);
-
-    // Fetch room list
+    // --- FETCH DATA FROM DB ---
     useEffect(() => {
-        axios.get(`${API}/api/dept/management-data`).then(res => {
-            setRooms(res.data?.rooms || []);
-        }).catch(() => { });
-    }, []);
+        if (!currentReport?.endpoint) return;
 
-    const groupedReports = useMemo(() => {
-        const groups = {};
-        reportOptions.forEach(opt => {
-            if (!groups[opt.category]) groups[opt.category] = [];
-            groups[opt.category].push(opt);
-        });
-        return groups;
-    }, []);
+        const controller = new AbortController();
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const response = await api.get(currentReport.endpoint, { signal: controller.signal });
+                const raw = response.data;
+                setReportData(Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []));
+            } catch (error) {
+                if (error.code !== 'ERR_CANCELED') {
+                    console.error("Error fetching report:", error);
+                    setReportData([]);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const fetchReportData = async (reportId) => {
-        setLoading(true);
-        try {
-            const params = { report_type: reportId };
-            if (dateFrom) params.date_from = dateFrom;
-            if (dateTo) params.date_to = dateTo;
-            if (room) params.room = room;
+        fetchData();
+        return () => controller.abort();
+    }, [currentReport]);
 
-            const res = await axios.get(`${API}/api/dept/reports/data`, { params });
-            setReportData(res.data || []);
-        } catch (err) {
-            console.error('Dept report fetch error:', err);
-            setReportData([]);
-        } finally {
-            setLoading(false);
+    // --- REPORT GENERATION HANDLER ---
+    const handleConfirmGeneration = (format) => {
+        if (format === 'PDF') {
+            handleDownloadPDF();
+        } else if (format === 'CSV') {
+            handleDownloadCSV();
         }
+        setShowModal(false);
     };
 
-    const handleSelectReport = (report) => {
-        setSelectedReport(report);
-        fetchReportData(report.id);
+    // --- PDF GENERATOR ---
+    const handleDownloadPDF = () => {
+        // 1. Map Data for Report
+        let tableInput = [];
+
+        if (isRoomReport) {
+            // Match TestPDFPage Keys: Room, Capacity, Current, Utilization, Status
+            tableInput = reportData.map(r => ({
+                "Room": r.room_name,
+                "Capacity": r.capacity.toString(),
+                "Current": r.peak_hour, // Mapping peak_hour to Current for now, or use utilization derived
+                "Utilization": `${r.utilization}%`,
+                "Status": r.status
+            }));
+        } else {
+            // Match TestPDFPage Keys: Faculty, Subject_Load, Attendance, Average_Lates, Status
+            tableInput = reportData.map(f => ({
+                "Faculty": f.name,
+                "Subject_Load": `${f.subject_load} Units`,
+                "Attendance": `${f.attendance_rate}%`,
+                "Average_Lates": f.lates.toString(), // Mapping lates to Average_Lates
+                "Status": f.remarks // Mapping Remarks to Status
+            }));
+        }
+
+        // 2. Generate PDF
+        generateFramesPDF({
+            title: currentReport.label,
+            type: isRoomReport ? "FACILITY REPORT" : "DEPARTMENT REPORT",
+            category: 'system', // Triggers "Scope" context in ReportGenerator
+            context: {
+                scope: "Computer Studies Department" // Hardcoded for now, could be dynamic
+            },
+            dateRange: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        }, tableInput);
     };
 
-    const handleRefresh = () => {
-        if (selectedReport) fetchReportData(selectedReport.id);
-    };
-
-    const config = getColumnConfig();
-
-    const handleDownloadPDF = async () => {
-        if (!selectedReport || reportData.length === 0) return;
-        const tableData = reportData.map(row => {
-            const obj = {};
-            config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
-            return obj;
-        });
-        const reportInfo = {
-            title: selectedReport.label,
-            type: 'Department Head Report',
-            category: 'dept',
-            dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
-        };
-        await generateFramesPDF(reportInfo, tableData, 'download');
-    };
-
+    // --- CSV GENERATOR ---
     const handleDownloadCSV = () => {
-        if (!selectedReport || reportData.length === 0) return;
-        const tableData = reportData.map(row => {
-            const obj = {};
-            config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
-            return obj;
-        });
-        generateCSV({ title: selectedReport.label }, tableData);
-    };
+        // 1. Map Data for Report
+        let tableInput = [];
 
-    const handlePreviewPDF = async () => {
-        if (!selectedReport || reportData.length === 0) return;
-        const tableData = reportData.map(row => {
-            const obj = {};
-            config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
-            return obj;
-        });
-        const reportInfo = {
-            title: selectedReport.label,
-            type: 'Department Head Report',
-            category: 'dept',
-            dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
-        };
-        const url = await generateFramesPDF(reportInfo, tableData, 'view');
-        setPreviewUrl(url);
-        setModalOpen(true);
+        if (isRoomReport) {
+            tableInput = reportData.map(r => ({
+                "Room": r.room_name,
+                "Capacity": r.capacity,
+                "Current": r.peak_hour,
+                "Utilization": r.utilization,
+                "Status": r.status
+            }));
+        } else {
+            tableInput = reportData.map(f => ({
+                "Faculty": f.name,
+                "Subject_Load": f.subject_load,
+                "Attendance": f.attendance_rate,
+                "Average_Lates": f.lates,
+                "Status": f.remarks
+            }));
+        }
+
+        // 2. Generate CSV
+        generateCSV({
+            title: currentReport.label
+        }, tableInput);
     };
 
     return (
-        <div className="faculty-reports-page">
-            <div className="reports-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2>Department Reports</h2>
-                    <p className="reports-subtitle">Faculty oversight, facility analytics, and departmental strategy reports</p>
-                </div>
-                <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. 2025-2026
-                </div>
-            </div>
-
-            <div className="reports-filters-bar">
-                <div className="filter-group">
-                    <label>Report Type</label>
+        <div className="dept-reports-container fade-in">
+            <div className="dept-reports-header">
+                <div className="dept-control-group">
+                    <label>Select Report Type</label>
                     <select
-                        value={selectedReport?.id || ''}
-                        onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
-                        className="filter-select"
-                        style={{ minWidth: '240px' }}
+                        className="dept-select"
+                        value={selectedReportId}
+                        onChange={(e) => setSelectedReportId(e.target.value)}
                     >
-                        <option value="" disabled>Select a report...</option>
-                        {Object.entries(groupedReports).map(([category, options]) => (
-                            <optgroup key={category} label={category}>
-                                {options.map(opt => (
-                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                                ))}
-                            </optgroup>
-                        ))}
+                        <optgroup label="Faculty Reports">
+                            {reportOptions.filter(r => r.type === 'FACULTY').map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.label}</option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="Facility Reports">
+                            {reportOptions.filter(r => r.type === 'ROOM').map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.label}</option>
+                            ))}
+                        </optgroup>
                     </select>
                 </div>
-                <div className="filter-group">
-                    <label>Room</label>
-                    <select value={room} onChange={e => setRoom(e.target.value)} className="filter-select">
-                        <option value="">All Rooms</option>
-                        {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
-                    </select>
+
+                <div className="dept-report-info">
+                    <i className={`fas ${isRoomReport ? 'fa-building' : 'fa-chalkboard-teacher'}`}></i>
+                    <div className="info-content">
+                        <h4>{currentReport.label}</h4>
+                        <p>{currentReport.desc}</p>
+                    </div>
                 </div>
-                <div className="filter-group">
-                    <label>From</label>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="filter-input" />
-                </div>
-                <div className="filter-group">
-                    <label>To</label>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="filter-input" />
-                </div>
-                <button className="filter-refresh-btn" onClick={handleRefresh} disabled={!selectedReport} style={{ opacity: !selectedReport ? 0.5 : 1 }}>
-                    <i className="fas fa-sync-alt"></i> Refresh
-                </button>
             </div>
 
-            <div className="reports-layout-full">
-                <div className="reports-content">
-                    {!selectedReport ? (
-                        <div className="reports-empty-state">
-                            <i className="fas fa-chart-pie"></i>
-                            <h3>Select a Report</h3>
-                            <p>Choose a report type from the sidebar to view department-wide data.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="report-content-header">
-                                <div>
-                                    <h3>{selectedReport.label}</h3>
-                                    <p>{selectedReport.desc}</p>
-                                </div>
-                                <div className="report-actions">
-                                    <button className="report-action-btn preview" onClick={handlePreviewPDF} disabled={reportData.length === 0}>
-                                        <i className="fas fa-eye"></i> Preview
-                                    </button>
-                                    <button className="report-action-btn pdf" onClick={handleDownloadPDF} disabled={reportData.length === 0}>
-                                        <i className="fas fa-file-pdf"></i> PDF
-                                    </button>
-                                    <button className="report-action-btn csv" onClick={handleDownloadCSV} disabled={reportData.length === 0}>
-                                        <i className="fas fa-file-csv"></i> CSV
-                                    </button>
-                                </div>
-                            </div>
+            <div className="dept-table-card">
+                <div className="dept-card-header">
+                    <h3>Report Data {loading && <span style={{ fontSize: '0.7em', color: '#888' }}>(Loading...)</span>}</h3>
+                    <button className="btn-export" onClick={() => setShowModal(true)} disabled={reportData.length === 0}>
+                        <i className="fas fa-file-pdf"></i> Generate Official Report
+                    </button>
+                </div>
 
-                            <div className="report-table-container">
-                                {loading ? (
-                                    <div className="report-loading"><i className="fas fa-spinner fa-spin"></i><p>Loading report data...</p></div>
-                                ) : reportData.length === 0 ? (
-                                    <div className="report-no-data">
-                                        <i className="fas fa-database"></i>
-                                        <h4>No Data Available</h4>
-                                        <p>No records found for the selected filters. Adjust the date range or room filter.</p>
-                                    </div>
-                                ) : (
-                                    <table className="report-table">
-                                        <thead><tr>{config.headers.map(h => <th key={h}>{h}</th>)}</tr></thead>
-                                        <tbody>
-                                            {reportData.map((row, i) => (
-                                                <tr key={i}>
-                                                    {config.keys.map(key => (
-                                                        <td key={key} className={key === 'status' ? `status-cell status-${(row[key] || '').toLowerCase().replace(/\s+/g, '-')}` : ''}>{row[key] || 'N/A'}</td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-
-                            {reportData.length > 0 && (
-                                <div className="report-footer"><span>{reportData.length} record(s) found</span></div>
+                <div className="dept-table-wrapper">
+                    <table className="dept-table">
+                        <thead>
+                            {isRoomReport ? (
+                                <tr>
+                                    <th>Room</th>
+                                    <th>Capacity</th>
+                                    <th>Current</th>
+                                    <th>Utilization</th>
+                                    <th>Status</th>
+                                </tr>
+                            ) : (
+                                <tr>
+                                    <th>Faculty</th>
+                                    <th>Subject Load</th>
+                                    <th>Attendance %</th>
+                                    <th>Average Lates</th>
+                                    <th>Status</th>
+                                </tr>
                             )}
-                        </>
-                    )}
+                        </thead>
+                        <tbody>
+                            {reportData.length > 0 ? (
+                                reportData.map((row, index) => (
+                                    <tr key={index}>
+                                        {isRoomReport ? (
+                                            <>
+                                                <td style={{ fontWeight: 'bold' }}>{row.room_name}</td>
+                                                <td>{row.capacity}</td>
+                                                <td>{row.peak_hour}</td>
+                                                <td>
+                                                    <span className={`status-pill ${parseInt(row.utilization) > 90 ? 'alert' : 'present'}`}>
+                                                        {row.utilization}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className={`status-text ${row.status === 'Overcrowded' ? 'red-text' : 'green-text'}`}>
+                                                        {row.status}
+                                                    </span>
+                                                </td>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <td style={{ fontWeight: 'bold' }}>{row.name}</td>
+                                                <td>{row.subject_load} Subjects</td>
+                                                <td>{row.attendance_rate}</td>
+                                                <td>
+                                                    <span className={`status-pill ${row.lates > 3 ? 'late' : 'present'}`}>
+                                                        {row.lates}
+                                                    </span>
+                                                </td>
+                                                <td>{row.remarks}</td>
+                                            </>
+                                        )}
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#888' }}>
+                                        {loading ? "Fetching data..." : "No data available."}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {modalOpen && <FacultyReportModal previewUrl={previewUrl} onClose={() => setModalOpen(false)} />}
+            {/* REPORT GENERATION MODAL */}
+            <DeptHeadReportModal 
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                onGenerate={handleConfirmGeneration}
+                reportTitle={currentReport.label}
+                scope={isRoomReport ? "Facility Occupancy" : "Faculty Performance"}
+                dateRange={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                filters="None"
+            />
         </div>
     );
 };

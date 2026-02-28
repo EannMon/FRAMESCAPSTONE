@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
-// I-import ang inyong CSS file dito, e.g., 'ReportsPage.css' o 'UserManagementPage.css'
 // Note: Assuming na ang classes na 'admin-reports-container', 'admin-recent-reports-table', atbp. ay available.
-
-const API_BASE_URL = 'http://127.0.0.1:5000'; // Palitan base sa inyong Flask URL
-// NOTE: Kailangan mo ring i-pass ang ID ng naka-login na Admin para sa SystemAudit log.
 
 const UserVerificationPage = ({ adminUser }) => {
     const toast = useToast();
@@ -12,28 +9,29 @@ const UserVerificationPage = ({ adminUser }) => {
     const [loading, setLoading] = useState(true);
     const adminId = adminUser ? adminUser.user_id : 1; // Default to 1 if adminUser is null for testing
 
-    // [NEW API CALL] Fetch Users with verification_status = 'Pending'
-    const fetchPendingUsers = async () => {
+    // [API CALL] Fetch Users with verification_status = 'Pending'
+    const fetchPendingUsers = async (signal) => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/admin/users/pending`);
-            if (!response.ok) throw new Error('Failed to fetch pending users');
-
-            const data = await response.json();
-            setPendingUsers(data);
+            const response = await api.get('/api/admin/users/pending', { signal });
+            setPendingUsers(response.data || []);
         } catch (error) {
-            console.error("Error fetching pending users:", error);
-            toast.error("Error fetching pending users.");
+            if (error.code !== 'ERR_CANCELED') {
+                console.error("Error fetching pending users:", error);
+                toast.error(error.userMessage || "Error fetching pending users.");
+            }
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchPendingUsers();
+        const controller = new AbortController();
+        fetchPendingUsers(controller.signal);
+        return () => controller.abort();
     }, []);
 
-    // [NEW API CALL] Handle Approve/Reject Action
+    // [API CALL] Handle Approve/Reject Action
     const handleAction = async (userId, status, name) => {
         const action = status === 'Verified' ? 'Approve' : 'Reject';
 
@@ -42,31 +40,21 @@ const UserVerificationPage = ({ adminUser }) => {
 
         try {
             // 1. Update verification_status
-            const verifyResponse = await fetch(`${API_BASE_URL}/api/admin/users/verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, status })
-            });
-
-            if (!verifyResponse.ok) throw new Error('Verification API failed');
+            await api.post('/api/admin/users/verify', { userId, status });
 
             // 2. Log the action to SystemAudit
-            await fetch(`${API_BASE_URL}/api/admin/audit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    admin_id: adminId,
-                    action_type: `USER_VERIFICATION_${status.toUpperCase()}`,
-                    target_id: userId,
-                    details: `${status} user ${userId}: ${name}`
-                })
+            await api.post('/api/admin/audit', {
+                admin_id: adminId,
+                action_type: `USER_VERIFICATION_${status.toUpperCase()}`,
+                target_id: userId,
+                details: `${status} user ${userId}: ${name}`
             });
 
             toast.success(`User ${name} successfully ${status}.`);
             fetchPendingUsers(); // Refresh the list
         } catch (error) {
             console.error(`Error ${action}ing user:`, error);
-            toast.error(`Failed to ${action} user. Check console for details.`);
+            toast.error(error.userMessage || `Failed to ${action} user. Check console for details.`);
         }
     };
 
@@ -102,21 +90,21 @@ const UserVerificationPage = ({ adminUser }) => {
                                         <td>{user.date_registered}</td>
                                         <td>
                                             <div className="admin-recent-reports-table .action-buttons-wrapper">
-                                                <button
-                                                    className="admin-action-button"
+                                                <button 
+                                                    className="admin-action-button" 
                                                     style={{ color: '#28a745' }}
                                                     title="Approve Account"
                                                     onClick={() => handleAction(user.user_id, 'Verified', `${user.lastName}, ${user.firstName}`)}
                                                 >
-                                                    <i className="fas fa-check"></i>
+                                                    <i className="fas fa-check"></i> 
                                                 </button>
-                                                <button
-                                                    className="admin-action-button"
+                                                <button 
+                                                    className="admin-action-button" 
                                                     style={{ color: '#dc3545' }}
                                                     title="Reject Account"
                                                     onClick={() => handleAction(user.user_id, 'Rejected', `${user.lastName}, ${user.firstName}`)}
                                                 >
-                                                    <i className="fas fa-times"></i>
+                                                    <i className="fas fa-times"></i> 
                                                 </button>
                                             </div>
                                         </td>

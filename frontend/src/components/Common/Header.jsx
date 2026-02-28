@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import './Header.css';
 import Logo from './Logo';
 
 const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSidebarCollapsed }) => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -14,24 +16,30 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
     const notificationRef = useRef(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchNotifications = async () => {
             if (!user?.id) return;
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.id}`);
+                const response = await api.get(`/api/users/notifications/${user.id}`, { signal: controller.signal });
                 setNotifications(response.data || []);
             } catch (error) {
-                console.error("Error fetching notifications:", error);
+                if (error.code !== 'ERR_CANCELED') {
+                    console.error("Error fetching notifications:", error);
+                }
             }
         };
 
         fetchNotifications();
-        // Optional: Poll for new notifications
         const interval = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(interval);
+        return () => {
+            controller.abort();
+            clearInterval(interval);
+        };
     }, [user]);
 
     const handleLogout = () => {
-        localStorage.removeItem('currentUser');
+        logout();
         navigate('/');
         window.location.reload();
     };

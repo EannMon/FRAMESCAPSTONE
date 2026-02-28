@@ -20,10 +20,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
+from api.routers import auth, users, admin, admin_dashboard, faculty, faculty_reports, student, face, kiosk, dept, user_features
 from db.database import get_db
 
-# --- Logging Configuration ---
+# --- Logging Configuration (MUST be before any router imports) ---
+# Per FRAMES Observability Rules §1.1
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 logging.basicConfig(
@@ -36,7 +37,7 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Use the shared Rate Limiter from core.limiter (same instance used by all routers)
+# Rate Limiter imported from core.limiter
 
 # Create FastAPI app
 app = FastAPI(
@@ -58,14 +59,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import routers after app and limiter are ready to avoid circular imports
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
-
 # Include routers with prefixes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+# user_features must be registered BEFORE users — its specific routes
+# (/settings/{id}, /notifications/{id}, /support-ticket) must match before
+# the catch-all /{user_id} in users.router.
+app.include_router(user_features.router, prefix="/api/users", tags=["User Features"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(admin_dashboard.router, prefix="/api/admin", tags=["Admin Dashboard"])
 app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
+app.include_router(faculty_reports.router, prefix="/api/faculty", tags=["Faculty Reports"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
 app.include_router(face.router)  # Already has /api/face prefix
 app.include_router(kiosk.router)  # Already has /api/kiosk prefix

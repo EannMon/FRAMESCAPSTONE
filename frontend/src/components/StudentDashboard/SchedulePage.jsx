@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
+import api from '../../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
@@ -16,6 +17,7 @@ const ClassItem = ({ time, title, room }) => (
 );
 
 const SchedulePage = () => {
+  const { user: authUser } = useAuth();
   const toast = useToast();
   const [activeFilter, setActiveFilter] = useState('This Week');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -26,42 +28,46 @@ const SchedulePage = () => {
 
   // Upload States
   const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(true); // Can toggle based on semester start
+  const [showUpload, setShowUpload] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // --- FETCH SCHEDULE FUNCTION ---
-  const fetchSchedule = async () => {
-    try {
-      const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-      if (!storedUser) return;
-
-      const userId = storedUser.id || storedUser.user_id;
-      const response = await axios.get(`http://localhost:5000/api/student/schedule/${userId}`);
-      const rawData = response.data;
-
-      const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
-
-      rawData.forEach(cls => {
-        if (newSchedule[cls.day_of_week]) {
-          newSchedule[cls.day_of_week].push({
-            time: `${cls.start_time} - ${cls.end_time}`,
-            title: cls.course_name,
-            room: cls.room_name
-          });
-        }
-      });
-
-      setWeekSchedule(newSchedule);
-      setLoading(false);
-
-    } catch (error) {
-      console.error("Error fetching schedule:", error);
-      setLoading(false);
-    }
-  };
-
+  // --- FETCH SCHEDULE (with AbortController cleanup) ---
   useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchSchedule = async () => {
+      try {
+        if (!authUser) return;
+
+        const userId = authUser.id || authUser.user_id;
+        const response = await api.get(`/api/student/schedule/${userId}`, { signal: controller.signal });
+        const rawData = response.data;
+
+        const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
+
+        rawData.forEach(cls => {
+          if (newSchedule[cls.day_of_week]) {
+            newSchedule[cls.day_of_week].push({
+              time: `${cls.start_time} - ${cls.end_time}`,
+              title: cls.course_name,
+              room: cls.room_name
+            });
+          }
+        });
+
+        setWeekSchedule(newSchedule);
+      } catch (err) {
+        if (err.code !== 'ERR_CANCELED') {
+          console.error('Error fetching schedule:', err);
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
     fetchSchedule();
-  }, []);
+    return () => controller.abort();
+  }, [refreshTrigger]);
 
   // --- HANDLE FILE UPLOAD ---
   const handleFileUpload = async (event) => {
@@ -74,24 +80,22 @@ const SchedulePage = () => {
       return;
     }
 
-    const storedUser = JSON.parse(localStorage.getItem('currentUser'));
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('user_id', storedUser.id || storedUser.user_id);
+    formData.append('user_id', authUser.id || authUser.user_id);
 
     setUploading(true);
 
     try {
-      // BFF NOTE: Removed the manual header configuration here. 
-      // Let Axios handle the boundary automatically.
-      const response = await axios.post('http://localhost:5000/api/student/upload-cor', formData);
+      const response = await api.post('/api/student/upload-cor', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
       toast.success(`Success! ${response.data.message}`);
-      fetchSchedule(); // Refresh schedule after upload
+      setRefreshTrigger(prev => prev + 1); // Trigger schedule re-fetch
     } catch (error) {
-      console.error("Upload failed", error);
-      const errMsg = error.response?.data?.error || "Failed to parse CoR.";
-      toast.error(`Upload Failed: ${errMsg}`);
+      console.error('Upload failed:', error);
+      toast.error(`Upload Failed: ${error.userMessage || 'Failed to parse CoR.'}`);
     } finally {
       setUploading(false);
       // Clear the input so you can upload the same file again if needed
