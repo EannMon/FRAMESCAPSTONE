@@ -28,19 +28,25 @@ const KioskDashboardPage = () => {
 
     // WebSocket connection
     useEffect(() => {
-        let ws;
-        let reconnectTimeout;
+        let ws = null;
+        let reconnectTimeout = null;
+        // Guard flag — prevents reconnect attempts after the component unmounts
+        let destroyed = false;
 
         const connectWebSocket = () => {
+            if (destroyed) return;
+
             console.log('Connecting to WebSocket...', WS_URL);
             ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
+                if (destroyed) { ws.close(); return; }
                 console.log('WebSocket connected');
                 setOffline(false);
             };
 
             ws.onmessage = (event) => {
+                if (destroyed) return;
                 try {
                     const data = JSON.parse(event.data);
                     setKioskState(data);
@@ -50,22 +56,29 @@ const KioskDashboardPage = () => {
             };
 
             ws.onclose = () => {
+                if (destroyed) return;
                 console.warn('WebSocket disconnected. Reconnecting in 3s...');
                 setOffline(true);
                 reconnectTimeout = setTimeout(connectWebSocket, 3000);
             };
 
-            ws.onerror = (err) => {
-                console.error('WebSocket error:', err);
-                ws.close();
+            ws.onerror = () => {
+                // onerror is ALWAYS followed by onclose — do NOT call ws.close() here.
+                // Calling close() on a still-connecting socket causes the
+                // "WebSocket is closed before the connection is established" warning.
             };
         };
 
         connectWebSocket();
 
         return () => {
+            destroyed = true;
             clearTimeout(reconnectTimeout);
-            if (ws) ws.close();
+            if (ws) {
+                // Null out onclose so closing during cleanup doesn't schedule another reconnect
+                ws.onclose = null;
+                ws.close();
+            }
         };
     }, [WS_URL]);
 
