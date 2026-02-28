@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../Common/ToastProvider';
 // I-import ang inyong CSS file dito, e.g., 'ReportsPage.css' o 'UserManagementPage.css'
 // Note: Assuming na ang classes na 'admin-reports-container', 'admin-recent-reports-table', atbp. ay available.
 
@@ -6,6 +7,7 @@ const API_BASE_URL = 'http://127.0.0.1:5000'; // Palitan base sa inyong Flask UR
 // NOTE: Kailangan mo ring i-pass ang ID ng naka-login na Admin para sa SystemAudit log.
 
 const UserVerificationPage = ({ adminUser }) => {
+    const toast = useToast();
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const adminId = adminUser ? adminUser.user_id : 1; // Default to 1 if adminUser is null for testing
@@ -16,12 +18,12 @@ const UserVerificationPage = ({ adminUser }) => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/admin/users/pending`);
             if (!response.ok) throw new Error('Failed to fetch pending users');
-            
+
             const data = await response.json();
             setPendingUsers(data);
         } catch (error) {
             console.error("Error fetching pending users:", error);
-            alert("Error fetching pending users.");
+            toast.error("Error fetching pending users.");
         } finally {
             setLoading(false);
         }
@@ -35,7 +37,8 @@ const UserVerificationPage = ({ adminUser }) => {
     const handleAction = async (userId, status, name) => {
         const action = status === 'Verified' ? 'Approve' : 'Reject';
 
-        if (!window.confirm(`Are you sure you want to ${action} the account for ${name}?`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to ${action} the account for ${name}?`);
+        if (!confirmed) return;
 
         try {
             // 1. Update verification_status
@@ -51,19 +54,19 @@ const UserVerificationPage = ({ adminUser }) => {
             await fetch(`${API_BASE_URL}/api/admin/audit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    admin_id: adminId, 
+                body: JSON.stringify({
+                    admin_id: adminId,
                     action_type: `USER_VERIFICATION_${status.toUpperCase()}`,
                     target_id: userId,
-                    details: `${status} user ${userId}: ${name}` 
+                    details: `${status} user ${userId}: ${name}`
                 })
             });
 
-            alert(`User ${name} successfully ${status}.`);
+            toast.success(`User ${name} successfully ${status}.`);
             fetchPendingUsers(); // Refresh the list
         } catch (error) {
             console.error(`Error ${action}ing user:`, error);
-            alert(`Failed to ${action} user. Check console for details.`);
+            toast.error(`Failed to ${action} user. Check console for details.`);
         }
     };
 
@@ -99,21 +102,21 @@ const UserVerificationPage = ({ adminUser }) => {
                                         <td>{user.date_registered}</td>
                                         <td>
                                             <div className="admin-recent-reports-table .action-buttons-wrapper">
-                                                <button 
-                                                    className="admin-action-button" 
+                                                <button
+                                                    className="admin-action-button"
                                                     style={{ color: '#28a745' }}
                                                     title="Approve Account"
                                                     onClick={() => handleAction(user.user_id, 'Verified', `${user.lastName}, ${user.firstName}`)}
                                                 >
-                                                    <i className="fas fa-check"></i> 
+                                                    <i className="fas fa-check"></i>
                                                 </button>
-                                                <button 
-                                                    className="admin-action-button" 
+                                                <button
+                                                    className="admin-action-button"
                                                     style={{ color: '#dc3545' }}
                                                     title="Reject Account"
                                                     onClick={() => handleAction(user.user_id, 'Rejected', `${user.lastName}, ${user.firstName}`)}
                                                 >
-                                                    <i className="fas fa-times"></i> 
+                                                    <i className="fas fa-times"></i>
                                                 </button>
                                             </div>
                                         </td>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
@@ -15,6 +16,7 @@ const ClassItem = ({ time, title, room }) => (
 );
 
 const SchedulePage = () => {
+  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState('This Week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekSchedule, setWeekSchedule] = useState({
@@ -68,7 +70,7 @@ const SchedulePage = () => {
 
     // Validate PDF
     if (file.type !== 'application/pdf') {
-      alert("Please upload a valid PDF file.");
+      toast.error("Please upload a valid PDF file.");
       return;
     }
 
@@ -84,12 +86,12 @@ const SchedulePage = () => {
       // Let Axios handle the boundary automatically.
       const response = await axios.post('http://localhost:5000/api/student/upload-cor', formData);
 
-      alert(`Success! ${response.data.message}`);
+      toast.success(`Success! ${response.data.message}`);
       fetchSchedule(); // Refresh schedule after upload
     } catch (error) {
       console.error("Upload failed", error);
       const errMsg = error.response?.data?.error || "Failed to parse CoR.";
-      alert(`Upload Failed: ${errMsg}`);
+      toast.error(`Upload Failed: ${errMsg}`);
     } finally {
       setUploading(false);
       // Clear the input so you can upload the same file again if needed

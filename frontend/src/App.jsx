@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './components/Common/ToastProvider';
+import './components/Common/Toast.css';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
 
@@ -57,90 +59,92 @@ function App() {
     }, []);
 
     return (
-        <Router>
-            <div className="App">
-                <Routes>
-                    {/* Main public routes */}
-                    <Route path="/" element={<LandingPage />} />
-                    {/* Ito yung route na maghahandle ng registration based sa role at status */}
-                    <Route path="/register/:role" element={<RegistrationPage />} />
+        <ToastProvider>
+            <Router>
+                <div className="App">
+                    <Routes>
+                        {/* Main public routes */}
+                        <Route path="/" element={<LandingPage />} />
+                        {/* Ito yung route na maghahandle ng registration based sa role at status */}
+                        <Route path="/register/:role" element={<RegistrationPage />} />
 
-                    {/* Face Enrollment - Mandatory for all users */}
-                    <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
+                        {/* Face Enrollment - Mandatory for all users */}
+                        <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
 
-                    {/* --- Admin Routes (using AdminLayout) --- */}
-                    <Route element={<AdminLayout />}>
-                        <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
-                        <Route path="/admin-application" element={<ApplicationPage />} />
-                        <Route path="/admin-user-management" element={<UserManagementPage />} />
-                        {/* TINANGGAL: <Route path="/admin-verification" element={<UserVerificationPage />} /> */}
-                        <Route path="/admin-reports" element={<ReportsPage />} />
-                        <Route path="/admin-logs" element={<SystemLogsPage />} />
-                    </Route>
+                        {/* --- Admin Routes (using AdminLayout) --- */}
+                        <Route element={<AdminLayout />}>
+                            <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                            <Route path="/admin-application" element={<ApplicationPage />} />
+                            <Route path="/admin-user-management" element={<UserManagementPage />} />
+                            {/* TINANGGAL: <Route path="/admin-verification" element={<UserVerificationPage />} /> */}
+                            <Route path="/admin-reports" element={<ReportsPage />} />
+                            <Route path="/admin-logs" element={<SystemLogsPage />} />
+                        </Route>
 
-                    {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
-                    <Route element={<DeptHeadLayout />}>
-                        <Route path="/dept-head-dashboard" element={<DeptHeadDashboardPage />} />
-                        <Route path="/dept-head-classes" element={<MyClassesPage />} />
-                        <Route path="/dept-head-management" element={<DeptHeadManagePage />} />
-                        <Route path="/dept-head-reports" element={<DeptHeadReportsPage />} />
-                        <Route path="/dept-head-users" element={<DeptHeadUserManagementPage />} />
-                        <Route path="/dept-head-logs" element={<DeptHeadSystemLogsPage />} />
+                        {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
+                        <Route element={<DeptHeadLayout />}>
+                            <Route path="/dept-head-dashboard" element={<DeptHeadDashboardPage />} />
+                            <Route path="/dept-head-classes" element={<MyClassesPage />} />
+                            <Route path="/dept-head-management" element={<DeptHeadManagePage />} />
+                            <Route path="/dept-head-reports" element={<DeptHeadReportsPage />} />
+                            <Route path="/dept-head-users" element={<DeptHeadUserManagementPage />} />
+                            <Route path="/dept-head-logs" element={<DeptHeadSystemLogsPage />} />
 
-                        {/* Common Embedded for Dept Head */}
-                        <Route path="/dept-head-profile" element={<MyProfilePage isEmbedded={true} />} />
-                        <Route path="/dept-head-settings" element={<SettingsPage isEmbedded={true} />} />
-                        <Route path="/dept-head-help" element={<HelpSupportPage isEmbedded={true} />} />
-                        <Route path="/dept-head-notifications" element={<NotificationsPage isEmbedded={true} />} />
-                    </Route>
+                            {/* Common Embedded for Dept Head */}
+                            <Route path="/dept-head-profile" element={<MyProfilePage isEmbedded={true} />} />
+                            <Route path="/dept-head-settings" element={<SettingsPage isEmbedded={true} />} />
+                            <Route path="/dept-head-help" element={<HelpSupportPage isEmbedded={true} />} />
+                            <Route path="/dept-head-notifications" element={<NotificationsPage isEmbedded={true} />} />
+                        </Route>
 
-                    {/* --- Faculty Routes (using FacultyLayout) --- */}
-                    <Route element={<FacultyLayout />}>
-                        <Route index path="/faculty-dashboard" element={<FacultyDashboardPage />} />
-                        <Route path="/faculty-classes" element={<MyClassesPage />} />
-                        <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
-                        <Route path="/faculty-reports" element={<FacultyReportsPage />} />
+                        {/* --- Faculty Routes (using FacultyLayout) --- */}
+                        <Route element={<FacultyLayout />}>
+                            <Route index path="/faculty-dashboard" element={<FacultyDashboardPage />} />
+                            <Route path="/faculty-classes" element={<MyClassesPage />} />
+                            <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
+                            <Route path="/faculty-reports" element={<FacultyReportsPage />} />
 
-                        {/* REMOVED Dept Head pages from here */}
+                            {/* REMOVED Dept Head pages from here */}
 
-                        <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
-                        <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
-                        {/* New Embedded Pages */}
-                        <Route path="/faculty-profile" element={<MyProfilePage isEmbedded={true} />} />
-                        <Route path="/faculty-notifications" element={<NotificationsPage isEmbedded={true} />} />
-                    </Route>
+                            <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
+                            <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
+                            {/* New Embedded Pages */}
+                            <Route path="/faculty-profile" element={<MyProfilePage isEmbedded={true} />} />
+                            <Route path="/faculty-notifications" element={<NotificationsPage isEmbedded={true} />} />
+                        </Route>
 
-                    {/* --- Student Routes (using StudentLayout) --- */}
-                    <Route element={<StudentLayout />}>
-                        <Route index path="/student-dashboard" element={<StudentDashboardPage />} />
-                        <Route path="/student-schedule" element={<SchedulePage />} />
-                        <Route path="/student-attendance" element={<AttendanceHistoryPage />} />
-                        {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
-                        <Route path="/student-notifications" element={<NotificationsPage isEmbedded={true} />} />
-                        <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
-                        {/* Wrapper Routes for Common Pages to keep Sidebar */}
-                        <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
-                        <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
-                        <Route path="/student-profile" element={<MyProfilePage isEmbedded={true} />} />
-                    </Route>
+                        {/* --- Student Routes (using StudentLayout) --- */}
+                        <Route element={<StudentLayout />}>
+                            <Route index path="/student-dashboard" element={<StudentDashboardPage />} />
+                            <Route path="/student-schedule" element={<SchedulePage />} />
+                            <Route path="/student-attendance" element={<AttendanceHistoryPage />} />
+                            {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
+                            <Route path="/student-notifications" element={<NotificationsPage isEmbedded={true} />} />
+                            <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
+                            {/* Wrapper Routes for Common Pages to keep Sidebar */}
+                            <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
+                            <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
+                            <Route path="/student-profile" element={<MyProfilePage isEmbedded={true} />} />
+                        </Route>
 
-                    {/* --- Common Routes (Full Pages) --- */}
-                    <Route path="/profile" element={<MyProfilePage />} />
-                    <Route path="/help-support" element={<HelpSupportPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
+                        {/* --- Common Routes (Full Pages) --- */}
+                        <Route path="/profile" element={<MyProfilePage />} />
+                        <Route path="/help-support" element={<HelpSupportPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
 
-                    {/* Template Sandbox */}
-                    <Route path="/test-pdf" element={<TestPDFPage />} />
+                        {/* Template Sandbox */}
+                        <Route path="/test-pdf" element={<TestPDFPage />} />
 
-                    {/* Kiosk Dashboard - This is a standalone page that doesn't use any layout */}
-                    <Route path="/kiosk" element={<KioskDashboardPage />} />
+                        {/* Kiosk Dashboard - This is a standalone page that doesn't use any layout */}
+                        <Route path="/kiosk" element={<KioskDashboardPage />} />
 
-                    {/* Fallback route */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </div>
-        </Router>
+                        {/* Fallback route */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </div>
+            </Router>
+        </ToastProvider>
     );
 }
 

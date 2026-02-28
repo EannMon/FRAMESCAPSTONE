@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './MyClassesPage.css';
 
 const FacultyMyClassesPage = () => {
     // --- STATES ---
+    const toast = useToast();
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
     const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile'
 
@@ -202,14 +204,14 @@ const FacultyMyClassesPage = () => {
         }).filter(d => d !== null);
 
         if (selectedDates.length === 0) {
-            alert("No valid sessions selected");
+            toast.warning("No valid sessions selected");
             return;
         }
 
         // Determine the class_id from the first selected session
         const firstSelected = calendarEvents.find(ev => selectedSessions.includes(ev.id));
         if (!firstSelected) {
-            alert("Could not determine class");
+            toast.warning("Could not determine class");
             return;
         }
 
@@ -235,10 +237,10 @@ const FacultyMyClassesPage = () => {
             setCalendarEvents(updatedEvents);
             setShowManageModal(false);
             setSelectedSessions([]);
-            alert("✅ Schedule updated and saved to database!");
+            toast.success("Schedule updated and saved to database!");
         } catch (error) {
             console.error("Error saving session exceptions:", error);
-            alert("❌ Failed to save changes: " + (error.response?.data?.detail || error.message));
+            toast.error("Failed to save changes: " + (error.response?.data?.detail || error.message));
         }
     };
     // --- PDF GENERATORS (Using FRAMES ReportGenerator) ---
