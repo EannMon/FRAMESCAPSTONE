@@ -142,20 +142,11 @@ erDiagram
         string first_name "John"
         string last_name "Doe"
         string middle_name "Smith"
-        string contact_number "09171234567"
-        datetime birthday "Date of birth"
-        string home_address "Residential address"
         int department_id FK "→ departments.id"
         int program_id FK "→ programs.id"
         string year_level "4th Year"
         string section "BSIT-4A"
         string current_term "1st Semester"
-        string academic_advisor "Dr. Santos"
-        string gpa "1.75"
-        string emergency_contact_name "Maria Doe"
-        string emergency_contact_relationship "Mother"
-        string emergency_contact_phone "09181234567"
-        string emergency_contact_address "456 Oak Ave"
         datetime created_at "UTC timestamp"
         datetime last_active "UTC timestamp"
     }
@@ -400,20 +391,11 @@ flowchart TB
 | `first_name` | VARCHAR(100) | NOT NULL | First name | "John" |
 | `last_name` | VARCHAR(100) | NOT NULL | Last name | "Doe" |
 | `middle_name` | VARCHAR(100) | | Middle name (optional) | "Smith" |
-| `contact_number` | VARCHAR(20) | | Phone number | "09171234567" |
-| `birthday` | DATETIME | | Date of birth | 2003-05-15 |
-| `home_address` | VARCHAR(500) | | Residential address | "123 Main St, Manila" |
 | `department_id` | INTEGER | FK → departments.id | Associated department | `1` |
 | `program_id` | INTEGER | FK → programs.id | Enrolled program | `1` |
 | `year_level` | VARCHAR(20) | | Student's year | "4th Year" |
 | `section` | VARCHAR(50) | | Student's section | "BSIT-4A" |
 | `current_term` | VARCHAR(50) | | Current academic term | "1st Semester" |
-| `academic_advisor` | VARCHAR(100) | | Assigned advisor name | "Dr. Santos" |
-| `gpa` | VARCHAR(10) | | Grade point average | "1.75" |
-| `emergency_contact_name` | VARCHAR(100) | | Emergency contact person | "Maria Doe" |
-| `emergency_contact_relationship` | VARCHAR(50) | | Relationship to user | "Mother" |
-| `emergency_contact_phone` | VARCHAR(20) | | Emergency contact number | "09181234567" |
-| `emergency_contact_address` | VARCHAR(255) | | Emergency contact address | "456 Oak Ave, Manila" |
 | `created_at` | DATETIME | DEFAULT NOW() | Account creation | 2026-01-15 08:00:00 |
 | `last_active` | DATETIME | AUTO UPDATE | Last activity | 2026-02-02 10:30:00 |
 
@@ -759,6 +741,6 @@ All tables use auto-incrementing integer primary keys.
 
 ---
 
-**Document updated:** February 23, 2026  
-**Version:** 1.2  
-**Schema verified against:** SQLAlchemy models in `/backend/models/` and `updatedSchema` SQL dump
+**Document updated:** February 28, 2026  
+**Version:** 1.3  
+**Schema verified against:** SQLAlchemy models in `/backend/models/` and live PostgreSQL schema

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './DeptHeadManagePage.css';
@@ -129,6 +130,7 @@ const WeeklyCalendarView = ({ courses }) => {
 };
 
 const DeptHeadManagePage = () => {
+    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);
@@ -207,7 +209,7 @@ const DeptHeadManagePage = () => {
             setNewCourse({ code: '', name: '', units: 3 });
             fetchManagementData(); // Refresh table
         } catch (error) {
-            alert("Error creating course: " + (error.response?.data?.error || error.message));
+            toast.error("Error creating course: " + (error.response?.data?.error || error.message));
         }
     };
 
@@ -230,7 +232,7 @@ const DeptHeadManagePage = () => {
             fetchManagementData();
         } catch (error) {
             console.error("Assignment failed:", error);
-            alert("Assignment failed. Check console for details.");
+            toast.error("Assignment failed. Check console for details.");
         }
     };
 
@@ -258,7 +260,7 @@ const DeptHeadManagePage = () => {
             fetchManagementData();
         } catch (error) {
             console.error("Room assignment failed:", error);
-            alert("Room assignment failed. Check console for details.");
+            toast.error("Room assignment failed. Check console for details.");
         }
     };
 

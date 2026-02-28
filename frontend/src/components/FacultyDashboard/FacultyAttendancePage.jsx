@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './FacultyAttendancePage.css';
 
 const FacultyAttendancePage = () => {
+    const toast = useToast();
     // --- STATES ---
     const [viewMode, setViewMode] = useState('main'); // 'main' or 'details'
     const [selectedClass, setSelectedClass] = useState(null);
@@ -47,7 +49,7 @@ const FacultyAttendancePage = () => {
             setViewMode('details');
         } catch (error) {
             console.error("Error loading students:", error);
-            alert("Could not load student list.");
+            toast.error("Could not load student list.");
         } finally {
             setLoading(false);
         }

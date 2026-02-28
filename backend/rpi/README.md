@@ -264,24 +264,51 @@ Once you have the Pi's IP address (Step 3.5) and SSH was enabled during SD card 
 ssh emma@<PI_IP_ADDRESS>
 ```
 
-Replace `<PI_IP_ADDRESS>` with the IP from Step 3.5. For example:
+Replace `<PI_IP_ADDRESS>` with the IP from Step 3.5. As of the last known session, the Pi's IP is:
 ```bash
-ssh emma@10.244.181.134
+ssh emma@10.159.84.134
+```
+
+> ⚠️ **The Pi's IP address can change every time it reconnects to WiFi** (this is called DHCP — the router hands out a new IP). If `ssh emma@10.159.84.134` times out, run `hostname -I` on the Pi's physical screen to get the new IP.
+
+**What a successful connection looks like:**
+
+```
+PS C:\Users\Emmanuel> ssh emma@10.159.84.134
+The authenticity of host '10.159.84.134 (10.159.84.134)' can't be established.
+ED25519 key fingerprint is SHA256:oKggYF1bSJwGxGDDvRGQCQW51MTVToPj/5Xibmukc0Q.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '10.159.84.134' (ED25519) to the list of known hosts.
+emma@10.159.84.134's password:
+Linux raspberrypi 6.12.34+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.12.34-1+rpt1~bookworm (2025-06-26) aarch64
+...
+emma@raspberrypi:~ $
+```
+
+**About the "known_hosts" warning** — if you see this:
+```
+Warning: C:\Users\Emmanuel/.ssh/known_hosts:1: 10.244.181.134
+Are you sure you want to continue connecting (yes/no/[fingerprint])? 
+```
+This means the Pi had a different IP before (e.g. `10.244.181.134`) and now has a new one (`10.159.84.134`). This is **normal and safe** — it just means the router gave it a new address. Type `yes` to accept. It does NOT mean anything is wrong with the Pi.
+
+If SSH refuses entirely with `HOST KEY MISMATCH`, your laptop cached the old IP mapped to the Pi's key. Fix it:
+```powershell
+# On your laptop — remove the old cached key
+ssh-keygen -R 10.244.181.134
+# Then connect again normally
+ssh emma@10.159.84.134
 ```
 
 **First-time connection:**
 - It will ask: `Are you sure you want to continue connecting (yes/no)?` → Type `yes` and press Enter
 - Enter the password you set during SD card setup (Phase 1)
-- You should see the Pi's terminal prompt:
-  ```
-  emma@raspberrypi:~ $
-  ```
+- You should see the Pi's terminal prompt: `emma@raspberrypi:~ $`
 
 **If connection is refused or times out:**
 - Make sure your laptop and Pi are on the **same WiFi network**
-- Verify the IP is correct: on the Pi's 7" screen, run `hostname -I` again
+- Verify the IP is correct: on the Pi's 7" screen, run `hostname -I` again — the IP may have changed
 - If SSH wasn't enabled, run this on the Pi directly: `sudo raspi-config` → Interface Options → SSH → Enable, then reboot
-- The Pi's IP can change if your router uses DHCP — re-check with `hostname -I` each time
 
 **Tips for daily use:**
 - You can have multiple SSH sessions open at once (useful: one for running code, one for monitoring)
@@ -295,6 +322,8 @@ ssh emma@10.244.181.134
 > DISPLAY=:0 python rpi/test_laptop.py
 > ```
 > See Phase 7 for more details.
+
+✅ **You have completed Step 3.6. You are now SSH'd into the Pi. Continue with Step 3.7 below.**
 
 ### Step 3.7 — Update the System
 
@@ -537,8 +566,9 @@ mkdir -p ~/frames/scripts
 **THEN**, on **your laptop** (open a **new PowerShell window** — NOT the SSH session), run:
 ```powershell
 # Replace the IP with YOUR Pi's current IP (check with 'hostname -I' on the Pi)
-scp -r C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\rpi emma@10.244.181.134:~/frames/
-scp -r C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\scripts emma@10.244.181.134:~/frames/
+# Current Pi IP as of last session: 10.159.84.134  (may change — verify with hostname -I)
+scp -r C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\rpi emma@10.159.84.134:~/frames/
+scp -r C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\scripts emma@10.159.84.134:~/frames/
 ```
 
 > **WATCH OUT for trailing backslashes!** `scp -r ..\rpi\` (with backslash) creates a nested `rpi/rpi/` on the Pi. Use `..\rpi` (no trailing backslash) to copy the folder correctly.
@@ -956,7 +986,7 @@ python scripts/export_embeddings.py -o rpi/data/embeddings_cache.json
 
 ### Copy to the Pi:
 ```powershell
-scp C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\rpi\data\embeddings_cache.json emma@10.244.181.134:~/frames/rpi/data/
+scp C:\Users\Emmanuel\Documents\OURCAPSTONE\Capstoneee\backend\rpi\data\embeddings_cache.json emma@10.159.84.134:~/frames/rpi/data/
 ```
 
 ### Restart the Kiosk:

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './ReportsPage.css';
@@ -58,7 +59,7 @@ const StatusTag = ({ text }) => {
     if (['late', 'risk', 'denied', 'critical', 'alert', 'abused', 'overcrowding', 'waste'].some(k => lower.includes(k))) color = 'red';
     else if (['warning', 'mismatch', 'check', 'debug', 'underutilized'].some(k => lower.includes(k))) color = 'orange';
     else if (['present', 'good', 'granted', 'normal', 'compliant', 'optimized', 'excellent'].some(k => lower.includes(k))) color = 'green';
-    
+
     return <span className={`admin-status-tag ${color}`}>{text}</span>;
 };
 
@@ -122,16 +123,16 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                             <label>Date Range Coverage</label>
                             <div className="admin-filter-group-row">
                                 <input type="date" className="admin-filter-select" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                                <span style={{alignSelf:'center', color:'#888'}}>to</span>
+                                <span style={{ alignSelf: 'center', color: '#888' }}>to</span>
                                 <input type="date" className="admin-filter-select" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             </div>
                         </div>
-                        <button 
+                        <button
                             className="admin-generate-report-btn-modal"
                             onClick={handleGenerateClick}
                             disabled={loading}
                         >
-                            {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>} 
+                            {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>}
                             {loading ? " Processing..." : " Generate Report"}
                         </button>
                     </div>
@@ -145,10 +146,11 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
 // MAIN REPORTS PAGE COMPONENT
 // ===========================================
 const ReportsPage = () => {
-    const [viewMode, setViewMode] = useState('main'); 
-    const [selectedReport, setSelectedReport] = useState(null); 
+    const toast = useToast();
+    const [viewMode, setViewMode] = useState('main');
+    const [selectedReport, setSelectedReport] = useState(null);
     const [reportData, setReportData] = useState([]);
-    
+
     // History & Modals
     const [recentReports, setRecentReports] = useState([]);
     const [generatorModalOpen, setGeneratorModalOpen] = useState(false);
@@ -186,16 +188,16 @@ const ReportsPage = () => {
 
             setRecentReports(prev => [newReport, ...prev]);
             setGeneratorModalOpen(false);
-            
+
             if (newData.length > 0) {
                 handleView(null, newReport);
             } else {
-                alert(`Report generated successfully, but no records were found for the selected dates.\n\nTry expanding the date range.`);
+                toast.warning(`Report generated successfully, but no records were found for the selected dates. Try expanding the date range.`);
             }
 
         } catch (error) {
             console.error("Report Gen Error:", error);
-            alert("Failed to generate report. Please check the backend connection.");
+            toast.error("Failed to generate report. Please check the backend connection.");
         }
     };
 
@@ -219,7 +221,7 @@ const ReportsPage = () => {
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(18);
         doc.text(title.toUpperCase(), 14, 20);
-        
+
         doc.setFontSize(10);
         doc.text(`Generated: ${report.generated}`, 14, 30);
         doc.text(`Period: ${report.date}`, 14, 35);
@@ -262,7 +264,7 @@ const ReportsPage = () => {
                         </button>
                     </div>
                     <div className="admin-preview-toolbar-right">
-                        <button 
+                        <button
                             className="admin-preview-btn admin-download-btn"
                             onClick={() => handleDownloadPDF(selectedReport)}
                         >
@@ -274,11 +276,11 @@ const ReportsPage = () => {
                 <div className="preview-paper card">
                     <div className="paper-head">
                         <h2>{selectedReport.name}</h2>
-                        <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <ReportTag text={selectedReport.typeColor.toUpperCase()} colorClass={selectedReport.typeColor} />
                             <span className="meta-text"><i className="far fa-calendar-alt"></i> {selectedReport.date}</span>
                         </div>
-                        <hr/>
+                        <hr />
                     </div>
 
                     <div className="table-responsive">
@@ -308,8 +310,8 @@ const ReportsPage = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={columns.length} style={{textAlign:'center', padding:'30px', color:'#999'}}>
-                                            <i className="fas fa-search" style={{marginBottom:'10px', fontSize:'20px'}}></i><br/>
+                                        <td colSpan={columns.length} style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                                            <i className="fas fa-search" style={{ marginBottom: '10px', fontSize: '20px' }}></i><br />
                                             No data found for the selected criteria.
                                         </td>
                                     </tr>

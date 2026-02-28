@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from './ToastProvider';
 import './HelpSupportPage.css';
 import Header from './Header';
 import Footer from './Footer';
@@ -101,6 +102,7 @@ const FaqItem = ({ item, isOpen, onClick }) => {
 // --- Main Help & Support Page Component ---
 const HelpSupportPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
+    const toast = useToast();
     const [openFaq, setOpenFaq] = useState(null);
 
     // --- USER CONTEXT ---
@@ -209,7 +211,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                                 <label>Message</label>
                                 <textarea placeholder="Describe your issue..." rows="4" className="form-input"></textarea>
                             </div>
-                            <button type="submit" className="btn-submit-support" onClick={() => alert("Message sent! (Mock Action)")}>
+                            <button type="submit" className="btn-submit-support" onClick={() => toast.success("Message sent! (Mock Action)")}>
                                 <i className="fas fa-paper-plane"></i> Send Message
                             </button>
                         </form>

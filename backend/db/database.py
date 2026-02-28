@@ -15,6 +15,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set!")
 
+# Aiven (and Heroku) return "postgres://" but SQLAlchemy 1.4+ requires "postgresql://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # Create SQLAlchemy engine with SSL requirement for Aiven
 # NOTE: Aiven free tier has ~20 connection limit. Keep pool small.
 engine = create_engine(

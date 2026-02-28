@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
+import { useToast } from '../Common/ToastProvider';
 import './UserManagementPage.css';
 
 const UserManagementPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const toast = useToast();
 
     const initialUsers = [
         { name: "Admin User", email: "admin@university.edu", role: "Admin", roleColor: "red", department: "IT Services", faceStatus: "Registered", statusColor: "green", lastActive: "5 min ago" },
@@ -44,7 +46,7 @@ const UserManagementPage = () => {
         e.preventDefault();
 
         if (newUser.password !== newUser.confirmPassword) {
-            alert("Passwords do not match");
+            toast.error("Passwords do not match");
             return;
         }
 

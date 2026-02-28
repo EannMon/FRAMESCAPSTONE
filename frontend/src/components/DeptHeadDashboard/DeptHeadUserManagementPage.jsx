@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from 'axios';
+import { useToast } from '../Common/ToastProvider';
 import './DeptHeadUserManagementPage.css';
 
 // Helper for status colors
@@ -22,6 +23,7 @@ const DeptHeadUserManagementPage = () => {
     console.log("Details: DeptHeadUserManagementPage mounting");
     const navigate = useNavigate();
     const location = useLocation();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('directory'); // 'directory' or 'verification'
 
     console.log("Details: Active Tab:", activeTab);
@@ -182,23 +184,24 @@ const DeptHeadUserManagementPage = () => {
                         : app
                 )
             );
-            alert(`User ID ${id} set to ${apiStatus}.`);
+            toast.success(`User ID ${id} set to ${apiStatus}.`);
 
         } catch (error) {
             console.error(`Error setting status to ${newStatus}:`, error);
-            alert(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
     const deleteApplication = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
+        const confirmed = await toast.confirm("Are you sure you want to delete this user permanently?");
+        if (!confirmed) return;
         try {
             await axios.delete(`http://localhost:5000/api/admin/user/${id}`);
             setVerificationUsers(prev => prev.filter(app => app.id !== id));
-            alert(`User ID ${id} deleted.`);
+            toast.success(`User ID ${id} deleted.`);
         } catch (error) {
             console.error("Error deleting user:", error);
-            alert(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
         }
         setVerificationOpenMenuId(null);
     };
