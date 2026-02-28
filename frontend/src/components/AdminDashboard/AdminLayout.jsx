@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import './AdminLayout.css';
 import '../Common/Utility.css';
 import Header from '../Common/Header';
@@ -60,45 +61,42 @@ const AdminSidebar = ({ user }) => {
 // ===========================================
 const AdminLayout = () => {
     const navigate = useNavigate();
+    const { user: authUser } = useAuth();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // --- SECURITY CHECK ON LOAD (ADDED) ---
+    // --- SECURITY CHECK ON LOAD (using AuthContext) ---
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (!storedUser) {
+        if (!authUser) {
             navigate('/');
             return;
         }
 
-        const userData = JSON.parse(storedUser);
-
         // HAKBANG 1: Check kung Admin (backend returns uppercase roles)
-        if (userData.role?.toLowerCase() !== 'admin') {
+        if (authUser.role?.toLowerCase() !== 'admin') {
             alert("Access denied. You are not authorized to view the Admin dashboard.");
             navigate('/');
             return;
         }
 
         // HAKBANG 2: Check kung Verified
-        if (userData.verification_status !== 'Verified') {
+        if (authUser.verification_status !== 'Verified') {
             alert("Access denied. Your admin account is pending full verification.");
-            navigate(`/register/${userData.role}?s=${userData.verification_status.toLowerCase()}`);
+            navigate(`/register/${authUser.role}?s=${authUser.verification_status.toLowerCase()}`);
             return;
         }
 
         // Kung Verified, i-set ang user data at magpatuloy
-        // Handle both snake_case (backend) and camelCase (legacy) field names
-        const firstName = userData.first_name || userData.firstName || '';
-        const lastName = userData.last_name || userData.lastName || '';
+        const firstName = authUser.first_name || authUser.firstName || '';
+        const lastName = authUser.last_name || authUser.lastName || '';
         setUser({
-            ...userData,
-            name: `${firstName} ${lastName}`.trim() || 'Admin', // Ensure name is formatted for Header
-            notifications: 0 // Placeholder or fetch actual count if necessary
+            ...authUser,
+            name: `${firstName} ${lastName}`.trim() || 'Admin',
+            notifications: 0
         });
         setLoading(false);
 
-    }, [navigate]);
+    }, [authUser, navigate]);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px' }}>Loading Admin Panel...</div>;

@@ -5,9 +5,9 @@ Clean entry point with modular routers
 import sys
 import os
 import logging
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter
 
 # Fix Windows console encoding for emoji characters (cp1252 -> utf-8)
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -20,7 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
+from api.routers import auth, users, admin, admin_dashboard, faculty, faculty_reports, student, face, kiosk, dept, user_features
 from db.database import get_db
 
 # --- Logging Configuration (MUST be before any router imports) ---
@@ -37,8 +37,7 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Initialize Rate Limiter
-limiter = Limiter(key_func=get_remote_address)
+# Rate Limiter imported from core.limiter
 
 # Create FastAPI app
 app = FastAPI(
@@ -62,9 +61,15 @@ app.add_middleware(
 
 # Include routers with prefixes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+# user_features must be registered BEFORE users — its specific routes
+# (/settings/{id}, /notifications/{id}, /support-ticket) must match before
+# the catch-all /{user_id} in users.router.
+app.include_router(user_features.router, prefix="/api/users", tags=["User Features"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(admin_dashboard.router, prefix="/api/admin", tags=["Admin Dashboard"])
 app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
+app.include_router(faculty_reports.router, prefix="/api/faculty", tags=["Faculty Reports"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
 app.include_router(face.router)  # Already has /api/face prefix
 app.include_router(kiosk.router)  # Already has /api/kiosk prefix

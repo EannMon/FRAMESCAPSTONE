@@ -53,6 +53,7 @@ def init_db():
     """
     # Import all models here to register them with Base
     from models import user, department, program, facial_profile, subject, class_, enrollment, device, attendance_log
+    from models import support_ticket, user_setting
     
     print("🗄️ Creating database tables...")
     Base.metadata.create_all(bind=engine)

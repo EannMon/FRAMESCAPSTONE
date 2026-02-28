@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './FacultyAttendancePage.css';
 
 const FacultyAttendancePage = () => {
+    const { user: authUser } = useAuth();
+
     // --- STATES ---
     const [viewMode, setViewMode] = useState('main'); // 'main' or 'details'
     const [selectedClass, setSelectedClass] = useState(null);
@@ -17,21 +20,25 @@ const FacultyAttendancePage = () => {
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
+        const controller = new AbortController();
+
+        if (authUser) {
+            const parsedUser = authUser;
             setUser(parsedUser);
-            fetchSchedule(parsedUser.user_id || parsedUser.id);
+            fetchSchedule(parsedUser.user_id || parsedUser.id, controller.signal);
         }
-    }, []);
+
+        return () => controller.abort();
+    }, [authUser]);
 
     // --- 2. FETCH SCHEDULE (API) ---
-    const fetchSchedule = async (userId) => {
+    const fetchSchedule = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            const response = await api.get(`/api/faculty/schedule/${userId}`, { signal });
             setMyClasses(response.data);
             setLoading(false);
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading schedule:", error);
             setLoading(false);
         }
@@ -42,12 +49,13 @@ const FacultyAttendancePage = () => {
         setSelectedClass(cls);
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.id}`);
+            const response = await api.get(`/api/faculty/class-details/${cls.id}`);
             setStudentList(response.data);
             setViewMode('details');
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading students:", error);
-            alert("Could not load student list.");
+            alert(error.userMessage || "Could not load student list.");
         } finally {
             setLoading(false);
         }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './ReportsPage.css';
@@ -164,7 +164,7 @@ const ReportsPage = () => {
     // 1. GENERATE REPORT (API CALL)
     const handleGenerateFromModal = async (reportName, categoryColor, filters) => {
         try {
-            const response = await axios.post('http://localhost:5000/api/admin/reports/generate', {
+            const response = await api.post('/api/admin/reports/generate', {
                 report_type: reportName,
                 date_from: filters.dateFrom,
                 date_to: filters.dateTo
@@ -195,7 +195,7 @@ const ReportsPage = () => {
 
         } catch (error) {
             console.error("Report Gen Error:", error);
-            alert("Failed to generate report. Please check the backend connection.");
+            alert(error.userMessage || "Failed to generate report. Please check the backend connection.");
         }
     };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import './LandingPage.css';
 import landingBg from '../../assets/images/landing_bg.png';
 import Header from '../Common/Header';
@@ -11,44 +12,53 @@ import Footer from '../Common/Footer';
 // === LOGIN COMPONENT ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Simple email format check
+    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
+
+        // Client-side validation
+        if (!email.trim() || !password.trim()) {
+            setErrorMessage('Please fill in all fields.');
+            return;
+        }
+        if (!isValidEmail(email)) {
+            setErrorMessage('Please enter a valid email address.');
+            return;
+        }
+
+        setIsLoading(true);
+        setErrorMessage('');
+
         try {
-            setErrorMessage('');
-            const response = await axios.post('http://localhost:5000/api/auth/login', {
+            const response = await api.post('/api/auth/login', {
                 email, password
             });
 
             if (response.data.message === "Login Successful") {
                 const userData = response.data.user;
-                const userRole = userData.role.toUpperCase();
-                const verificationStatus = userData.verification_status;
+                const path = login(userData);
 
-                if (verificationStatus === 'Verified') {
-                    localStorage.setItem('currentUser', JSON.stringify(userData));
+                if (userData.verification_status === 'Verified') {
                     alert(`Welcome back, ${userData.first_name}!`);
-
-                    if (userRole === 'ADMIN') navigate('/admin-dashboard');
-                    else if (userRole === 'STUDENT') navigate('/student-dashboard');
-                    else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
-                    else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
-                } else if (verificationStatus === 'Pending') {
-                    navigate(`/register/${userRole.toLowerCase()}?s=pending`);
-                } else if (verificationStatus === 'Rejected') {
-                    navigate(`/register/${userRole.toLowerCase()}?s=rejected`);
-                } else {
-                    setErrorMessage("Account status is invalid. Please contact administrator.");
                 }
+
+                navigate(path);
             }
         } catch (error) {
             console.error("Login Error:", error);
-            setErrorMessage(error.response?.data?.detail || "Something went wrong. Try again.");
+            setErrorMessage(error.userMessage || "Something went wrong. Try again.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -95,7 +105,9 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                         </div>
                     </div>
 
-                    <button type="submit" className="login-submit-btn">Log In</button>
+                    <button type="submit" className="login-submit-btn" disabled={isLoading}>
+                        {isLoading ? 'Logging in...' : 'Log In'}
+                    </button>
                 </form>
 
                 <p className="login-switch-prompt">

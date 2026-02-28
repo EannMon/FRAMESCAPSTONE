@@ -1,170 +1,146 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import './DeptHeadSystemLogsPage.css';
+
+// Reusable Status Tag Component
+const LogStatusTag = ({ text, colorClass }) => (
+    <span className={`log-status-tag ${colorClass}`}>{text}</span>
+);
+
+// Level → CSS color-class mapping
+const levelColorMap = {
+    ERROR: 'red',
+    WARN: 'yellow',
+    INFO: 'green',
+    DEBUG: 'grey',
+};
 
 const DeptHeadSystemLogsPage = () => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [levelFilter, setLevelFilter] = useState('');
-    const [roomFilter, setRoomFilter] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [rooms, setRooms] = useState([]);
+    const [error, setError] = useState('');
+    const [searchValue, setSearchValue] = useState('');
+    const [levelFilter, setLevelFilter] = useState('All Levels');
+    const [serviceFilter, setServiceFilter] = useState('All Services');
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-    // Fetch rooms for filter
     useEffect(() => {
-        axios.get(`${API}/api/dept/management-data`).then(res => {
-            setRooms(res.data?.rooms || []);
-        }).catch(() => { });
+        const controller = new AbortController();
+
+        const fetchLogs = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const res = await api.get('/api/admin/system-logs', {
+                    signal: controller.signal,
+                    params: { limit: 200 },
+                });
+                setLogs(res.data);
+            } catch (err) {
+                if (err.code !== 'ERR_CANCELED') {
+                    setError(err.userMessage || 'Failed to load system logs.');
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLogs();
+        return () => controller.abort();
     }, []);
 
-    const fetchLogs = async () => {
-        setLoading(true);
-        try {
-            const params = {};
-            if (levelFilter) params.level = levelFilter;
-            if (roomFilter) params.room = roomFilter;
-            if (searchTerm) params.search = searchTerm;
-            if (dateFrom) params.date_from = dateFrom;
-            if (dateTo) params.date_to = dateTo;
+    // Derive unique service names from fetched data for the filter dropdown
+    const serviceNames = [...new Set(logs.map((l) => l.service))];
 
-            const res = await axios.get(`${API}/api/dept/system-logs`, { params });
-            setLogs(res.data || []);
-        } catch (err) {
-            console.error('System logs fetch error:', err);
-            setLogs([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => { fetchLogs(); }, []);
-
-    // Stats computed from logs
-    const stats = useMemo(() => {
-        const total = logs.length;
-        const errors = logs.filter(l => l.level === 'ERROR').length;
-        const warns = logs.filter(l => l.level === 'WARN').length;
-        const infos = logs.filter(l => l.level === 'INFO').length;
-        return { total, errors, warns, infos };
-    }, [logs]);
-
-    const getLevelIcon = (level) => {
-        switch (level) {
-            case 'ERROR': return { icon: 'fa-times-circle', color: '#ef4444' };
-            case 'WARN': return { icon: 'fa-exclamation-triangle', color: '#f59e0b' };
-            case 'INFO': return { icon: 'fa-info-circle', color: '#3b82f6' };
-            default: return { icon: 'fa-circle', color: '#94a3b8' };
-        }
-    };
+    // Client-side filtering on the already-fetched data
+    const filteredLogs = logs.filter((log) => {
+        const levelMatch = levelFilter === 'All Levels' || log.level === levelFilter;
+        const serviceMatch = serviceFilter === 'All Services' || log.service === serviceFilter;
+        const searchMatch =
+            (log.timestamp || '').toLowerCase().includes(searchValue.toLowerCase()) ||
+            (log.service || '').toLowerCase().includes(searchValue.toLowerCase()) ||
+            (log.message || '').toLowerCase().includes(searchValue.toLowerCase());
+        return levelMatch && serviceMatch && searchMatch;
+    });
 
     return (
-        <div className="system-logs-page">
+        <div className="system-logs-container">
+            {/* Header and filters */}
             <div className="logs-header">
-                <div>
-                    <h2><i className="fas fa-clipboard-list"></i> System Logs</h2>
-                    <p>Real-time audit and attendance logs from the database</p>
-                </div>
-                <button className="logs-refresh-btn" onClick={fetchLogs}>
-                    <i className="fas fa-sync-alt"></i> Refresh
-                </button>
-            </div>
-
-            {/* Stats Bar */}
-            <div className="logs-stats-bar">
-                <div className="logs-stat">
-                    <span className="stat-count">{stats.total}</span>
-                    <span className="stat-label">Total</span>
-                </div>
-                <div className="logs-stat info">
-                    <span className="stat-count">{stats.infos}</span>
-                    <span className="stat-label">Info</span>
-                </div>
-                <div className="logs-stat warn">
-                    <span className="stat-count">{stats.warns}</span>
-                    <span className="stat-label">Warnings</span>
-                </div>
-                <div className="logs-stat error">
-                    <span className="stat-count">{stats.errors}</span>
-                    <span className="stat-label">Errors</span>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="logs-filters">
-                <div className="logs-search-wrap">
-                    <i className="fas fa-search"></i>
-                    <input
-                        type="text"
-                        placeholder="Search logs..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="logs-filter-select">
-                    <option value="">All Levels</option>
-                    <option value="INFO">INFO</option>
-                    <option value="WARN">WARN</option>
-                    <option value="ERROR">ERROR</option>
-                </select>
-                <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="logs-filter-select">
-                    <option value="">All Rooms</option>
-                    {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
-                </select>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="logs-filter-input" />
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="logs-filter-input" />
-                <button className="logs-apply-btn" onClick={fetchLogs}>
-                    <i className="fas fa-filter"></i> Apply
-                </button>
-            </div>
-
-            {/* Logs List */}
-            <div className="logs-list-container">
-                {loading ? (
-                    <div className="logs-loading">
-                        <i className="fas fa-spinner fa-spin"></i>
-                        <p>Loading system logs...</p>
+                <div className="logs-filters">
+                    <select className="logs-filter-select" value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
+                        <option>All Levels</option>
+                        <option>ERROR</option>
+                        <option>WARN</option>
+                        <option>INFO</option>
+                        <option>DEBUG</option>
+                    </select>
+                    <select className="logs-filter-select" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)}>
+                        <option>All Services</option>
+                        {serviceNames.map((s) => (
+                            <option key={s}>{s}</option>
+                        ))}
+                    </select>
+                    <div className="logs-search-bar">
+                        <i className="fas fa-search"></i>
+                        <input type="text" placeholder="Search logs..." value={searchValue} onChange={(e) => setSearchValue(e.target.value)} />
                     </div>
-                ) : logs.length === 0 ? (
-                    <div className="logs-empty">
-                        <i className="fas fa-check-circle"></i>
-                        <h4>No Logs Found</h4>
-                        <p>No system logs match the current filters. Adjust your filters or check back later.</p>
-                    </div>
-                ) : (
-                    <div className="logs-list">
-                        {logs.map((log, i) => {
-                            const { icon, color } = getLevelIcon(log.level);
-                            return (
-                                <div key={i} className={`log-entry level-${log.level?.toLowerCase()}`}>
-                                    <div className="log-icon" style={{ color }}>
-                                        <i className={`fas ${icon}`}></i>
-                                    </div>
-                                    <div className="log-content">
-                                        <div className="log-message">{log.message}</div>
-                                        <div className="log-meta">
-                                            <span className="log-service">{log.service}</span>
-                                            <span className="log-room">{log.room}</span>
-                                            <span className="log-source">{log.source}</span>
-                                        </div>
-                                    </div>
-                                    <div className="log-time">
-                                        <span className={`log-level-badge ${log.level?.toLowerCase()}`}>{log.level}</span>
-                                        <span className="log-timestamp">{log.timestamp}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                </div>
             </div>
 
-            {logs.length > 0 && (
-                <div className="logs-footer">
-                    Showing {logs.length} log entries
+            {/* Loading / error states */}
+            {loading && (
+                <p style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                    Loading logs…
+                </p>
+            )}
+            {error && (
+                <p style={{ textAlign: 'center', padding: '2rem', color: '#dc3545' }}>
+                    {error}
+                </p>
+            )}
+
+            {/* Logs table */}
+            {!loading && !error && (
+                <div className="card logs-table-card">
+                    <div className="logs-table-container">
+                        <table className="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Level</th>
+                                    <th>Service</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredLogs.length > 0 ? (
+                                    filteredLogs.map((log) => (
+                                        <tr key={log.id}>
+                                            <td className="log-timestamp">
+                                                {log.timestamp
+                                                    ? new Date(log.timestamp).toLocaleString()
+                                                    : '—'}
+                                            </td>
+                                            <td>
+                                                <LogStatusTag
+                                                    text={log.level}
+                                                    colorClass={levelColorMap[log.level] || 'grey'}
+                                                />
+                                            </td>
+                                            <td className="log-service">{log.service}</td>
+                                            <td className="log-message">{log.message}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                                            No logs found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

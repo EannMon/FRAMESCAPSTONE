@@ -1,66 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
+import ClassCalendarView from './ClassCalendarView';
+import ScheduleUploadView from './ScheduleUploadView';
 import './MyClassesPage.css';
 
 const FacultyMyClassesPage = () => {
+    const { user: authUser } = useAuth();
+
     // --- STATES ---
-    const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
-    const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile'
+    const [viewMode, setViewMode] = useState('list');   // 'list' | 'calendar' | 'upload'
+    const [subView, setSubView] = useState('main');     // 'main' | 'sheet' | 'profile'
 
     const [user, setUser] = useState(null);
-    const [myClasses, setMyClasses] = useState([]); // Data from DB
-    const [studentList, setStudentList] = useState([]); // Data from DB
+    const [myClasses, setMyClasses] = useState([]);
+    const [studentList, setStudentList] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [selectedClass, setSelectedClass] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Calendar States
+    // Calendar events (generated from schedule data)
     const [calendarEvents, setCalendarEvents] = useState([]);
-    const [selectedSessions, setSelectedSessions] = useState([]);
-    const [showManageModal, setShowManageModal] = useState(false);
-    const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
-
-    // Upload States
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [uploadedSchedules, setUploadedSchedules] = useState([]);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadMessage, setUploadMessage] = useState('');
-    const [semester, setSemester] = useState('1st Semester');
-    const [academicYear, setAcademicYear] = useState('2024-2025');
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-            fetchSchedule(parsedUser.user_id || parsedUser.id);
-            fetchUploadHistory(parsedUser.user_id || parsedUser.id);
+        const controller = new AbortController();
+
+        if (authUser) {
+            setUser(authUser);
+            fetchSchedule(authUser.user_id || authUser.id, controller.signal);
         }
-    }, []);
+
+        return () => controller.abort();
+    }, [authUser]);
 
     // --- 2. FETCH DATA FROM DB ---
-    const fetchSchedule = async (userId) => {
+    const fetchSchedule = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            const response = await api.get(`/api/faculty/schedule/${userId}`, { signal });
             setMyClasses(response.data);
-            generateCalendarEvents(response.data); // Generate calendar based on DB schedule
+            generateCalendarEvents(response.data);
             setLoading(false);
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading schedule:", error);
             setLoading(false);
-        }
-    };
-
-    const fetchUploadHistory = async (userId) => {
-        try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/upload-history/${userId}`);
-            setUploadedSchedules(response.data);
-        } catch (error) {
-            console.error("Error fetching upload history:", error);
         }
     };
 
@@ -68,8 +55,7 @@ const FacultyMyClassesPage = () => {
         setLoading(true);
         setSelectedClass(cls);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.id}`);
-            // Add status color logic for UI
+            const response = await api.get(`/api/faculty/class-details/${cls.id}`);
             const processedStudents = response.data.map(s => ({
                 ...s,
                 statusColor: s.status === 'Present' ? 'green' : 'red'
@@ -77,7 +63,9 @@ const FacultyMyClassesPage = () => {
             setStudentList(processedStudents);
             setSubView('sheet');
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return;
             console.error("Error loading students:", error);
+            alert(error.userMessage || "Could not load student list.");
         } finally {
             setLoading(false);
         }
@@ -86,28 +74,26 @@ const FacultyMyClassesPage = () => {
     // --- 3. CALENDAR GENERATOR (DB Schedule -> Calendar Dates) ---
     const generateCalendarEvents = (classes) => {
         const events = [];
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = date.getMonth(); // Current Month
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-        // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
-            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
+            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-            // Find classes that meet on this day name
             classes.forEach(cls => {
                 if (cls.day_of_week === dayName) {
                     events.push({
-                        id: `${cls.id}-${d}`, // Unique ID
+                        id: `${cls.id}-${d}`,
                         date: dateStr,
                         day: d,
                         title: cls.subject_code,
                         time: cls.start_time,
                         section: cls.section,
-                        status: 'normal' // Default status
+                        status: 'normal'
                     });
                 }
             });
@@ -115,62 +101,8 @@ const FacultyMyClassesPage = () => {
         setCalendarEvents(events);
     };
 
-    // --- UPLOAD HANDLERS ---
-    const handleFileSelect = (e) => {
-        setSelectedFile(e.target.files[0]);
-    };
-
-    const handleUpload = async () => {
-        if (!selectedFile) {
-            setUploadMessage('Please select a PDF file');
-            return;
-        }
-
-        setIsUploading(true);
-        setUploadMessage('Uploading and processing schedule...');
-
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('faculty_id', user.user_id || user.id);
-        formData.append('semester', semester);
-        formData.append('academic_year', academicYear);
-
-        try {
-            const response = await axios.post(
-                'http://localhost:5000/api/faculty/upload-schedule',
-                formData,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
-            );
-
-            if (response.status === 201 || response.status === 200) {
-                setUploadMessage(
-                    `✅ Success! Created ${response.data.schedules_created} schedule(s) and ${response.data.students_created} student account(s)`
-                );
-                setSelectedFile(null);
-                fetchUploadHistory(user.user_id || user.id);
-                fetchSchedule(user.user_id || user.id);
-                // Reset form
-                setTimeout(() => {
-                    setUploadMessage('');
-                }, 5000);
-            } else {
-                setUploadMessage(`❌ Error: ${response.data.error}`);
-            }
-        } catch (error) {
-            setUploadMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
     // --- HANDLERS ---
-    const handleTakeAttendance = (cls) => {
-        fetchClassDetails(cls);
-    };
+    const handleTakeAttendance = (cls) => fetchClassDetails(cls);
 
     const handleViewStudent = (student) => {
         setSelectedStudent(student);
@@ -185,108 +117,31 @@ const FacultyMyClassesPage = () => {
         }
     };
 
-    const toggleSessionSelect = (id) => {
-        if (selectedSessions.includes(id)) {
-            setSelectedSessions(selectedSessions.filter(sid => sid !== id));
-        } else {
-            setSelectedSessions([...selectedSessions, id]);
-        }
+    // Called by ScheduleUploadView after a successful upload
+    const handleUploadComplete = () => {
+        if (authUser) fetchSchedule(authUser.user_id || authUser.id);
     };
 
-    // Bulk Update - Now persists to database
-    const handleBulkUpdate = async () => {
-        // Get the actual dates for the selected sessions
-        const selectedDates = selectedSessions.map(sessionId => {
-            const event = calendarEvents.find(ev => ev.id === sessionId);
-            return event ? event.date : null;
-        }).filter(d => d !== null);
-
-        if (selectedDates.length === 0) {
-            alert("No valid sessions selected");
-            return;
-        }
-
-        // Determine the class_id from the first selected session
-        const firstSelected = calendarEvents.find(ev => selectedSessions.includes(ev.id));
-        if (!firstSelected) {
-            alert("Could not determine class");
-            return;
-        }
-
-        // Extract class_id from session id (format: "class_id-day")
-        const classId = parseInt(firstSelected.id.split('-')[0]);
-
-        try {
-            await axios.post('http://localhost:5000/api/faculty/session-exceptions', {
-                class_id: classId,
-                session_dates: selectedDates,
-                exception_type: modalData.type === 'normal' ? 'onsite' :
-                    modalData.type === 'online-sync' ? 'online' : modalData.type,
-                reason: modalData.reason || null
-            });
-
-            // Update visual state
-            const updatedEvents = calendarEvents.map(ev => {
-                if (selectedSessions.includes(ev.id)) {
-                    return { ...ev, status: modalData.type, reason: modalData.reason };
-                }
-                return ev;
-            });
-            setCalendarEvents(updatedEvents);
-            setShowManageModal(false);
-            setSelectedSessions([]);
-            alert("✅ Schedule updated and saved to database!");
-        } catch (error) {
-            console.error("Error saving session exceptions:", error);
-            alert("❌ Failed to save changes: " + (error.response?.data?.detail || error.message));
-        }
-    };
-    // --- PDF GENERATORS (Using FRAMES ReportGenerator) ---
+    // --- PDF GENERATORS ---
     const generateClassPDF = () => {
-        const reportInfo = {
-            title: `${selectedClass.subject_title} Attendance`,
-            type: "CLASS ATTENDANCE REPORT",
-            category: 'class',
-            context: {
-                classCode: selectedClass.subject_code,
-                section: selectedClass.section
-            },
-            dateRange: new Date().toLocaleDateString()
-        };
-
-        const tableData = studentList.map(s => ({
-            "Student Name": `${s.lastName}, ${s.firstName}`,
-            "Student ID": s.tupm_id,
-            "Time In": s.timeIn,
-            "Status": s.status
-        }));
-
-        generateFramesPDF(reportInfo, tableData);
+        const tableData = studentList.map(s => ({ "Student Name": `${s.lastName}, ${s.firstName}`, "Student ID": s.tupm_id, "Time In": s.timeIn, "Status": s.status }));
+        generateFramesPDF({
+            title: `${selectedClass.subject_title} Attendance`, type: "CLASS ATTENDANCE REPORT", category: 'class',
+            context: { classCode: selectedClass.subject_code, section: selectedClass.section }, dateRange: new Date().toLocaleDateString()
+        }, tableData);
     };
 
     const generateStudentPDF = () => {
-        const reportInfo = {
-            title: "Individual Attendance Report",
-            type: "STUDENT REPORT",
-            category: 'personal',
-            context: {
-                name: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
-                id: selectedStudent.tupm_id
-            },
-            dateRange: new Date().toLocaleDateString()
-        };
-
-        const tableData = [{
-            "Date": new Date().toLocaleDateString(),
-            "Subject": selectedClass.subject_title,
-            "Time In": selectedStudent.timeIn,
-            "Status": selectedStudent.status
-        }];
-
-        generateFramesPDF(reportInfo, tableData);
+        const tableData = [{ "Date": new Date().toLocaleDateString(), "Subject": selectedClass.subject_title, "Time In": selectedStudent.timeIn, "Status": selectedStudent.status }];
+        generateFramesPDF({
+            title: "Individual Attendance Report", type: "STUDENT REPORT", category: 'personal',
+            context: { name: `${selectedStudent.firstName} ${selectedStudent.lastName}`, id: selectedStudent.tupm_id }, dateRange: new Date().toLocaleDateString()
+        }, tableData);
     };
 
-    // --- RENDERERS ---
+    // ===========================
+    // RENDER SECTIONS
+    // ===========================
 
     // A. LIST VIEW (Cards)
     const renderClassCards = () => (
@@ -306,14 +161,12 @@ const FacultyMyClassesPage = () => {
                             <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
                             <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
                         </div>
-
                         <div className="attendance-preview-bar">
                             <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
                             <div className="progress-track">
                                 <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
                             </div>
                         </div>
-
                         <div className="action-area">
                             <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
                                 <i className="fas fa-user-check"></i> View Attendance
@@ -391,157 +244,6 @@ const FacultyMyClassesPage = () => {
         </div>
     );
 
-    // D. CALENDAR VIEW
-    const renderCalendarView = () => {
-        const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        const startDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
-        const calendarCells = [];
-
-        for (let i = 0; i < startDay; i++) {
-            calendarCells.push(<div key={`empty-${i}`} className="cal-cell empty"></div>);
-        }
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const events = calendarEvents.filter(s => s.date === dateStr);
-
-            calendarCells.push(
-                <div key={day} className="cal-cell day">
-                    <div className="cal-day-number">{day}</div>
-                    <div className="cal-events-stack">
-                        {events.map(ev => (
-                            <div
-                                key={ev.id}
-                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : 'cal-event-green'} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
-                                onClick={(e) => { e.stopPropagation(); toggleSessionSelect(ev.id); }}
-                                title={`${ev.title} - Click to Select`}
-                            >
-                                {selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
-                                <span>{ev.time} {ev.title}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-
-        return (
-            <div className="real-calendar-container fade-in">
-                <div className="cal-controls-row">
-                    <div className="cal-title-group">
-                        <h3>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                        <span className="cal-instruction">Click events to select & update status (e.g. Cancel)</span>
-                    </div>
-                    {selectedSessions.length > 0 && (
-                        <button className="bulk-update-btn" onClick={() => setShowManageModal(true)}>
-                            Update {selectedSessions.length} Selected
-                        </button>
-                    )}
-                </div>
-                <div className="calendar-grid-wrapper">
-                    <div className="cal-header-row">
-                        <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
-                    </div>
-                    <div className="cal-body-grid">{calendarCells}</div>
-                </div>
-            </div>
-        );
-    };
-
-    // E. UPLOAD VIEW
-    const renderUploadView = () => (
-        <div className="upload-container fade-in">
-            <div className="upload-section card">
-                <h3>📚 Upload Course Schedule (PDF)</h3>
-                <p className="info-text">
-                    Upload your COR/Schedule PDF to automatically create courses and enroll students
-                </p>
-
-                <div className="form-group">
-                    <label>Select PDF File:</label>
-                    <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleFileSelect}
-                        disabled={isUploading}
-                    />
-                </div>
-
-                <div className="form-row">
-                    <div className="form-group">
-                        <label>Semester:</label>
-                        <select value={semester} onChange={(e) => setSemester(e.target.value)}>
-                            <option>1st Semester</option>
-                            <option>2nd Semester</option>
-                            <option>Summer</option>
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label>Academic Year:</label>
-                        <input
-                            type="text"
-                            value={academicYear}
-                            onChange={(e) => setAcademicYear(e.target.value)}
-                            placeholder="2024-2025"
-                        />
-                    </div>
-                </div>
-
-                <button
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="upload-btn"
-                >
-                    {isUploading ? '⏳ Processing...' : '📤 Upload Schedule'}
-                </button>
-
-                {uploadMessage && (
-                    <div className={`message ${uploadMessage.includes('✅') ? 'success' : 'error'}`}>
-                        {uploadMessage}
-                    </div>
-                )}
-            </div>
-
-            {/* Upload History Section */}
-            <div className="history-section card">
-                <h3>📋 Upload History</h3>
-                {uploadedSchedules.length === 0 ? (
-                    <p className="no-data">No schedules uploaded yet</p>
-                ) : (
-                    <table className="history-table">
-                        <thead>
-                            <tr>
-                                <th>File Name</th>
-                                <th>Semester</th>
-                                <th>Academic Year</th>
-                                <th>Schedules</th>
-                                <th>Status</th>
-                                <th>Uploaded</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {uploadedSchedules.map((upload) => (
-                                <tr key={upload.upload_id}>
-                                    <td>{upload.file_name}</td>
-                                    <td>{upload.semester}</td>
-                                    <td>{upload.academic_year}</td>
-                                    <td>{upload.schedules_count}</td>
-                                    <td>
-                                        <span className={`status ${upload.status.toLowerCase()}`}>
-                                            {upload.status}
-                                        </span>
-                                    </td>
-                                    <td>{new Date(upload.uploaded_at).toLocaleDateString()}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-        </div>
-    );
-
     if (!user) return <div className="loading">Please log in.</div>;
 
     return (
@@ -563,52 +265,22 @@ const FacultyMyClassesPage = () => {
             )}
 
             {subView === 'main' ? (
-                viewMode === 'list' ? renderClassCards() : viewMode === 'calendar' ? renderCalendarView() : renderUploadView()
+                viewMode === 'list' ? renderClassCards() :
+                viewMode === 'calendar' ? (
+                    <ClassCalendarView
+                        calendarEvents={calendarEvents}
+                        onEventsUpdate={setCalendarEvents}
+                    />
+                ) : (
+                    <ScheduleUploadView
+                        user={user}
+                        onUploadComplete={handleUploadComplete}
+                    />
+                )
             ) : subView === 'sheet' ? (
                 renderAttendanceSheet()
             ) : (
                 renderStudentProfile()
-            )}
-
-            {showManageModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box manage-modal">
-                        <div className="modal-header">
-                            <h3>Update Schedule Status</h3>
-                            <button className="close-btn" onClick={() => setShowManageModal(false)}>&times;</button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="info-banner">
-                                <i className="fas fa-info-circle"></i> Update <strong>{selectedSessions.length}</strong> selected class(es).
-                            </div>
-                            <div className="form-group">
-                                <label>Status</label>
-                                <select value={modalData.type} onChange={(e) => setModalData({ ...modalData, type: e.target.value })}>
-                                    <option value="normal">On-Site</option>
-                                    <option value="online-sync">Synchronous Online</option>
-                                    <option value="cancelled">Cancelled</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label>Reason</label>
-                                <select value={modalData.reason} onChange={(e) => setModalData({ ...modalData, reason: e.target.value })}>
-                                    <option value="">-- Select Reason --</option>
-                                    <option value="Health Related">Health Related</option>
-                                    <option value="Natural Disaster">Natural Disaster</option>
-                                    <option value="Internet Connectivity">Internet Connectivity</option>
-                                    <option value="Holiday">Holiday</option>
-                                    <option value="Faculty Leave">Faculty Leave</option>
-                                    <option value="University Event">University Event</option>
-                                    <option value="Others">Others</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="cancel-btn" onClick={() => setShowManageModal(false)}>Cancel</button>
-                            <button className="save-btn" onClick={handleBulkUpdate}>Save Changes</button>
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );

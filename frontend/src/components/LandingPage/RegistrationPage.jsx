@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './LandingPage.css';
 import './RegistrationPage.css';
 import Header from '../Common/Header';
@@ -31,6 +31,10 @@ const RegistrationPage = () => {
     // Validation & Alert
     const [errors, setErrors] = useState({});
     const [alertConfig, setAlertConfig] = useState({ show: false, title: '', message: '', type: 'error' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Simple email format check
+    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     const showAlert = (title, message, type = 'error') => {
         setAlertConfig({ show: true, title, message, type });
@@ -68,7 +72,12 @@ const RegistrationPage = () => {
         if (currentStep === 1) {
             if (!formData.firstName.trim()) newErrors.firstName = true;
             if (!formData.lastName.trim()) newErrors.lastName = true;
-            if (!formData.email.trim()) newErrors.email = true;
+            if (!formData.email.trim()) {
+                newErrors.email = true;
+            } else if (!isValidEmail(formData.email)) {
+                newErrors.email = true;
+                showAlert('Invalid Email', 'Please enter a valid email address.', 'warning');
+            }
             if (!formData.tupmYear.trim()) newErrors.tupmYear = true;
             if (!formData.tupmSerial.trim()) newErrors.tupmSerial = true;
         }
@@ -94,6 +103,7 @@ const RegistrationPage = () => {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const payload = {
                 email: formData.email,
@@ -107,18 +117,20 @@ const RegistrationPage = () => {
                 program_id: null,
             };
 
-            const response = await axios.post('http://localhost:5000/api/auth/register', payload);
+            const response = await api.post('/api/auth/register', payload);
             if (response.data.message) {
                 navigate('/register/status?s=pending');
             }
         } catch (error) {
             console.error("Error registering:", error);
-            const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
+            const errorMsg = error.userMessage || error.message;
             if (errorMsg.includes("already exists")) {
                 showAlert("Registration Failed", "Email or TUPM ID already exists.", "error");
             } else {
                 showAlert("Registration Failed", errorMsg, "error");
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -331,8 +343,8 @@ const RegistrationPage = () => {
                                 Next <i className="fas fa-arrow-right"></i>
                             </button>
                         ) : (
-                            <button className="reg-submit-button" onClick={handleFinish}>
-                                Register <i className="fas fa-check"></i>
+                            <button className="reg-submit-button" onClick={handleFinish} disabled={isSubmitting}>
+                                {isSubmitting ? 'Registering...' : 'Register'} {!isSubmitting && <i className="fas fa-check"></i>}
                             </button>
                         )}
                     </div>

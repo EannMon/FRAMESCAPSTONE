@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import PasswordModal from './PasswordModal';
 import './MyProfilePage.css';
 import Header from './Header';
 import './Utility.css';
@@ -24,176 +26,35 @@ const ProfileField = ({ label, name, value, onChange, type = 'text', isEditing, 
 );
 
 // ===========================================
-// NEW: Change Password Modal Component
-// ===========================================
-const PasswordModal = ({ isOpen, onClose, userId }) => {
-    const [step, setStep] = useState(1); // Step 1: Verify, Step 2: New Password
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const modalRef = useRef(null);
-
-    // Reset state when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            setStep(1);
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setError('');
-        }
-    }, [isOpen]);
-
-    // Handle Click Outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (modalRef.current && !modalRef.current.contains(event.target)) {
-                onClose();
-            }
-        };
-        if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen, onClose]);
-
-    // Step 1: Verify Current Password
-    const handleVerify = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            await axios.post('http://localhost:5000/api/users/verify-password', {
-                user_id: userId,
-                password: currentPassword
-            });
-            // If successful, move to step 2
-            setStep(2);
-        } catch (err) {
-            setError(err.response?.data?.error || "Incorrect Password");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Step 2: Save New Password
-    const handleSave = async () => {
-        if (newPassword !== confirmPassword) {
-            setError("Passwords do not match");
-            return;
-        }
-        if (newPassword.length < 6) {
-            setError("Password must be at least 6 characters");
-            return;
-        }
-
-        setLoading(true);
-        try {
-            await axios.put('http://localhost:5000/api/users/change-password', {
-                user_id: userId,
-                new_password: newPassword
-            });
-            alert("Password Changed Successfully!");
-            onClose();
-        } catch (err) {
-            setError("Failed to update password");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="modal-overlay">
-            <div className="modal-box" ref={modalRef}>
-                <div className="modal-header">
-                    <h3>{step === 1 ? "Verify Identity" : "Create New Password"}</h3>
-                    <button className="close-btn" onClick={onClose}>&times;</button>
-                </div>
-
-                <div className="modal-body">
-                    {error && <div className="error-msg">{error}</div>}
-
-                    {step === 1 ? (
-                        <div className="form-group">
-                            <label>Enter Current Password</label>
-                            <input
-                                type="password"
-                                className="modal-input"
-                                value={currentPassword}
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    ) : (
-                        <>
-                            <div className="form-group">
-                                <label>New Password</label>
-                                <input
-                                    type="password"
-                                    className="modal-input"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    placeholder="New password"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Confirm New Password</label>
-                                <input
-                                    type="password"
-                                    className="modal-input"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="Confirm password"
-                                />
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                <div className="modal-footer">
-                    {step === 1 ? (
-                        <button className="modal-btn primary" onClick={handleVerify} disabled={loading}>
-                            {loading ? "Verifying..." : "Next"}
-                        </button>
-                    ) : (
-                        <button className="modal-btn primary" onClick={handleSave} disabled={loading}>
-                            {loading ? "Saving..." : "Change Password"}
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ===========================================
 // MAIN PAGE COMPONENT
 // ===========================================
 const MyProfilePage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
+    const { user: authUser, updateUser } = useAuth();
 
     // --- States ---
-    const [user, setUser] = useState(() => {
-        const stored = localStorage.getItem('currentUser');
-        return stored ? JSON.parse(stored) : null;
-    });
+    const [user, setUser] = useState(authUser);
     const [isEditing, setIsEditing] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false); // Modal State
 
     // --- Background Refresh ---
     useEffect(() => {
+        if (!user) return;
+        const controller = new AbortController();
+
         const fetchLatestData = async () => {
-            if (!user) return;
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/${user.id || user.user_id}`);
+                const response = await api.get(`/api/users/${user.id || user.user_id}`, { signal: controller.signal });
                 setUser(prev => ({ ...prev, ...response.data }));
-                localStorage.setItem('currentUser', JSON.stringify(response.data));
+                updateUser(response.data);
             } catch (error) {
-                console.error("Background sync failed:", error);
+                if (error.code !== 'ERR_CANCELED') {
+                    console.error("Background sync failed:", error);
+                }
             }
         };
         fetchLatestData();
+        return () => controller.abort();
     }, []);
 
     // --- Handlers ---
@@ -206,13 +67,12 @@ const MyProfilePage = ({ isEmbedded = false }) => {
 
     const handleSave = async () => {
         try {
-            await axios.put(`http://localhost:5000/api/users/${user.id || user.user_id}`, user);
+            await api.put(`/api/users/${user.id || user.user_id}`, user);
             alert("Profile Updated Successfully!");
             setIsEditing(false);
-            localStorage.setItem('currentUser', JSON.stringify(user));
+            updateUser(user);
         } catch (error) {
-            console.error("Update failed:", error);
-            alert("Failed to update profile.");
+            alert(error.userMessage || "Failed to update profile.");
         }
     };
 

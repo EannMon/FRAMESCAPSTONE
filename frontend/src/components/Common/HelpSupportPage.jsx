@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './HelpSupportPage.css';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import Header from './Header';
 import Footer from './Footer';
 
@@ -104,14 +106,13 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
     const [openFaq, setOpenFaq] = useState(null);
 
     // --- USER CONTEXT ---
-    const [user] = useState(() => {
-        const stored = localStorage.getItem('currentUser');
-        try {
-            return stored ? JSON.parse(stored) : null;
-        } catch (e) {
-            return null;
-        }
-    });
+    const { user } = useAuth();
+
+    // --- Contact form state ---
+    const [formSubject, setFormSubject] = useState('');
+    const [formMessage, setFormMessage] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [submitResult, setSubmitResult] = useState(null); // { type: 'success' | 'error', text: '...' }
 
     const handleBack = () => {
         navigate(-1);
@@ -119,6 +120,31 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
 
     const handleFaqClick = (index) => {
         setOpenFaq(openFaq === index ? null : index);
+    };
+
+    const handleContactSubmit = async (e) => {
+        e.preventDefault();
+        if (submitting) return;
+        if (!formSubject.trim() || !formMessage.trim()) {
+            setSubmitResult({ type: 'error', text: 'Please fill in both subject and message.' });
+            return;
+        }
+        try {
+            setSubmitting(true);
+            setSubmitResult(null);
+            await api.post('/api/users/support-ticket', {
+                user_id: user?.id,
+                subject: formSubject.trim(),
+                message: formMessage.trim(),
+            });
+            setSubmitResult({ type: 'success', text: 'Your message has been sent! We will get back to you soon.' });
+            setFormSubject('');
+            setFormMessage('');
+        } catch (err) {
+            setSubmitResult({ type: 'error', text: err.userMessage || 'Failed to send message. Please try again.' });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     // Determine Role & Theme
@@ -192,7 +218,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                     </div>
                 </div>
 
-                {/* Contact Support Section (Mock) */}
+                {/* Contact Support Section */}
                 <div className="contact-support-section">
                     <div className="section-title">
                         <i className="fas fa-paper-plane"></i>
@@ -200,17 +226,40 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                     </div>
                     <div className="card contact-form-card">
                         <p className="contact-subtitle">Can't find what you're looking for? Send us a message.</p>
-                        <form className="mock-contact-form" onSubmit={(e) => e.preventDefault()}>
+                        {submitResult && (
+                            <div className={`contact-result ${submitResult.type}`} style={{
+                                padding: '10px 14px', borderRadius: '8px', marginBottom: '12px',
+                                background: submitResult.type === 'success' ? '#dcfce7' : '#fee2e2',
+                                color: submitResult.type === 'success' ? '#166534' : '#991b1b',
+                            }}>
+                                {submitResult.text}
+                            </div>
+                        )}
+                        <form className="mock-contact-form" onSubmit={handleContactSubmit}>
                             <div className="form-group">
                                 <label>Subject</label>
-                                <input type="text" placeholder="e.g., Login Issue" className="form-input" />
+                                <input
+                                    type="text"
+                                    placeholder="e.g., Login Issue"
+                                    className="form-input"
+                                    value={formSubject}
+                                    onChange={(e) => setFormSubject(e.target.value)}
+                                    disabled={submitting}
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Message</label>
-                                <textarea placeholder="Describe your issue..." rows="4" className="form-input"></textarea>
+                                <textarea
+                                    placeholder="Describe your issue..."
+                                    rows="4"
+                                    className="form-input"
+                                    value={formMessage}
+                                    onChange={(e) => setFormMessage(e.target.value)}
+                                    disabled={submitting}
+                                ></textarea>
                             </div>
-                            <button type="submit" className="btn-submit-support" onClick={() => alert("Message sent! (Mock Action)")}>
-                                <i className="fas fa-paper-plane"></i> Send Message
+                            <button type="submit" className="btn-submit-support" disabled={submitting}>
+                                <i className="fas fa-paper-plane"></i> {submitting ? 'Sending...' : 'Send Message'}
                             </button>
                         </form>
                     </div>

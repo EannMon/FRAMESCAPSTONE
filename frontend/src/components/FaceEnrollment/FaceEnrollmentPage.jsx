@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import './FaceEnrollmentPage.css';
 
 const FaceEnrollmentPage = () => {
@@ -8,6 +9,8 @@ const FaceEnrollmentPage = () => {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
+    const captureIntervalRef = useRef(null);
+    const phaseTimeoutRef = useRef(null);
 
     const [isCapturing, setIsCapturing] = useState(false);
     const [capturedFrames, setCapturedFrames] = useState([]);
@@ -19,8 +22,8 @@ const FaceEnrollmentPage = () => {
     const REQUIRED_FRAMES = 15;
     const CAPTURE_INTERVAL = 500; // ms between captures
 
-    // Get user from localStorage - use 'currentUser' to match other layouts
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    // Get user from AuthContext
+    const { user, updateUser } = useAuth();
 
     // Start webcam
     useEffect(() => {
@@ -48,10 +51,16 @@ const FaceEnrollmentPage = () => {
 
         startCamera();
 
-        // Cleanup
+        // Cleanup: camera stream + any active capture interval + enrollment phase timeout
         return () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
+            }
+            if (captureIntervalRef.current) {
+                clearInterval(captureIntervalRef.current);
+            }
+            if (phaseTimeoutRef.current) {
+                clearTimeout(phaseTimeoutRef.current);
             }
         };
     }, []);
@@ -91,7 +100,7 @@ const FaceEnrollmentPage = () => {
         let frameCount = 0;
         const frames = [];
 
-        const captureInterval = setInterval(() => {
+        captureIntervalRef.current = setInterval(() => {
             const frame = captureFrame();
 
             if (frame) {
@@ -101,7 +110,8 @@ const FaceEnrollmentPage = () => {
                 setCapturedFrames([...frames]);
 
                 if (frameCount >= REQUIRED_FRAMES) {
-                    clearInterval(captureInterval);
+                    clearInterval(captureIntervalRef.current);
+                    captureIntervalRef.current = null;
                     setIsCapturing(false);
                     setStatus('Capture complete! Click "Enroll Face" to save.');
                 }
@@ -136,13 +146,12 @@ const FaceEnrollmentPage = () => {
             { msg: '💾 Saving to database...', duration: 2000 },
         ];
 
-        let phaseTimeout;
         let currentPhase = 0;
 
         const updatePhase = () => {
             if (currentPhase < phases.length) {
                 setStatus(phases[currentPhase].msg);
-                phaseTimeout = setTimeout(() => {
+                phaseTimeoutRef.current = setTimeout(() => {
                     currentPhase++;
                     updatePhase();
                 }, phases[currentPhase].duration);
@@ -153,20 +162,19 @@ const FaceEnrollmentPage = () => {
         updatePhase();
 
         try {
-            const response = await axios.post('/api/face/enroll', {
+            const response = await api.post('/api/face/enroll', {
                 user_id: userId,
                 frames: capturedFrames
             });
 
             // Clear phase animation
-            clearTimeout(phaseTimeout);
+            clearTimeout(phaseTimeoutRef.current);
 
             if (response.data.success) {
                 setStatus(`✅ Successfully enrolled! Quality: ${(response.data.quality_score * 100).toFixed(0)}%`);
 
-                // Update user in localStorage
-                const updatedUser = { ...user, face_registered: true };
-                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                // Update user in AuthContext
+                updateUser({ face_registered: true });
 
                 // Redirect based on role
                 setTimeout(() => {
@@ -185,22 +193,9 @@ const FaceEnrollmentPage = () => {
                 setError(response.data.message || 'Enrollment failed');
             }
         } catch (err) {
-            clearTimeout(phaseTimeout);
+            clearTimeout(phaseTimeoutRef.current);
             console.error('Enrollment error:', err);
-            // Handle error detail - it may be an object or string
-            let errorMessage = 'Enrollment failed. Please try again.';
-            if (err.response?.data?.detail) {
-                const detail = err.response.data.detail;
-                if (typeof detail === 'string') {
-                    errorMessage = detail;
-                } else if (Array.isArray(detail)) {
-                    // Pydantic validation errors come as array
-                    errorMessage = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
-                } else if (typeof detail === 'object') {
-                    errorMessage = detail.msg || detail.message || JSON.stringify(detail);
-                }
-            }
-            setError(errorMessage);
+            setError(err.userMessage || 'Enrollment failed. Please try again.');
         } finally {
             setIsEnrolling(false);
         }

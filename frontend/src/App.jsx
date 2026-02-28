@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import LandingPage from './components/LandingPage/LandingPage';
 import RegistrationPage from './components/LandingPage/RegistrationPage';
 
@@ -56,6 +57,7 @@ function App() {
     }, []);
 
     return (
+        <AuthProvider>
         <Router>
             <div className="App">
                 <Routes>
@@ -137,6 +139,7 @@ function App() {
                 </Routes>
             </div>
         </Router>
+        </AuthProvider>
     );
 }
 

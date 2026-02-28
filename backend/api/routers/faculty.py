@@ -12,7 +12,7 @@ import logging
 
 from db.database import get_db
 from core.errors import api_error
-from main import limiter
+from core.limiter import limiter
 from models.user import User, UserRole, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
