@@ -8,7 +8,7 @@ const FacultyMyClassesPage = () => {
     // --- STATES ---
     const toast = useToast();
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
-    const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile'
+    const [subView, setSubView] = useState('main');   // 'main' | 'sheet' | 'profile' | 'preview'
 
     const [user, setUser] = useState(null);
     const [myClasses, setMyClasses] = useState([]); // Data from DB
@@ -41,6 +41,16 @@ const FacultyMyClassesPage = () => {
     const [semester, setSemester] = useState('1st Semester');
     const [academicYear, setAcademicYear] = useState('2024-2025');
 
+    // Preview States (two-step upload)
+    const [previewData, setPreviewData] = useState(null); // parsed schedule data
+    const [isConfirming, setIsConfirming] = useState(false);
+
+    // Add Student Modal (for attendance sheet)
+    const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+    const [studentSearchQuery, setStudentSearchQuery] = useState('');
+    const [studentSearchResults, setStudentSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
         const storedUser = localStorage.getItem('currentUser');
@@ -57,6 +67,12 @@ const FacultyMyClassesPage = () => {
         try {
             const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
             setMyClasses(response.data);
+            // Auto-fill locked semester/academic year from existing classes
+            if (response.data.length > 0) {
+                const first = response.data[0];
+                if (first.semester) setSemester(first.semester);
+                if (first.academic_year) setAcademicYear(first.academic_year);
+            }
             setLoading(false);
         } catch (error) {
             console.error("Error loading schedule:", error);
@@ -146,43 +162,128 @@ const FacultyMyClassesPage = () => {
         }
 
         setIsUploading(true);
-        setUploadMessage('Uploading and processing schedule...');
+        setUploadMessage('Parsing schedule...');
 
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('faculty_id', user.user_id || user.id);
-        formData.append('semester', semester);
-        formData.append('academic_year', academicYear);
 
         try {
             const response = await axios.post(
-                'http://localhost:5000/api/faculty/upload-schedule',
+                'http://localhost:5000/api/faculty/parse-schedule',
                 formData,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
+                { headers: { 'Content-Type': 'multipart/form-data' } }
             );
 
-            if (response.status === 201 || response.status === 200) {
-                setUploadMessage(
-                    `✅ Success! Created ${response.data.schedules_created} schedule(s) and ${response.data.students_created} student account(s)`
-                );
+            if (response.data.success) {
+                // Store parsed data and switch to preview
+                setPreviewData(response.data);
+                if (response.data.semester) setSemester(response.data.semester);
+                if (response.data.academic_year) setAcademicYear(response.data.academic_year);
+                setUploadMessage('');
                 setSelectedFile(null);
-                fetchUploadHistory(user.user_id || user.id);
-                fetchSchedule(user.user_id || user.id);
-                // Reset form
-                setTimeout(() => {
-                    setUploadMessage('');
-                }, 5000);
+                setSubView('preview');
             } else {
-                setUploadMessage(`❌ Error: ${response.data.error}`);
+                setUploadMessage(`❌ Error: ${response.data.error || 'Parse failed'}`);
             }
         } catch (error) {
             setUploadMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    // --- CONFIRM SCHEDULE (Step 2) ---
+    const handleConfirmSchedule = async () => {
+        if (!previewData) return;
+        setIsConfirming(true);
+        try {
+            const payload = {
+                faculty_id: user.user_id || user.id,
+                semester: semester,
+                academic_year: academicYear,
+                courses: previewData.courses
+            };
+            const response = await axios.post('http://localhost:5000/api/faculty/confirm-schedule', payload);
+            toast.success(`✅ ${response.data.message}`);
+            setPreviewData(null);
+            setSubView('main');
+            setViewMode('list');
+            fetchSchedule(user.user_id || user.id);
+        } catch (error) {
+            toast.error(`❌ Failed: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
+    // --- PREVIEW STUDENT MANAGEMENT ---
+    const handleRemovePreviewStudent = (courseIdx, studentIdx) => {
+        const updated = { ...previewData };
+        updated.courses = updated.courses.map((c, ci) => {
+            if (ci === courseIdx) {
+                return { ...c, enrolled_students: c.enrolled_students.filter((_, si) => si !== studentIdx) };
+            }
+            return c;
+        });
+        setPreviewData(updated);
+    };
+
+    const handleAddPreviewStudent = (courseIdx, tupmId, name) => {
+        if (!tupmId.trim() || !name.trim()) return;
+        const updated = { ...previewData };
+        updated.courses = updated.courses.map((c, ci) => {
+            if (ci === courseIdx) {
+                // Check if student already in list
+                if (c.enrolled_students.some(s => s.tupm_id === tupmId)) {
+                    toast.warning('Student already in the list');
+                    return c;
+                }
+                return { ...c, enrolled_students: [...c.enrolled_students, { tupm_id: tupmId, name: name }] };
+            }
+            return c;
+        });
+        setPreviewData(updated);
+    };
+
+    // --- SEARCH STUDENTS (for confirmed classes) ---
+    const handleSearchStudents = async (query) => {
+        setStudentSearchQuery(query);
+        if (query.length < 2) { setStudentSearchResults([]); return; }
+        setIsSearching(true);
+        try {
+            const response = await axios.get(`http://localhost:5000/api/faculty/search-students?q=${encodeURIComponent(query)}`);
+            setStudentSearchResults(response.data);
+        } catch (error) {
+            console.error('Search failed:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleAddStudentToClass = async (studentId) => {
+        if (!selectedClass) return;
+        try {
+            await axios.post(`http://localhost:5000/api/faculty/class/${selectedClass.id}/add-student`, { student_id: studentId });
+            toast.success('Student added successfully!');
+            setShowAddStudentModal(false);
+            setStudentSearchQuery('');
+            setStudentSearchResults([]);
+            fetchClassDetails(selectedClass);
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to add student');
+        }
+    };
+
+    const handleRemoveStudentFromClass = async (studentId) => {
+        if (!selectedClass) return;
+        if (!window.confirm('Are you sure you want to remove this student from the class?')) return;
+        try {
+            await axios.delete(`http://localhost:5000/api/faculty/class/${selectedClass.id}/remove-student/${studentId}`);
+            toast.success('Student removed successfully!');
+            fetchClassDetails(selectedClass);
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to remove student');
         }
     };
 
@@ -239,6 +340,10 @@ const FacultyMyClassesPage = () => {
         else if (subView === 'sheet') {
             setSubView('main');
             setSelectedClass(null);
+        } else if (subView === 'preview') {
+            setSubView('main');
+            setViewMode('upload');
+            setPreviewData(null);
         }
     };
 
@@ -462,7 +567,12 @@ const FacultyMyClassesPage = () => {
                     <i className="fas fa-search"></i>
                     <input type="text" placeholder="Search student..." onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-                <button className="export-pdf-btn" onClick={generateClassPDF}><i className="fas fa-download"></i> Export List</button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="export-pdf-btn" onClick={() => setShowAddStudentModal(true)} style={{ background: '#2E7D32', color: 'white' }}>
+                        <i className="fas fa-user-plus"></i> Add Student
+                    </button>
+                    <button className="export-pdf-btn" onClick={generateClassPDF}><i className="fas fa-download"></i> Export List</button>
+                </div>
             </div>
             <div className="students-list-wrapper">
                 <table className="styled-table">
@@ -514,6 +624,7 @@ const FacultyMyClassesPage = () => {
                                         ) : (
                                             <div className="student-row-actions">
                                                 <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
+                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
                                                 <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
                                             </div>
                                         )}
@@ -665,21 +776,18 @@ const FacultyMyClassesPage = () => {
                 <div className="form-row">
                     <div className="form-group">
                         <label>Semester:</label>
-                        <select value={semester} onChange={(e) => setSemester(e.target.value)}>
-                            <option>1st Semester</option>
-                            <option>2nd Semester</option>
-                            <option>Summer</option>
-                        </select>
+                        <div className="locked-field">
+                            <i className="fas fa-lock"></i>
+                            <span>{semester}</span>
+                        </div>
                     </div>
 
                     <div className="form-group">
                         <label>Academic Year:</label>
-                        <input
-                            type="text"
-                            value={academicYear}
-                            onChange={(e) => setAcademicYear(e.target.value)}
-                            placeholder="2024-2025"
-                        />
+                        <div className="locked-field">
+                            <i className="fas fa-lock"></i>
+                            <span>{academicYear}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -688,7 +796,7 @@ const FacultyMyClassesPage = () => {
                     disabled={isUploading}
                     className="upload-btn"
                 >
-                    {isUploading ? '⏳ Processing...' : '📤 Upload Schedule'}
+                    {isUploading ? '⏳ Parsing...' : '📄 Upload & Preview'}
                 </button>
 
                 {uploadMessage && (
@@ -737,6 +845,91 @@ const FacultyMyClassesPage = () => {
         </div>
     );
 
+    // F. PREVIEW VIEW (after PDF parse, before confirm)
+    const renderPreviewView = () => {
+        if (!previewData) return null;
+        return (
+            <div className="preview-container fade-in">
+                <button className="back-btn" onClick={handleBack}><i className="fas fa-arrow-left"></i> Back to Upload</button>
+                <div className="preview-header card">
+                    <h3><i className="fas fa-eye"></i> Schedule Preview</h3>
+                    <p className="info-text">Review the parsed schedule below. You can <strong>add or remove students</strong> before confirming. Class details (subject, time, room) are read-only.</p>
+                    <div className="preview-meta">
+                        <span><i className="fas fa-calendar"></i> {semester}</span>
+                        <span><i className="fas fa-graduation-cap"></i> A.Y. {academicYear}</span>
+                        <span><i className="fas fa-file-pdf"></i> {previewData.filename}</span>
+                    </div>
+                </div>
+
+                {previewData.courses.map((course, courseIdx) => (
+                    <div key={courseIdx} className="preview-course-card card">
+                        <div className="preview-course-header">
+                            <div>
+                                <h4>{course.subject_code} — {course.subject_name}</h4>
+                                <p className="preview-detail-row">
+                                    <span><i className="fas fa-calendar-day"></i> {course.day}</span>
+                                    <span><i className="fas fa-clock"></i> {course.start_time} - {course.end_time}</span>
+                                    <span><i className="fas fa-users"></i> {course.section}</span>
+                                    <span><i className="fas fa-map-marker-alt"></i> {course.venue}</span>
+                                </p>
+                            </div>
+                            <div className="preview-student-count">
+                                <span className="count-badge">{course.enrolled_students.length}</span>
+                                <span>students</span>
+                            </div>
+                        </div>
+
+                        <div className="preview-students-table">
+                            <table className="styled-table">
+                                <thead>
+                                    <tr><th>#</th><th>TUPM ID</th><th>Name</th><th style={{ width: '60px' }}>Remove</th></tr>
+                                </thead>
+                                <tbody>
+                                    {course.enrolled_students.map((student, sIdx) => (
+                                        <tr key={sIdx}>
+                                            <td>{sIdx + 1}</td>
+                                            <td><strong>{student.tupm_id}</strong></td>
+                                            <td>{student.name}</td>
+                                            <td>
+                                                <button className="icon-btn-remove" onClick={() => handleRemovePreviewStudent(courseIdx, sIdx)} title="Remove">
+                                                    <i className="fas fa-times-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {course.enrolled_students.length === 0 && (
+                                        <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>No students. Add manually below.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="preview-add-student-row">
+                            <input type="text" id={`add-tupm-${courseIdx}`} placeholder="TUPM ID (e.g. TUPM-21-1234)" />
+                            <input type="text" id={`add-name-${courseIdx}`} placeholder="Name (Last, First)" />
+                            <button className="add-preview-btn" onClick={() => {
+                                const tupmInput = document.getElementById(`add-tupm-${courseIdx}`);
+                                const nameInput = document.getElementById(`add-name-${courseIdx}`);
+                                handleAddPreviewStudent(courseIdx, tupmInput.value, nameInput.value);
+                                tupmInput.value = '';
+                                nameInput.value = '';
+                            }}>
+                                <i className="fas fa-plus"></i> Add Student
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                <div className="preview-action-bar">
+                    <button className="cancel-btn" onClick={handleBack} disabled={isConfirming}>Cancel</button>
+                    <button className="save-btn" onClick={handleConfirmSchedule} disabled={isConfirming}>
+                        {isConfirming ? <><i className="fas fa-spinner fa-spin"></i> Saving...</> : <><i className="fas fa-check"></i> Confirm & Save Schedule</>}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     if (!user) return <div className="loading">Please log in.</div>;
 
     return (
@@ -761,6 +954,8 @@ const FacultyMyClassesPage = () => {
                 viewMode === 'list' ? renderClassCards() : viewMode === 'calendar' ? renderCalendarView() : renderUploadView()
             ) : subView === 'sheet' ? (
                 renderAttendanceSheet()
+            ) : subView === 'preview' ? (
+                renderPreviewView()
             ) : (
                 renderStudentProfile()
             )}
@@ -859,6 +1054,51 @@ const FacultyMyClassesPage = () => {
                             <button className="save-btn" onClick={handleDayModalPDF}>
                                 <i className="fas fa-file-pdf" style={{ marginRight: 6 }}></i> Download PDF
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── ADD STUDENT MODAL (for confirmed classes) ── */}
+            {showAddStudentModal && (
+                <div className="modal-overlay" onClick={() => setShowAddStudentModal(false)}>
+                    <div className="modal-content-box manage-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3><i className="fas fa-user-plus" style={{ marginRight: 8, color: '#2E7D32' }}></i> Add Student to Class</h3>
+                            <button className="close-btn" onClick={() => setShowAddStudentModal(false)}>&times;</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Search Student (by Name or TUPM ID)</label>
+                                <input
+                                    type="text"
+                                    value={studentSearchQuery}
+                                    onChange={(e) => handleSearchStudents(e.target.value)}
+                                    placeholder="Type at least 2 characters..."
+                                    autoFocus
+                                />
+                            </div>
+                            {isSearching && <p style={{ color: '#999', fontSize: '0.85em' }}>Searching...</p>}
+                            {studentSearchResults.length > 0 && (
+                                <div className="search-results-list">
+                                    {studentSearchResults.map(s => (
+                                        <div key={s.id} className="search-result-item" onClick={() => handleAddStudentToClass(s.id)}>
+                                            <div className="avatar-placeholder" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>{(s.first_name || '?').charAt(0)}</div>
+                                            <div>
+                                                <div className="s-name">{s.last_name}, {s.first_name}</div>
+                                                <div className="s-id">{s.tupm_id}</div>
+                                            </div>
+                                            <button className="add-search-btn"><i className="fas fa-plus"></i></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {studentSearchQuery.length >= 2 && studentSearchResults.length === 0 && !isSearching && (
+                                <p style={{ color: '#999', fontSize: '0.85em', textAlign: 'center' }}>No students found.</p>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-btn" onClick={() => setShowAddStudentModal(false)}>Close</button>
                         </div>
                     </div>
                 </div>

@@ -14,7 +14,6 @@ import FacultyLayout from './components/FacultyDashboard/FacultyLayout';
 import DeptHeadLayout from './components/DeptHeadDashboard/DeptHeadLayout';
 import StudentLayout from './components/StudentDashboard/StudentLayout';
 
-
 // --- Import Admin Pages ---
 import AdminDashboardPage from './components/AdminDashboard/AdminDashboardPage';
 import UserManagementPage from './components/AdminDashboard/UserManagementPage';
@@ -47,11 +46,8 @@ import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
-<<<<<<< Updated upstream
-=======
 import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
 import ErrorBoundary from './components/Common/ErrorBoundary';
->>>>>>> Stashed changes
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
