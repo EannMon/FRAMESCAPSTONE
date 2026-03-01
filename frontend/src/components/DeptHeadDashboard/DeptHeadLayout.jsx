@@ -15,7 +15,7 @@ const deptHeadTheme = {
     text: '#163269'
 };
 
-const DeptHeadSidebar = ({ user, isCollapsed }) => {
+const DeptHeadSidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
     // Popup state
     const [showPopup, setShowPopup] = useState(false);
     const popupRef = useRef(null);
@@ -63,7 +63,7 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
     const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=163269&color=fff`;
 
     return (
-        <aside className={`frames-sidebar dept-head-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`frames-sidebar dept-head-sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'open' : ''}`}>
             {/* BRANDING */}
             <div className="sidebar-brand">
                 <div className="sidebar-logo-container">
@@ -75,6 +75,10 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
                         <span className="sidebar-brand-subtitle">DEPT HEAD</span>
                     </div>
                 )}
+                {/* Mobile Close Button */}
+                <button className="mobile-sidebar-close" onClick={toggleMobile}>
+                    <i className="fas fa-chevron-left"></i>
+                </button>
             </div>
 
             {/* Role Tag */}
@@ -123,7 +127,7 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
                     {!isCollapsed && (
                         <div className="sidebar-user-details" style={{ display: 'flex', flexDirection: 'column' }}>
                             <span className="sidebar-user-name" style={{ fontWeight: '600', fontSize: '0.9rem' }}>{displayName}</span>
-                            <span className="sidebar-user-role" style={{ fontSize: '0.75rem', opacity: 0.8 }}>Dept. Head</span>
+                            <span className="sidebar-user-role" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{user?.email || 'Dept. Head Account'}</span>
                         </div>
                     )}
                 </Link>
@@ -161,6 +165,15 @@ const DeptHeadLayout = () => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    const toggleSidebar = () => {
+        if (window.innerWidth <= 992) {
+            setIsMobileOpen(!isMobileOpen);
+        } else {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
 
     useEffect(() => {
         const loadUserData = async () => {
@@ -215,11 +228,16 @@ const DeptHeadLayout = () => {
                 theme={deptHeadTheme}
                 user={user}
                 showLogo={false}
-                toggleSidebar={() => setIsCollapsed(!isCollapsed)}
+                toggleSidebar={toggleSidebar}
                 isSidebarCollapsed={isCollapsed}
             />
             <div className="dashboard-body">
-                <DeptHeadSidebar user={user} isCollapsed={isCollapsed} />
+                <div
+                    className={`frames-sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                ></div>
+
+                <DeptHeadSidebar user={user} isCollapsed={isCollapsed} isMobileOpen={isMobileOpen} toggleMobile={() => setIsMobileOpen(false)} />
                 <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet />
                 </main>

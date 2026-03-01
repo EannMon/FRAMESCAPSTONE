@@ -124,9 +124,12 @@
 
 /* Response: Adjust margin on mobile */
 @media (max-width: 992px) {
-    .header-context-section {
-        margin-left: 0;
-        /* Sidebar becomes top/hamburger */
+
+    .header-context-section,
+    .header-context-section.collapsed {
+        margin-left: 0 !important;
+        gap: 10px;
+        /* Reduced gap instead of margin spacing */
     }
 }
 

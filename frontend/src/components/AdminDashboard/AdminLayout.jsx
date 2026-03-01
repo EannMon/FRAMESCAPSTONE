@@ -20,7 +20,7 @@ const adminTheme = {
 // 1. Admin Sidebar Component (MODIFIED)
 // ===========================================
 // Ginawa nating prop ang user para magamit ang data
-const AdminSidebar = ({ user }) => {
+const AdminSidebar = ({ user, isCollapsed, isMobileOpen }) => {
     // Nav items: TINANGGAL ang 'Verification' link
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/admin-dashboard' },
@@ -32,7 +32,7 @@ const AdminSidebar = ({ user }) => {
     ];
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'open' : ''}`}>
             <div className="admin-role-tag">
                 Administrator
             </div>
@@ -64,6 +64,16 @@ const AdminLayout = () => {
     const toast = useToast();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    const toggleSidebar = () => {
+        if (window.innerWidth <= 992) {
+            setIsMobileOpen(!isMobileOpen);
+        } else {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
 
     // --- SECURITY CHECK ON LOAD (ADDED) ---
     useEffect(() => {
@@ -123,10 +133,15 @@ const AdminLayout = () => {
     // Ang user state ay gagamitin na ngayon sa Header at Sidebar
     return (
         <div className="dashboard-container">
-            <Header theme={adminTheme} user={user} />
+            <Header theme={adminTheme} user={user} showLogo={false} toggleSidebar={toggleSidebar} isSidebarCollapsed={isCollapsed} />
             <div className="dashboard-body">
-                <AdminSidebar user={user} />
-                <div className="main-content-area">
+                <div
+                    className={`frames-sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                ></div>
+
+                <AdminSidebar user={user} isCollapsed={isCollapsed} isMobileOpen={isMobileOpen} />
+                <div className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     {/* Ipasa ang user context sa Outlet */}
                     <Outlet context={{ user }} />
                 </div>

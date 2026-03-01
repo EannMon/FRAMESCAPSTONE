@@ -316,6 +316,36 @@
     }
 }
 
+@media (max-width: 576px) {
+    .profile-summary-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .profile-action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .profile-cancel-button,
+    .profile-save-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .setting-button {
+        align-self: flex-start;
+    }
+}
+
 @media (max-width: 480px) {
     .profile-page-container {
         padding: 10px;
@@ -329,9 +359,6 @@
     }
 }
 
-
-/* ... existing css ... */
-
 /* =========================================== */
 /* PASSWORD MODAL STYLES */
 /* =========================================== */
@@ -342,18 +369,17 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    /* Semi-transparent black */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 2000;
-    /* Must be higher than header */
     animation: fadeIn 0.2s ease-out;
 }
 
 .modal-box {
     background: white;
-    width: 400px;
+    width: 90%;
+    max-width: 400px;
     border-radius: 12px;
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -421,7 +447,6 @@
 
 .modal-btn.primary {
     background-color: #0F172A;
-    /* Navy */
     color: white;
 }
 

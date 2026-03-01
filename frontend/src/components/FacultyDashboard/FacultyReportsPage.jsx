@@ -56,6 +56,8 @@ const FacultyReportsPage = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
+    const [academicYear, setAcademicYear] = useState('');
+
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
@@ -69,6 +71,14 @@ const FacultyReportsPage = () => {
         axios.get(`${API}/api/faculty/schedule/${user.id}`).then(res => {
             setClasses(res.data || []);
         }).catch(() => { });
+
+        // Fetch Academic Year
+        if (user.department_id) {
+            axios.get(`${API}/api/dept/academic-year?dept_id=${user.department_id}`)
+                .then(res => {
+                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                }).catch(() => { });
+        }
     }, [user]);
 
     // Group report options by category
@@ -171,13 +181,9 @@ const FacultyReportsPage = () => {
     return (
         <div className="faculty-reports-page">
             {/* Header */}
-            <div className="reports-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2>Reports</h2>
-                    <p className="reports-subtitle">Generate and download attendance reports from real-time data</p>
-                </div>
+            <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
                 <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. {classes.length > 0 ? classes[0].academic_year || '2025-2026' : '2025-2026'}
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
                 </div>
             </div>
 

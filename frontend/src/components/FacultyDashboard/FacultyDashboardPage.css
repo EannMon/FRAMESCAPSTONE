@@ -332,17 +332,16 @@
     opacity: 0.5;
 }
 
-/* ---------- Live Status Card ---------- */
-.live-status-card {
-    background: white;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #f1f5f9;
+/* ---------- Live Status Card (Now uses dh-live-status-card globally for padding parity) ---------- */
+.live-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
 }
 
-.live-status-card h3 {
-    margin: 0 0 12px 0;
+.live-status-header h3 {
+    margin: 0;
     font-size: 0.95rem;
     color: #0F172A;
     display: flex;
@@ -350,61 +349,240 @@
     gap: 8px;
 }
 
-.live-status-card h3 i {
-    color: #ef4444;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-}
-
-.live-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.live-item {
+.live-pulse-badge {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    background: #f8fafc;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.live-pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+/* ---------- DeptHead Live Status View Controls & Grid (Imported to Faculty) ---------- */
+.dh-live-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dh-view-toggle {
+    display: flex;
+    background: #f1f5f9;
+    /* Light slate/gray container */
+    padding: 4px;
     border-radius: 8px;
-    border-left: 3px solid #00A859;
+    border: 1px solid #e2e8f0;
+}
+
+.dh-view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+}
+
+.dh-view-btn:hover {
+    color: #0F172A;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.dh-view-btn.active {
+    background: #FFFFFF;
+    color: #0F172A;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    font-weight: 600;
+}
+
+/* Room Selector Dropdown */
+.dh-room-selector select {
+    appearance: none;
+    background: #f8fafc url('data:image/svg+xml;utf8,<svg fill="%2364748b" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 8px center;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 0.9rem;
+    color: #0F172A;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    height: 42px;
+    /* To match the height of the toggle container */
+}
+
+.dh-room-selector select:hover {
+    border-color: #cbd5e1;
+    background-color: #f1f5f9;
+}
+
+.dh-room-selector select:focus {
+    border-color: #94a3b8;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.dh-rooms-grid {
+    display: grid;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+.wide-mode {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.single-mode {
+    grid-template-columns: 1fr;
+}
+
+.dh-room-box {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dh-room-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dh-room-large {
+    padding: 24px;
+}
+
+.live-room-label {
+    font-weight: 800;
+    color: #0F172A;
+    font-size: 1.1rem;
+}
+
+.dh-room-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.dh-room-subject {
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.dh-room-faculty i,
+.dh-room-time i {
+    margin-right: 4px;
+    opacity: 0.7;
+}
+
+.live-dots-area {
+    position: relative;
+    height: 120px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    width: 100%;
+}
+
+.dh-dots-large {
+    height: 200px;
 }
 
 .live-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    cursor: help;
+    transition: transform 0.2s;
+}
+
+.live-dot:hover {
+    transform: translate(-50%, -50%) scale(2.5);
+    z-index: 10;
+}
+
+.live-dot-green {
+    background: #00A859;
+    box-shadow: 0 0 6px rgba(0, 168, 89, 0.6);
+    animation: none;
+    /* remove pulse from area dots for performance */
+}
+
+.live-dot-yellow {
+    background: #eab308;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
+    animation: none;
+}
+
+.live-dots-empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #94a3b8;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.live-room-counts {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: auto;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+}
+
+.live-count-present {
+    color: #00A859;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live-count-break {
+    color: #eab308;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.live-dot-inline {
     width: 8px;
     height: 8px;
-    background: #00A859;
     border-radius: 50%;
-    animation: pulse 2s infinite;
-    flex-shrink: 0;
-}
-
-.live-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.live-info strong {
-    font-size: 0.85rem;
-    color: #0F172A;
-}
-
-.live-info span {
-    font-size: 0.72rem;
-    color: #64748b;
+    display: inline-block;
 }
 
 .empty-state-mini {
@@ -425,6 +603,7 @@
     margin: 0;
     font-size: 0.8rem;
 }
+
 
 /* ---------- Recent Activity Card ---------- */
 .recent-activity-card {
@@ -540,10 +719,6 @@
 }
 
 @media (max-width: 768px) {
-    .summary-cards-row {
-        grid-template-columns: 1fr;
-    }
-
     .welcome-banner {
         flex-direction: column;
         text-align: center;
@@ -551,5 +726,28 @@
 
     .welcome-status {
         margin-left: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .summary-cards-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .live-status-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .dh-live-controls {
+        width: 100%;
+        justify-content: space-between;
     }
 }
