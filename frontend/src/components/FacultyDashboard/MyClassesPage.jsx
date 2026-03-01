@@ -30,6 +30,9 @@ const FacultyMyClassesPage = () => {
     const [showManageModal, setShowManageModal] = useState(false);
     const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
 
+    // Day Summary Modal (past dates)
+    const [dayModal, setDayModal] = useState(null); // { date, dateStr, events }
+
     // Upload States
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadedSchedules, setUploadedSchedules] = useState([]);
@@ -295,6 +298,41 @@ const FacultyMyClassesPage = () => {
             toast.error("Failed to save changes: " + (error.response?.data?.detail || error.message));
         }
     };
+
+    // --- PAST-DAY CLICK HANDLER ---
+    const handlePastDayClick = (day) => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const events = calendarEvents.filter(ev => ev.date === dateStr);
+        if (events.length === 0) return;
+        setDayModal({ dateStr, day, events });
+    };
+
+    const handleDayModalPDF = () => {
+        if (!dayModal) return;
+        const dateLabel = new Date(dayModal.dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const reportInfo = {
+            title: `Daily Session Summary — ${dateLabel}`,
+            type: 'FACULTY DAILY SUMMARY',
+            category: 'schedule',
+            context: {
+                name: `${user?.first_name || user?.firstName} ${user?.last_name || user?.lastName}`,
+                department: 'Assigned Classes',
+            },
+            dateRange: dateLabel,
+        };
+        const tableData = dayModal.events.map(ev => ({
+            'Subject Code': ev.title,
+            'Section': ev.section,
+            'Time': ev.time,
+            'Status': ev.status === 'cancelled' ? 'CANCELLED' : 'COMPLETED',
+        }));
+        generateFramesPDF(reportInfo, tableData);
+    };
+
     // --- PDF GENERATORS (Using FRAMES ReportGenerator) ---
     const generateClassPDF = () => {
         const reportInfo = {
@@ -431,11 +469,15 @@ const FacultyMyClassesPage = () => {
                     <thead><tr><th>Student Info</th><th>Time In</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                         {studentList
-                            .filter(s => s.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || s.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || s.tupm_id.includes(searchTerm))
+                            .filter(s =>
+                                (s.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (s.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (s.tupm_id || '').includes(searchTerm)
+                            )
                             .map(s => (
                                 <tr key={s.user_id} onClick={() => handleViewStudent(s)} className={`clickable-row ${editingStudent === s.user_id ? 'editing-row' : ''}`}>
                                     <td className="student-name-cell" style={{ minWidth: '300px' }}>
-                                        <div className="avatar-placeholder">{s.firstName.charAt(0)}</div>
+                                        <div className="avatar-placeholder">{(s.firstName || '?').charAt(0)}</div>
                                         {editingStudent === s.user_id ? (
                                             <div className="edit-student-inline-form" onClick={e => e.stopPropagation()}>
                                                 <input
@@ -491,7 +533,7 @@ const FacultyMyClassesPage = () => {
             <button className="back-btn" onClick={handleBack}><i className="fas fa-arrow-left"></i> Back to List</button>
             <div className="student-profile-card card">
                 <div className="profile-header-row">
-                    <div className="big-avatar">{selectedStudent.firstName.charAt(0)}</div>
+                    <div className="big-avatar">{(selectedStudent.firstName || '?').charAt(0)}</div>
                     <div className="profile-info">
                         <h2>{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
                         <p>{selectedStudent.tupm_id}</p>
@@ -527,11 +569,16 @@ const FacultyMyClassesPage = () => {
             const completedCount = events.length;
 
             calendarCells.push(
-                <div key={day} className={`cal-cell day ${isPast ? 'past-day' : ''}`}>
+                <div
+                    key={day}
+                    className={`cal-cell day ${isPast ? 'past-day' : ''} ${isPast && completedCount > 0 ? 'past-clickable' : ''}`}
+                    onClick={() => { if (isPast && completedCount > 0) handlePastDayClick(day); }}
+                    title={isPast && completedCount > 0 ? 'Click to view session summary' : undefined}
+                >
                     <div className="cal-day-header">
                         <span className="cal-day-number">{day}</span>
                         {isPast && completedCount > 0 && (
-                            <span className="past-summary-badge" title={`${completedCount} sessions completed`}>
+                            <span className="past-summary-badge" title={`${completedCount} sessions`}>
                                 <i className="fas fa-check-circle"></i> {completedCount}
                             </span>
                         )}
@@ -540,15 +587,16 @@ const FacultyMyClassesPage = () => {
                         {events.map(ev => (
                             <div
                                 key={ev.id}
-                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-grey' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
+                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-green' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
                                 onClick={(e) => {
-                                    if (ev.isPast) return; // Prevent updating past sessions
+                                    if (ev.isPast) { e.stopPropagation(); return; }
                                     e.stopPropagation();
                                     toggleSessionSelect(ev.id);
                                 }}
-                                title={ev.isPast ? `${ev.title} - Session Completed` : `${ev.title} - Click to Select`}
+                                title={ev.isPast ? `${ev.title} — Completed` : `${ev.title} — Click to Select`}
                             >
-                                {selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
+                                {ev.isPast && <i className="fas fa-check pill-check"></i>}
+                                {!ev.isPast && selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
                                 <span>{ev.time} {ev.title}</span>
                             </div>
                         ))}
@@ -753,6 +801,64 @@ const FacultyMyClassesPage = () => {
                         <div className="modal-footer">
                             <button className="cancel-btn" onClick={() => setShowManageModal(false)}>Cancel</button>
                             <button className="save-btn" onClick={handleBulkUpdate}>Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── DAY SUMMARY MODAL (Past Date Click) ── */}
+            {dayModal && (
+                <div className="modal-overlay" onClick={() => setDayModal(null)}>
+                    <div className="modal-content-box manage-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div>
+                                <h3 style={{ margin: 0 }}>
+                                    <i className="fas fa-calendar-check" style={{ marginRight: 8, color: '#2E7D32' }}></i>
+                                    Session Summary
+                                </h3>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.85em', color: '#666' }}>
+                                    {new Date(dayModal.dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
+                                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                    })}
+                                </p>
+                            </div>
+                            <button className="close-btn" onClick={() => setDayModal(null)}>&times;</button>
+                        </div>
+                        <div className="modal-body">
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+                                <thead>
+                                    <tr style={{ background: '#f8fafc' }}>
+                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Subject</th>
+                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Section</th>
+                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Time</th>
+                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {dayModal.events.map((ev, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '10px 12px', fontWeight: 700, color: '#163269' }}>{ev.title}</td>
+                                            <td style={{ padding: '10px 12px', color: '#555' }}>{ev.section}</td>
+                                            <td style={{ padding: '10px 12px', color: '#555' }}>{ev.time}</td>
+                                            <td style={{ padding: '10px 12px' }}>
+                                                <span style={{
+                                                    background: ev.status === 'cancelled' ? '#FFEBEE' : '#E6F4EA',
+                                                    color: ev.status === 'cancelled' ? '#C62828' : '#2E7D32',
+                                                    padding: '3px 10px', borderRadius: 12, fontSize: '0.8em', fontWeight: 700
+                                                }}>
+                                                    {ev.status === 'cancelled' ? 'CANCELLED' : 'COMPLETED'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-btn" onClick={() => setDayModal(null)}>Close</button>
+                            <button className="save-btn" onClick={handleDayModalPDF}>
+                                <i className="fas fa-file-pdf" style={{ marginRight: 6 }}></i> Download PDF
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -120,7 +120,105 @@
 .cal-cell:nth-child(7n) { border-right: none; } 
 .cal-cell.empty { background: #fdfdfd; }
 
+<<<<<<< Updated upstream
 .cal-day-number { font-weight: 700; color: #333; margin-bottom: 5px; font-size: 0.9rem; }
+=======
+.bulk-update-btn {
+    background: #F9A825;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    animation: fadeIn 0.2s;
+    box-shadow: 0 2px 5px rgba(249, 168, 37, 0.3);
+}
+
+.bulk-update-btn:hover {
+    background: #f57f17;
+}
+
+.calendar-grid-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cal-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cal-header-row div {
+    padding: 12px;
+    text-align: center;
+    font-weight: 700;
+    color: #64748b;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.cal-body-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-cell {
+    min-height: 120px;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px;
+    position: relative;
+    background: white;
+}
+
+.cal-cell:nth-child(7n) {
+    border-right: none;
+}
+
+.cal-cell.empty {
+    background: #fdfdfd;
+}
+
+
+.cal-cell.past-day {
+    background: #fafafa;
+}
+
+.cal-cell.past-clickable {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.cal-cell.past-clickable:hover {
+    background: #f0f4ff;
+}
+
+.cal-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.cal-day-number {
+    font-weight: 700;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.past-summary-badge {
+    font-size: 0.7rem;
+    background: #E6F4EA;
+    color: #2E7D32;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+>>>>>>> Stashed changes
 
 /* Events inside Calendar */
 .cal-events-stack { display: flex; flex-direction: column; gap: 4px; }
