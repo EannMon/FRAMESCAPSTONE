@@ -277,23 +277,24 @@ const DeptHeadLiveStatus = ({ rooms }) => {
                             <i className="fas fa-square"></i>
                         </button>
                     </div>
+                    {/* Room selector for single view moved to the right of toggles */}
+                    {viewMode === 'single' && (
+                        <div className="dh-room-selector">
+                            <select
+                                value={selectedRoom || ''}
+                                onChange={(e) => setSelectedRoom(e.target.value)}
+                            >
+                                <option value="">Select a classroom...</option>
+                                {targetRooms.map((r, idx) => (
+                                    <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Room selector for single view */}
-            {viewMode === 'single' && (
-                <div className="dh-room-selector">
-                    <select
-                        value={selectedRoom || ''}
-                        onChange={(e) => setSelectedRoom(e.target.value)}
-                    >
-                        <option value="">Select a classroom...</option>
-                        {targetRooms.map((r, idx) => (
-                            <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
+
 
             {(!targetRooms || targetRooms.length === 0) ? (
                 <div className="empty-state-mini">

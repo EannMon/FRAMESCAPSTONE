@@ -42,6 +42,24 @@
     transition: width 0.3s ease;
 }
 
+/* Hide scrollbar for sidebar and nav containers */
+.frames-sidebar::-webkit-scrollbar,
+.faculty-nav::-webkit-scrollbar,
+.student-nav::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.frames-sidebar,
+.faculty-nav,
+.student-nav,
+.sidebar-nav {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
 .frames-sidebar.collapsed {
     width: 80px;
 }
@@ -227,4 +245,81 @@
 .popup-menu-item.logout-item:hover {
     background-color: rgba(239, 68, 68, 0.1);
     color: #EF4444 !important;
+}
+
+/* --- 6. MOBILE SIDEBAR CLOSE BUTTON --- */
+.mobile-sidebar-close {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto;
+}
+
+/* =========================================== */
+/* 7. GLOBAL MEDIA QUERIES (RESPONSIVE) */
+/* =========================================== */
+@media (max-width: 992px) {
+    .frames-sidebar {
+        transform: translateX(-100%);
+        width: 270px;
+        transition: transform 0.3s ease-in-out;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .frames-sidebar.collapsed {
+        transform: translateX(-100%);
+        /* collapsed means hidden on mobile */
+        width: 270px;
+    }
+
+    .frames-sidebar.open {
+        transform: translateX(0) !important;
+        /* Force open on mobile regardless of collapsed state */
+    }
+
+    .mobile-sidebar-close {
+        display: block;
+    }
+
+    /* Adjust main content padding when sidebar is hidden */
+    .dashboard-body .main-content-area,
+    .dashboard-body .main-content-area.collapsed {
+        padding-left: 20px !important;
+    }
+
+    /* Mobile Menu Overlay */
+    .frames-sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        /* below sidebar 1100 */
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+
+    .frames-sidebar-overlay.open {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .frames-sidebar,
+    .frames-sidebar.collapsed {
+        width: 270px;
+    }
+
+    .dashboard-body .main-content-area {
+        padding: 15px !important;
+    }
 }

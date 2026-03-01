@@ -39,6 +39,8 @@ const DeptHeadReportsPage = () => {
     const [room, setRoom] = useState('');
     const [rooms, setRooms] = useState([]);
 
+    const [academicYear, setAcademicYear] = useState('');
+
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const user = useMemo(() => {
@@ -46,12 +48,19 @@ const DeptHeadReportsPage = () => {
         return stored ? JSON.parse(stored) : null;
     }, []);
 
-    // Fetch room list
+    // Fetch room list & academic year
     useEffect(() => {
         axios.get(`${API}/api/dept/management-data`).then(res => {
             setRooms(res.data?.rooms || []);
         }).catch(() => { });
-    }, []);
+
+        if (user?.department_id) {
+            axios.get(`${API}/api/dept/academic-year?dept_id=${user.department_id}`)
+                .then(res => {
+                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                }).catch(() => { });
+        }
+    }, [user]);
 
     const groupedReports = useMemo(() => {
         const groups = {};
@@ -139,13 +148,9 @@ const DeptHeadReportsPage = () => {
 
     return (
         <div className="faculty-reports-page">
-            <div className="reports-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2>Department Reports</h2>
-                    <p className="reports-subtitle">Faculty oversight, facility analytics, and departmental strategy reports</p>
-                </div>
+            <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
                 <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. 2025-2026
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
                 </div>
             </div>
 

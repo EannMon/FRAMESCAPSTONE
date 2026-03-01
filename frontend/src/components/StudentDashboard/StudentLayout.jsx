@@ -68,7 +68,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
         <>
             {/* Mobile Overlay Backdrop */}
             <div
-                className={`sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+                className={`frames-sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
                 onClick={toggleMobile}
             ></div>
 
@@ -85,7 +85,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                     )}
                     {/* Mobile Close Button */}
                     <button className="mobile-sidebar-close" onClick={toggleMobile}>
-                        <i className="fas fa-times"></i>
+                        <i className="fas fa-chevron-left"></i>
                     </button>
                 </div>
 
@@ -137,7 +137,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                         {!isCollapsed && (
                             <div className="sidebar-user-details">
                                 <span className="sidebar-user-name">{displayName}</span>
-                                <span className="sidebar-user-role">Student</span>
+                                <span className="sidebar-user-role">{user?.email || 'Student Account'}</span>
                             </div>
                         )}
                     </Link>
@@ -183,8 +183,13 @@ const StudentLayout = () => {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false); // Collapsed State
 
-    const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
-    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+    const toggleSidebar = () => {
+        if (window.innerWidth <= 992) {
+            setIsMobileOpen(!isMobileOpen);
+        } else {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
 
     // FETCH USER DATA & SECURITY CHECK
     useEffect(() => {
@@ -275,23 +280,19 @@ const StudentLayout = () => {
                 toggleSidebar={toggleSidebar}
                 isSidebarCollapsed={isCollapsed}
             />
-            {/* Mobile Header Toggle (Visible only on mobile) */}
-            <button className="mobile-menu-toggle" onClick={toggleMobile}>
-                <i className="fas fa-bars"></i>
-            </button>
 
             <div className="dashboard-body">
                 <StudentSidebar
                     user={user}
                     isMobileOpen={isMobileOpen}
-                    toggleMobile={toggleMobile}
+                    toggleMobile={() => setIsMobileOpen(false)}
                     isCollapsed={isCollapsed}
                 />
                 <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />
                 </main>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 

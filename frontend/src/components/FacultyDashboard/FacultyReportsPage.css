@@ -25,6 +25,29 @@
     font-size: 0.85rem;
 }
 
+.academic-year-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f4f8;
+    /* Very light navy background */
+    color: #163269;
+    /* Navy text */
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 1.5px solid #163269;
+    /* Navy border */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.academic-year-badge i {
+    font-size: 0.9rem;
+}
+
 /* --- Filters Bar --- */
 .reports-filters-bar {
     display: flex;
@@ -452,5 +475,17 @@
     .filter-select,
     .filter-input {
         min-width: auto;
+    }
+}
+
+@media (max-width: 500px) {
+    .report-content-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .report-actions {
+        width: 100%;
+        justify-content: space-between;
     }
 }
