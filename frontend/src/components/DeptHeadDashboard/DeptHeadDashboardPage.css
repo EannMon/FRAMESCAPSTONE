@@ -52,21 +52,6 @@
     flex-shrink: 0;
 }
 
-.quick-action-icon.alert-type.green {
-    background-color: #dcfce7;
-    color: #166534;
-}
-
-.quick-action-icon.alert-type.blue {
-    background-color: #dbeafe;
-    color: #1d4ed8;
-}
-
-.quick-action-icon.alert-type.amber {
-    background-color: #fef3c7;
-    color: #92400e;
-}
-
 .quick-action-text {
     font-size: 0.85rem;
     font-weight: 600;

@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
 import './NotificationsPage.css';
 import './Utility.css';
 import Header from './Header';
@@ -15,56 +13,32 @@ const navyTheme = {
     text: '#FFFFFF'     // White Text
 };
 
+// --- Mock Notification Data (Kept as static for UI display) ---
+const mockNotifications = [
+    { id: 1, icon: 'fas fa-file-alt', text: 'New application received from "Jay Rubert".', time: '15m ago', read: false },
+    { id: 2, icon: 'fas fa-user-check', text: 'User "Maam May Garcia" was approved.', time: '1h ago', read: false },
+    { id: 3, icon: 'fas fa-user-times', text: 'User "Prof. Emman Wilson" was cancelled.', time: '3h ago', read: false },
+    { id: 4, icon: 'fas fa-exclamation-triangle', text: 'System Maintenance is scheduled for 8 PM.', time: '1d ago', read: true },
+    { id: 5, icon: 'fas fa-chart-bar', text: 'Your "Monthly Attendance" report is ready.', time: '2d ago', read: true },
+    { id: 6, icon: 'fas fa-bell', text: 'A new device was logged into your account.', time: '5d ago', read: true },
+];
+
 // ===========================================
 // Main Notifications Page Component
 // ===========================================
 const NotificationsPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
 
-    // --- GET REAL USER FROM AUTH CONTEXT ---
-    const { user } = useAuth();
-
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [filter, setFilter] = useState('all'); // 'all' | 'unread'
-
-    // Fetch real notifications from backend
-    useEffect(() => {
-        const controller = new AbortController();
-
-        const fetchNotifications = async () => {
-            if (!user?.id) return;
-            try {
-                setLoading(true);
-                const response = await api.get(`/api/users/notifications/${user.id}`, { signal: controller.signal });
-                setNotifications(response.data || []);
-                setError(null);
-            } catch (err) {
-                if (err.code !== 'ERR_CANCELED') {
-                    setError(err.userMessage || 'Failed to load notifications.');
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchNotifications();
-        return () => controller.abort();
-    }, [user]);
+    // --- FIX: GET REAL USER FROM STORAGE ---
+    // Connects to the logged-in user for correct Header Avatar/Name
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    });
 
     const handleGoBack = () => {
         navigate(-1);
     };
-
-    const handleMarkAllRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    };
-
-    // Apply filter
-    const displayed = filter === 'unread'
-        ? notifications.filter(n => !n.read)
-        : notifications;
 
     return (
         <>
@@ -84,34 +58,18 @@ const NotificationsPage = ({ isEmbedded = false }) => {
                         </div>
                     )}
 
-                    {/* Filter Buttons - Always Show */}
+                    {/* Filter Buttons - Always Show, but adjust alignment if embedded */}
                     <div className="notifications-header-right" style={isEmbedded ? { width: '100%', justifyContent: 'flex-start' } : {}}>
-                        <button
-                            className={`notification-filter-button ${filter === 'all' ? 'active' : ''}`}
-                            onClick={() => setFilter('all')}
-                        >All</button>
-                        <button
-                            className={`notification-filter-button ${filter === 'unread' ? 'active' : ''}`}
-                            onClick={() => setFilter('unread')}
-                        >Unread</button>
-                        <button className="notification-action-button" style={{ marginLeft: 'auto' }} onClick={handleMarkAllRead}>Mark all as read</button>
+                        <button className="notification-filter-button active">All</button>
+                        <button className="notification-filter-button">Unread</button>
+                        <button className="notification-action-button" style={{ marginLeft: 'auto' }}>Mark all as read</button>
                     </div>
                 </div>
 
                 {/* Notifications List Card */}
                 <div className="card notifications-list-card">
-                    {loading && <div className="notification-item" style={{ justifyContent: 'center', color: '#94a3b8' }}>Loading notifications...</div>}
-                    {error && <div className="notification-item" style={{ justifyContent: 'center', color: '#ef4444' }}>{error}</div>}
-                    {!loading && !error && displayed.length === 0 && (
-                        <div className="notification-item" style={{ justifyContent: 'center', color: '#94a3b8' }}>No notifications to show.</div>
-                    )}
-                    {!loading && !error && displayed.map((item) => (
-                        <div
-                            key={item.id}
-                            className={`notification-item ${item.read ? 'read' : 'unread'}`}
-                            onClick={() => item.link && navigate(item.link)}
-                            style={{ cursor: item.link ? 'pointer' : 'default' }}
-                        >
+                    {mockNotifications.map((item) => (
+                        <div key={item.id} className={`notification-item ${item.read ? 'read' : 'unread'}`}>
                             <div className={`notification-icon ${item.read ? 'read-icon' : ''}`}>
                                 <i className={item.icon}></i>
                             </div>

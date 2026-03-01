@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
-import '../FacultyDashboard/FacultyLayout.css';
+import '../FacultyDashboard/FacultyLayout.css'; // Reuse Faculty Styles for now
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css';
 import Header from '../Common/Header';
@@ -16,7 +15,7 @@ const deptHeadTheme = {
     text: '#163269'
 };
 
-const DeptHeadSidebar = ({ user, isCollapsed, onLogout }) => {
+const DeptHeadSidebar = ({ user, isCollapsed }) => {
     // Navigation Items for Department Head
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/dept-head-dashboard' },
@@ -32,7 +31,7 @@ const DeptHeadSidebar = ({ user, isCollapsed, onLogout }) => {
     ];
 
     const handleLogout = () => {
-        onLogout();
+        localStorage.removeItem('currentUser');
         window.location.href = '/';
     };
 
@@ -107,7 +106,6 @@ const DeptHeadSidebar = ({ user, isCollapsed, onLogout }) => {
 
 const DeptHeadLayout = () => {
     const navigate = useNavigate();
-    const { user: authUser, logout } = useAuth();
     const toast = useToast();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -115,13 +113,16 @@ const DeptHeadLayout = () => {
 
     useEffect(() => {
         const loadUserData = async () => {
-            if (!authUser) {
+            const storedUserJson = localStorage.getItem('currentUser');
+
+            if (!storedUserJson) {
                 navigate('/');
                 setLoading(false);
                 return;
             }
 
-            const role = authUser.role?.toLowerCase();
+            const parsedUser = JSON.parse(storedUserJson);
+            const role = parsedUser.role?.toLowerCase();
 
             // Strict Role Check
             if (role !== 'head' && role !== 'dept_head') {
@@ -131,14 +132,14 @@ const DeptHeadLayout = () => {
             }
 
             setUser({
-                ...authUser,
-                name: `${authUser.first_name} ${authUser.last_name}`
+                ...parsedUser,
+                name: `${parsedUser.first_name} ${parsedUser.last_name}`
             });
             setLoading(false);
         };
 
         loadUserData();
-    }, [authUser, navigate]);
+    }, [navigate]);
 
     if (loading) return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
     if (!user) return null;
@@ -153,7 +154,7 @@ const DeptHeadLayout = () => {
                 isSidebarCollapsed={isCollapsed}
             />
             <div className="dashboard-body">
-                <DeptHeadSidebar user={user} isCollapsed={isCollapsed} onLogout={logout} />
+                <DeptHeadSidebar user={user} isCollapsed={isCollapsed} />
                 <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet />
                 </main>

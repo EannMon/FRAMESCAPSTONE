@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import { useNavigate, Link } from 'react-router-dom';
 import './SettingsPage.css';
 import './Utility.css';
 import Header from './Header';
@@ -34,88 +32,38 @@ const ToggleSwitch = ({ label, isToggled, onToggle }) => (
 const SettingsPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
 
-    // --- GET REAL USER FROM AUTH CONTEXT ---
-    const { user } = useAuth();
+    const [user, setUser] = useState(() => {
+        const stored = localStorage.getItem('currentUser');
+        return stored ? JSON.parse(stored) : null;
+    });
 
-    // Settings state — loaded from backend
+    // Notification Toggles
     const [notifications, setNotifications] = useState({
         email: true,
-        sms: false,
         push: true
     });
-    const [theme, setTheme] = useState('system');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState(null);
 
-    // Fetch settings from backend on mount
+    // Dark Mode State - persisted in localStorage
+    const [darkMode, setDarkMode] = useState(() => {
+        return localStorage.getItem('frames-dark-mode') === 'true';
+    });
+
+    // Apply dark mode class to body whenever it changes
     useEffect(() => {
-        const controller = new AbortController();
-
-        const fetchSettings = async () => {
-            if (!user?.id) return;
-            try {
-                setLoading(true);
-                const response = await api.get(`/api/users/settings/${user.id}`, { signal: controller.signal });
-                const data = response.data;
-                setNotifications({
-                    email: data.email_notifications ?? true,
-                    sms: data.sms_notifications ?? false,
-                    push: data.push_notifications ?? true,
-                });
-                setTheme(data.theme || 'system');
-                setError(null);
-            } catch (err) {
-                if (err.code !== 'ERR_CANCELED') {
-                    setError(err.userMessage || 'Failed to load settings.');
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSettings();
-        return () => controller.abort();
-    }, [user]);
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+        localStorage.setItem('frames-dark-mode', darkMode.toString());
+    }, [darkMode]);
 
     const handleGoBack = () => {
         navigate(-1);
     };
 
-    // Persist toggle change to backend
-    const handleToggle = async (type) => {
-        const updated = { ...notifications, [type]: !notifications[type] };
-        setNotifications(updated);
-
-        try {
-            setSaving(true);
-            await api.put(`/api/users/settings/${user.id}`, {
-                email_notifications: updated.email,
-                sms_notifications: updated.sms,
-                push_notifications: updated.push,
-            });
-        } catch (err) {
-            // Revert on failure
-            setNotifications(notifications);
-            setError(err.userMessage || 'Failed to save setting.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Persist theme change to backend
-    const handleThemeChange = async (e) => {
-        const newTheme = e.target.value;
-        setTheme(newTheme);
-
-        try {
-            setSaving(true);
-            await api.put(`/api/users/settings/${user.id}`, { theme: newTheme });
-        } catch (err) {
-            setError(err.userMessage || 'Failed to save theme.');
-        } finally {
-            setSaving(false);
-        }
+    const handleToggle = (type) => {
+        setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
     };
 
     const role = user?.role?.toLowerCase();
@@ -124,11 +72,9 @@ const SettingsPage = ({ isEmbedded = false }) => {
 
     return (
         <>
-            {/* If embedded, don't show the internal Header */}
             {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
 
             <div className={`settings-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass}`}>
-                {/* Top Header Bar */}
                 {!isEmbedded && (
                     <div className="settings-header-bar">
                         <div className="settings-header-left">
@@ -140,77 +86,41 @@ const SettingsPage = ({ isEmbedded = false }) => {
                     </div>
                 )}
 
-                {/* Settings Grid */}
                 <div className="settings-grid">
 
-                    {loading && (
-                        <div className="card settings-card" style={{ textAlign: 'center', color: '#94a3b8' }}>
-                            Loading settings...
-                        </div>
-                    )}
+                    {/* Account Settings Card */}
+                    <div className="card settings-card">
+                        <h3>Account</h3>
+                        <p>Manage your account and security settings.</p>
+                    </div>
 
-                    {error && (
-                        <div className="card settings-card" style={{ color: '#ef4444' }}>
-                            {error}
-                        </div>
-                    )}
+                    {/* Notification Settings Card */}
+                    <div className="card settings-card">
+                        <h3>Notifications</h3>
+                        <p>Control how you receive notifications.</p>
+                        <ToggleSwitch
+                            label="Email Notifications"
+                            isToggled={notifications.email}
+                            onToggle={() => handleToggle('email')}
+                        />
+                        <ToggleSwitch
+                            label="Push Notifications"
+                            isToggled={notifications.push}
+                            onToggle={() => handleToggle('push')}
+                        />
+                    </div>
 
-                    {!loading && (
-                        <>
-                            {/* Account Settings Card */}
-                            <div className="card settings-card">
-                                <h3>Account</h3>
-                                <p>Manage your account and security settings.</p>
-                            </div>
+                    {/* Theme Settings Card - with functional dark mode */}
+                    <div className="card settings-card">
+                        <h3>Theme & Appearance</h3>
+                        <p>Customize the look and feel of the app.</p>
+                        <ToggleSwitch
+                            label="Dark Mode"
+                            isToggled={darkMode}
+                            onToggle={() => setDarkMode(!darkMode)}
+                        />
+                    </div>
 
-                            {/* Notification Settings Card */}
-                            <div className="card settings-card">
-                                <h3>Notifications</h3>
-                                <p>Control how you receive notifications.{saving && ' Saving...'}</p>
-                                <ToggleSwitch
-                                    label="Email Notifications"
-                                    isToggled={notifications.email}
-                                    onToggle={() => handleToggle('email')}
-                                />
-                                <ToggleSwitch
-                                    label="SMS Notifications"
-                                    isToggled={notifications.sms}
-                                    onToggle={() => handleToggle('sms')}
-                                />
-                                <ToggleSwitch
-                                    label="Push Notifications"
-                                    isToggled={notifications.push}
-                                    onToggle={() => handleToggle('push')}
-                                />
-                            </div>
-
-                            {/* Theme Settings Card */}
-                            <div className="card settings-card">
-                                <h3>Theme & Appearance</h3>
-                                <p>Customize the look and feel of the app.</p>
-                                <div className="settings-field">
-                                    <label htmlFor="theme-select">Theme</label>
-                                    <select id="theme-select" className="settings-select-input" value={theme} onChange={handleThemeChange}>
-                                        <option value="system">System Default</option>
-                                        <option value="light">Light Mode</option>
-                                        <option value="dark">Dark Mode</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Privacy Settings Card */}
-                            <div className="card settings-card">
-                                <h3>Privacy</h3>
-                                <p>Control who can see your activity and profile.</p>
-                                <button className="settings-action-button">
-                                    <i className="fas fa-user-secret"></i> Manage Privacy Settings
-                                </button>
-                                <button className="settings-action-button">
-                                    <i className="fas fa-history"></i> Manage Activity Data
-                                </button>
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
 

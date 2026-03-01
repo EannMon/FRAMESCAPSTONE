@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
 import './FacultyLayout.css';
 import '../Common/Utility.css';
-import '../Common/GlobalDashboard.css';
+import '../Common/GlobalDashboard.css'; // Import Global Styles
 import Header from '../Common/Header';
 import Logo from '../Common/Logo';
 
@@ -19,8 +19,10 @@ const facultyTheme = {
 // ===========================================
 // 1. Faculty Sidebar Component
 // ===========================================
-const FacultySidebar = ({ user, isCollapsed, toggleSidebar, onLogout }) => {
+const FacultySidebar = ({ user, isCollapsed, toggleSidebar }) => {
     // DeptHead logic removed - now handled by dedicated DeptHeadLayout
+    // const role = user?.role?.toUpperCase();
+    // const isDeptHead = role === 'HEAD' || ... (REMOVED)
 
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
@@ -33,7 +35,7 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar, onLogout }) => {
     ];
 
     const handleLogout = () => {
-        onLogout();
+        localStorage.removeItem('currentUser');
         window.location.href = '/';
     };
 
@@ -112,7 +114,6 @@ const FacultySidebar = ({ user, isCollapsed, toggleSidebar, onLogout }) => {
 // ===========================================
 const FacultyLayout = () => {
     const navigate = useNavigate();
-    const { user: authUser, logout } = useAuth();
     const toast = useToast();
 
     // States for user data and loading
@@ -122,18 +123,21 @@ const FacultyLayout = () => {
 
     useEffect(() => {
         const loadUserData = async () => {
-            if (!authUser) {
+            const storedUserJson = localStorage.getItem('currentUser');
+
+            if (!storedUserJson) {
                 navigate('/');
                 setLoading(false);
                 return;
             }
 
-            const role = authUser.role?.toLowerCase();
+            const parsedUser = JSON.parse(storedUserJson);
+            const role = parsedUser.role?.toLowerCase();
 
             // --- 1. SECURITY CHECK ---
-            if (authUser.verification_status !== 'Verified') {
+            if (parsedUser.verification_status !== 'Verified') {
                 toast.error("Access denied. Pending verification.");
-                logout();
+                localStorage.removeItem('currentUser');
                 navigate('/');
                 return;
             }
@@ -145,26 +149,26 @@ const FacultyLayout = () => {
             }
 
             // --- 2. FACE ENROLLMENT CHECK ---
-            if (!authUser.face_registered) {
+            if (!parsedUser.face_registered) {
                 navigate('/face-enrollment');
                 return;
             }
 
-            const firstName = authUser.first_name || authUser.firstName || '';
-            const lastName = authUser.last_name || authUser.lastName || '';
+            const firstName = parsedUser.first_name || parsedUser.firstName || '';
+            const lastName = parsedUser.last_name || parsedUser.lastName || '';
             setUser({
-                ...authUser,
+                ...parsedUser,
                 first_name: firstName,
                 last_name: lastName,
                 name: `${firstName} ${lastName}`.trim() || 'Faculty',
-                faculty_status: authUser.faculty_status || 'Regular'
+                faculty_status: parsedUser.faculty_status || 'Regular'
             });
 
             setLoading(false);
         };
 
         loadUserData();
-    }, [authUser, navigate, logout]);
+    }, [navigate]);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
@@ -184,7 +188,7 @@ const FacultyLayout = () => {
             />
 
             <div className="dashboard-body">
-                <FacultySidebar user={user} isCollapsed={isCollapsed} toggleSidebar={() => setIsCollapsed(!isCollapsed)} onLogout={logout} />
+                <FacultySidebar user={user} isCollapsed={isCollapsed} toggleSidebar={() => setIsCollapsed(!isCollapsed)} />
 
                 <div className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />

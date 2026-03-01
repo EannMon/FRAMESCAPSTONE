@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
+import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
 import './ApplicationPage.css';
 
@@ -29,12 +29,12 @@ const ApplicationPage = () => {
     const [modalUser, setModalUser] = useState(null);
 
     // --- FETCH DATA ON LOAD ---
-    const fetchApplications = async (signal) => {
+    const fetchApplications = async () => {
         setLoading(true);
         setError(null);
         try {
             // Tiyakin na ang API endpoint na ito ay nagbabalik ng LAHAT ng users (Pending, Verified, Rejected)
-            const response = await api.get('/api/admin/verification/list', { signal });
+            const response = await axios.get('http://localhost:5000/api/admin/verification/list');
 
             // Map the data to match frontend requirements (name, roleColor, etc.)
             const mappedData = (response.data || []).map(user => ({
@@ -53,33 +53,29 @@ const ApplicationPage = () => {
 
             setApplications(mappedData);
         } catch (err) {
-            if (err.code !== 'ERR_CANCELED') {
-                console.error("Failed to fetch applications:", err);
-                setError(err.userMessage || "Failed to load user data. Check backend connection.");
-            }
+            console.error("Failed to fetch applications:", err);
+            setError("Failed to load user data. Check backend connection.");
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        const controller = new AbortController();
-        fetchApplications(controller.signal);
-        return () => controller.abort();
+        fetchApplications();
     }, []);
 
     // --- ACTION HANDLERS (UPDATED TO USE API) ---
     const handleStatusUpdate = async (id, newStatus) => {
         setOpenMenuId(null);
-        const path = newStatus === 'Approved'
-            ? '/api/admin/verification/approve'
-            : '/api/admin/verification/reject';
+        const endpoint = newStatus === 'Approved'
+            ? 'http://localhost:5000/api/admin/verification/approve'
+            : 'http://localhost:5000/api/admin/verification/reject';
 
         try {
             // Gumamit ng 'Verified' sa API kung 'Approved'
             const apiStatus = newStatus === 'Approved' ? 'Verified' : 'Rejected';
 
-            await api.post(path, {
+            await axios.post(endpoint, {
                 user_id: id,
                 verification_status: apiStatus
             });
@@ -100,7 +96,7 @@ const ApplicationPage = () => {
 
         } catch (error) {
             console.error(`Error setting status to ${newStatus}:`, error);
-            toast.error(`Failed to update status: ${error.userMessage || 'Server error'}`);
+            toast.error(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
@@ -110,12 +106,12 @@ const ApplicationPage = () => {
 
         try {
             // Assuming you have a DELETE endpoint (e.g., /user/delete/:id)
-            await api.delete(`/api/admin/user/${id}`);
+            await axios.delete(`http://localhost:5000/api/admin/user/${id}`);
             setApplications(prev => prev.filter(app => app.id !== id));
             toast.success(`User ID ${id} deleted.`);
         } catch (error) {
             console.error("Error deleting user:", error);
-            toast.error(`Failed to delete user: ${error.userMessage || 'Server error'}`);
+            toast.error(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
         }
         setOpenMenuId(null);
     };

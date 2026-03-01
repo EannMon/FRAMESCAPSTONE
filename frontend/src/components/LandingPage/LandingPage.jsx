@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
-import api from '../../services/api';
 import './LandingPage.css';
 import landingBg from '../../assets/images/landing_bg.png';
 import Header from '../Common/Header';
@@ -13,54 +12,52 @@ import Footer from '../Common/Footer';
 // === LOGIN COMPONENT ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
-    const { login } = useAuth();
     const toast = useToast();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-
-    // Simple email format check
-    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
-
-        // Client-side validation
-        if (!email.trim() || !password.trim()) {
-            setErrorMessage('Please fill in all fields.');
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setErrorMessage('Please enter a valid email address.');
-            return;
-        }
-
-        setIsLoading(true);
-        setErrorMessage('');
-
         try {
-            const response = await api.post('/api/auth/login', {
+            setErrorMessage('');
+            const response = await axios.post('http://localhost:5000/api/auth/login', {
                 email, password
             });
 
             if (response.data.message === "Login Successful") {
                 const userData = response.data.user;
-                const path = login(userData);
+                const userRole = userData.role.toUpperCase();
+                const verificationStatus = userData.verification_status?.toUpperCase();
 
-                if (userData.verification_status === 'Verified') {
+                if (verificationStatus === 'VERIFIED') {
+                    localStorage.setItem('currentUser', JSON.stringify(userData));
                     toast.success(`Welcome back, ${userData.first_name}!`);
-                }
 
-                navigate(path);
+                    if (userRole === 'ADMIN') navigate('/admin-dashboard');
+                    else if (userRole === 'STUDENT') navigate('/student-dashboard');
+                    else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
+                    else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
+                } else if (verificationStatus === 'PENDING') {
+                    setErrorMessage("Your account is still pending approval. Please wait for your Department Head to verify your account.");
+                } else if (verificationStatus === 'REJECTED') {
+                    setErrorMessage("Your account has been rejected. Please contact the administrator for details.");
+                } else {
+                    setErrorMessage("Account status is invalid. Please contact administrator.");
+                }
             }
         } catch (error) {
             console.error("Login Error:", error);
-            setErrorMessage(error.userMessage || "Something went wrong. Try again.");
-        } finally {
-            setIsLoading(false);
+            const detail = error.response?.data?.detail;
+            if (detail?.error?.message) {
+                setErrorMessage(detail.error.message);
+            } else if (typeof detail === 'string') {
+                setErrorMessage(detail);
+            } else {
+                setErrorMessage("Something went wrong. Please try again.");
+            }
         }
     };
 
@@ -107,9 +104,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                         </div>
                     </div>
 
-                    <button type="submit" className="login-submit-btn" disabled={isLoading}>
-                        {isLoading ? 'Logging in...' : 'Log In'}
-                    </button>
+                    <button type="submit" className="login-submit-btn">Log In</button>
                 </form>
 
                 <p className="login-switch-prompt">
@@ -145,11 +140,11 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
                         <h3>Faculty</h3>
                         <p>Access to academic-related features.</p>
                     </div>
-                    {/* Student Card */}
-                    <div className="role-modal-item student" onClick={() => handleSelect('student')}>
-                        <i className="fas fa-user-graduate"></i>
-                        <h3>Student</h3>
-                        <p>View personal schedules and campus info.</p>
+                    {/* Department Head Card */}
+                    <div className="role-modal-item head" onClick={() => handleSelect('head')}>
+                        <i className="fas fa-user-tie"></i>
+                        <h3>Department Head</h3>
+                        <p>Manage department faculty and classes.</p>
                     </div>
                 </div>
             </div>
@@ -170,6 +165,10 @@ const HeroSection = ({ setPanel }) => (
             <p className="hero-description">
                 Revolutionary campus security powered by Raspberry Pi, featuring facial recognition, gesture control, and real-time monitoring for a safer, smarter educational environment.
             </p>
+
+            <div className="hero-notice" style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '10px 15px', borderRadius: '8px', marginBottom: '20px', borderLeft: '4px solid #f59e0b', display: 'inline-block', textAlign: 'left', maxWidth: '80%' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#f8fafc' }}><i className="fas fa-info-circle" style={{ color: '#f59e0b', marginRight: '5px' }}></i> <strong>Note:</strong> Student accounts are automatically generated by the system. Only Department Heads and Faculty Members may create an account.</p>
+            </div>
 
             <div className="cta-buttons">
                 <button onClick={() => setPanel('login')} className="cta-primary">

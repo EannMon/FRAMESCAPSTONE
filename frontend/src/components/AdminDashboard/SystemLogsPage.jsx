@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
-import './SystemLogsPage.css';
+import React, { useState } from 'react';
+import './SystemLogsPage.css'; // New CSS file for this page
 
 // ===========================================
 // Reusable Status Tag Component
@@ -9,61 +8,69 @@ const LogStatusTag = ({ text, colorClass }) => (
     <span className={`log-status-tag ${colorClass}`}>{text}</span>
 );
 
-// Level → CSS color-class mapping
-const levelColorMap = {
-    ERROR: 'red',
-    WARN: 'yellow',
-    INFO: 'green',
-    DEBUG: 'grey',
-};
-
 // ===========================================
 // Main System Logs Page Component
 // ===========================================
 const SystemLogsPage = () => {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [searchValue, setSearchValue] = useState('');
-    const [levelFilter, setLevelFilter] = useState('All Levels');
-    const [serviceFilter, setServiceFilter] = useState('All Services');
+    // Mock data for the logs table
+    const logsData = [
+        {
+            timestamp: "2025-11-13 10:30:01",
+            level: "ERROR",
+            levelColor: "red",
+            service: "AuthService",
+            message: "Failed login attempt for user 'admin' from IP 198.51.100.1"
+        },
+        {
+            timestamp: "2025-11-13 10:29:45",
+            level: "INFO",
+            levelColor: "green",
+            service: "RecognitionEngine",
+            message: "Face recognized: student_id 2024001 at 'Library Entrance'"
+        },
+        {
+            timestamp: "2025-11-13 10:28:10",
+            level: "WARN",
+            levelColor: "yellow",
+            service: "CameraService",
+            message: "Camera 'CAM-04B' connection reset. Re-establishing..."
+        },
+        {
+            timestamp: "2025-11-13 10:25:00",
+            level: "INFO",
+            levelColor: "green",
+            service: "AuthService",
+            message: "User 'prof.emma.wilson' logged in successfully."
+        },
+        {
+            timestamp: "2025-11-13 10:22:15",
+            level: "DEBUG",
+            levelColor: "grey",
+            service: "GestureControl",
+            message: "Gesture 'WAVE' detected from user_id 892."
+        },
+        {
+            timestamp: "2025-11-13 10:20:00",
+            level: "INFO",
+            levelColor: "green",
+            service: "ApplicationService",
+            message: "New application received from 'alex.cunsani@student.edu'."
+        }
+    ];
 
-    useEffect(() => {
-        const controller = new AbortController();
+    const [logs, setLogs] = useState(logsData);
+    const [searchValue, setSearchValue] = useState("");
+    const [levelFilter, setLevelFilter] = useState("All Levels");
+    const [serviceFilter, setServiceFilter] = useState("All Services");
 
-        const fetchLogs = async () => {
-            try {
-                setLoading(true);
-                setError('');
-                const res = await api.get('/api/admin/system-logs', {
-                    signal: controller.signal,
-                    params: { limit: 200 },
-                });
-                setLogs(res.data);
-            } catch (err) {
-                if (err.code !== 'ERR_CANCELED') {
-                    setError(err.userMessage || 'Failed to load system logs.');
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchLogs();
-        return () => controller.abort();
-    }, []);
-
-    // Derive unique service names from fetched data for the filter dropdown
-    const serviceNames = [...new Set(logs.map((l) => l.service))];
-
-    // Client-side filtering on the already-fetched data
+    // Filtered logs based on search and dropdown filters
     const filteredLogs = logs.filter((log) => {
-        const levelMatch = levelFilter === 'All Levels' || log.level === levelFilter;
-        const serviceMatch = serviceFilter === 'All Services' || log.service === serviceFilter;
+        const levelMatch = levelFilter === "All Levels" || log.level === levelFilter;
+        const serviceMatch = serviceFilter === "All Services" || log.service === serviceFilter;
         const searchMatch =
-            (log.timestamp || '').toLowerCase().includes(searchValue.toLowerCase()) ||
-            (log.service || '').toLowerCase().includes(searchValue.toLowerCase()) ||
-            (log.message || '').toLowerCase().includes(searchValue.toLowerCase());
+            log.timestamp.toLowerCase().includes(searchValue.toLowerCase()) ||
+            log.service.toLowerCase().includes(searchValue.toLowerCase()) ||
+            log.message.toLowerCase().includes(searchValue.toLowerCase());
         return levelMatch && serviceMatch && searchMatch;
     });
 
@@ -89,9 +96,11 @@ const SystemLogsPage = () => {
                         onChange={(e) => setServiceFilter(e.target.value)}
                     >
                         <option>All Services</option>
-                        {serviceNames.map((s) => (
-                            <option key={s}>{s}</option>
-                        ))}
+                        <option>AuthService</option>
+                        <option>RecognitionEngine</option>
+                        <option>CameraService</option>
+                        <option>GestureControl</option>
+                        <option>ApplicationService</option>
                     </select>
                     <div className="logs-search-bar">
                         <i className="fas fa-search"></i>
@@ -105,65 +114,44 @@ const SystemLogsPage = () => {
                 </div>
             </div>
 
-            {/* Loading / error states */}
-            {loading && (
-                <p style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
-                    Loading logs…
-                </p>
-            )}
-            {error && (
-                <p style={{ textAlign: 'center', padding: '2rem', color: '#dc3545' }}>
-                    {error}
-                </p>
-            )}
-
             {/* Logs table */}
-            {!loading && !error && (
-                <div className="card logs-table-card">
-                    <div className="logs-table-container">
-                        <table className="logs-table">
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Level</th>
-                                    <th>Service</th>
-                                    <th>Message</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredLogs.length > 0 ? (
-                                    filteredLogs.map((log) => (
-                                        <tr key={log.id}>
-                                            <td className="log-timestamp">
-                                                {log.timestamp
-                                                    ? new Date(log.timestamp).toLocaleString()
-                                                    : '—'}
-                                            </td>
-                                            <td>
-                                                <LogStatusTag
-                                                    text={log.level}
-                                                    colorClass={levelColorMap[log.level] || 'grey'}
-                                                />
-                                            </td>
-                                            <td className="log-service">{log.service}</td>
-                                            <td className="log-message">{log.message}</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td
-                                            colSpan="4"
-                                            style={{ textAlign: 'center', padding: '20px', color: '#888' }}
-                                        >
-                                            No logs found.
+            <div className="card logs-table-card">
+                <div className="logs-table-container">
+                    <table className="logs-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Level</th>
+                                <th>Service</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredLogs.length > 0 ? (
+                                filteredLogs.map((log, index) => (
+                                    <tr key={index}>
+                                        <td className="log-timestamp">{log.timestamp}</td>
+                                        <td>
+                                            <LogStatusTag
+                                                text={log.level}
+                                                colorClass={log.levelColor}
+                                            />
                                         </td>
+                                        <td className="log-service">{log.service}</td>
+                                        <td className="log-message">{log.message}</td>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" style={{ textAlign: "center", padding: "20px", color: "#888" }}>
+                                        No logs found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

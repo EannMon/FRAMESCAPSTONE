@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
-import api from '../../services/api';
 import './StudentLayout.css';
 import '../Common/Utility.css';
-import '../Common/GlobalDashboard.css';
+import '../Common/GlobalDashboard.css'; // Import Global Styles
 import Header from '../Common/Header';
 import Logo from '../Common/Logo';
 
@@ -20,7 +19,7 @@ const studentTheme = {
 // ===========================================
 // 1. Student Sidebar Component
 // ===========================================
-const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed, onLogout }) => {
+const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
@@ -31,7 +30,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed, onLogou
     ];
 
     const handleLogout = () => {
-        onLogout();
+        localStorage.removeItem('currentUser');
         window.location.href = '/';
     };
 
@@ -125,7 +124,6 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed, onLogou
 // ===========================================
 const StudentLayout = () => {
     const navigate = useNavigate();
-    const { user: authUser, logout } = useAuth();
     const toast = useToast();
 
     // State for user data and loading status
@@ -140,23 +138,31 @@ const StudentLayout = () => {
     // FETCH USER DATA & SECURITY CHECK
     useEffect(() => {
         const loadUserData = async () => {
-            if (!authUser) {
+            const storedUserJson = localStorage.getItem('currentUser');
+
+            if (!storedUserJson) {
                 navigate('/');
                 setLoading(false);
                 return;
             }
 
+            const storedUser = JSON.parse(storedUserJson);
+
             // --- SECURITY CHECK: VERIFICATION STATUS ---
-            if (authUser.verification_status !== 'Verified') {
+            // If the user is logged in but not Verified (e.g., Pending/Rejected), block access.
+            if (storedUser.verification_status !== 'Verified') {
                 toast.error("Access denied. Your account is still pending verification.");
-                logout();
+                // Redirect to a specific status page if you have one, or back to login
+                // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
                 navigate('/');
+                localStorage.removeItem('currentUser'); // Force logout
                 setLoading(false);
                 return;
             }
 
             // --- SECURITY CHECK: FACE ENROLLMENT ---
-            if (!authUser.face_registered) {
+            // Mandatory face enrollment before dashboard access
+            if (!storedUser.face_registered) {
                 navigate('/face-enrollment');
                 setLoading(false);
                 return;
@@ -165,8 +171,9 @@ const StudentLayout = () => {
             // --- FETCH LIVE NOTIFICATIONS ---
             let notifCount = 0;
             try {
-                const userId = authUser.id || authUser.user_id;
-                const response = await api.get(`/api/student/dashboard/${userId}`);
+                // Fetch dashboard data to get accurate notification count
+                const userId = storedUser.id || storedUser.user_id;
+                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${userId}`);
                 const notifs = response.data.notifications || [];
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {
@@ -175,7 +182,9 @@ const StudentLayout = () => {
 
             // --- UPDATE STATE ---
             setUser({
-                ...authUser,
+                ...storedUser,
+                // We pass the raw data. The <Header> component will handle generating 
+                // the Red Avatar based on firstName/lastName if avatar is null.
                 notifications: notifCount
             });
 
@@ -183,7 +192,7 @@ const StudentLayout = () => {
         };
 
         loadUserData();
-    }, [authUser, navigate, logout]);
+    }, [navigate]);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
@@ -212,7 +221,6 @@ const StudentLayout = () => {
                     isMobileOpen={isMobileOpen}
                     toggleMobile={toggleMobile}
                     isCollapsed={isCollapsed}
-                    onLogout={logout}
                 />
                 <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />
