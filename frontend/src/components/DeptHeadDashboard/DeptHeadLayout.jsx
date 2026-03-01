@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../Common/ToastProvider';
 import '../FacultyDashboard/FacultyLayout.css'; // Reuse Faculty Styles for now
@@ -16,6 +16,27 @@ const deptHeadTheme = {
 };
 
 const DeptHeadSidebar = ({ user, isCollapsed }) => {
+    // Popup state
+    const [showPopup, setShowPopup] = useState(false);
+    const popupRef = useRef(null);
+
+    // Click outside to close popup
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (popupRef.current && !popupRef.current.contains(event.target)) {
+                setShowPopup(false);
+            }
+        };
+
+        if (showPopup) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showPopup]);
+
     // Navigation Items for Department Head
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/dept-head-dashboard' },
@@ -32,6 +53,7 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
+        document.body.classList.remove('dark-mode');
         window.location.href = '/';
     };
 
@@ -84,8 +106,19 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
             </nav>
 
             {/* USER PROFILE FOOTER */}
-            <div className="sidebar-user-footer">
-                <Link to="/dept-head-profile" className="sidebar-user-info" title="View Profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, color: 'inherit', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+            <div className="sidebar-user-footer" ref={popupRef}>
+                <Link
+                    to="/dept-head-profile"
+                    className="sidebar-user-info"
+                    title="View Profile"
+                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, color: 'inherit', justifyContent: isCollapsed ? 'center' : 'flex-start' }}
+                    onClick={(e) => {
+                        if (isCollapsed) {
+                            e.preventDefault();
+                            setShowPopup(!showPopup);
+                        }
+                    }}
+                >
                     <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
                     {!isCollapsed && (
                         <div className="sidebar-user-details" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -98,6 +131,24 @@ const DeptHeadSidebar = ({ user, isCollapsed }) => {
                     <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
                         <i className="fas fa-sign-out-alt"></i>
                     </button>
+                )}
+
+                {/* POPUP MENU */}
+                {isCollapsed && showPopup && (
+                    <div className="sidebar-profile-popup">
+                        <div className="popup-user-info">
+                            <span className="popup-user-name">{displayName}</span>
+                            <span className="popup-user-email">{user?.email || 'Dept. Head Account'}</span>
+                        </div>
+                        <div className="popup-menu-list">
+                            <Link to="/dept-head-profile" className="popup-menu-item" onClick={() => setShowPopup(false)}>
+                                <i className="fas fa-user-cog"></i> Account Settings
+                            </Link>
+                            <button className="popup-menu-item logout-item" onClick={handleLogout}>
+                                <i className="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
         </aside>
@@ -140,6 +191,20 @@ const DeptHeadLayout = () => {
 
         loadUserData();
     }, [navigate]);
+
+    // Apply dark mode for logged-in user (per-user setting)
+    useEffect(() => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                if (localStorage.getItem(`frames-dark-mode-${u.id}`) === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch { }
+        }
+        return () => document.body.classList.remove('dark-mode');
+    }, []);
 
     if (loading) return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
     if (!user) return null;

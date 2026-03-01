@@ -163,8 +163,8 @@
 }
 
 .faq-question:hover {
-    color: #dc3545;
-    /* Red hover */
+    color: #0F172A;
+    /* Navy hover */
 }
 
 .faq-question i {
@@ -284,8 +284,8 @@
 
 .section-title i {
     font-size: 1.2em;
-    color: #A62525;
-    /* Default Red */
+    color: #0F172A;
+    /* Navy */
 }
 
 .section-title h3 {
@@ -349,13 +349,13 @@
 }
 
 .form-input:focus {
-    border-color: #A62525;
+    border-color: #0F172A;
     outline: none;
 }
 
 .btn-submit-support {
     align-self: flex-start;
-    background: #A62525;
+    background: #0F172A;
     color: white;
     border: none;
     padding: 12px 24px;
@@ -369,7 +369,7 @@
 }
 
 .btn-submit-support:hover {
-    background: #8E1F1F;
+    background: #163269;
 }
 
 /* Faculty Theme Overrides for Contact Form */

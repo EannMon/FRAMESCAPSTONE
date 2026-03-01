@@ -160,8 +160,7 @@ const DeptHeadManagePage = () => {
 
     const [logs, setLogs] = useState([]);
 
-    // --- ACADEMIC YEAR SETTINGS (localStorage) ---
-    const AY_KEY = 'frames-ay-config';
+    // --- ACADEMIC YEAR SETTINGS (from DB via API) ---
     const defaultAY = {
         academicYear: '2025-2026',
         semester: '2nd Semester',
@@ -173,19 +172,47 @@ const DeptHeadManagePage = () => {
     const [ayForm, setAyForm] = useState(defaultAY);
 
     useEffect(() => {
-        const saved = localStorage.getItem(AY_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            setAyConfig(parsed);
-            setAyForm(parsed);
+        // Fetch academic year from backend
+        const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const deptId = storedUser.department_id;
+        if (deptId) {
+            axios.get(`http://localhost:5000/api/dept/academic-year?dept_id=${deptId}`)
+                .then(res => {
+                    const needsSave = !res.data.academic_year || !res.data.semester;
+                    const data = {
+                        ...defaultAY,
+                        academicYear: res.data.academic_year || defaultAY.academicYear,
+                        semester: res.data.semester || defaultAY.semester,
+                    };
+                    setAyConfig(data);
+                    setAyForm(data);
+                    // Auto-save defaults to DB if not set yet
+                    if (needsSave && storedUser.id) {
+                        axios.put('http://localhost:5000/api/dept/academic-year', {
+                            user_id: storedUser.id,
+                            academic_year: data.academicYear,
+                            semester: data.semester,
+                        }).catch(err => console.error('Failed to auto-save academic year:', err));
+                    }
+                })
+                .catch(err => console.error('Failed to fetch academic year:', err));
         }
     }, []);
 
-    const handleSaveAY = () => {
-        localStorage.setItem(AY_KEY, JSON.stringify(ayForm));
-        setAyConfig(ayForm);
-        setEditingAY(false);
-        toast.success('Academic Year settings saved.');
+    const handleSaveAY = async () => {
+        const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        try {
+            await axios.put('http://localhost:5000/api/dept/academic-year', {
+                user_id: storedUser.id,
+                academic_year: ayForm.academicYear,
+                semester: ayForm.semester,
+            });
+            setAyConfig(ayForm);
+            setEditingAY(false);
+            toast.success('Academic Year settings saved.');
+        } catch (error) {
+            toast.error('Failed to save academic year: ' + (error.response?.data?.detail?.error?.message || error.message));
+        }
     };
 
     // --- 1. FETCH DATA FROM DB ---

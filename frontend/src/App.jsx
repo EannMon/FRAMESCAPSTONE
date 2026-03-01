@@ -34,6 +34,7 @@ import DeptHeadManagePage from './components/DeptHeadDashboard/DeptHeadManagePag
 import DeptHeadReportsPage from './components/DeptHeadDashboard/DeptHeadReportsPage';
 import DeptHeadUserManagementPage from './components/DeptHeadDashboard/DeptHeadUserManagementPage';
 import DeptHeadSystemLogsPage from './components/DeptHeadDashboard/DeptHeadSystemLogsPage';
+import DeptHeadMyClassesPage from './components/DeptHeadDashboard/DeptHeadMyClassesPage';
 
 // --- Import Student Pages ---
 import StudentDashboardPage from './components/StudentDashboard/StudentDashboardPage';
@@ -51,12 +52,6 @@ import ErrorBoundary from './components/Common/ErrorBoundary';
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
-    // Apply dark mode from localStorage on mount
-    useEffect(() => {
-        if (localStorage.getItem('frames-dark-mode') === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-    }, []);
 
     return (
         <ToastProvider>
@@ -83,7 +78,7 @@ function App() {
                         {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
                         <Route element={<ErrorBoundary><DeptHeadLayout /></ErrorBoundary>}>
                             <Route path="/dept-head-dashboard" element={<ErrorBoundary><DeptHeadDashboardPage /></ErrorBoundary>} />
-                            <Route path="/dept-head-classes" element={<ErrorBoundary><MyClassesPage /></ErrorBoundary>} />
+                            <Route path="/dept-head-classes" element={<ErrorBoundary><DeptHeadMyClassesPage /></ErrorBoundary>} />
                             <Route path="/dept-head-management" element={<ErrorBoundary><DeptHeadManagePage /></ErrorBoundary>} />
                             <Route path="/dept-head-reports" element={<ErrorBoundary><DeptHeadReportsPage /></ErrorBoundary>} />
                             <Route path="/dept-head-users" element={<ErrorBoundary><DeptHeadUserManagementPage /></ErrorBoundary>} />

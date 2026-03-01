@@ -3,17 +3,21 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 const ToastContext = createContext(null);
 
 export const useToast = () => {
-    const ctx = useContext(ToastContext);
-    if (!ctx) throw new Error('useToast must be used within <ToastProvider>');
-    return ctx;
+    const context = useContext(ToastContext);
+    if (!context) {
+        throw new Error('useToast must be used within a ToastProvider');
+    }
+    return context;
 };
+
+let toastId = 0;
 
 export const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
-    const [confirmState, setConfirmState] = useState(null);
+    const [confirmDialog, setConfirmDialog] = useState(null);
 
-    const addToast = useCallback((message, type = 'info', duration = 4000) => {
-        const id = Date.now() + Math.random();
+    const showToast = useCallback((message, type = 'info', duration = 4000) => {
+        const id = ++toastId;
         setToasts(prev => [...prev, { id, message, type }]);
         if (duration > 0) {
             setTimeout(() => {
@@ -26,54 +30,63 @@ export const ToastProvider = ({ children }) => {
         setToasts(prev => prev.filter(t => t.id !== id));
     }, []);
 
-    const success = useCallback((msg) => addToast(msg, 'success'), [addToast]);
-    const error = useCallback((msg) => addToast(msg, 'error', 6000), [addToast]);
-    const warning = useCallback((msg) => addToast(msg, 'warning', 5000), [addToast]);
-    const info = useCallback((msg) => addToast(msg, 'info'), [addToast]);
+    // Convenience methods
+    const success = useCallback((msg, duration) => showToast(msg, 'success', duration), [showToast]);
+    const error = useCallback((msg, duration) => showToast(msg, 'error', duration), [showToast]);
+    const warning = useCallback((msg, duration) => showToast(msg, 'warning', duration), [showToast]);
+    const info = useCallback((msg, duration) => showToast(msg, 'info', duration), [showToast]);
 
+    // Confirm dialog (replaces window.confirm)
     const confirm = useCallback((message) => {
         return new Promise((resolve) => {
-            setConfirmState({ message, resolve });
+            setConfirmDialog({ message, resolve });
         });
     }, []);
 
-    const handleConfirm = (result) => {
-        if (confirmState) {
-            confirmState.resolve(result);
-            setConfirmState(null);
+    const handleConfirm = useCallback((result) => {
+        if (confirmDialog) {
+            confirmDialog.resolve(result);
+            setConfirmDialog(null);
         }
-    };
-
-    const iconMap = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-times-circle',
-        warning: 'fas fa-exclamation-triangle',
-        info: 'fas fa-info-circle',
-    };
+    }, [confirmDialog]);
 
     return (
-        <ToastContext.Provider value={{ success, error, warning, info, confirm }}>
+        <ToastContext.Provider value={{ showToast, success, error, warning, info, confirm }}>
             {children}
 
-            {/* Toast Stack */}
-            <div className="toast-stack">
-                {toasts.map(t => (
-                    <div key={t.id} className={`toast-item toast-${t.type}`}>
-                        <i className={iconMap[t.type] || iconMap.info} />
-                        <span className="toast-message">{t.message}</span>
-                        <button className="toast-close" onClick={() => removeToast(t.id)}>&times;</button>
+            {/* Toast Container */}
+            <div className="frames-toast-container">
+                {toasts.map(toast => (
+                    <div key={toast.id} className={`frames-toast frames-toast-${toast.type}`}>
+                        <div className="frames-toast-icon">
+                            {toast.type === 'success' && <i className="fas fa-check-circle"></i>}
+                            {toast.type === 'error' && <i className="fas fa-times-circle"></i>}
+                            {toast.type === 'warning' && <i className="fas fa-exclamation-triangle"></i>}
+                            {toast.type === 'info' && <i className="fas fa-info-circle"></i>}
+                        </div>
+                        <p className="frames-toast-message">{toast.message}</p>
+                        <button className="frames-toast-close" onClick={() => removeToast(toast.id)}>
+                            <i className="fas fa-times"></i>
+                        </button>
                     </div>
                 ))}
             </div>
 
             {/* Confirm Dialog */}
-            {confirmState && (
-                <div className="toast-confirm-overlay">
-                    <div className="toast-confirm-box">
-                        <p>{confirmState.message}</p>
-                        <div className="toast-confirm-actions">
-                            <button className="toast-confirm-cancel" onClick={() => handleConfirm(false)}>Cancel</button>
-                            <button className="toast-confirm-ok" onClick={() => handleConfirm(true)}>Confirm</button>
+            {confirmDialog && (
+                <div className="frames-confirm-overlay" onClick={() => handleConfirm(false)}>
+                    <div className="frames-confirm-dialog" onClick={e => e.stopPropagation()}>
+                        <div className="frames-confirm-icon">
+                            <i className="fas fa-question-circle"></i>
+                        </div>
+                        <p className="frames-confirm-message">{confirmDialog.message}</p>
+                        <div className="frames-confirm-actions">
+                            <button className="frames-confirm-btn frames-confirm-cancel" onClick={() => handleConfirm(false)}>
+                                Cancel
+                            </button>
+                            <button className="frames-confirm-btn frames-confirm-yes" onClick={() => handleConfirm(true)}>
+                                Confirm
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -81,5 +94,3 @@ export const ToastProvider = ({ children }) => {
         </ToastContext.Provider>
     );
 };
-
-export default ToastProvider;

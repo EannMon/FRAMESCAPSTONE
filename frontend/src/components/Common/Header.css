@@ -339,14 +339,14 @@
 }
 
 .dropdown-logout-button:hover {
-    background-color: #FEF2F2;
-    /* Light Red bg */
-    color: #DC2626;
-    /* Red Text */
+    background-color: #EEF2FF;
+    /* Light navy bg */
+    color: #0F172A;
+    /* Navy Text */
 }
 
 .dropdown-logout-button:hover i {
-    color: #DC2626;
+    color: #0F172A;
 }
 
 /* --- Notification Content --- */
