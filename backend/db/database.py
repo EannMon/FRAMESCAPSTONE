@@ -20,11 +20,14 @@ if not DATABASE_URL:
 engine = create_engine(
     DATABASE_URL,
     echo=False,              # NEVER True in production
-    pool_pre_ping=True,      # Verify connections before use
-    pool_size=5,             # Reduced from 5 to avoid connection exhaustion (Set back to 5 based on deploy guidelines)
-    max_overflow=5,          # Reduced from 10 to stay under Aiven limit (Set back to 5 based on deploy guidelines)
+    pool_pre_ping=True,      # Verify connections before use (detects stale connections)
+    pool_size=3,             # Keep small — Aiven free tier has ~20 connection limit
+    max_overflow=3,          # Allow up to 3 extra connections briefly
     pool_recycle=300,        # Recycle connections every 5 minutes
-    pool_timeout=30          # Fail after 30s
+    pool_timeout=10,         # Fail fast after 10s (was 30s — caused long blank screens)
+    connect_args={
+        "connect_timeout": 8  # PostgreSQL TCP connect timeout (fail before pool_timeout)
+    }
 )
 
 # Session factory
