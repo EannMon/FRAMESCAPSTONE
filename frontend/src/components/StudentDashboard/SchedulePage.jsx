@@ -70,7 +70,7 @@ const SchedulePage = () => {
 
     // Validate PDF
     if (file.type !== 'application/pdf') {
-      toast.error("Please upload a valid PDF file.");
+      alert("Please upload a valid PDF file.");
       return;
     }
 

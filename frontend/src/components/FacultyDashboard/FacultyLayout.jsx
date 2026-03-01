@@ -143,7 +143,7 @@ const FacultyLayout = () => {
             }
 
             if (role !== 'faculty' && role !== 'head' && role !== 'dept_head') {
-                toast.error("Access denied. Authorized for Faculty only.");
+                alert("Access denied. Authorized for Faculty only.");
                 navigate('/');
                 return;
             }

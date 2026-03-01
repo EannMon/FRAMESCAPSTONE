@@ -130,7 +130,6 @@ const WeeklyCalendarView = ({ courses }) => {
 };
 
 const DeptHeadManagePage = () => {
-    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);

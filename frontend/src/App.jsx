@@ -47,7 +47,6 @@ import HelpSupportPage from './components/Common/HelpSupportPage';
 import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
-import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {

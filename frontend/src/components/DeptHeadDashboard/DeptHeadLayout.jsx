@@ -126,7 +126,7 @@ const DeptHeadLayout = () => {
 
             // Strict Role Check
             if (role !== 'head' && role !== 'dept_head') {
-                toast.error("Access denied. Authorized for Department Heads only.");
+                alert("Access denied. Authorized for Department Heads only.");
                 navigate('/');
                 return;
             }

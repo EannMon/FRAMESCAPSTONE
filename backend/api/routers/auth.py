@@ -11,8 +11,6 @@ from core.errors import api_error
 from core.limiter import limiter
 from models.user import User, UserRole, VerificationStatus
 from models.facial_profile import FacialProfile
-from models.department import Department
-from models.program import Program
 from schemas.user import (
     UserLogin, 
     UserRegister, 
@@ -66,21 +64,6 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
             message="Invalid email or password"
         )
     
-    # Check verification status
-    if user.verification_status == VerificationStatus.PENDING:
-        raise api_error(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code="ACCOUNT_PENDING",
-            message="Your account is still pending approval. Please wait for your Department Head to verify your account."
-        )
-    
-    if user.verification_status == VerificationStatus.REJECTED:
-        raise api_error(
-            status_code=status.HTTP_403_FORBIDDEN,
-            code="ACCOUNT_REJECTED",
-            message="Your account has been rejected. Please contact the administrator for more details."
-        )
-    
     logger.info("Login Successful for: %s %s", user.first_name, user.last_name)
     
     return LoginResponse(
@@ -112,16 +95,6 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     Register a new user (Faculty/Head).
     Students are created via faculty COR upload.
     """
-    # Validate email format
-    import re
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_regex, user_data.email):
-        raise api_error(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="INVALID_EMAIL",
-            message="Please enter a valid email address"
-        )
-    
     # Check if email already exists
     existing_email = db.query(User).filter(User.email == user_data.email).first()
     if existing_email:
@@ -143,8 +116,8 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     # Hash password
     hashed_pw = hash_password(user_data.password)
     
-    # Determine verification status (Admin/Head = auto verified)
-    verification = VerificationStatus.VERIFIED if user_data.role in [UserRole.ADMIN, UserRole.HEAD] else VerificationStatus.PENDING
+    # Determine verification status (Admin = auto verified)
+    verification = VerificationStatus.VERIFIED if user_data.role == UserRole.ADMIN else VerificationStatus.PENDING
     
     # Convert string role to enum
     role_enum = UserRole[user_data.role.upper()] if isinstance(user_data.role, str) else user_data.role
@@ -160,7 +133,6 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
         middle_name=user_data.middle_name,
         department_id=user_data.department_id,
         program_id=user_data.program_id,
-        current_term=user_data.current_term,
         verification_status=verification,
         face_registered=False
     )
@@ -172,23 +144,6 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     logger.info("Registered: %s %s (ID: %d)", new_user.first_name, new_user.last_name, new_user.id)
     
     return MessageResponse(message=f"Registration Successful! User ID: {new_user.id}")
-
-
-@router.get("/departments", status_code=status.HTTP_200_OK)
-def get_departments(db: Session = Depends(get_db)):
-    """Fetch all departments for registration dropdowns."""
-    departments = db.query(Department).all()
-    return [{"id": d.id, "name": d.name, "code": d.code} for d in departments]
-
-
-@router.get("/programs", status_code=status.HTTP_200_OK)
-def get_programs(department_id: int = None, db: Session = Depends(get_db)):
-    """Fetch all programs, optionally filtered by department_id."""
-    query = db.query(Program)
-    if department_id:
-        query = query.filter(Program.department_id == department_id)
-    programs = query.all()
-    return [{"id": p.id, "name": p.name, "code": p.code, "department_id": p.department_id} for p in programs]
 
 
 @router.post("/validate-face")
