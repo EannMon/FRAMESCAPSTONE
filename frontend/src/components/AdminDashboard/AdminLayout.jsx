@@ -8,10 +8,10 @@ import Header from '../Common/Header';
 // Import other required page components here if using conditional rendering
 // import AdminDashboardPage from './AdminDashboardPage'; 
 
-// --- THEME & USER DEFINITION (RED THEME) ---
+// --- THEME & USER DEFINITION (NAVY THEME) ---
 const adminTheme = {
-    primary: '#A62525', // Primary Red
-    dark: '#c82333',
+    primary: '#0F172A', // Primary Navy
+    dark: '#163269',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
@@ -101,6 +101,20 @@ const AdminLayout = () => {
         setLoading(false);
 
     }, [navigate]);
+
+    // Apply dark mode for logged-in user (per-user setting)
+    useEffect(() => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                if (localStorage.getItem(`frames-dark-mode-${u.id}`) === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch { }
+        }
+        return () => document.body.classList.remove('dark-mode');
+    }, []);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px' }}>Loading Admin Panel...</div>;

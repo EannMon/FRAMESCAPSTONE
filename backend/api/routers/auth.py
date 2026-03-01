@@ -166,3 +166,20 @@ def validate_face(request: Request, data: dict):
     
     return {"valid": False, "message": "Invalid image format"}
 
+
+# --- Registration Dropdown Data ---
+
+@router.get("/departments")
+def get_departments(db: Session = Depends(get_db)):
+    """Return all departments for the registration form dropdown."""
+    from models.department import Department
+    departments = db.query(Department).order_by(Department.name).all()
+    return [{"id": d.id, "name": d.name, "code": d.code} for d in departments]
+
+
+@router.get("/programs")
+def get_programs(db: Session = Depends(get_db)):
+    """Return all programs for the registration form dropdown."""
+    from models.program import Program
+    programs = db.query(Program).order_by(Program.name).all()
+    return [{"id": p.id, "name": p.name, "code": p.code, "department_id": p.department_id} for p in programs]

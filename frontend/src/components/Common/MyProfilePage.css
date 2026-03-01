@@ -53,9 +53,9 @@
 }
 
 .profile-back-button:hover {
-    background-color: #f8f9fa;
-    color: #dc3545;
-    border-color: #f8d7da;
+    background-color: #EEF2FF;
+    color: #0F172A;
+    border-color: #163269;
 }
 
 .profile-main-title {
@@ -304,9 +304,9 @@
 }
 
 .setting-button:hover {
-    background-color: #f8f9fa;
-    color: #dc3545;
-    border-color: #f8d7da;
+    background-color: #EEF2FF;
+    color: #0F172A;
+    border-color: #163269;
 }
 
 /* --- Responsive --- */

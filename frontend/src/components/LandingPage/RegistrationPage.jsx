@@ -27,6 +27,7 @@ const RegistrationPage = () => {
     const [retypePassword, setRetypePassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showRetypePassword, setShowRetypePassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Validation & Alert
     const [errors, setErrors] = useState({});
@@ -133,11 +134,13 @@ const RegistrationPage = () => {
     };
 
     const handleFinish = async () => {
+        if (isSubmitting) return;
         if (password !== retypePassword || password.length < 6) {
             showAlert("Invalid Password", "Passwords must match and be at least 6 characters long.", "warning");
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const payload = {
                 email: formData.email,
@@ -170,6 +173,8 @@ const RegistrationPage = () => {
             } else {
                 showAlert("Registration Failed", errorMsg, "error");
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -465,8 +470,8 @@ const RegistrationPage = () => {
                                 Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '8px' }}></i>
                             </button>
                         ) : (
-                            <button type="button" className="reg-submit-button" onClick={handleFinish}>
-                                Complete Registration
+                            <button type="button" className="reg-submit-button" onClick={handleFinish} disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : 'Complete Registration'}
                             </button>
                         )}
                     </div>

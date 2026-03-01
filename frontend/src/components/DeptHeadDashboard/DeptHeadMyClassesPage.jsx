@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
-import './MyClassesPage.css';
+import './DeptHeadMyClassesPage.css';
 
-const FacultyMyClassesPage = () => {
+
+const DeptHeadMyClassesPage = () => {
     // --- STATES ---
     const toast = useToast();
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar' | 'upload'
@@ -784,7 +785,7 @@ const FacultyMyClassesPage = () => {
                         <label>Semester:</label>
                         <div className="locked-field">
                             <i className="fas fa-lock"></i>
-                            <span>{semester || 'Not set by Dept Head'}</span>
+                            <span>{semester || 'Set in Management page'}</span>
                         </div>
                     </div>
 
@@ -792,7 +793,7 @@ const FacultyMyClassesPage = () => {
                         <label>Academic Year:</label>
                         <div className="locked-field">
                             <i className="fas fa-lock"></i>
-                            <span>{academicYear || 'Not set by Dept Head'}</span>
+                            <span>{academicYear || 'Set in Management page'}</span>
                         </div>
                     </div>
                 </div>
@@ -1113,4 +1114,4 @@ const FacultyMyClassesPage = () => {
     );
 };
 
-export default FacultyMyClassesPage;
+export default DeptHeadMyClassesPage;

@@ -9,15 +9,17 @@
 
 .dashboard-body {
     display: flex;
-    padding-top: 65px; /* <-- PUSH CONTENT BELOW FIXED HEADER */
+    padding-top: 80px;
+    /* Unified with Faculty/Student */
 }
 
 .main-content-area {
     flex-grow: 1;
-    padding-left: 250px; /* Space for fixed sidebar */
-    padding-top: 30px;    
-    padding-right: 30px;   
-    padding-bottom: 30px;  
+    padding-left: 270px;
+    /* Unified: 250px sidebar + 20px gap */
+    padding-top: 20px;
+    padding-right: 20px;
+    padding-bottom: 20px;
 }
 
 /* =========================================== */
@@ -26,68 +28,92 @@
 .sidebar {
     width: 250px;
     position: fixed;
-    top: 65px; 
+    top: 65px;
     left: 0;
     bottom: 0;
     background-color: #ffffff;
     /* UPDATED: Lighter shadow from new image */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     padding: 20px 0;
-    z-index: 1000; 
-    border-right: 1px solid #f0f0f0; /* Added subtle border */
+    z-index: 1000;
+    border-right: 1px solid #f0f0f0;
+    /* Added subtle border */
 }
 
 /* REMOVED: .sidebar-header is gone */
 
 .admin-role-tag {
-    background-color: #fbe9e7; /* Light red */
-    color: #dc3545; /* Dark red */
+    background-color: #E8EEF8;
+    /* Light navy */
+    color: #0F172A;
+    /* Dark navy */
     font-weight: 600;
     font-size: 0.9em;
     padding: 6px 12px;
     border-radius: 6px;
-    margin: 10px 20px 20px 20px; /* Added top margin */
+    margin: 10px 20px 20px 20px;
+    /* Added top margin */
     text-align: center;
 }
 
-.sidebar-nav ul { list-style: none; padding: 0; margin: 0 15px; } /* Added side margin */
-.sidebar-nav li { cursor: pointer; margin-bottom: 5px; } 
-.sidebar-nav a { 
-    display: flex; 
-    align-items: center; 
-    padding: 12px 20px; 
-    color: #555; 
-    text-decoration: none; 
-    font-weight: 500; 
-    transition: all 0.2s ease; 
-    border-radius: 8px; /* Rounded corners for links */
-    /* border-left: 4px solid transparent; */ /* REMOVED old border style */
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 15px;
 }
-.sidebar-nav a i { 
-    margin-right: 15px; 
-    font-size: 1.1em; 
-    width: 20px; 
-    text-align: center; 
+
+/* Added side margin */
+.sidebar-nav li {
+    cursor: pointer;
+    margin-bottom: 5px;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: #555;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    /* Rounded corners for links */
+    /* border-left: 4px solid transparent; */
+    /* REMOVED old border style */
+}
+
+.sidebar-nav a i {
+    margin-right: 15px;
+    font-size: 1.1em;
+    width: 20px;
+    text-align: center;
 }
 
 /* UPDATED: New active link style */
-.sidebar-nav a.active { 
-    background-color: #dc3545; /* Solid Red */
-    color: #ffffff; /* White text */
-    /* border-left-color: #dc3545; */ /* REMOVED old border style */
+.sidebar-nav a.active {
+    background-color: #0F172A;
+    /* Solid Navy */
+    color: #ffffff;
+    /* White text */
+    /* border-left-color: #0F172A; */
+    /* REMOVED old border style */
     font-weight: 600;
-    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3); /* Red shadow */
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.3);
+    /* Navy shadow */
 }
-.sidebar-nav a:hover:not(.active) { 
-    background-color: #f0f2f5; 
-    color: #333; 
+
+.sidebar-nav a:hover:not(.active) {
+    background-color: #f0f2f5;
+    color: #333;
 }
 
 /* REMOVED .notification-badge (it was on Alert Center) */
 
-.sidebar-toggle-button { display: none; }
+.sidebar-toggle-button {
+    display: none;
+}
 
 
 /* =========================================== */
@@ -95,39 +121,47 @@
 /* =========================================== */
 @media (max-width: 992px) {
     .dashboard-body {
-        padding-top: 65px; 
+        padding-top: 65px;
         flex-direction: column;
     }
+
     .sidebar {
         width: 100%;
         position: relative;
-        top: 0; 
+        top: 0;
         height: auto;
         flex-direction: row;
         align-items: center;
         padding: 10px 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         z-index: 999;
     }
-    .sidebar-toggle-button { 
-        display: block; 
-        background: none; 
-        border: none; 
-        font-size: 1.2em; 
-        cursor: pointer; 
+
+    .sidebar-toggle-button {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 1.2em;
+        cursor: pointer;
         /* ADDED: styling for button */
         color: #333;
         padding: 5px;
     }
+
     /* .sidebar-header { border: none; margin: 0; padding: 0; } -- REMOVED */
-    .admin-role-tag, .sidebar-nav { display: none; } 
-    
+    .admin-role-tag,
+    .sidebar-nav {
+        display: none;
+    }
+
     .main-content-area {
-        padding-left: 0; 
-        padding: 20px; 
+        padding-left: 0;
+        padding: 20px;
     }
 }
 
 @media (max-width: 480px) {
-    .main-content-area { padding: 15px; }
+    .main-content-area {
+        padding: 15px;
+    }
 }

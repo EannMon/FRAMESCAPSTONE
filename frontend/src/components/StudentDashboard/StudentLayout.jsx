@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../Common/ToastProvider';
@@ -20,6 +20,27 @@ const studentTheme = {
 // 1. Student Sidebar Component
 // ===========================================
 const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
+    // Popup state
+    const [showPopup, setShowPopup] = useState(false);
+    const popupRef = useRef(null);
+
+    // Click outside to close popup
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (popupRef.current && !popupRef.current.contains(event.target)) {
+                setShowPopup(false);
+            }
+        };
+
+        if (showPopup) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showPopup]);
+
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
@@ -31,6 +52,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
+        document.body.classList.remove('dark-mode');
         window.location.href = '/';
     };
 
@@ -40,7 +62,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
     const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : (user?.name || 'Student');
 
     // Avatar
-    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0F172A&color=fff`;
 
     return (
         <>
@@ -98,8 +120,19 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                 </nav>
 
                 {/* USER PROFILE FOOTER */}
-                <div className="sidebar-user-footer">
-                    <Link to="/student-profile" className="sidebar-user-info" title="View Profile" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+                <div className="sidebar-user-footer" ref={popupRef}>
+                    <Link
+                        to="/student-profile"
+                        className="sidebar-user-info"
+                        title="View Profile"
+                        style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}
+                        onClick={(e) => {
+                            if (isCollapsed) {
+                                e.preventDefault();
+                                setShowPopup(!showPopup);
+                            }
+                        }}
+                    >
                         <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
                         {!isCollapsed && (
                             <div className="sidebar-user-details">
@@ -112,6 +145,24 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                         <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
                             <i className="fas fa-sign-out-alt"></i>
                         </button>
+                    )}
+
+                    {/* POPUP MENU */}
+                    {isCollapsed && showPopup && (
+                        <div className="sidebar-profile-popup">
+                            <div className="popup-user-info">
+                                <span className="popup-user-name">{displayName}</span>
+                                <span className="popup-user-email">{user?.email || 'Student Account'}</span>
+                            </div>
+                            <div className="popup-menu-list">
+                                <Link to="/student-profile" className="popup-menu-item" onClick={() => setShowPopup(false)}>
+                                    <i className="fas fa-user-cog"></i> Account Settings
+                                </Link>
+                                <button className="popup-menu-item logout-item" onClick={handleLogout}>
+                                    <i className="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             </aside >
@@ -193,6 +244,20 @@ const StudentLayout = () => {
 
         loadUserData();
     }, [navigate]);
+
+    // Apply dark mode for logged-in user (per-user setting)
+    useEffect(() => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                if (localStorage.getItem(`frames-dark-mode-${u.id}`) === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch { }
+        }
+        return () => document.body.classList.remove('dark-mode');
+    }, []);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
