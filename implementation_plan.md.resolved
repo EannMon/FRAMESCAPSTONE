@@ -1,0 +1,157 @@
+# Faculty & Dept Head Dashboard UI Updates
+
+Comprehensive UI overhaul for Faculty and Department Head dashboards, including live room status visualization, calendar improvements, reports redesign, academic year management, class schedule editing, and removing student COR upload dependency.
+
+> [!IMPORTANT]
+> This is a **large** change set spanning ~15 files across frontend and potentially 1-2 new backend endpoints. I recommend we implement this in **phases** so you can review and test progressively. The backend DB schema is **NOT being changed** — all features work with existing tables.
+
+## User Review Required
+
+> [!WARNING]
+> **Phase-by-phase approach:** Given the scope (~8 distinct features), I suggest we batch these into 3-4 phases to avoid a single massive commit. Please confirm if you'd prefer all-at-once or phased.
+
+> [!IMPORTANT]
+> **New backend endpoints needed:** While you said "only understand current design without changing the backend", some features (live room occupancy dots, academic year settings) will require **new API endpoints** since no existing endpoint returns real-time room occupancy or stores academic year config. I'll keep these minimal and consistent with the current FastAPI/SQLAlchemy patterns. Please confirm this is acceptable.
+
+> [!CAUTION]
+> **Schedule edit ticket system:** The feature to send edit requests (modify class modality/time/day) as tickets for dept head approval is a new workflow. This requires a **new DB table** (`schedule_change_requests`) or reusing `audit_logs`. Since you said not to change the backend schema, I propose we defer this to a follow-up, OR I can add a lightweight new table. Please advise.
+
+---
+
+## Phase 1: Dashboard Live Status + Date/Time Display
+
+### Faculty Dashboard
+
+#### [MODIFY] [FacultyDashboardPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyDashboardPage.jsx)
+- **Replace** [LiveClassStatus](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyDashboardPage.jsx#160-193) component ("Today's Classes" with list items) with new **"Live Status"** component
+- New component shows a box the same size as the current one, with:
+  - Title: "Live Status" (replaces "Today's Classes")
+  - Room number on **top-right** of the box
+  - Small **green dots** (scattered) = students/faculty currently present (have `ENTRY` or `BREAK_IN` action as latest)
+  - Small **yellow dots** = people currently on break (`BREAK_OUT` as latest)
+  - **Bottom-center**: count of present + on-break
+- Add **current date/time** display at the top of the dashboard
+- Polls the new backend endpoint every 10 seconds for live data
+
+#### [MODIFY] [FacultyDashboardPage.css](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyDashboardPage.css)
+- Add CSS for Live Status dot visualization, animations, room label
+
+---
+
+### Dept Head Dashboard
+
+#### [MODIFY] [DeptHeadDashboardPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/DeptHeadDashboard/DeptHeadDashboardPage.jsx)
+- **Replace** existing "Today's Classes" with **"Live Status"** section
+- Two view modes:
+  - **Wide View**: Shows ALL classrooms (e.g., Room 326, Room 322) side-by-side as separate boxes. Each box has room number top-right, green/yellow dots, and present/break count at bottom-center
+  - **Single View**: Dropdown to select 1 classroom to focus on (same concept, larger)
+- Toggle/tab to switch between "Wide View" and single classroom view
+- Add current date/time display
+
+#### [MODIFY] [DeptHeadDashboardPage.css](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/DeptHeadDashboard/DeptHeadDashboardPage.css)
+- Add CSS for multi-room grid, dot visualization, view toggle
+
+---
+
+### Backend (New Endpoint)
+
+#### [MODIFY] [faculty.py](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/backend/api/routers/faculty.py)
+- Add `GET /api/faculty/live-room-status/{user_id}` — returns for each room the faculty teaches in:
+  - Room name, list of people with their latest action (ENTRY/BREAK_OUT/BREAK_IN/EXIT)
+  - Counts of present and on-break
+- Add `GET /api/faculty/live-room-status-all/{department_id}` (for dept head) — returns status for ALL rooms in the department's classes
+- Both endpoints query `attendance_logs` for today's latest action per person per class, joined with `classes` for room info
+
+---
+
+## Phase 2: Reports UI Redesign (Faculty + Dept Head)
+
+#### [MODIFY] [FacultyReportsPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyReportsPage.jsx)
+- Change Class-Specific Reports from card layout to **dropdown selector** (like student UI)
+- Keep PDF, CSV, Preview buttons
+- Add **Refresh/Retry** button
+- Add **Academic Year** display at top (read from classes data)
+- Maintain existing report types but in dropdown format
+
+#### [MODIFY] [DeptHeadReportsPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/DeptHeadDashboard/DeptHeadReportsPage.jsx)
+- Same dropdown-based redesign as faculty reports
+- Keep PDF, CSV, Preview + Refresh buttons
+- Add Academic Year display
+
+#### [MODIFY] [FacultyReportsPage.css](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyReportsPage.css)
+- Update styles for dropdown-based layout
+
+---
+
+## Phase 3: Attendance Tab UI Fix + Calendar Improvements
+
+### Faculty Attendance Tab
+
+#### [MODIFY] [FacultyAttendancePage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyAttendancePage.jsx)
+- Redesign UI to match **student attendance UI** ([AttendanceHistoryPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/StudentDashboard/AttendanceHistoryPage.jsx)) style:
+  - Similar filter bar, table layout, status badges
+  - Consistent card styling
+
+#### [MODIFY] [FacultyAttendancePage.css](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/FacultyAttendancePage.css)
+- Update to match student attendance history styles
+
+### Calendar (My Classes Tab)
+
+#### [MODIFY] [MyClassesPage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/FacultyDashboard/MyClassesPage.jsx)
+- Add **Next/Back month buttons** to the calendar view
+- Match student [SchedulePage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/StudentDashboard/SchedulePage.jsx) calendar UI using `react-calendar`
+- Clicking a past date shows summary: green (present), red (absent), blue (not yet)
+- Summary downloadable as PDF
+- Add **student management** within class view: add/edit/delete students from enrollment
+- Show PDF preview after upload
+
+---
+
+## Phase 4: Academic Year Settings + Student Schedule from DB
+
+### Academic Year (Dept Head)
+
+#### [MODIFY] [DeptHeadManagePage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/DeptHeadDashboard/DeptHeadManagePage.jsx)
+- Add **Academic Year Settings** section:
+  - Set start month and end month of academic year
+  - Display current A.Y. (e.g., "2025-2026, August → May")
+  - Save to database (uses `classes.academic_year` field or a new config)
+  - Faculty cannot edit this — only dept head
+- Calendar limit based on A.Y. dates
+
+### Student Schedule from DB
+
+#### [MODIFY] [SchedulePage.jsx](file:///c:/Users/iska/.gemini/antigravity/scratch/FRAMESCAPSTONE/frontend/src/components/StudentDashboard/SchedulePage.jsx)
+- **Remove COR upload section** — students no longer upload COR
+- Schedule is **auto-populated from the database** (from `enrollments` → `classes` → `subjects`)
+- The `GET /api/student/schedule/{id}` endpoint already returns data from enrollments, so this is mostly a frontend change to remove the upload UI and show "Your schedule is automatically synced" message instead
+
+---
+
+## Phase 5: Schedule Edit Ticket System (Deferred — Needs User Input)
+
+> [!WARNING]
+> This requires a new DB table or workflow. **Deferred** pending your feedback on whether to add a `schedule_change_requests` table.
+
+- Faculty can request edits to class modality, time, day
+- Sent as ticket to dept head
+- Dept head approves/rejects → notification to faculty
+- Reflected in database upon approval
+
+---
+
+## Verification Plan
+
+### Browser Testing (Primary)
+1. **Live Status (Faculty)**: Open `http://localhost:3000/faculty-dashboard` → verify "Live Status" box shows green/yellow dots with room number. If no attendance data exists, seed data first using `python scripts/seed_data.py`.
+2. **Live Status (Dept Head)**: Open `http://localhost:3000/dept-head-dashboard` → verify wide view shows multiple classroom boxes, single view shows one.
+3. **Reports (Faculty)**: Open `http://localhost:3000/faculty-reports` → verify dropdown selector instead of cards, PDF/CSV/Preview/Refresh buttons work.
+4. **Reports (Dept Head)**: Open `http://localhost:3000/dept-head-reports` → same as above.
+5. **Attendance Tab**: Open `http://localhost:3000/faculty-attendance` → verify UI matches student attendance style.
+6. **Calendar**: Open `http://localhost:3000/faculty-classes` → verify calendar has next/back buttons, clicking past dates shows attendance summary.
+7. **Student Schedule**: Open `http://localhost:3000/student-schedule` → verify no COR upload section, schedule loads from DB.
+
+### Manual Verification
+- User should verify visual aesthetics match the described design (green dots = present, yellow = break)
+- User should confirm the academic year setting saves and displays correctly
+- User should verify the date/time display is accurate and live-updating

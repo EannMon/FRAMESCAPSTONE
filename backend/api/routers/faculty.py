@@ -61,6 +61,34 @@ class SubjectCreate(BaseModel):
     units: int = 3
 
 
+class StudentEntry(BaseModel):
+    tupm_id: str
+    name: str
+
+
+class CourseEntry(BaseModel):
+    subject_code: str
+    subject_name: str
+    section: str
+    day: str
+    start_time: str
+    end_time: str
+    venue: str = "Room 324"
+    units: int = 2
+    enrolled_students: List[StudentEntry] = []
+
+
+class ConfirmScheduleRequest(BaseModel):
+    faculty_id: int
+    semester: str
+    academic_year: str
+    courses: List[CourseEntry]
+
+
+class AddStudentRequest(BaseModel):
+    student_id: int
+
+
 # ============================================
 # Endpoints
 # ============================================
@@ -456,6 +484,301 @@ async def upload_schedule(
         logger.error("Upload Error: %s", str(e), exc_info=True)
         db.rollback()
         raise api_error(500, "INTERNAL_ERROR", "An internal error occurred during processing.")
+
+
+# ============================================
+# Two-Step Upload: Parse Preview + Confirm
+# ============================================
+
+@router.post("/parse-schedule")
+@limiter.limit("10/minute")
+async def parse_schedule_preview(
+    request: Request,
+    file: UploadFile = File(...),
+    faculty_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Step 1: Parse a COR/Schedule PDF and return the extracted data as JSON.
+    Does NOT save anything to the database.
+    Faculty reviews the preview and can modify the student list before confirming.
+    """
+    from services.pdf_parser import parse_schedule_pdf
+    
+    if not file.filename.endswith('.pdf'):
+        raise api_error(400, "INVALID_FILE_TYPE", "Only PDF files are accepted")
+    
+    content = await file.read()
+    logger.info("Parse-only schedule upload: %s (%d bytes)", file.filename, len(content))
+    
+    try:
+        parsed_data = parse_schedule_pdf(content, faculty_id)
+        
+        if not parsed_data:
+            raise api_error(400, "PARSE_FAILED", "Could not parse PDF. Please check the file format.")
+        
+        # Get active semester/academic year from faculty's existing classes
+        active_semester = None
+        active_academic_year = None
+        if faculty_id:
+            existing_class = db.query(Class).filter(Class.faculty_id == faculty_id).order_by(Class.created_at.desc()).first()
+            if existing_class:
+                active_semester = existing_class.semester
+                active_academic_year = existing_class.academic_year
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "semester": active_semester or parsed_data.get('semester', '1st Semester'),
+            "academic_year": active_academic_year or parsed_data.get('academic_year', '2025-2026'),
+            "courses": parsed_data.get('courses', [])
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Parse Error: %s", str(e), exc_info=True)
+        raise api_error(500, "PARSE_ERROR", f"Failed to parse PDF: {str(e)}")
+
+
+@router.post("/confirm-schedule", status_code=status.HTTP_201_CREATED)
+def confirm_schedule(
+    data: ConfirmScheduleRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 2: Save the previewed (and possibly edited) schedule data to the database.
+    Creates subjects, classes, student accounts, and enrollments.
+    """
+    import bcrypt
+    
+    created_schedules = []
+    updated_schedules = []
+    created_students = []
+    enrolled_count = 0
+    
+    try:
+        for course_data in data.courses:
+            # Create/Get Subject
+            subject = db.query(Subject).filter(Subject.code == course_data.subject_code).first()
+            if not subject:
+                subject = Subject(
+                    code=course_data.subject_code,
+                    title=course_data.subject_name,
+                    units=course_data.units
+                )
+                db.add(subject)
+                db.commit()
+                db.refresh(subject)
+            
+            # Parse time strings to time objects
+            start_time = None
+            end_time = None
+            if course_data.start_time != 'TBA':
+                try:
+                    from datetime import datetime as dt
+                    start_time = dt.strptime(course_data.start_time, '%I:%M%p').time()
+                except:
+                    try:
+                        start_time = dt.strptime(course_data.start_time, '%I:%M %p').time()
+                    except:
+                        pass
+            if course_data.end_time != 'TBA':
+                try:
+                    from datetime import datetime as dt
+                    end_time = dt.strptime(course_data.end_time, '%I:%M%p').time()
+                except:
+                    try:
+                        end_time = dt.strptime(course_data.end_time, '%I:%M %p').time()
+                    except:
+                        pass
+            
+            # Check if Class ALREADY EXISTS
+            existing_class = db.query(Class).filter(
+                Class.subject_id == subject.id,
+                Class.section == course_data.section,
+                Class.day_of_week == course_data.day,
+                Class.semester == data.semester,
+                Class.academic_year == data.academic_year
+            ).first()
+            
+            if existing_class:
+                existing_class.start_time = start_time
+                existing_class.end_time = end_time
+                existing_class.room = course_data.venue
+                existing_class.faculty_id = data.faculty_id
+                db.commit()
+                db.refresh(existing_class)
+                updated_schedules.append(existing_class.id)
+                current_class = existing_class
+            else:
+                new_class = Class(
+                    subject_id=subject.id,
+                    faculty_id=data.faculty_id,
+                    room=course_data.venue,
+                    day_of_week=course_data.day,
+                    start_time=start_time,
+                    end_time=end_time,
+                    section=course_data.section,
+                    semester=data.semester,
+                    academic_year=data.academic_year
+                )
+                db.add(new_class)
+                db.commit()
+                db.refresh(new_class)
+                created_schedules.append(new_class.id)
+                current_class = new_class
+            
+            # Create/Update Student Accounts and Enrollments
+            existing_enrollments = {
+                e.student_id for e in db.query(Enrollment).filter(Enrollment.class_id == current_class.id).all()
+            }
+            
+            for student_data in course_data.enrolled_students:
+                tupm_id = student_data.tupm_id
+                student_user = db.query(User).filter(User.tupm_id == tupm_id).first()
+                
+                if not student_user:
+                    name_parts = student_data.name.split(',')
+                    last_name = name_parts[0].strip() if len(name_parts) > 0 else "Student"
+                    first_name = name_parts[1].strip() if len(name_parts) > 1 else "TUP"
+                    
+                    default_password = last_name.lower()
+                    hashed_pw = bcrypt.hashpw(default_password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
+                    
+                    student_user = User(
+                        email=f"{tupm_id.lower()}@tup.edu.ph",
+                        password_hash=hashed_pw,
+                        role=UserRole.STUDENT,
+                        tupm_id=tupm_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        section=course_data.section,
+                        verification_status=VerificationStatus.VERIFIED,
+                        face_registered=False
+                    )
+                    db.add(student_user)
+                    db.commit()
+                    db.refresh(student_user)
+                    created_students.append(tupm_id)
+                
+                if student_user.id not in existing_enrollments:
+                    enrollment = Enrollment(
+                        class_id=current_class.id,
+                        student_id=student_user.id
+                    )
+                    db.add(enrollment)
+                    existing_enrollments.add(student_user.id)
+                    enrolled_count += 1
+            
+            db.commit()
+        
+        return {
+            "message": "Schedule confirmed and saved successfully!",
+            "schedules_created": len(created_schedules),
+            "schedules_updated": len(updated_schedules),
+            "students_created": len(created_students),
+            "enrollments_added": enrolled_count
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Confirm Schedule Error: %s", str(e), exc_info=True)
+        db.rollback()
+        raise api_error(500, "INTERNAL_ERROR", "An internal error occurred while saving schedule.")
+
+
+# ============================================
+# Student Management (Add/Remove from Class)
+# ============================================
+
+@router.get("/search-students")
+def search_students(
+    q: str = Query(..., min_length=1),
+    db: Session = Depends(get_db)
+):
+    """Search for verified students by name or TUPM ID."""
+    search_term = f"%{q}%"
+    students = db.query(User).filter(
+        User.role == UserRole.STUDENT,
+        User.verification_status == VerificationStatus.VERIFIED,
+        (
+            User.first_name.ilike(search_term) |
+            User.last_name.ilike(search_term) |
+            User.tupm_id.ilike(search_term)
+        )
+    ).limit(20).all()
+    
+    return [
+        {
+            "id": s.id,
+            "tupm_id": s.tupm_id,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "section": s.section
+        }
+        for s in students
+    ]
+
+
+@router.post("/class/{class_id}/add-student")
+def add_student_to_class(
+    class_id: int,
+    data: AddStudentRequest,
+    db: Session = Depends(get_db)
+):
+    """Add a student to a class enrollment."""
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+    
+    student = db.query(User).filter(User.id == data.student_id, User.role == UserRole.STUDENT).first()
+    if not student:
+        raise api_error(404, "STUDENT_NOT_FOUND", "Student not found")
+    
+    # Check duplicate
+    existing = db.query(Enrollment).filter(
+        Enrollment.class_id == class_id,
+        Enrollment.student_id == data.student_id
+    ).first()
+    if existing:
+        raise api_error(409, "ALREADY_ENROLLED", "Student is already enrolled in this class")
+    
+    enrollment = Enrollment(class_id=class_id, student_id=data.student_id)
+    db.add(enrollment)
+    db.commit()
+    
+    return {
+        "message": "Student added successfully",
+        "student": {
+            "id": student.id,
+            "tupm_id": student.tupm_id,
+            "first_name": student.first_name,
+            "last_name": student.last_name
+        }
+    }
+
+
+@router.delete("/class/{class_id}/remove-student/{student_id}")
+def remove_student_from_class(
+    class_id: int,
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+    """Remove a student from a class enrollment."""
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.class_id == class_id,
+        Enrollment.student_id == student_id
+    ).first()
+    
+    if not enrollment:
+        raise api_error(404, "ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class")
+    
+    db.delete(enrollment)
+    db.commit()
+    
+    return {"message": "Student removed from class successfully"}
 
 
 @router.get("/class-details/{schedule_id}")
