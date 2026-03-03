@@ -630,30 +630,31 @@ class AttendanceKiosk:
 
                 # 6. Determine action based on state
                 if "ENTRY" in allowed:
-                    # First time — ENTRY, no gesture needed
-                    logger.info("Logging ENTRY for %s (face only)", match.name)
-                    cv2.putText(display, "ENTRY - Welcome!", (10, 80),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    cv2.imshow("FRAMES Attendance Kiosk", display)
-
+                    # Face-only ENTRY — no gesture required.
                     success = self.attendance_logger.log_attendance(
                         user_id=match.user_id,
                         class_id=active_class.class_id,
                         device_id=self.config.DEVICE_ID,
                         action=AttendanceAction.ENTRY,
                         verified_by=VerifiedBy.FACE,
-                        confidence_score=confidence
+                        confidence_score=confidence,
                     )
 
                     if success:
-                        logger.info("ENTRY logged for %s", match.name)
-                        # Update local state
+                        logger.info("ATTENDANCE | ENTRY logged for %s (face-only)", match.name)
                         cache_key = f"{match.user_id}_{active_class.class_id}"
                         self._user_attendance_state[cache_key] = {
                             "has_entered": True, "is_on_break": False,
                             "has_exited": False, "last_action": "ENTRY",
                             "allowed_actions": ["BREAK_OUT", "EXIT"]
                         }
+
+                    # Show welcome on screen
+                    welcome_display = frame.copy()
+                    cv2.putText(welcome_display, "Welcome, %s!" % match.name, (10, 80),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    cv2.imshow("FRAMES Attendance Kiosk", welcome_display)
+
                     self.mark_recognized(match.user_id)
 
                 else:
@@ -785,8 +786,8 @@ def main():
         logger.error("Run: python scripts/setup_laptop_device.py  to register your laptop first.")
         sys.exit(1)
 
-    # ENTRY does NOT require gesture (face only). Gesture is for break/exit.
-    config.REQUIRE_GESTURE_FOR_ENTRY = False
+    # ENTRY now requires liveness challenge (finger count) for anti-spoofing.
+    # BREAK/EXIT still use specific gestures.
 
     # Run kiosk
     kiosk = AttendanceKiosk(config)

@@ -684,7 +684,7 @@ class StreamingAttendanceKiosk:
                     continue
 
                 if "ENTRY" in allowed:
-                    # Direct Entry
+                    # Face-only ENTRY — no gesture required.
                     success = self.attendance_logger.log_attendance(
                         user_id=match.user_id,
                         class_id=active_class.class_id,
@@ -693,38 +693,35 @@ class StreamingAttendanceKiosk:
                         verified_by=VerifiedBy.FACE,
                         confidence_score=confidence,
                     )
+
                     if success:
+                        logger.info("ATTENDANCE | ENTRY logged for %s (face-only)", match.name)
+                        tupm_id = getattr(match, "tupm_id", None)
                         self.add_checkin_event(match.name, "PRESENT")
-                        cache_key = (
-                            f"{match.user_id}_{active_class.class_id}"
-                        )
+                        cache_key = f"{match.user_id}_{active_class.class_id}"
                         self._user_attendance_state[cache_key] = {
-                            "has_entered": True,
-                            "is_on_break": False,
-                            "has_exited": False,
-                            "last_action": "ENTRY",
+                            "has_entered": True, "is_on_break": False,
+                            "has_exited": False, "last_action": "ENTRY",
                             "allowed_actions": ["BREAK_OUT", "EXIT"],
                         }
-                    self._last_recognized[match.user_id] = time.time()
-                    tupm_id = getattr(match, "tupm_id", None)
-                    # Green box for successful ENTRY
-                    if bbox is not None:
-                        with self._overlay_lock:
-                            self._overlay = {
-                                "bbox": bbox,
-                                "label": f"{match.name} ({confidence:.1%})",
-                                "color": (0, 255, 0),
-                                "expires_at": time.time() + 1.5,
-                            }
-                    self.broadcast_state(
-                        {
+                        if bbox is not None:
+                            with self._overlay_lock:
+                                self._overlay = {
+                                    "bbox": bbox,
+                                    "label": f"{match.name} - Welcome!",
+                                    "color": (0, 255, 0),
+                                    "expires_at": time.time() + 2.0,
+                                }
+                        self.broadcast_state({
                             "recognized_user": match.name,
                             "tupm_id": tupm_id,
                             "greeting_type": "welcome",
                             "required_gestures": [],
                             "message": "Welcome!",
-                        }
-                    )
+                        })
+
+                    self._last_recognized[match.user_id] = time.time()
+
                 else:
                     # Requires gesture — enter fast gesture-only mode.
                     # This runs a dedicated inner loop at ~50fps using only

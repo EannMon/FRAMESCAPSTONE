@@ -210,6 +210,44 @@ class GestureDetector:
         
         return Gesture.NONE
     
+    def count_fingers(self, frame_rgb: np.ndarray) -> Tuple[Optional[int], Optional[object]]:
+        """
+        Count extended fingers in frame.
+
+        Uses the same distance-based extension checks as gesture detection
+        for angle-invariant finger counting. Does NOT apply temporal
+        smoothing — the caller is responsible for consecutive-frame logic.
+
+        Returns:
+            (count, hand_landmarks) where count is 0-5,
+            or (None, None) if no hand detected.
+        """
+        results = self.hands.process(frame_rgb)
+
+        if not results.multi_hand_landmarks:
+            return None, None
+
+        hand = results.multi_hand_landmarks[0]
+        landmarks = hand.landmark
+
+        handedness = "Right"
+        if results.multi_handedness:
+            handedness = results.multi_handedness[0].classification[0].label
+
+        count = 0
+        if self._is_thumb_extended(landmarks, handedness):
+            count += 1
+        if self._is_finger_extended(landmarks, 8, 7, 6, 5):    # Index
+            count += 1
+        if self._is_finger_extended(landmarks, 12, 11, 10, 9):  # Middle
+            count += 1
+        if self._is_finger_extended(landmarks, 16, 15, 14, 13):  # Ring
+            count += 1
+        if self._is_finger_extended(landmarks, 20, 19, 18, 17):  # Pinky
+            count += 1
+
+        return count, hand
+
     def detect_peace_sign(self, frame_rgb: np.ndarray) -> bool:
         """Quick check for peace sign only."""
         gesture, _ = self.detect(frame_rgb)

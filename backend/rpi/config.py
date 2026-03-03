@@ -12,6 +12,10 @@ import platform
 from dataclasses import dataclass, field
 from typing import Optional
 
+# Set ONNX Runtime thread count BEFORE onnxruntime is imported.
+# RPi4 has 4 cores — using all of them for inference gives ~15-25% speedup.
+os.environ.setdefault("OMP_NUM_THREADS", "4")
+
 
 def _detect_platform() -> str:
     """Auto-detect if running on Raspberry Pi or laptop."""
@@ -92,7 +96,8 @@ class KioskConfig:
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
     GESTURE_CONFIDENCE: float = 0.5  # Lower for better hand detection rate
-    # ENTRY does NOT require gesture (face only). Gestures are for break/exit actions.
+    # ENTRY uses face-only verification (no gesture required).
+    # BREAK/EXIT still use specific gestures (peace/thumbs/palm).
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # More time to show gesture
@@ -141,7 +146,7 @@ class KioskConfig:
         if self.PLATFORM == "rpi":
             # RPi4 optimizations
             if self.RECOGNITION_DET_SIZE is None:
-                self.RECOGNITION_DET_SIZE = (320, 320)  # Faster detection on ARM
+                self.RECOGNITION_DET_SIZE = (160, 160)  # Aggressive but safe for kiosk (face fills frame)
             if self.USE_GATED_DETECTION is None:
                 self.USE_GATED_DETECTION = True  # Gate InsightFace behind MediaPipe
             if self.RECOGNITION_FRAME_SKIP is None:
