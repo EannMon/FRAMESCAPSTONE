@@ -303,8 +303,8 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
         # Recognized but not part of this class — still log with remark
         body.remarks = (body.remarks or "") + " [NOT_IN_CLASS]"
         logger.warning(
-            f"⚠️ User {body.user_id} ({user.first_name} {user.last_name}) "
-            f"recognized but NOT enrolled in class {body.class_id}"
+            "ATTENDANCE | user=%d (%s %s) recognized but NOT enrolled in class=%d",
+            body.user_id, user.first_name, user.last_name, body.class_id
         )
 
         # --- Server-side NOT_IN_CLASS duplicate guard ---
@@ -321,8 +321,8 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
 
         if existing_nic:
             logger.info(
-                f"⏭️ Duplicate NOT_IN_CLASS skipped: user={body.user_id}, "
-                f"class={body.class_id}"
+                "ATTENDANCE | duplicate NOT_IN_CLASS skipped: user=%d class=%d",
+                body.user_id, body.class_id
             )
             return AttendanceLogResponse(
                 success=True,
@@ -366,8 +366,8 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
             last_log = today_logs[-1] if today_logs else None
             last_action_val = last_log.action.value if last_log and isinstance(last_log.action, AttendanceAction) else (last_log.action if last_log else "ENTRY")
             logger.info(
-                f"⏭️ Duplicate ENTRY skipped: user={body.user_id}, "
-                f"class={body.class_id} (last action: {last_action_val})"
+                "ATTENDANCE | duplicate ENTRY skipped: user=%d class=%d last_action=%s",
+                body.user_id, body.class_id, last_action_val
             )
             return AttendanceLogResponse(
                 success=True,
@@ -432,8 +432,8 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
         action_label = body.action
         late_label = " (LATE)" if is_late else ""
         logger.info(
-            f"✅ Attendance logged: user={body.user_id}, "
-            f"class={body.class_id}, action={action_label}{late_label}"
+            "ATTENDANCE | logged: user=%d class=%d action=%s%s",
+            body.user_id, body.class_id, action_label, late_label
         )
 
         return AttendanceLogResponse(
@@ -445,8 +445,8 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
 
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Failed to log attendance: {e}")
-        raise api_error(500, "INTERNAL_ERROR", f"Failed to log attendance: {str(e)}")
+        logger.exception("ATTENDANCE | failed to log: user=%d class=%d", body.user_id, body.class_id)
+        raise api_error(500, "INTERNAL_ERROR", "An unexpected error occurred while logging attendance")
 
 
 @router.get("/class/{class_id}/enrolled", response_model=ClassEnrolledResponse)
@@ -589,7 +589,7 @@ def update_late_threshold(class_id: int, data: LateThresholdUpdate, db: Session 
     cls.late_threshold_minutes = data.late_threshold_minutes
     db.commit()
 
-    logger.info(f"✅ Late threshold updated: class={class_id}, threshold={data.late_threshold_minutes} min")
+    logger.info("SCHEDULE | late threshold updated: class=%d threshold=%d min", class_id, data.late_threshold_minutes)
 
     return {
         "success": True,

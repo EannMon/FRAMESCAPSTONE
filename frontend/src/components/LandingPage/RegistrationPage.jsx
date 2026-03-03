@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './LandingPage.css';
 import './RegistrationPage.css';
 import Header from '../Common/Header';
@@ -27,6 +27,7 @@ const RegistrationPage = () => {
     const [retypePassword, setRetypePassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showRetypePassword, setShowRetypePassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Validation & Alert
     const [errors, setErrors] = useState({});
@@ -55,17 +56,21 @@ const RegistrationPage = () => {
     const [programs, setPrograms] = useState([]);
 
     useEffect(() => {
+        const controller = new AbortController();
         const fetchDropdowns = async () => {
             try {
-                const deptRes = await axios.get('http://localhost:5000/api/auth/departments');
+                const deptRes = await api.get('/api/auth/departments', { signal: controller.signal });
                 setDepartments(deptRes.data);
-                const progRes = await axios.get('http://localhost:5000/api/auth/programs');
+                const progRes = await api.get('/api/auth/programs', { signal: controller.signal });
                 setPrograms(progRes.data);
             } catch (error) {
-                console.error("Error fetching dropdowns:", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error fetching dropdowns:", error);
+                }
             }
         };
         fetchDropdowns();
+        return () => controller.abort();
     }, []);
 
     // Filter programs based on selected department
@@ -133,11 +138,13 @@ const RegistrationPage = () => {
     };
 
     const handleFinish = async () => {
+        if (isSubmitting) return;
         if (password !== retypePassword || password.length < 6) {
             showAlert("Invalid Password", "Passwords must match and be at least 6 characters long.", "warning");
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const payload = {
                 email: formData.email,
@@ -152,7 +159,7 @@ const RegistrationPage = () => {
                 current_term: formData.currentTerm || null
             };
 
-            const response = await axios.post('http://localhost:5000/api/auth/register', payload);
+            const response = await api.post('/api/auth/register', payload);
             if (response.data.message) {
                 // If HEAD, they are auto-verified
                 if (role === 'head') {
@@ -170,6 +177,8 @@ const RegistrationPage = () => {
             } else {
                 showAlert("Registration Failed", errorMsg, "error");
             }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -465,8 +474,8 @@ const RegistrationPage = () => {
                                 Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '8px' }}></i>
                             </button>
                         ) : (
-                            <button type="button" className="reg-submit-button" onClick={handleFinish}>
-                                Complete Registration
+                            <button type="button" className="reg-submit-button" onClick={handleFinish} disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : 'Complete Registration'}
                             </button>
                         )}
                     </div>

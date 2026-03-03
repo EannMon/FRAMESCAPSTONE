@@ -6,19 +6,22 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    background-color: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent black */
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1050; /* High z-index to sit on top */
+    z-index: 1050;
+    /* High z-index to sit on top */
     animation: fadeIn 0.2s ease-out;
 }
 
 .report-modal-content {
     background: white;
-    width: 500px; /* Fixed width as per user request for "size" */
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -27,20 +30,34 @@
 }
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* --- HEADER --- */
 .report-modal-header {
-    background-color: #0F172A; /* Frames Navy */
+    background-color: #0F172A;
+    /* Frames Navy */
     color: white;
-    padding: 18px 25px; /* Slightly more padding */
+    padding: 18px 25px;
+    /* Slightly more padding */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -49,7 +66,8 @@
 .report-modal-header h3 {
     margin: 0;
     font-size: 1.15rem;
-    font-weight: 700; /* Bolder title */
+    font-weight: 700;
+    /* Bolder title */
     letter-spacing: 0.5px;
 }
 
@@ -68,7 +86,8 @@
 
 /* --- BODY --- */
 .report-modal-body {
-    padding: 25px; /* More padding */
+    padding: 25px;
+    /* More padding */
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -88,19 +107,25 @@
 
 /* Configuration Card - White bg, items separated by lines */
 .config-card {
-    background-color: #fff; /* White background */
+    background-color: #fff;
+    /* White background */
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 10px 20px; /* Padding inside the list container */
+    padding: 10px 20px;
+    /* Padding inside the list container */
 }
 
 .config-row {
     display: flex;
-    flex-direction: row; /* Match the side-by-side */
+    flex-direction: row;
+    /* Match the side-by-side */
     justify-content: space-between;
-    align-items: flex-end; /* Align bottom so label and value sit well? Or center? */
-    padding: 15px 0; /* Vertical spacing */
-    border-bottom: 1px solid #eee; /* Separator line */
+    align-items: flex-end;
+    /* Align bottom so label and value sit well? Or center? */
+    padding: 15px 0;
+    /* Vertical spacing */
+    border-bottom: 1px solid #eee;
+    /* Separator line */
 }
 
 .config-row:last-child {
@@ -110,13 +135,15 @@
 .config-label {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #888; /* Grey label */
+    color: #888;
+    /* Grey label */
 }
 
 .config-value {
     font-size: 1rem;
     color: #000;
-    font-weight: 700; /* Bold value */
+    font-weight: 700;
+    /* Bold value */
     text-align: right;
 }
 
@@ -161,7 +188,8 @@
 
 /* Active State (Red for PDF, or just Selected) */
 .format-btn.active {
-    border: 2px solid #0F172A; /* Navy border */
+    border: 2px solid #0F172A;
+    /* Navy border */
     color: #0F172A;
     background-color: #f1f5f9;
 }
@@ -175,8 +203,10 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    padding: 20px 25px 25px; /* Bottom padding */
-    border-top: none; /* No top border in footer based on screenshot looking clean? Or maybe sticking to existing */
+    padding: 20px 25px 25px;
+    /* Bottom padding */
+    border-top: none;
+    /* No top border in footer based on screenshot looking clean? Or maybe sticking to existing */
     /* Screenshot doesn't show a clear footer line, but separation is good. Let's keep it subtle or remove if "white card" effect. */
     border-top: 1px solid #f0f0f0;
 }
@@ -198,7 +228,8 @@
 
 .btn-generate {
     padding: 10px 25px;
-    background-color: #00A859; /* Bright Green */
+    background-color: #00A859;
+    /* Bright Green */
     border: none;
     color: white;
     border-radius: 6px;

@@ -13,6 +13,7 @@ from core.errors import api_error
 from models.subject import Subject
 from models.class_ import Class
 from models.user import User, UserRole
+from models.department import Department
 
 logger = logging.getLogger(__name__)
 
@@ -240,3 +241,42 @@ def get_user_schedule(user_id: int, db: Session = Depends(get_db)):
     # TODO: Implement Student Schedule when Enrollment model is ready
     
     return schedule
+
+
+# --- Academic Year Settings ---
+
+class AcademicYearUpdate(BaseModel):
+    user_id: int
+    academic_year: str
+    semester: str
+
+@router.get("/academic-year")
+def get_academic_year(dept_id: int = Query(...), db: Session = Depends(get_db)):
+    """Get the active academic year for a department."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if not dept:
+        raise api_error(404, "DEPT_NOT_FOUND", "Department not found")
+    return {
+        "academic_year": dept.active_academic_year or None,
+        "semester": dept.active_semester or None
+    }
+
+@router.put("/academic-year")
+def update_academic_year(req: AcademicYearUpdate, db: Session = Depends(get_db)):
+    """Update the active academic year for the dept head's department."""
+    user = db.query(User).filter(User.id == req.user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+    if not user.department_id:
+        raise api_error(400, "NO_DEPARTMENT", "User has no department assigned")
+    
+    dept = db.query(Department).filter(Department.id == user.department_id).first()
+    if not dept:
+        raise api_error(404, "DEPT_NOT_FOUND", "Department not found")
+    
+    dept.active_academic_year = req.academic_year
+    dept.active_semester = req.semester
+    db.commit()
+    
+    logger.info("Academic year updated to %s %s for department %s", req.academic_year, req.semester, dept.name)
+    return {"message": "Academic year updated", "academic_year": req.academic_year, "semester": req.semester}

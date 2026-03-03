@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useToast } from '../Common/ToastProvider';
+import { useAuth } from '../../context/AuthContext';
 import './AdminLayout.css';
 import '../Common/Utility.css';
 import Header from '../Common/Header';
@@ -8,10 +9,10 @@ import Header from '../Common/Header';
 // Import other required page components here if using conditional rendering
 // import AdminDashboardPage from './AdminDashboardPage'; 
 
-// --- THEME & USER DEFINITION (RED THEME) ---
+// --- THEME & USER DEFINITION (NAVY THEME) ---
 const adminTheme = {
-    primary: '#A62525', // Primary Red
-    dark: '#c82333',
+    primary: '#0F172A', // Primary Navy
+    dark: '#163269',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
@@ -20,7 +21,7 @@ const adminTheme = {
 // 1. Admin Sidebar Component (MODIFIED)
 // ===========================================
 // Ginawa nating prop ang user para magamit ang data
-const AdminSidebar = ({ user }) => {
+const AdminSidebar = ({ user, isCollapsed, isMobileOpen }) => {
     // Nav items: TINANGGAL ang 'Verification' link
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/admin-dashboard' },
@@ -32,7 +33,7 @@ const AdminSidebar = ({ user }) => {
     ];
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'open' : ''}`}>
             <div className="admin-role-tag">
                 Administrator
             </div>
@@ -62,45 +63,69 @@ const AdminSidebar = ({ user }) => {
 const AdminLayout = () => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user: authUser, isLoading: authLoading, logout: authLogout } = useAuth();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-    // --- SECURITY CHECK ON LOAD (ADDED) ---
+    const toggleSidebar = () => {
+        if (window.innerWidth <= 992) {
+            setIsMobileOpen(!isMobileOpen);
+        } else {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
+
+    // --- SECURITY CHECK ON LOAD (uses AuthContext) ---
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
-        if (!storedUser) {
+        if (authLoading) return; // Wait for AuthContext to initialize
+
+        if (!authUser) {
             navigate('/');
             return;
         }
 
-        const userData = JSON.parse(storedUser);
-
         // HAKBANG 1: Check kung Admin (backend returns uppercase roles)
-        if (userData.role?.toLowerCase() !== 'admin') {
+        if (authUser.role?.toLowerCase() !== 'admin') {
             toast.error("Access denied. You are not authorized to view the Admin dashboard.");
             navigate('/');
             return;
         }
 
         // HAKBANG 2: Check kung Verified
-        if (userData.verification_status !== 'Verified') {
+        if (authUser.verification_status !== 'Verified') {
             toast.error("Access denied. Your admin account is pending full verification.");
-            navigate(`/register/${userData.role}?s=${userData.verification_status.toLowerCase()}`);
+            navigate(`/register/${authUser.role}?s=${authUser.verification_status.toLowerCase()}`);
             return;
         }
 
         // Kung Verified, i-set ang user data at magpatuloy
         // Handle both snake_case (backend) and camelCase (legacy) field names
-        const firstName = userData.first_name || userData.firstName || '';
-        const lastName = userData.last_name || userData.lastName || '';
+        const firstName = authUser.first_name || authUser.firstName || '';
+        const lastName = authUser.last_name || authUser.lastName || '';
         setUser({
-            ...userData,
+            ...authUser,
             name: `${firstName} ${lastName}`.trim() || 'Admin', // Ensure name is formatted for Header
             notifications: 0 // Placeholder or fetch actual count if necessary
         });
         setLoading(false);
 
-    }, [navigate]);
+    }, [authUser, authLoading, navigate]);
+
+    // Apply dark mode for logged-in user (per-user setting)
+    useEffect(() => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                if (localStorage.getItem(`frames-dark-mode-${u.id}`) === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch { }
+        }
+        return () => document.body.classList.remove('dark-mode');
+    }, []);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px' }}>Loading Admin Panel...</div>;
@@ -109,10 +134,15 @@ const AdminLayout = () => {
     // Ang user state ay gagamitin na ngayon sa Header at Sidebar
     return (
         <div className="dashboard-container">
-            <Header theme={adminTheme} user={user} />
+            <Header theme={adminTheme} user={user} showLogo={false} toggleSidebar={toggleSidebar} isSidebarCollapsed={isCollapsed} />
             <div className="dashboard-body">
-                <AdminSidebar user={user} />
-                <div className="main-content-area">
+                <div
+                    className={`frames-sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                ></div>
+
+                <AdminSidebar user={user} isCollapsed={isCollapsed} isMobileOpen={isMobileOpen} />
+                <div className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     {/* Ipasa ang user context sa Outlet */}
                     <Outlet context={{ user }} />
                 </div>

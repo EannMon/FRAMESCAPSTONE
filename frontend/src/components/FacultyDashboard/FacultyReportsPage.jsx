@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import './FacultyReportsPage.css';
 import FacultyReportModal from './FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
@@ -56,19 +56,39 @@ const FacultyReportsPage = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
+    const [academicYear, setAcademicYear] = useState('');
+
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
     }, []);
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
     // Fetch faculty's classes for the dropdown
     useEffect(() => {
         if (!user?.id) return;
-        axios.get(`${API}/api/faculty/schedule/${user.id}`).then(res => {
+        const controller = new AbortController();
+
+        api.get(`/api/faculty/schedule/${user.id}`, { signal: controller.signal }).then(res => {
             setClasses(res.data || []);
-        }).catch(() => { });
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                console.error('Failed to fetch schedule:', err);
+            }
+        });
+
+        // Fetch Academic Year
+        if (user.department_id) {
+            api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
+                .then(res => {
+                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                }).catch((err) => {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        console.error('Failed to fetch academic year:', err);
+                    }
+                });
+        }
+
+        return () => controller.abort();
     }, [user]);
 
     // Group report options by category
@@ -90,7 +110,7 @@ const FacultyReportsPage = () => {
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
 
-            const res = await axios.get(`${API}/api/faculty/reports/data/${user.id}`, { params });
+            const res = await api.get(`/api/faculty/reports/data/${user.id}`, { params });
             setReportData(res.data || []);
         } catch (err) {
             console.error('Report fetch error:', err);
@@ -171,13 +191,9 @@ const FacultyReportsPage = () => {
     return (
         <div className="faculty-reports-page">
             {/* Header */}
-            <div className="reports-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2>Reports</h2>
-                    <p className="reports-subtitle">Generate and download attendance reports from real-time data</p>
-                </div>
+            <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
                 <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. {classes.length > 0 ? classes[0].academic_year || '2025-2026' : '2025-2026'}
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
                 </div>
             </div>
 

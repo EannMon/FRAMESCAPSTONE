@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 
 import './AttendanceHistoryPage.css';
 import StudentReportModal from './StudentReportModal';
@@ -7,8 +7,8 @@ import StudentReportModal from './StudentReportModal';
 const LogStatusTag = ({ text, isPresent, type }) => {
     let statusClass = 'neutral';
     if (isPresent) statusClass = 'success';
-    else if (type === 'system_alert') statusClass = 'danger';
-    else if (type === 'break_out') statusClass = 'warning';
+    else if (type === 'BREAK_OUT') statusClass = 'warning';
+    else if (type === 'EXIT') statusClass = 'neutral';
     else statusClass = 'neutral';
 
     return (
@@ -46,10 +46,16 @@ const AttendanceHistoryPage = () => {
         { id: 'CONSISTENCY', label: 'Personal Consistency Index', desc: 'AI-generated metric predicting absence trends.' }
     ];
 
-    // Helper: Parse Time "07:00 AM" -> Minutes
+    // Helper: Parse Time "HH:MM:SS" (24-hr) or "07:00 AM" (12-hr) -> Minutes
     const parseTimeStr = (timeStr) => {
         if (!timeStr) return 0;
         try {
+            // Handle 24-hr format "HH:MM:SS" or "HH:MM"
+            if (timeStr.includes(':') && !timeStr.includes('AM') && !timeStr.includes('PM')) {
+                const parts = timeStr.split(':');
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            }
+            // Handle 12-hr format "07:00 AM"
             const [time, modifier] = timeStr.split(' ');
             let [hours, minutes] = time.split(':');
             if (hours === '12') hours = '00';
@@ -61,6 +67,8 @@ const AttendanceHistoryPage = () => {
     };
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchData = async () => {
             try {
                 const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -69,7 +77,7 @@ const AttendanceHistoryPage = () => {
 
                 // A. Get Schedule & Pre-process
                 const userId = storedUser.id || storedUser.user_id;
-                const schedRes = await axios.get(`http://localhost:5000/api/student/schedule/${userId}`);
+                const schedRes = await api.get(`/api/student/schedule/${userId}`, { signal: controller.signal });
                 
                 // OPTIMIZATION: Pre-calculate start/end minutes for schedule
                 const processedSchedule = (schedRes.data || []).map(cls => ({
@@ -83,15 +91,15 @@ const AttendanceHistoryPage = () => {
                 const subjects = [];
                 const seen = new Set();
                 processedSchedule.forEach(item => {
-                    if (!seen.has(item.course_name)) {
-                        seen.add(item.course_name);
-                        subjects.push(item.course_name);
+                    if (item.subject_title && !seen.has(item.subject_title)) {
+                        seen.add(item.subject_title);
+                        subjects.push(item.subject_title);
                     }
                 });
                 setUniqueSubjects(subjects);
 
                 // B. Get Logs & SMART MAPPING
-                const historyRes = await axios.get(`http://localhost:5000/api/student/history/${userId}`);
+                const historyRes = await api.get(`/api/student/history/${userId}`, { signal: controller.signal });
                 const rawLogData = historyRes.data || [];
 
                 const mappedLogs = rawLogData.map(log => {
@@ -108,7 +116,7 @@ const AttendanceHistoryPage = () => {
                         if (cls.day_of_week !== logDay) return false;
 
                         // Check Room (If room data exists in log)
-                        if (log.room_name && cls.room_name && log.room_name !== cls.room_name) return false;
+                        if (log.room && cls.room && log.room !== cls.room) return false;
 
                         // Check Time (Buffer: 60 mins before, 60 mins after class starts/ends)
                         return (
@@ -119,8 +127,8 @@ const AttendanceHistoryPage = () => {
 
                     return {
                         ...log,
-                        mapped_subject: foundClass ? foundClass.title : (log.event_type === 'system_alert' ? 'Unauthorized Entry' : 'Unscheduled'),
-                        mapped_room: log.room_name
+                        mapped_subject: foundClass ? foundClass.subject_title : (log.class_name || 'Unscheduled'),
+                        mapped_room: log.room || '—'
                     };
                 });
 
@@ -128,11 +136,15 @@ const AttendanceHistoryPage = () => {
                 setLoading(false);
 
             } catch (error) {
-                console.error("Error:", error);
-                setLoading(false);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error:", error);
+                    setLoading(false);
+                }
             }
         };
         fetchData();
+
+        return () => controller.abort();
     }, []);
 
     // --- FILTER LOGIC ---
@@ -220,6 +232,16 @@ const AttendanceHistoryPage = () => {
 
         // Sort desc
         return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    };
+
+    // Helper: Map action to display status
+    const getActionStatus = (action) => {
+        if (!action) return { text: '—', isPresent: false };
+        const upper = action.toUpperCase();
+        if (upper === 'ENTRY' || upper === 'BREAK_IN') return { text: 'PRESENT', isPresent: true };
+        if (upper === 'BREAK_OUT') return { text: 'ON BREAK', isPresent: false };
+        if (upper === 'EXIT') return { text: 'EXITED', isPresent: false };
+        return { text: action, isPresent: false };
     };
 
     const displayData = getFilteredData();
@@ -332,14 +354,17 @@ const AttendanceHistoryPage = () => {
     // --- REPORT GENERATION HANDLER ---
     const handleGenerateReport = (format) => {
         // 1. Map Data for Report (Matching keys to headers)
-        const tableInput = displayData.map(log => ({
-            "Date": new Date(log.timestamp).toLocaleDateString(),
-            "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            "Subject": log.mapped_subject,
-            "Room": log.mapped_room || 'N/A',
-            "Status": log.event_type.includes('in') ? 'PRESENT' : (log.event_type === 'system_alert' ? 'ALERT' : 'OUT'),
-            "Remarks": log.remarks || '-'
-        }));
+        const tableInput = displayData.map(log => {
+            const status = getActionStatus(log.action);
+            return {
+                "Date": new Date(log.timestamp).toLocaleDateString(),
+                "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                "Subject": log.mapped_subject,
+                "Room": log.mapped_room || 'N/A',
+                "Status": status.text,
+                "Remarks": log.remarks || '-'
+            };
+        });
 
         const reportObj = reportTypes.find(r => r.id === selectedReportType);
         const reportTitle = reportObj?.label.replace(/^[a-z]\.\s/, '') || "Attendance Report";
@@ -453,16 +478,21 @@ const AttendanceHistoryPage = () => {
                                             <div style={{ fontWeight: '500' }}>{new Date(log.timestamp).toLocaleDateString()}</div>
                                             <div style={{ fontSize: '0.85em', color: '#888' }}>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                         </td>
-                                        <td style={{ fontWeight: '600', color: log.mapped_subject === 'Unauthorized Entry' ? '#C62828' : '#333' }}>
+                                        <td style={{ fontWeight: '600', color: '#333' }}>
                                             {log.mapped_subject}
                                         </td>
                                         <td>{log.mapped_room}</td>
                                         <td>
-                                            <LogStatusTag
-                                                text={log.event_type.includes('in') ? 'PRESENT' : (log.event_type === 'system_alert' ? 'ALERT' : 'OUT')}
-                                                isPresent={log.event_type.includes('in')}
-                                                type={log.event_type}
-                                            />
+                                            {(() => {
+                                                const status = getActionStatus(log.action);
+                                                return (
+                                                    <LogStatusTag
+                                                        text={status.text}
+                                                        isPresent={status.isPresent}
+                                                        type={log.action?.toUpperCase()}
+                                                    />
+                                                );
+                                            })()}
                                         </td>
                                         <td style={{ fontSize: '0.9em', color: log.remarks === 'Late' ? 'orange' : '#555' }}>
                                             {log.remarks || '-'}

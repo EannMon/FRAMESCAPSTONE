@@ -122,8 +122,11 @@ class UserResponse(UserBase):
 
 
 class LoginResponse(BaseModel):
-    """Login success response"""
+    """Login success response — includes JWT tokens per FRAMES_SECURITY_RULES §1.5"""
     message: str
+    access_token: str = ""
+    refresh_token: str = ""
+    token_type: str = "bearer"
     user: UserResponse
 
 

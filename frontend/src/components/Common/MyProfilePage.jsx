@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from './ToastProvider';
 import './MyProfilePage.css';
 import Header from './Header';
@@ -63,7 +63,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
         setLoading(true);
         setError('');
         try {
-            await axios.post('http://localhost:5000/api/users/verify-password', {
+            await api.post('/api/users/verify-password', {
                 user_id: userId,
                 password: currentPassword
             });
@@ -89,7 +89,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 
         setLoading(true);
         try {
-            await axios.put('http://localhost:5000/api/users/change-password', {
+            await api.put('/api/users/change-password', {
                 user_id: userId,
                 new_password: newPassword
             });
@@ -185,17 +185,21 @@ const MyProfilePage = ({ isEmbedded = false }) => {
 
     // --- Background Refresh ---
     useEffect(() => {
+        const controller = new AbortController();
         const fetchLatestData = async () => {
             if (!user) return;
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/${user.id || user.user_id}`);
+                const response = await api.get(`/api/users/${user.id || user.user_id}`, { signal: controller.signal });
                 setUser(prev => ({ ...prev, ...response.data }));
                 localStorage.setItem('currentUser', JSON.stringify(response.data));
             } catch (error) {
-                console.error("Background sync failed:", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Background sync failed:", error);
+                }
             }
         };
         fetchLatestData();
+        return () => controller.abort();
     }, []);
 
     // --- Handlers ---
@@ -208,7 +212,7 @@ const MyProfilePage = ({ isEmbedded = false }) => {
 
     const handleSave = async () => {
         try {
-            await axios.put(`http://localhost:5000/api/users/${user.id || user.user_id}`, user);
+            await api.put(`/api/users/${user.id || user.user_id}`, user);
             toast.success("Profile Updated Successfully!");
             setIsEditing(false);
             localStorage.setItem('currentUser', JSON.stringify(user));

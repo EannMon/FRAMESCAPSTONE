@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import '../FacultyDashboard/FacultyReportsPage.css';
 import FacultyReportModal from '../FacultyDashboard/FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
@@ -39,19 +39,36 @@ const DeptHeadReportsPage = () => {
     const [room, setRoom] = useState('');
     const [rooms, setRooms] = useState([]);
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const [academicYear, setAcademicYear] = useState('');
 
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
     }, []);
 
-    // Fetch room list
+    // Fetch room list & academic year
     useEffect(() => {
-        axios.get(`${API}/api/dept/management-data`).then(res => {
+        const controller = new AbortController();
+        api.get('/api/dept/management-data', { signal: controller.signal }).then(res => {
             setRooms(res.data?.rooms || []);
-        }).catch(() => { });
-    }, []);
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                // silently ignore
+            }
+        });
+
+        if (user?.department_id) {
+            api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
+                .then(res => {
+                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                }).catch((err) => {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        // silently ignore
+                    }
+                });
+        }
+        return () => controller.abort();
+    }, [user]);
 
     const groupedReports = useMemo(() => {
         const groups = {};
@@ -70,7 +87,7 @@ const DeptHeadReportsPage = () => {
             if (dateTo) params.date_to = dateTo;
             if (room) params.room = room;
 
-            const res = await axios.get(`${API}/api/dept/reports/data`, { params });
+            const res = await api.get('/api/dept/reports/data', { params });
             setReportData(res.data || []);
         } catch (err) {
             console.error('Dept report fetch error:', err);
@@ -139,13 +156,9 @@ const DeptHeadReportsPage = () => {
 
     return (
         <div className="faculty-reports-page">
-            <div className="reports-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2>Department Reports</h2>
-                    <p className="reports-subtitle">Faculty oversight, facility analytics, and departmental strategy reports</p>
-                </div>
+            <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
                 <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. 2025-2026
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
                 </div>
             </div>
 

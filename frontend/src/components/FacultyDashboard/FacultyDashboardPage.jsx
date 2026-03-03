@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import './FacultyDashboardPage.css';
 import '../Common/Utility.css';
@@ -267,80 +267,119 @@ const AttendanceTrendChart = ({ logs, filter, setFilter }) => {
 
 // --- LIVE STATUS WITH DOTS ---
 const LiveRoomStatus = ({ rooms }) => {
-    if (!rooms || rooms.length === 0) {
-        return (
-            <div className="card live-status-card">
-                <div className="live-status-header">
-                    <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
+    const [viewMode, setViewMode] = useState('wide'); // 'wide' or 'single'
+    const [selectedRoom, setSelectedRoom] = useState(null);
+
+    const displayRooms = viewMode === 'single' && selectedRoom
+        ? rooms.filter(r => r.room === selectedRoom)
+        : rooms;
+
+    return (
+        <div className="card dh-live-status-card">
+            <div className="live-status-header">
+                <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
+                <div className="dh-live-controls">
                     <span className="live-pulse-badge">
                         <span className="live-pulse-dot"></span> LIVE
                     </span>
+                    <div className="dh-view-toggle">
+                        <button
+                            className={`dh-view-btn ${viewMode === 'wide' ? 'active' : ''}`}
+                            onClick={() => { setViewMode('wide'); setSelectedRoom(null); }}
+                            title="Wide View"
+                        >
+                            <i className="fas fa-th"></i>
+                        </button>
+                        <button
+                            className={`dh-view-btn ${viewMode === 'single' ? 'active' : ''}`}
+                            onClick={() => setViewMode('single')}
+                            title="Single View"
+                        >
+                            <i className="fas fa-square"></i>
+                        </button>
+                    </div>
+                    {viewMode === 'single' && (
+                        <div className="dh-room-selector">
+                            <select
+                                value={selectedRoom || ''}
+                                onChange={(e) => setSelectedRoom(e.target.value)}
+                            >
+                                <option value="">Select a classroom...</option>
+                                {rooms.map((r, idx) => (
+                                    <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
+            </div>
+
+            {(!rooms || rooms.length === 0) ? (
                 <div className="empty-state-mini">
                     <i className="fas fa-coffee"></i>
                     <p>No active classrooms right now</p>
                 </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="card live-status-card">
-            <div className="live-status-header">
-                <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
-                <span className="live-pulse-badge">
-                    <span className="live-pulse-dot"></span> LIVE
-                </span>
-            </div>
-            <div className="live-rooms-container">
-                {rooms.map((room, idx) => (
-                    <div key={idx} className="live-room-box">
-                        <div className="live-room-label">{room.room}</div>
-                        <div className="live-room-subject">{room.subject_code}</div>
-                        <div className="live-dots-area">
-                            {/* Green dots for present people */}
-                            {room.present.map((p, i) => (
-                                <span
-                                    key={`p-${i}`}
-                                    className="live-dot live-dot-green"
-                                    title={`${p.name} (Present)`}
-                                    style={{
-                                        left: `${10 + ((i * 37) % 80)}%`,
-                                        top: `${15 + ((i * 53) % 60)}%`,
-                                        animationDelay: `${i * 0.3}s`
-                                    }}
-                                ></span>
-                            ))}
-                            {/* Yellow dots for on-break people */}
-                            {room.on_break.map((p, i) => (
-                                <span
-                                    key={`b-${i}`}
-                                    className="live-dot live-dot-yellow"
-                                    title={`${p.name} (On Break)`}
-                                    style={{
-                                        left: `${5 + ((i * 43 + 20) % 80)}%`,
-                                        top: `${10 + ((i * 47 + 30) % 60)}%`,
-                                        animationDelay: `${i * 0.4 + 0.2}s`
-                                    }}
-                                ></span>
-                            ))}
-                            {room.present_count === 0 && room.break_count === 0 && (
-                                <div className="live-dots-empty">No one detected</div>
-                            )}
+            ) : (
+                <div className={`dh-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'}`}>
+                    {displayRooms.map((room, idx) => (
+                        <div key={idx} className={`dh-room-box ${viewMode === 'single' ? 'dh-room-large' : ''}`}>
+                            <div className="live-room-label">{room.room}</div>
+                            <div className="dh-room-meta">
+                                <span className="dh-room-subject">{room.subject_code}</span>
+                                {room.faculty_name && (
+                                    <span className="dh-room-faculty">
+                                        <i className="fas fa-chalkboard-teacher"></i> {room.faculty_name}
+                                    </span>
+                                )}
+                                {room.start_time && room.end_time && (
+                                    <span className="dh-room-time">
+                                        <i className="fas fa-clock"></i> {room.start_time} - {room.end_time}
+                                    </span>
+                                )}
+                            </div>
+                            <div className={`live-dots-area ${viewMode === 'single' ? 'dh-dots-large' : ''}`}>
+                                {room.present.map((p, i) => (
+                                    <span
+                                        key={`p-${i}`}
+                                        className="live-dot live-dot-green"
+                                        title={`${p.name} (Present)`}
+                                        style={{
+                                            left: `${8 + ((i * 31 + 7) % 82)}%`,
+                                            top: `${12 + ((i * 47 + 13) % 65)}%`,
+                                            animationDelay: `${i * 0.25}s`
+                                        }}
+                                    ></span>
+                                ))}
+                                {room.on_break.map((p, i) => (
+                                    <span
+                                        key={`b-${i}`}
+                                        className="live-dot live-dot-yellow"
+                                        title={`${p.name} (On Break)`}
+                                        style={{
+                                            left: `${5 + ((i * 41 + 23) % 82)}%`,
+                                            top: `${8 + ((i * 53 + 17) % 65)}%`,
+                                            animationDelay: `${i * 0.3 + 0.15}s`
+                                        }}
+                                    ></span>
+                                ))}
+                                {room.present_count === 0 && room.break_count === 0 && (
+                                    <div className="live-dots-empty">No one detected</div>
+                                )}
+                            </div>
+                            <div className="live-room-counts">
+                                <span className="live-count-present">
+                                    <span className="live-dot-inline live-dot-green"></span>
+                                    {room.present_count} Present
+                                </span>
+                                <span className="live-count-break">
+                                    <span className="live-dot-inline live-dot-yellow"></span>
+                                    {room.break_count} On Break
+                                </span>
+                            </div>
                         </div>
-                        <div className="live-room-counts">
-                            <span className="live-count-present">
-                                <span className="live-dot-inline live-dot-green"></span>
-                                {room.present_count} Present
-                            </span>
-                            <span className="live-count-break">
-                                <span className="live-dot-inline live-dot-yellow"></span>
-                                {room.break_count} On Break
-                            </span>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -445,10 +484,10 @@ const FacultyDashboardPage = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const controller = new AbortController();
 
         // Refresh face_registered from DB
-        axios.get(`${API}/api/users/${user.id}`).then(res => {
+        api.get(`/api/users/${user.id}`, { signal: controller.signal }).then(res => {
             const fresh = res.data?.face_registered ?? false;
             setFaceRegistered(fresh);
             // Update localStorage too
@@ -456,20 +495,31 @@ const FacultyDashboardPage = () => {
                 const updated = { ...user, face_registered: fresh };
                 localStorage.setItem('currentUser', JSON.stringify(updated));
             }
-        }).catch(() => { });
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                console.error('Failed to refresh face_registered:', err);
+            }
+        });
 
         const fetchData = async () => {
             try {
                 const [statsRes, schedRes] = await Promise.all([
-                    axios.get(`${API}/api/faculty/dashboard-stats/${user.id}`),
-                    axios.get(`${API}/api/faculty/schedule/${user.id}`).catch(() => ({ data: [] }))
+                    api.get(`/api/faculty/dashboard-stats/${user.id}`, { signal: controller.signal }),
+                    api.get(`/api/faculty/schedule/${user.id}`, { signal: controller.signal }).catch((err) => {
+                        if (err.name === 'AbortError' || err.name === 'CanceledError') throw err;
+                        return { data: [] };
+                    })
                 ]);
                 setStats(statsRes.data);
                 setSchedule(schedRes.data || []);
             } catch (err) {
-                console.error('Dashboard fetch error:', err);
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Dashboard fetch error:', err);
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
         fetchData();
@@ -477,16 +527,21 @@ const FacultyDashboardPage = () => {
         // Live room status polling
         const fetchLiveRooms = async () => {
             try {
-                const res = await axios.get(`${API}/api/faculty/live-room-status/${user.id}`);
+                const res = await api.get(`/api/faculty/live-room-status/${user.id}`, { signal: controller.signal });
                 setLiveRooms(res.data.rooms || []);
             } catch (err) {
-                console.error('Live room status error:', err);
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Live room status error:', err);
+                }
             }
         };
         fetchLiveRooms();
         const liveInterval = setInterval(fetchLiveRooms, 10000); // Poll every 10s
 
-        return () => clearInterval(liveInterval);
+        return () => {
+            controller.abort();
+            clearInterval(liveInterval);
+        };
     }, [user]);
 
     if (loading) {
@@ -554,7 +609,7 @@ const FacultyDashboardPage = () => {
             </div>
 
             {/* Bottom Row: Recent Activity (left) + Quick Actions (right) */}
-            <div className="dashboard-two-col">
+            <div className="dashboard-two-col" style={{ marginTop: '20px' }}>
                 <RecentActivity activities={stats?.recent_attendance || []} />
                 <QuickActions navigate={navigate} />
             </div>

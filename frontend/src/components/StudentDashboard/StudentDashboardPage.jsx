@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import './StudentDashboardPage.css';
 
 // --- COMPONENTS ---
@@ -428,6 +428,8 @@ const StudentDashboardPage = () => {
     const [allLogs, setAllLogs] = useState([]);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchData = async () => {
             try {
                 const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -437,8 +439,8 @@ const StudentDashboardPage = () => {
                 const userId = storedUser.id || storedUser.user_id;
 
                 const [dashRes, histRes] = await Promise.all([
-                    axios.get(`http://localhost:5000/api/student/dashboard/${userId}`),
-                    axios.get(`http://localhost:5000/api/student/history/${userId}`)
+                    api.get(`/api/student/dashboard/${userId}`, { signal: controller.signal }),
+                    api.get(`/api/student/history/${userId}`, { signal: controller.signal })
                 ]);
 
                 setDashboardData(prev => ({
@@ -451,11 +453,15 @@ const StudentDashboardPage = () => {
                 setAllLogs(histRes.data || []);
                 setLoading(false);
             } catch (error) {
-                console.error("Error fetching dashboard:", error);
-                setLoading(false);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error fetching dashboard:", error);
+                    setLoading(false);
+                }
             }
         };
         fetchData();
+
+        return () => controller.abort();
     }, []);
 
     if (loading) return <div style={{ padding: '40px' }}>Loading Dashboard...</div>;

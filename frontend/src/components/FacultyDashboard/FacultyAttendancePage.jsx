@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import '../StudentDashboard/AttendanceHistoryPage.css'; // Inheriting Student style
@@ -33,23 +33,27 @@ const FacultyAttendancePage = () => {
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
+        const controller = new AbortController();
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
-            fetchSchedule(parsedUser.user_id || parsedUser.id);
+            fetchSchedule(parsedUser.user_id || parsedUser.id, controller.signal);
         }
+        return () => controller.abort();
     }, []);
 
     // --- 2. FETCH SCHEDULE (API) ---
-    const fetchSchedule = async (userId) => {
+    const fetchSchedule = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            const response = await api.get(`/api/faculty/schedule/${userId}`, { signal });
             setMyClasses(response.data);
             setLoading(false);
         } catch (error) {
-            console.error('Error loading schedule:', error);
-            setLoading(false);
+            if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                console.error('Error loading schedule:', error);
+                setLoading(false);
+            }
         }
     };
 
@@ -61,7 +65,7 @@ const FacultyAttendancePage = () => {
         }
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${clsId}`);
+            const response = await api.get(`/api/faculty/class-details/${clsId}`);
             setStudentList(response.data);
         } catch (error) {
             console.error('Error loading students:', error);

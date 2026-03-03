@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../Common/ToastProvider';
 import '../FacultyDashboard/FacultyDashboardPage.css';
@@ -277,23 +277,24 @@ const DeptHeadLiveStatus = ({ rooms }) => {
                             <i className="fas fa-square"></i>
                         </button>
                     </div>
+                    {/* Room selector for single view moved to the right of toggles */}
+                    {viewMode === 'single' && (
+                        <div className="dh-room-selector">
+                            <select
+                                value={selectedRoom || ''}
+                                onChange={(e) => setSelectedRoom(e.target.value)}
+                            >
+                                <option value="">Select a classroom...</option>
+                                {targetRooms.map((r, idx) => (
+                                    <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Room selector for single view */}
-            {viewMode === 'single' && (
-                <div className="dh-room-selector">
-                    <select
-                        value={selectedRoom || ''}
-                        onChange={(e) => setSelectedRoom(e.target.value)}
-                    >
-                        <option value="">Select a classroom...</option>
-                        {targetRooms.map((r, idx) => (
-                            <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
+
 
             {(!targetRooms || targetRooms.length === 0) ? (
                 <div className="empty-state-mini">
@@ -428,13 +429,12 @@ const DeptHeadDashboardPage = () => {
 
     const [faceRegistered, setFaceRegistered] = useState(user?.face_registered || false);
 
-    const fetchData = async () => {
+    const fetchData = async (signal) => {
         setListLoading(true);
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         try {
             const [verifyRes, facultyStatsRes] = await Promise.all([
-                axios.get(`${API}/api/admin/verification/list`).catch(() => ({ data: [] })),
-                user?.id ? axios.get(`${API}/api/faculty/dashboard-stats/${user.id}`).catch(() => ({ data: {} })) : Promise.resolve({ data: {} })
+                api.get('/api/admin/verification/list', { signal }).catch(() => ({ data: [] })),
+                user?.id ? api.get(`/api/faculty/dashboard-stats/${user.id}`, { signal }).catch(() => ({ data: {} })) : Promise.resolve({ data: {} })
             ]);
 
             const users = verifyRes.data || [];
@@ -454,56 +454,72 @@ const DeptHeadDashboardPage = () => {
             setAllLogs(fStats.all_logs || []);
             setRecentActivity(fStats.recent_attendance || []);
         } catch (error) {
-            console.error("Error fetching dashboard data:", error);
+            if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                console.error("Error fetching dashboard data:", error);
+            }
         } finally {
-            setLoading(false);
-            setListLoading(false);
+            if (!signal || !signal.aborted) {
+                setLoading(false);
+                setListLoading(false);
+            }
         }
     };
 
     useEffect(() => {
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const controller = new AbortController();
+        let liveInterval = null;
+
         if (user?.id) {
-            axios.get(`${API}/api/users/${user.id}`).then(res => {
+            api.get(`/api/users/${user.id}`, { signal: controller.signal }).then(res => {
                 const fresh = res.data?.face_registered ?? false;
                 setFaceRegistered(fresh);
                 if (fresh !== user.face_registered) {
                     const updated = { ...user, face_registered: fresh };
                     localStorage.setItem('currentUser', JSON.stringify(updated));
                 }
-            }).catch(() => { });
+            }).catch((err) => {
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    // silently ignore
+                }
+            });
         }
-        fetchData();
+        fetchData(controller.signal);
 
         // Live room status polling for dept head
         const fetchLiveRooms = async () => {
             try {
                 const deptId = user?.department_id || 1;
-                const res = await axios.get(`${API}/api/faculty/live-room-status-dept/${deptId}`);
+                const res = await api.get(`/api/faculty/live-room-status-dept/${deptId}`, { signal: controller.signal });
                 setLiveRooms(res.data.rooms || []);
             } catch (err) {
+                if (err.name === 'AbortError' || err.name === 'CanceledError') return;
                 // Fallback to faculty endpoint if dept endpoint fails
                 try {
-                    const res = await axios.get(`${API}/api/faculty/live-room-status/${user?.id}`);
+                    const res = await api.get(`/api/faculty/live-room-status/${user?.id}`, { signal: controller.signal });
                     setLiveRooms(res.data.rooms || []);
                 } catch (e2) {
-                    console.error('Live room status error:', e2);
+                    if (e2.name !== 'AbortError' && e2.name !== 'CanceledError') {
+                        console.error('Live room status error:', e2);
+                    }
                 }
             }
         };
         if (user?.id) {
             fetchLiveRooms();
-            const liveInterval = setInterval(fetchLiveRooms, 10000);
-            return () => clearInterval(liveInterval);
+            liveInterval = setInterval(fetchLiveRooms, 10000);
         }
+
+        return () => {
+            controller.abort();
+            if (liveInterval) clearInterval(liveInterval);
+        };
     }, []);
 
     const handleAction = async (userId, action, name) => {
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const confirmed = await toast.confirm(`Are you sure you want to ${action} ${name}'s account?`);
         if (!confirmed) return;
         try {
-            await axios.post(`${API}/api/admin/verification/${action}`, null, { params: { user_id: userId } });
+            await api.post(`/api/admin/verification/${action}`, null, { params: { user_id: userId } });
             setSelectedUser(null);
             fetchData();
         } catch (error) {
@@ -537,6 +553,47 @@ const DeptHeadDashboardPage = () => {
                     </span>
                 </div>
             </div>
+
+            {/* Face Registration Required Gate */}
+            {!faceRegistered && (
+                <div className="card" style={{
+                    borderLeft: '5px solid #dc2626',
+                    background: '#fef2f2',
+                    padding: '24px 28px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                }}>
+                    <i className="fas fa-exclamation-triangle" style={{ fontSize: '2rem', color: '#dc2626' }}></i>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: '#991b1b', fontSize: '1.05rem', marginBottom: '4px' }}>
+                            Face Registration Required
+                        </div>
+                        <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                            FRAMES requires facial recognition enrollment before you can fully access the system.
+                            Please visit a registration kiosk or use the face enrollment feature in <strong>Settings</strong> to register your face.
+                            Dashboard features are limited until registration is complete.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/head-settings')}
+                        style={{
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '10px 20px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.9rem',
+                        }}
+                    >
+                        Go to Settings
+                    </button>
+                </div>
+            )}
 
             {/* Summary Cards */}
             <div className="summary-cards-row">

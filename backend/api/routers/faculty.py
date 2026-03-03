@@ -537,8 +537,8 @@ async def parse_schedule_preview(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Parse Error: %s", str(e), exc_info=True)
-        raise api_error(500, "PARSE_ERROR", f"Failed to parse PDF: {str(e)}")
+        logger.exception("Parse Error for file %s", file.filename)
+        raise api_error(500, "PARSE_ERROR", "Failed to parse PDF. Please check the file format.")
 
 
 @router.post("/confirm-schedule", status_code=status.HTTP_201_CREATED)

@@ -6,9 +6,9 @@ import Header from './Header';
 import Footer from './Footer';
 
 // --- Theme Definition ---
-const redTheme = {
-    primary: '#A62525',
-    dark: '#c82333',
+const navyTheme = {
+    primary: '#0F172A',
+    dark: '#163269',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
@@ -43,9 +43,21 @@ const SettingsPage = ({ isEmbedded = false }) => {
         push: true
     });
 
-    // Dark Mode State - persisted in localStorage
+    // Dark Mode State - persisted per user in localStorage
+    const getDarkModeKey = () => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                return `frames-dark-mode-${u.id}`;
+            } catch { return null; }
+        }
+        return null;
+    };
+
     const [darkMode, setDarkMode] = useState(() => {
-        return localStorage.getItem('frames-dark-mode') === 'true';
+        const key = getDarkModeKey();
+        return key ? localStorage.getItem(key) === 'true' : false;
     });
 
     // Apply dark mode class to body whenever it changes
@@ -55,7 +67,8 @@ const SettingsPage = ({ isEmbedded = false }) => {
         } else {
             document.body.classList.remove('dark-mode');
         }
-        localStorage.setItem('frames-dark-mode', darkMode.toString());
+        const key = getDarkModeKey();
+        if (key) localStorage.setItem(key, darkMode.toString());
     }, [darkMode]);
 
     const handleGoBack = () => {

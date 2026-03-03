@@ -124,9 +124,12 @@
 
 /* Response: Adjust margin on mobile */
 @media (max-width: 992px) {
-    .header-context-section {
-        margin-left: 0;
-        /* Sidebar becomes top/hamburger */
+
+    .header-context-section,
+    .header-context-section.collapsed {
+        margin-left: 0 !important;
+        gap: 10px;
+        /* Reduced gap instead of margin spacing */
     }
 }
 
@@ -339,14 +342,14 @@
 }
 
 .dropdown-logout-button:hover {
-    background-color: #FEF2F2;
-    /* Light Red bg */
-    color: #DC2626;
-    /* Red Text */
+    background-color: #EEF2FF;
+    /* Light navy bg */
+    color: #0F172A;
+    /* Navy Text */
 }
 
 .dropdown-logout-button:hover i {
-    color: #DC2626;
+    color: #0F172A;
 }
 
 /* --- Notification Content --- */

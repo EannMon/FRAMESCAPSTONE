@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './Header.css';
 import Logo from './Logo';
 
@@ -14,24 +14,33 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
     const notificationRef = useRef(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchNotifications = async () => {
             if (!user?.id) return;
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.id}`);
+                const response = await api.get(`/api/users/notifications/${user.id}`, { signal: controller.signal });
                 setNotifications(response.data || []);
             } catch (error) {
-                console.error("Error fetching notifications:", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error fetching notifications:", error);
+                }
             }
         };
 
         fetchNotifications();
         // Optional: Poll for new notifications
         const interval = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(interval);
+        return () => {
+            controller.abort();
+            clearInterval(interval);
+        };
     }, [user]);
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('frames-dark-mode');
+        document.body.classList.remove('dark-mode');
         navigate('/');
         window.location.reload();
     };
@@ -65,7 +74,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         ? `${firstName} ${lastName}`
         : (user?.name || 'User');
 
-    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0F172A&color=fff`;
 
     const location = useLocation();
 
@@ -87,6 +96,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
 
         // Dept Head Routes
         if (path.includes('/dept-head-dashboard')) return 'Dashboard';
+        if (path.includes('/dept-head-classes')) return 'My Classes';
         if (path.includes('/dept-head-management')) return 'Department Management';
         if (path.includes('/dept-head-verification')) return 'User Verification';
         if (path.includes('/dept-head-users')) return 'User Management';
@@ -159,8 +169,8 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                                     <div className="notification-list">
                                         {notifications.length > 0 ? (
                                             notifications.map(notif => (
-                                                <div 
-                                                    key={notif.id} 
+                                                <div
+                                                    key={notif.id}
                                                     className={`notification-item ${notif.read ? 'read' : 'unread'}`}
                                                     onClick={() => handleNotificationClick(notif.link)}
                                                     style={{ cursor: 'pointer' }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import './DeptHeadSystemLogsPage.css';
 
 const DeptHeadSystemLogsPage = () => {
@@ -12,16 +12,20 @@ const DeptHeadSystemLogsPage = () => {
     const [dateTo, setDateTo] = useState('');
     const [rooms, setRooms] = useState([]);
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
     // Fetch rooms for filter
     useEffect(() => {
-        axios.get(`${API}/api/dept/management-data`).then(res => {
+        const controller = new AbortController();
+        api.get('/api/dept/management-data', { signal: controller.signal }).then(res => {
             setRooms(res.data?.rooms || []);
-        }).catch(() => { });
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                // silently ignore
+            }
+        });
+        return () => controller.abort();
     }, []);
 
-    const fetchLogs = async () => {
+    const fetchLogs = async (signal) => {
         setLoading(true);
         try {
             const params = {};
@@ -31,17 +35,25 @@ const DeptHeadSystemLogsPage = () => {
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
 
-            const res = await axios.get(`${API}/api/dept/system-logs`, { params });
+            const res = await api.get('/api/dept/system-logs', { params, signal });
             setLogs(res.data || []);
         } catch (err) {
-            console.error('System logs fetch error:', err);
-            setLogs([]);
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                console.error('System logs fetch error:', err);
+                setLogs([]);
+            }
         } finally {
-            setLoading(false);
+            if (!signal || !signal.aborted) {
+                setLoading(false);
+            }
         }
     };
 
-    useEffect(() => { fetchLogs(); }, []);
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchLogs(controller.signal);
+        return () => controller.abort();
+    }, []);
 
     // Stats computed from logs
     const stats = useMemo(() => {
@@ -63,11 +75,7 @@ const DeptHeadSystemLogsPage = () => {
 
     return (
         <div className="system-logs-page">
-            <div className="logs-header">
-                <div>
-                    <h2><i className="fas fa-clipboard-list"></i> System Logs</h2>
-                    <p>Real-time audit and attendance logs from the database</p>
-                </div>
+            <div className="logs-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="logs-refresh-btn" onClick={fetchLogs}>
                     <i className="fas fa-sync-alt"></i> Refresh
                 </button>

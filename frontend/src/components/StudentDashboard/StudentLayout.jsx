@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
+import { useAuth } from '../../context/AuthContext';
 import './StudentLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css'; // Import Global Styles
@@ -20,6 +21,27 @@ const studentTheme = {
 // 1. Student Sidebar Component
 // ===========================================
 const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
+    // Popup state
+    const [showPopup, setShowPopup] = useState(false);
+    const popupRef = useRef(null);
+
+    // Click outside to close popup
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (popupRef.current && !popupRef.current.contains(event.target)) {
+                setShowPopup(false);
+            }
+        };
+
+        if (showPopup) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showPopup]);
+
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
@@ -29,8 +51,10 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
         { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/student-help' },
     ];
 
+    const { logout } = useAuth();
+
     const handleLogout = () => {
-        localStorage.removeItem('currentUser');
+        logout();
         window.location.href = '/';
     };
 
@@ -40,13 +64,13 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
     const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : (user?.name || 'Student');
 
     // Avatar
-    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0F172A&color=fff`;
 
     return (
         <>
             {/* Mobile Overlay Backdrop */}
             <div
-                className={`sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+                className={`frames-sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
                 onClick={toggleMobile}
             ></div>
 
@@ -63,7 +87,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                     )}
                     {/* Mobile Close Button */}
                     <button className="mobile-sidebar-close" onClick={toggleMobile}>
-                        <i className="fas fa-times"></i>
+                        <i className="fas fa-chevron-left"></i>
                     </button>
                 </div>
 
@@ -98,13 +122,24 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                 </nav>
 
                 {/* USER PROFILE FOOTER */}
-                <div className="sidebar-user-footer">
-                    <Link to="/student-profile" className="sidebar-user-info" title="View Profile" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+                <div className="sidebar-user-footer" ref={popupRef}>
+                    <Link
+                        to="/student-profile"
+                        className="sidebar-user-info"
+                        title="View Profile"
+                        style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}
+                        onClick={(e) => {
+                            if (isCollapsed) {
+                                e.preventDefault();
+                                setShowPopup(!showPopup);
+                            }
+                        }}
+                    >
                         <img src={avatarSrc} alt="Profile" className="sidebar-user-avatar" />
                         {!isCollapsed && (
                             <div className="sidebar-user-details">
                                 <span className="sidebar-user-name">{displayName}</span>
-                                <span className="sidebar-user-role">Student</span>
+                                <span className="sidebar-user-role">{user?.email || 'Student Account'}</span>
                             </div>
                         )}
                     </Link>
@@ -112,6 +147,24 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
                         <button onClick={handleLogout} className="sidebar-logout-btn" title="Logout">
                             <i className="fas fa-sign-out-alt"></i>
                         </button>
+                    )}
+
+                    {/* POPUP MENU */}
+                    {isCollapsed && showPopup && (
+                        <div className="sidebar-profile-popup">
+                            <div className="popup-user-info">
+                                <span className="popup-user-name">{displayName}</span>
+                                <span className="popup-user-email">{user?.email || 'Student Account'}</span>
+                            </div>
+                            <div className="popup-menu-list">
+                                <Link to="/student-profile" className="popup-menu-item" onClick={() => setShowPopup(false)}>
+                                    <i className="fas fa-user-cog"></i> Account Settings
+                                </Link>
+                                <button className="popup-menu-item logout-item" onClick={handleLogout}>
+                                    <i className="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             </aside >
@@ -125,6 +178,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
 const StudentLayout = () => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user: authUser, isLoading: authLoading, logout: authLogout } = useAuth();
 
     // State for user data and loading status
     const [user, setUser] = useState(null);
@@ -132,67 +186,80 @@ const StudentLayout = () => {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false); // Collapsed State
 
-    const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
-    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+    const toggleSidebar = () => {
+        if (window.innerWidth <= 992) {
+            setIsMobileOpen(!isMobileOpen);
+        } else {
+            setIsCollapsed(!isCollapsed);
+        }
+    };
 
-    // FETCH USER DATA & SECURITY CHECK
+    // FETCH USER DATA & SECURITY CHECK (uses AuthContext)
     useEffect(() => {
-        const loadUserData = async () => {
-            const storedUserJson = localStorage.getItem('currentUser');
+        if (authLoading) return; // Wait for AuthContext to initialize
 
-            if (!storedUserJson) {
-                navigate('/');
-                setLoading(false);
-                return;
-            }
+        if (!authUser) {
+            navigate('/');
+            return;
+        }
 
-            const storedUser = JSON.parse(storedUserJson);
+        // --- SECURITY CHECK: VERIFICATION STATUS ---
+        if (authUser.verification_status !== 'Verified') {
+            toast.error("Access denied. Your account is still pending verification.");
+            authLogout();
+            navigate('/');
+            return;
+        }
 
-            // --- SECURITY CHECK: VERIFICATION STATUS ---
-            // If the user is logged in but not Verified (e.g., Pending/Rejected), block access.
-            if (storedUser.verification_status !== 'Verified') {
-                toast.error("Access denied. Your account is still pending verification.");
-                // Redirect to a specific status page if you have one, or back to login
-                // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
-                navigate('/');
-                localStorage.removeItem('currentUser'); // Force logout
-                setLoading(false);
-                return;
-            }
+        // --- SECURITY CHECK: FACE ENROLLMENT ---
+        if (!authUser.face_registered) {
+            navigate('/face-enrollment');
+            return;
+        }
 
-            // --- SECURITY CHECK: FACE ENROLLMENT ---
-            // Mandatory face enrollment before dashboard access
-            if (!storedUser.face_registered) {
-                navigate('/face-enrollment');
-                setLoading(false);
-                return;
-            }
-
-            // --- FETCH LIVE NOTIFICATIONS ---
+        // --- FETCH LIVE NOTIFICATIONS ---
+        const controller = new AbortController();
+        const fetchNotifications = async () => {
             let notifCount = 0;
             try {
-                // Fetch dashboard data to get accurate notification count
-                const userId = storedUser.id || storedUser.user_id;
-                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${userId}`);
+                const userId = authUser.id || authUser.user_id;
+                const response = await api.get(`/api/student/dashboard/${userId}`, { signal: controller.signal });
                 const notifs = response.data.notifications || [];
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {
-                console.error("Failed to fetch notification count", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Failed to fetch notification count", error);
+                }
             }
 
             // --- UPDATE STATE ---
-            setUser({
-                ...storedUser,
-                // We pass the raw data. The <Header> component will handle generating 
-                // the Red Avatar based on firstName/lastName if avatar is null.
-                notifications: notifCount
-            });
-
-            setLoading(false);
+            if (!controller.signal.aborted) {
+                setUser({
+                    ...authUser,
+                    notifications: notifCount
+                });
+                setLoading(false);
+            }
         };
 
-        loadUserData();
-    }, [navigate]);
+        fetchNotifications();
+
+        return () => controller.abort();
+    }, [authUser, authLoading, navigate]);
+
+    // Apply dark mode for logged-in user (per-user setting)
+    useEffect(() => {
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+            try {
+                const u = JSON.parse(stored);
+                if (localStorage.getItem(`frames-dark-mode-${u.id}`) === 'true') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch { }
+        }
+        return () => document.body.classList.remove('dark-mode');
+    }, []);
 
     if (loading) {
         return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
@@ -210,23 +277,19 @@ const StudentLayout = () => {
                 toggleSidebar={toggleSidebar}
                 isSidebarCollapsed={isCollapsed}
             />
-            {/* Mobile Header Toggle (Visible only on mobile) */}
-            <button className="mobile-menu-toggle" onClick={toggleMobile}>
-                <i className="fas fa-bars"></i>
-            </button>
 
             <div className="dashboard-body">
                 <StudentSidebar
                     user={user}
                     isMobileOpen={isMobileOpen}
-                    toggleMobile={toggleMobile}
+                    toggleMobile={() => setIsMobileOpen(false)}
                     isCollapsed={isCollapsed}
                 />
                 <main className={`main-content-area ${isCollapsed ? 'collapsed' : ''}`}>
                     <Outlet context={{ user }} />
                 </main>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 

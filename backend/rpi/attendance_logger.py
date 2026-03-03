@@ -106,7 +106,7 @@ class AttendanceLogger:
             gesture_detected=gesture_detected,
             remarks=remarks
         )
-        
+    
         # Try API first
         if self._post_to_api(record):
             logger.info(f"✅ Logged attendance: user={user_id}, action={action.value}")

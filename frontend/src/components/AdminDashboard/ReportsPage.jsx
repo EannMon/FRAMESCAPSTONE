@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -166,7 +166,7 @@ const ReportsPage = () => {
     // 1. GENERATE REPORT (API CALL)
     const handleGenerateFromModal = async (reportName, categoryColor, filters) => {
         try {
-            const response = await axios.post('http://localhost:5000/api/admin/reports/generate', {
+            const response = await api.post('/api/admin/reports/generate', {
                 report_type: reportName,
                 date_from: filters.dateFrom,
                 date_to: filters.dateTo

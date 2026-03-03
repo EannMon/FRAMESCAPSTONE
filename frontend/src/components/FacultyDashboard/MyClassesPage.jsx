@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import './MyClassesPage.css';
@@ -38,8 +38,8 @@ const FacultyMyClassesPage = () => {
     const [uploadedSchedules, setUploadedSchedules] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadMessage, setUploadMessage] = useState('');
-    const [semester, setSemester] = useState('1st Semester');
-    const [academicYear, setAcademicYear] = useState('2024-2025');
+    const [semester, setSemester] = useState('');
+    const [academicYear, setAcademicYear] = useState('');
 
     // Preview States (two-step upload)
     const [previewData, setPreviewData] = useState(null); // parsed schedule data
@@ -53,30 +53,44 @@ const FacultyMyClassesPage = () => {
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
+        const controller = new AbortController();
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
-            fetchSchedule(parsedUser.user_id || parsedUser.id);
-            fetchUploadHistory(parsedUser.user_id || parsedUser.id);
+            fetchSchedule(parsedUser.user_id || parsedUser.id, controller.signal);
+            fetchUploadHistory(parsedUser.user_id || parsedUser.id, controller.signal);
+            // Fetch active academic year from department
+            const deptId = parsedUser.department_id;
+            if (deptId) {
+                api.get(`/api/dept/academic-year?dept_id=${deptId}`, { signal: controller.signal })
+                    .then(res => {
+                        if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                        if (res.data.semester) setSemester(res.data.semester);
+                    })
+                    .catch(err => {
+                        if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                            console.error('Failed to fetch academic year:', err);
+                        }
+                    });
+            } else {
+                console.warn('User has no department_id — cannot fetch academic year. User role:', parsedUser.role);
+            }
         }
+        return () => controller.abort();
     }, []);
 
     // --- 2. FETCH DATA FROM DB ---
-    const fetchSchedule = async (userId) => {
+    const fetchSchedule = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/schedule/${userId}`);
+            const response = await api.get(`/api/faculty/schedule/${userId}`, { signal });
             setMyClasses(response.data);
-            // Auto-fill locked semester/academic year from existing classes
-            if (response.data.length > 0) {
-                const first = response.data[0];
-                if (first.semester) setSemester(first.semester);
-                if (first.academic_year) setAcademicYear(first.academic_year);
-            }
             setLoading(false);
         } catch (error) {
-            console.error("Error loading schedule:", error);
-            setLoading(false);
+            if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                console.error("Error loading schedule:", error);
+                setLoading(false);
+            }
         }
     };
 
@@ -86,12 +100,14 @@ const FacultyMyClassesPage = () => {
         }
     }, [myClasses, currentMonth]);
 
-    const fetchUploadHistory = async (userId) => {
+    const fetchUploadHistory = async (userId, signal) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/upload-history/${userId}`);
+            const response = await api.get(`/api/faculty/upload-history/${userId}`, { signal });
             setUploadedSchedules(response.data);
         } catch (error) {
-            console.error("Error fetching upload history:", error);
+            if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                console.error("Error fetching upload history:", error);
+            }
         }
     };
 
@@ -99,7 +115,7 @@ const FacultyMyClassesPage = () => {
         setLoading(true);
         setSelectedClass(cls);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/class-details/${cls.id}`);
+            const response = await api.get(`/api/faculty/class-details/${cls.id}`);
             // Add status color logic for UI
             const processedStudents = response.data.map(s => ({
                 ...s,
@@ -169,8 +185,8 @@ const FacultyMyClassesPage = () => {
         formData.append('faculty_id', user.user_id || user.id);
 
         try {
-            const response = await axios.post(
-                'http://localhost:5000/api/faculty/parse-schedule',
+            const response = await api.post(
+                '/api/faculty/parse-schedule',
                 formData,
                 { headers: { 'Content-Type': 'multipart/form-data' } }
             );
@@ -204,7 +220,7 @@ const FacultyMyClassesPage = () => {
                 academic_year: academicYear,
                 courses: previewData.courses
             };
-            const response = await axios.post('http://localhost:5000/api/faculty/confirm-schedule', payload);
+            const response = await api.post('/api/faculty/confirm-schedule', payload);
             toast.success(`✅ ${response.data.message}`);
             setPreviewData(null);
             setSubView('main');
@@ -252,7 +268,7 @@ const FacultyMyClassesPage = () => {
         if (query.length < 2) { setStudentSearchResults([]); return; }
         setIsSearching(true);
         try {
-            const response = await axios.get(`http://localhost:5000/api/faculty/search-students?q=${encodeURIComponent(query)}`);
+            const response = await api.get(`/api/faculty/search-students?q=${encodeURIComponent(query)}`);
             setStudentSearchResults(response.data);
         } catch (error) {
             console.error('Search failed:', error);
@@ -264,7 +280,7 @@ const FacultyMyClassesPage = () => {
     const handleAddStudentToClass = async (studentId) => {
         if (!selectedClass) return;
         try {
-            await axios.post(`http://localhost:5000/api/faculty/class/${selectedClass.id}/add-student`, { student_id: studentId });
+            await api.post(`/api/faculty/class/${selectedClass.id}/add-student`, { student_id: studentId });
             toast.success('Student added successfully!');
             setShowAddStudentModal(false);
             setStudentSearchQuery('');
@@ -279,7 +295,7 @@ const FacultyMyClassesPage = () => {
         if (!selectedClass) return;
         if (!window.confirm('Are you sure you want to remove this student from the class?')) return;
         try {
-            await axios.delete(`http://localhost:5000/api/faculty/class/${selectedClass.id}/remove-student/${studentId}`);
+            await api.delete(`/api/faculty/class/${selectedClass.id}/remove-student/${studentId}`);
             toast.success('Student removed successfully!');
             fetchClassDetails(selectedClass);
         } catch (error) {
@@ -317,7 +333,7 @@ const FacultyMyClassesPage = () => {
     const handleSaveStudentEdit = async (e, studentId) => {
         e.stopPropagation();
         try {
-            await axios.put(`http://localhost:5000/api/faculty/student/${studentId}`, editFormData);
+            await api.put(`/api/faculty/student/${studentId}`, editFormData);
 
             // Update local state instantly
             setStudentList(studentList.map(s => {
@@ -379,7 +395,7 @@ const FacultyMyClassesPage = () => {
         const classId = parseInt(firstSelected.id.split('-')[0]);
 
         try {
-            await axios.post('http://localhost:5000/api/faculty/session-exceptions', {
+            await api.post('/api/faculty/session-exceptions', {
                 class_id: classId,
                 session_dates: selectedDates,
                 exception_type: modalData.type === 'normal' ? 'onsite' :
@@ -778,7 +794,7 @@ const FacultyMyClassesPage = () => {
                         <label>Semester:</label>
                         <div className="locked-field">
                             <i className="fas fa-lock"></i>
-                            <span>{semester}</span>
+                            <span>{semester || 'Not set by Dept Head'}</span>
                         </div>
                     </div>
 
@@ -786,7 +802,7 @@ const FacultyMyClassesPage = () => {
                         <label>Academic Year:</label>
                         <div className="locked-field">
                             <i className="fas fa-lock"></i>
-                            <span>{academicYear}</span>
+                            <span>{academicYear || 'Not set by Dept Head'}</span>
                         </div>
                     </div>
                 </div>
