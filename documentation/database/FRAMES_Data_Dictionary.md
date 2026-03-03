@@ -2,7 +2,7 @@
 ## Complete Field-Level Reference for All Database Entities
 
 **FRAMES** — Facial Recognition Attendance and Monitoring System  
-**Version:** 1.0 | **Date:** February 23, 2026  
+**Version:** 2.0 | **Date:** March 4, 2026  
 **Database:** PostgreSQL 15 (Aiven Cloud) | **ORM:** SQLAlchemy 2.x
 
 ---
@@ -25,6 +25,8 @@
 14. [Table: security_logs](#-table-security_logs)
 15. [Table: audit_logs](#-table-audit_logs)
 16. [Table: system_metrics](#-table-system_metrics)
+15. [Table: support_tickets](#-table-support_tickets)
+16. [Table: user_settings](#-table-user_settings)
 17. [Cross-Reference: Foreign Key Map](#-cross-reference-foreign-key-map)
 18. [Cross-Reference: Enum Usage Map](#-cross-reference-enum-usage-map)
 19. [Data Volume Estimates](#-data-volume-estimates)
@@ -120,6 +122,15 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | `CANCELLED` | Class cancelled | No attendance expected |
 | `HOLIDAY` | Holiday — no classes | No attendance expected |
 
+### `ticketstatus`
+
+| Value | Description | Used By |
+|-------|-------------|----------|
+| `OPEN` | Newly submitted ticket, awaiting review | Support Tickets |
+| `IN_PROGRESS` | Ticket is being addressed by admin/support | Support Tickets |
+| `RESOLVED` | Issue has been resolved | Support Tickets |
+| `CLOSED` | Ticket closed (resolved or declined) | Support Tickets |
+
 ### `securityeventtype`
 
 | Value | Description | Severity |
@@ -143,7 +154,9 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | 1 | `id` | `serial4` | PK | Auto-increment | No | Unique department identifier | `1` | System-generated |
 | 2 | `name` | `varchar(100)` | UK, NN | — | No | Full department name | `"College of Industrial Technology"` | 1–100 chars, must be unique |
 | 3 | `code` | `varchar(20)` | UK | — | Yes | Abbreviated code | `"CIT"` | 1–20 chars, uppercase preferred, must be unique |
-| 4 | `created_at` | `timestamp` | — | `NOW()` | Yes | Record creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
+| 4 | `active_academic_year` | `varchar(20)` | — | `'2025-2026'` | Yes | Currently active academic year for this department | `"2025-2026"` | Format: YYYY-YYYY |
+| 5 | `active_semester` | `varchar(50)` | — | `'2nd Semester'` | Yes | Currently active semester for this department | `"2nd Semester"` | E.g., "1st Semester", "2nd Semester", "Summer" |
+| 6 | `created_at` | `timestamp` | — | `NOW()` | Yes | Record creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
 
 **Relationships:**
 - Parent of `programs` (1:N via `programs.department_id`)
@@ -245,6 +258,8 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 - Parent of `attendance_logs` (1:N via `attendance_logs.user_id`, CASCADE DELETE)
 - Parent of `audit_logs` (1:N via `audit_logs.user_id`)
 - Parent of `session_exceptions` as creator (1:N via `session_exceptions.created_by`)
+- Parent of `support_tickets` (1:N via `support_tickets.user_id`)
+- Parent of `user_settings` (1:1 via `user_settings.user_id`)
 
 ---
 
@@ -532,7 +547,56 @@ After EXIT → ENTRY again (new cycle within same day)
 
 ---
 
-## 🔗 Cross-Reference: Foreign Key Map
+## � Table: `support_tickets`
+
+**Category:** 🔧 Support & Settings  
+**Purpose:** Stores user-submitted support tickets for issue tracking and help requests  
+**ORM Model:** `backend/models/support_ticket.py` → `SupportTicket`  
+**Estimated Volume:** 50–500 records (event-driven)
+
+| # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
+|---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
+| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique ticket identifier | `1` | System-generated |
+| 2 | `user_id` | `int4` | FK → `users.id`, NN, IDX | — | No | User who submitted the ticket | `10` | Must reference existing user |
+| 3 | `subject` | `varchar(200)` | NN | — | No | Ticket subject/title | `"Cannot access schedule page"` | 1–200 chars |
+| 4 | `message` | `text` | NN | — | No | Full description of the issue | `"When I click on Schedule..."` | Free text, no max length |
+| 5 | `status` | `ticketstatus` (enum) | — | `'OPEN'` | Yes | Current ticket status | `"OPEN"` | One of: OPEN, IN_PROGRESS, RESOLVED, CLOSED |
+| 6 | `created_at` | `timestamp` | — | `NOW()` | Yes | Ticket submission timestamp | `2026-03-01 14:30:00` | Auto-set on creation |
+
+**Indexes:**
+- `ix_support_tickets_user_id` on `user_id` — fast lookup of tickets by user
+
+**Relationships:**
+- Child of `users` (N:1 via `user_id`)
+
+---
+
+## 📋 Table: `user_settings`
+
+**Category:** 🔧 Support & Settings  
+**Purpose:** Stores per-user preference settings for notifications, theme, and language  
+**ORM Model:** `backend/models/user_settings.py` → `UserSettings`  
+**Estimated Volume:** 1:1 with users (created on first settings update)
+
+| # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
+|---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
+| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique settings identifier | `1` | System-generated |
+| 2 | `user_id` | `int4` | FK → `users.id`, UK, NN | — | No | Associated user (one-to-one) | `10` | Must reference existing user, unique per user |
+| 3 | `email_notifications` | `bool` | — | `true` | Yes | Whether to receive email notifications | `true` | Boolean |
+| 4 | `sms_notifications` | `bool` | — | `false` | Yes | Whether to receive SMS notifications | `false` | Boolean |
+| 5 | `push_notifications` | `bool` | — | `true` | Yes | Whether to receive push notifications | `true` | Boolean |
+| 6 | `theme` | `varchar(20)` | — | `'light'` | Yes | UI theme preference | `"dark"` | E.g., "light", "dark" |
+| 7 | `language` | `varchar(10)` | — | `'en'` | Yes | Preferred language code | `"en"` | ISO 639-1 code (e.g., "en", "fil") |
+
+**Indexes:**
+- `ix_user_settings_user_id` (unique) on `user_id` — enforces one settings record per user
+
+**Relationships:**
+- Child of `users` (1:1 via `user_id`)
+
+---
+
+## �🔗 Cross-Reference: Foreign Key Map
 
 Complete mapping of all foreign key relationships in the FRAMES database.
 
@@ -554,6 +618,8 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | 14 | `security_logs` | `device_id` | `devices` | `id` | NO ACTION | Yes |
 | 15 | `audit_logs` | `user_id` | `users` | `id` | NO ACTION | Yes |
 | 16 | `system_metrics` | `device_id` | `devices` | `id` | NO ACTION | Yes |
+| 17 | `support_tickets` | `user_id` | `users` | `id` | NO ACTION | Yes |
+| 18 | `user_settings` | `user_id` | `users` | `id` | NO ACTION | Yes (+ UK) |
 
 ---
 
@@ -568,6 +634,7 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | `verifiedby` | `attendance_logs` | `verified_by` | FACE, FACE+GESTURE |
 | `exceptiontype` | `session_exceptions` | `exception_type` | ONSITE, ONLINE, CANCELLED, HOLIDAY |
 | `securityeventtype` | `security_logs` | `event_type` | UNRECOGNIZED_FACE, GESTURE_FAILURE, SPOOF_ATTEMPT, UNAUTHORIZED_ACCESS |
+| `ticketstatus` | `support_tickets` | `status` | OPEN, IN_PROGRESS, RESOLVED, CLOSED |
 
 ---
 
@@ -588,6 +655,8 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | `security_logs` | Variable | Event-driven | ~2.2 KB | Includes embedding when available |
 | `audit_logs` | Grows with usage | Moderate | ~500 bytes | JSON values increase size |
 | `system_metrics` | High (time-series) | Continuous | ~100 bytes | May need retention policy |
+| `support_tickets` | 50–500 | Event-driven | ~500 bytes | Grows with user issues |
+| `user_settings` | 1:1 with users | Same as users | ~100 bytes | One per user, small rows |
 
 ---
 
@@ -597,10 +666,11 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 |------|---------|---------|
 | 2026-02-08 | 0.1 | Initial data dictionary draft |
 | 2026-02-23 | 1.0 | Full field-level documentation for all 13 tables; aligned with `updatedSchema` SQL dump; added new `users` columns (contact_number, birthday, home_address, emergency contacts, current_term, academic_advisor, gpa); added `classes.late_threshold_minutes`; added `attendance_logs.is_late`; added `devices.room_capacity`; updated `verificationstatus` enum values to UPPERCASE |
+| 2026-03-04 | 2.0 | Added 2 new tables: `support_tickets` (help desk tickets with ticketstatus enum), `user_settings` (per-user preferences for notifications/theme/language); added `ticketstatus` enum (OPEN, IN_PROGRESS, RESOLVED, CLOSED); added `departments.active_academic_year` (varchar(20), default '2025-2026'), `departments.active_semester` (varchar(50), default '2nd Semester'); updated FK map (18 relationships total), enum usage map, and data volume estimates; total tables now 15 |
 
 ---
 
 **Document verified against:**
-- `updatedSchema` SQL dump (February 23, 2026)
+- DDL export (March 4, 2026)
 - SQLAlchemy models in `backend/models/`
 - Live PostgreSQL schema on Aiven

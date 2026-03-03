@@ -4,12 +4,28 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
 
-const ClassItem = ({ time, title, room }) => (
+/**
+ * Converts 24-hour time string (e.g. "22:45:00") to 12-hour format ("10:45 PM").
+ * Returns '—' if input is null/undefined.
+ */
+const formatTo12Hr = (timeStr) => {
+  if (!timeStr) return '—';
+  const parts = timeStr.split(':');
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || '00';
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
+const ClassItem = ({ time, title, subjectCode, room, professor, section }) => (
   <div className="week-class-item">
     <span className="week-class-time">{time}</span>
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <span className="week-class-title" style={{ fontWeight: '600' }}>{title}</span>
-      <span style={{ fontSize: '0.85em', color: '#888' }}>{room}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <span className="week-class-title" style={{ fontWeight: '600' }}>{subjectCode} — {title}</span>
+      {section && <span style={{ fontSize: '0.82em', color: '#475569', fontWeight: '500' }}>Section: {section}</span>}
+      {professor && <span style={{ fontSize: '0.82em', color: '#64748b' }}><i className="fas fa-user-tie" style={{ marginRight: '4px', fontSize: '0.75em' }}></i>{professor}</span>}
+      <span style={{ fontSize: '0.82em', color: '#888' }}><i className="fas fa-map-marker-alt" style={{ marginRight: '4px', fontSize: '0.75em' }}></i>{room || 'TBA'}</span>
     </div>
   </div>
 );
@@ -37,9 +53,12 @@ const SchedulePage = () => {
       rawData.forEach(cls => {
         if (newSchedule[cls.day_of_week]) {
           newSchedule[cls.day_of_week].push({
-            time: `${cls.start_time} - ${cls.end_time}`,
-            title: cls.course_name,
-            room: cls.room_name
+            time: `${formatTo12Hr(cls.start_time)} - ${formatTo12Hr(cls.end_time)}`,
+            title: cls.subject_title || 'Unknown Subject',
+            subjectCode: cls.subject_code || '—',
+            room: cls.room || 'TBA',
+            professor: cls.faculty_name || 'TBA',
+            section: cls.section || null,
           });
         }
       });
@@ -117,7 +136,7 @@ const SchedulePage = () => {
           <h3>Today's Classes ({todayName})</h3>
           {classesForToday.length > 0 ? (
             classesForToday.map((cls, index) => (
-              <ClassItem key={index} time={cls.time} title={cls.title} room={cls.room} />
+              <ClassItem key={index} time={cls.time} title={cls.title} subjectCode={cls.subjectCode} room={cls.room} professor={cls.professor} section={cls.section} />
             ))
           ) : (
             <p style={{ color: '#777' }}>No classes scheduled for today.</p>
@@ -135,7 +154,7 @@ const SchedulePage = () => {
                 </div>
                 <div className="week-day-classes">
                   {classes.length > 0 ? classes.map((cls, idx) => (
-                    <ClassItem key={idx} time={cls.time} title={cls.title} room={cls.room} />
+                    <ClassItem key={idx} time={cls.time} title={cls.title} subjectCode={cls.subjectCode} room={cls.room} professor={cls.professor} section={cls.section} />
                   )) : <div className="week-class-item none">No classes</div>}
                 </div>
               </div>
@@ -150,7 +169,7 @@ const SchedulePage = () => {
           <h3 style={{ marginTop: '20px' }}>Classes on {selectedDate.toDateString()}</h3>
           {classesForSelectedDay.length > 0 ? (
             classesForSelectedDay.map((cls, index) => (
-              <ClassItem key={index} time={cls.time} title={cls.title} room={cls.room} />
+              <ClassItem key={index} time={cls.time} title={cls.title} subjectCode={cls.subjectCode} room={cls.room} professor={cls.professor} section={cls.section} />
             ))
           ) : (
             <p>No classes on this day.</p>

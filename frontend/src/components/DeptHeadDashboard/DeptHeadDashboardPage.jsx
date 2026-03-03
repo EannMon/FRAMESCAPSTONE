@@ -554,6 +554,47 @@ const DeptHeadDashboardPage = () => {
                 </div>
             </div>
 
+            {/* Face Registration Required Gate */}
+            {!faceRegistered && (
+                <div className="card" style={{
+                    borderLeft: '5px solid #dc2626',
+                    background: '#fef2f2',
+                    padding: '24px 28px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                }}>
+                    <i className="fas fa-exclamation-triangle" style={{ fontSize: '2rem', color: '#dc2626' }}></i>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: '#991b1b', fontSize: '1.05rem', marginBottom: '4px' }}>
+                            Face Registration Required
+                        </div>
+                        <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                            FRAMES requires facial recognition enrollment before you can fully access the system.
+                            Please visit a registration kiosk or use the face enrollment feature in <strong>Settings</strong> to register your face.
+                            Dashboard features are limited until registration is complete.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/head-settings')}
+                        style={{
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '10px 20px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.9rem',
+                        }}
+                    >
+                        Go to Settings
+                    </button>
+                </div>
+            )}
+
             {/* Summary Cards */}
             <div className="summary-cards-row">
                 <SummaryCard iconClass="fas fa-user-clock" title="Pending Approvals" value={stats.pending_verifications}
