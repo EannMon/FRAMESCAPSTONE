@@ -50,9 +50,10 @@ class FaceStatusResponse(BaseModel):
 async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = Depends(get_db)):
     """
     Enroll a user's face using multiple webcam frames.
-    Extracts embeddings using InsightFace and stores averaged result.
+    Extracts embeddings using InsightFace, checks for duplicate faces
+    across all existing profiles, and stores the averaged result.
     """
-    from services.face_enrollment import process_enrollment_frames
+    from services.face_enrollment import process_enrollment_frames, check_embedding_uniqueness
     from sqlalchemy import text
     
     # Validate user exists
@@ -67,11 +68,33 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
     if len(body.frames) > 30:
         raise api_error(400, "TOO_MANY_FRAMES", "Maximum 30 frames allowed")
     
-    logger.info(f"📸 Starting face enrollment for user {body.user_id}...")
+    logger.info("Starting face enrollment for user %d", body.user_id)
     
     try:
         # Process frames and extract embeddings
         embedding_bytes, num_samples, avg_quality = process_enrollment_frames(body.frames)
+        
+        # ── Duplicate face check ──────────────────────────────────
+        # Compare the new embedding against ALL existing profiles
+        # (excluding this user's own) to prevent the same person
+        # from enrolling under multiple accounts.
+        is_unique, matching_user_id, similarity = check_embedding_uniqueness(
+            embedding_bytes, body.user_id, db
+        )
+        
+        if not is_unique:
+            logger.warning(
+                "SECURITY | Duplicate face enrollment blocked: user=%d "
+                "matches existing user_id=%d (similarity=%.4f)",
+                body.user_id, matching_user_id, similarity,
+            )
+            raise api_error(
+                409,
+                "DUPLICATE_FACE",
+                "This face is already registered under another account. "
+                "Please contact administration if you believe this is an error.",
+            )
+        # ──────────────────────────────────────────────────────────
         
         # Check if user already has a facial profile
         existing_profile = db.query(FacialProfile).filter(
@@ -95,7 +118,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 'model_version': 'insightface_buffalo_l_v1',
                 'user_id': body.user_id
             })
-            logger.info(f"   📝 Updated existing facial profile")
+            logger.info("Updated existing facial profile for user %d", body.user_id)
         else:
             # Create new profile
             new_profile = FacialProfile(
@@ -106,7 +129,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 model_version="insightface_buffalo_l_v1"
             )
             db.add(new_profile)
-            logger.info(f"   ✨ Created new facial profile")
+            logger.info("Created new facial profile for user %d", body.user_id)
         
         # Use direct SQL UPDATE for user.face_registered to avoid row recreation
         db.execute(text("""
@@ -117,7 +140,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
         
         db.commit()
         
-        logger.info(f"✅ Face enrollment complete for user {body.user_id}")
+        logger.info("Face enrollment complete for user %d", body.user_id)
         
         return EnrollmentResponse(
             success=True,
@@ -126,13 +149,16 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
             quality_score=avg_quality
         )
         
+    except HTTPException:
+        # Re-raise HTTP errors (including our DUPLICATE_FACE error) as-is
+        raise
     except ValueError as e:
-        logger.error(f"❌ Enrollment failed: {e}")
+        logger.error("Enrollment failed for user %d: %s", body.user_id, str(e))
         raise api_error(400, "ENROLLMENT_FAILED", str(e))
     except Exception as e:
-        logger.error(f"❌ Enrollment error: {e}")
+        logger.exception("Unexpected enrollment error for user %d", body.user_id)
         db.rollback()
-        raise api_error(500, "INTERNAL_ERROR", f"Enrollment failed: {str(e)}")
+        raise api_error(500, "INTERNAL_ERROR", "An unexpected error occurred during enrollment")
 
 
 @router.get("/status/{user_id}", response_model=FaceStatusResponse)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -172,11 +172,12 @@ const DeptHeadManagePage = () => {
     const [ayForm, setAyForm] = useState(defaultAY);
 
     useEffect(() => {
+        const controller = new AbortController();
         // Fetch academic year from backend
         const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const deptId = storedUser.department_id;
         if (deptId) {
-            axios.get(`http://localhost:5000/api/dept/academic-year?dept_id=${deptId}`)
+            api.get(`/api/dept/academic-year?dept_id=${deptId}`, { signal: controller.signal })
                 .then(res => {
                     const needsSave = !res.data.academic_year || !res.data.semester;
                     const data = {
@@ -188,21 +189,30 @@ const DeptHeadManagePage = () => {
                     setAyForm(data);
                     // Auto-save defaults to DB if not set yet
                     if (needsSave && storedUser.id) {
-                        axios.put('http://localhost:5000/api/dept/academic-year', {
+                        api.put('/api/dept/academic-year', {
                             user_id: storedUser.id,
                             academic_year: data.academicYear,
                             semester: data.semester,
-                        }).catch(err => console.error('Failed to auto-save academic year:', err));
+                        }, { signal: controller.signal }).catch(err => {
+                            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                                console.error('Failed to auto-save academic year:', err);
+                            }
+                        });
                     }
                 })
-                .catch(err => console.error('Failed to fetch academic year:', err));
+                .catch(err => {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        console.error('Failed to fetch academic year:', err);
+                    }
+                });
         }
+        return () => controller.abort();
     }, []);
 
     const handleSaveAY = async () => {
         const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         try {
-            await axios.put('http://localhost:5000/api/dept/academic-year', {
+            await api.put('/api/dept/academic-year', {
                 user_id: storedUser.id,
                 academic_year: ayForm.academicYear,
                 semester: ayForm.semester,
@@ -216,10 +226,10 @@ const DeptHeadManagePage = () => {
     };
 
     // --- 1. FETCH DATA FROM DB ---
-    const fetchManagementData = async () => {
+    const fetchManagementData = async (signal) => {
         setLoading(true);
         try {
-            const response = await axios.get('http://localhost:5000/api/dept/management-data');
+            const response = await api.get('/api/dept/management-data', { signal });
             if (response.data) {
                 setCourses(response.data.courses || []);
                 setFacultyList(response.data.faculty || []);
@@ -233,16 +243,20 @@ const DeptHeadManagePage = () => {
                 }
             }
         } catch (error) {
-            console.error("Error fetching data:", error);
-            // Optional: alert("Failed to load data from server."); 
-            // Suppressed alert on load to prevent spamming if backend is down
+            if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                console.error("Error fetching data:", error);
+            }
         } finally {
-            setLoading(false);
+            if (!signal || !signal.aborted) {
+                setLoading(false);
+            }
         }
     };
 
     useEffect(() => {
-        fetchManagementData();
+        const controller = new AbortController();
+        fetchManagementData(controller.signal);
+        return () => controller.abort();
     }, []);
 
     // --- LOGGING HELPER ---
@@ -257,7 +271,7 @@ const DeptHeadManagePage = () => {
     const handleCreateCourse = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/dept/create-subject', newCourse);
+            await api.post('/api/dept/create-subject', newCourse);
             addLog(`Created new subject: ${newCourse.code}`);
             setShowCreateModal(false);
             setNewCourse({ code: '', name: '', units: 3 });
@@ -276,7 +290,7 @@ const DeptHeadManagePage = () => {
     const handleAssignTeacher = async (facultyId, facultyName) => {
         if (!selectedCourse) return;
         try {
-            await axios.post('http://localhost:5000/api/dept/assign-faculty', {
+            await api.post('/api/dept/assign-faculty', {
                 schedule_id: selectedCourse.schedule_id,
                 subject_code: selectedCourse.subject_code,
                 faculty_id: facultyId
@@ -301,7 +315,7 @@ const DeptHeadManagePage = () => {
         if (!selectedCourse) return;
 
         try {
-            await axios.post('http://localhost:5000/api/dept/assign-room', {
+            await api.post('/api/dept/assign-room', {
                 schedule_id: selectedCourse.schedule_id,
                 subject_code: selectedCourse.subject_code,
                 room_name: roomForm.roomName,

@@ -185,3 +185,94 @@ def compare_embeddings(embedding1: bytes, embedding2: bytes) -> float:
     similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
     
     return float(similarity)
+
+
+# Threshold for considering two embeddings as belonging to the same person.
+# This matches the recognition threshold used in enrollment/kiosk.
+DUPLICATE_FACE_THRESHOLD = 0.6
+
+
+def check_embedding_uniqueness(
+    new_embedding_bytes: bytes,
+    exclude_user_id: int,
+    db,
+) -> tuple:
+    """
+    Check if a face embedding is already enrolled under a different account.
+
+    Performs batch cosine similarity against ALL existing facial profiles
+    (excluding the enrolling user's own profile, if any) using numpy
+    vectorized operations — O(n) where n is total enrolled users.
+
+    Args:
+        new_embedding_bytes: The new 512-d float32 embedding as raw bytes.
+        exclude_user_id: The user currently enrolling (skip their own profile).
+        db: SQLAlchemy session.
+
+    Returns:
+        (is_unique, matching_user_id, similarity)
+            - is_unique: True if no duplicate found.
+            - matching_user_id: The user_id of the closest match, or None.
+            - similarity: The cosine similarity score of the closest match.
+    """
+    from models.facial_profile import FacialProfile
+
+    start = time.perf_counter()
+
+    # Fetch all existing profiles EXCEPT the enrolling user's own — single query
+    profiles = (
+        db.query(FacialProfile.user_id, FacialProfile.embedding)
+        .filter(FacialProfile.user_id != exclude_user_id)
+        .filter(FacialProfile.embedding.isnot(None))
+        .all()
+    )
+
+    if not profiles:
+        logger.debug("No existing profiles to compare against — face is unique")
+        return True, None, 0.0
+
+    # Build numpy matrix for batch comparison
+    user_ids = []
+    embeddings_list = []
+    for profile in profiles:
+        emb = np.frombuffer(profile.embedding, dtype=np.float32).copy()
+        # Defensive normalization
+        norm = np.linalg.norm(emb)
+        if norm > 0:
+            emb = emb / norm
+            embeddings_list.append(emb)
+            user_ids.append(profile.user_id)
+
+    if not embeddings_list:
+        return True, None, 0.0
+
+    existing_matrix = np.stack(embeddings_list)  # (N, 512)
+
+    # Prepare query embedding
+    query = np.frombuffer(new_embedding_bytes, dtype=np.float32).copy()
+    query_norm = np.linalg.norm(query)
+    if query_norm > 0:
+        query = query / query_norm
+
+    # Batch cosine similarity via matrix–vector dot product — O(n)
+    similarities = np.dot(existing_matrix, query)  # (N,)
+
+    max_idx = int(np.argmax(similarities))
+    max_similarity = float(similarities[max_idx])
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "Duplicate face check: compared against %d profiles in %.1fms, "
+        "max similarity=%.4f (threshold=%.2f)",
+        len(user_ids), elapsed_ms, max_similarity, DUPLICATE_FACE_THRESHOLD,
+    )
+
+    if max_similarity >= DUPLICATE_FACE_THRESHOLD:
+        logger.warning(
+            "SECURITY | Duplicate face detected: new enrollment matches "
+            "existing user_id=%d with similarity=%.4f",
+            user_ids[max_idx], max_similarity,
+        )
+        return False, user_ids[max_idx], max_similarity
+
+    return True, None, max_similarity

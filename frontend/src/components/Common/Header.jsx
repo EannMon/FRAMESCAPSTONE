@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import './Header.css';
 import Logo from './Logo';
 
@@ -14,20 +14,27 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
     const notificationRef = useRef(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchNotifications = async () => {
             if (!user?.id) return;
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.id}`);
+                const response = await api.get(`/api/users/notifications/${user.id}`, { signal: controller.signal });
                 setNotifications(response.data || []);
             } catch (error) {
-                console.error("Error fetching notifications:", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error fetching notifications:", error);
+                }
             }
         };
 
         fetchNotifications();
         // Optional: Poll for new notifications
         const interval = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(interval);
+        return () => {
+            controller.abort();
+            clearInterval(interval);
+        };
     }, [user]);
 
     const handleLogout = () => {

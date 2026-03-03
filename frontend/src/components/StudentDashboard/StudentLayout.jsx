@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
+import { useAuth } from '../../context/AuthContext';
 import './StudentLayout.css';
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css'; // Import Global Styles
@@ -50,9 +51,10 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
         { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/student-help' },
     ];
 
+    const { logout } = useAuth();
+
     const handleLogout = () => {
-        localStorage.removeItem('currentUser');
-        document.body.classList.remove('dark-mode');
+        logout();
         window.location.href = '/';
     };
 
@@ -176,6 +178,7 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
 const StudentLayout = () => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user: authUser, isLoading: authLoading, logout: authLogout } = useAuth();
 
     // State for user data and loading status
     const [user, setUser] = useState(null);
@@ -191,64 +194,58 @@ const StudentLayout = () => {
         }
     };
 
-    // FETCH USER DATA & SECURITY CHECK
+    // FETCH USER DATA & SECURITY CHECK (uses AuthContext)
     useEffect(() => {
-        const loadUserData = async () => {
-            const storedUserJson = localStorage.getItem('currentUser');
+        if (authLoading) return; // Wait for AuthContext to initialize
 
-            if (!storedUserJson) {
-                navigate('/');
-                setLoading(false);
-                return;
-            }
+        if (!authUser) {
+            navigate('/');
+            return;
+        }
 
-            const storedUser = JSON.parse(storedUserJson);
+        // --- SECURITY CHECK: VERIFICATION STATUS ---
+        if (authUser.verification_status !== 'Verified') {
+            toast.error("Access denied. Your account is still pending verification.");
+            authLogout();
+            navigate('/');
+            return;
+        }
 
-            // --- SECURITY CHECK: VERIFICATION STATUS ---
-            // If the user is logged in but not Verified (e.g., Pending/Rejected), block access.
-            if (storedUser.verification_status !== 'Verified') {
-                toast.error("Access denied. Your account is still pending verification.");
-                // Redirect to a specific status page if you have one, or back to login
-                // navigate(`/register/${storedUser.role}?s=${storedUser.verification_status.toLowerCase()}`); 
-                navigate('/');
-                localStorage.removeItem('currentUser'); // Force logout
-                setLoading(false);
-                return;
-            }
+        // --- SECURITY CHECK: FACE ENROLLMENT ---
+        if (!authUser.face_registered) {
+            navigate('/face-enrollment');
+            return;
+        }
 
-            // --- SECURITY CHECK: FACE ENROLLMENT ---
-            // Mandatory face enrollment before dashboard access
-            if (!storedUser.face_registered) {
-                navigate('/face-enrollment');
-                setLoading(false);
-                return;
-            }
-
-            // --- FETCH LIVE NOTIFICATIONS ---
+        // --- FETCH LIVE NOTIFICATIONS ---
+        const controller = new AbortController();
+        const fetchNotifications = async () => {
             let notifCount = 0;
             try {
-                // Fetch dashboard data to get accurate notification count
-                const userId = storedUser.id || storedUser.user_id;
-                const response = await axios.get(`http://localhost:5000/api/student/dashboard/${userId}`);
+                const userId = authUser.id || authUser.user_id;
+                const response = await api.get(`/api/student/dashboard/${userId}`, { signal: controller.signal });
                 const notifs = response.data.notifications || [];
                 notifCount = notifs.filter(n => !n.is_read).length;
             } catch (error) {
-                console.error("Failed to fetch notification count", error);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Failed to fetch notification count", error);
+                }
             }
 
             // --- UPDATE STATE ---
-            setUser({
-                ...storedUser,
-                // We pass the raw data. The <Header> component will handle generating 
-                // the Red Avatar based on firstName/lastName if avatar is null.
-                notifications: notifCount
-            });
-
-            setLoading(false);
+            if (!controller.signal.aborted) {
+                setUser({
+                    ...authUser,
+                    notifications: notifCount
+                });
+                setLoading(false);
+            }
         };
 
-        loadUserData();
-    }, [navigate]);
+        fetchNotifications();
+
+        return () => controller.abort();
+    }, [authUser, authLoading, navigate]);
 
     // Apply dark mode for logged-in user (per-user setting)
     useEffect(() => {

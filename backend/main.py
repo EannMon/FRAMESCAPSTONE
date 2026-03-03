@@ -1,6 +1,7 @@
 """
 FRAMES API - FastAPI Main Application
-Clean entry point with modular routers
+Clean entry point with modular routers.
+Logging configured per FRAMES_OBSERVABILITY_RULES before any router import.
 """
 import sys
 import os
@@ -20,10 +21,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept
 from db.database import get_db
 
-# --- Logging Configuration ---
+# --- Logging Configuration (FRAMES_OBSERVABILITY_RULES §1.1) ---
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 logging.basicConfig(
@@ -36,26 +36,27 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-# Use the shared Rate Limiter from core.limiter (same instance used by all routers)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
     title="FRAMES API",
     description="Facial Recognition Attendance Management Educational System",
-    version="2.0.0"
+    version="2.1.0"
 )
 
 # Setup slowapi exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS - Allow all origins for development
+# CORS — lock down to FRONTEND_URL per FRAMES_DEPLOYMENT_CONSTRAINTS §5.1
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-Device-Key"],
 )
 
 # Import routers after app and limiter are ready to avoid circular imports

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../Common/ToastProvider';
+import { useAuth } from '../../context/AuthContext';
 import '../FacultyDashboard/FacultyLayout.css'; // Reuse Faculty Styles for now
 import '../Common/Utility.css';
 import '../Common/GlobalDashboard.css';
@@ -51,9 +52,10 @@ const DeptHeadSidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
         { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/dept-head-help' },
     ];
 
+    const { logout } = useAuth();
+
     const handleLogout = () => {
-        localStorage.removeItem('currentUser');
-        document.body.classList.remove('dark-mode');
+        logout();
         window.location.href = '/';
     };
 
@@ -162,6 +164,7 @@ const DeptHeadSidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
 const DeptHeadLayout = () => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { user: authUser, isLoading: authLoading, logout: authLogout } = useAuth();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -176,34 +179,30 @@ const DeptHeadLayout = () => {
     };
 
     useEffect(() => {
-        const loadUserData = async () => {
-            const storedUserJson = localStorage.getItem('currentUser');
+        if (authLoading) return; // Wait for AuthContext to initialize
 
-            if (!storedUserJson) {
-                navigate('/');
-                setLoading(false);
-                return;
-            }
+        if (!authUser) {
+            navigate('/');
+            return;
+        }
 
-            const parsedUser = JSON.parse(storedUserJson);
-            const role = parsedUser.role?.toLowerCase();
+        const role = authUser.role?.toLowerCase();
 
-            // Strict Role Check
-            if (role !== 'head' && role !== 'dept_head') {
-                alert("Access denied. Authorized for Department Heads only.");
-                navigate('/');
-                return;
-            }
+        // Strict Role Check
+        if (role !== 'head' && role !== 'dept_head') {
+            alert("Access denied. Authorized for Department Heads only.");
+            navigate('/');
+            return;
+        }
 
-            setUser({
-                ...parsedUser,
-                name: `${parsedUser.first_name} ${parsedUser.last_name}`
-            });
-            setLoading(false);
-        };
-
-        loadUserData();
-    }, [navigate]);
+        const firstName = authUser.first_name || authUser.firstName || '';
+        const lastName = authUser.last_name || authUser.lastName || '';
+        setUser({
+            ...authUser,
+            name: `${firstName} ${lastName}`.trim() || 'Dept Head'
+        });
+        setLoading(false);
+    }, [authUser, authLoading, navigate]);
 
     // Apply dark mode for logged-in user (per-user setting)
     useEffect(() => {

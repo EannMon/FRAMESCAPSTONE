@@ -35,6 +35,7 @@ class ScheduleItem(BaseModel):
     end_time: Optional[str] = None
     room: Optional[str] = None
     faculty_name: Optional[str] = None
+    section: Optional[str] = None
 
 
 class AttendanceRecord(BaseModel):
@@ -230,7 +231,8 @@ def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
                 start_time=str(cls.start_time) if cls.start_time else None,
                 end_time=str(cls.end_time) if cls.end_time else None,
                 room=cls.room,
-                faculty_name=f"{faculty.first_name} {faculty.last_name}" if faculty else None
+                faculty_name=f"{faculty.first_name} {faculty.last_name}" if faculty else None,
+                section=cls.section,
             ))
     
     return schedule

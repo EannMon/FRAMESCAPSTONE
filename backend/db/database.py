@@ -1,11 +1,15 @@
 """
 SQLAlchemy Database Configuration for FRAMES
-PostgreSQL on Aiven
+PostgreSQL on Aiven.
+Pool settings per FRAMES_DEPLOYMENT_CONSTRAINTS §1.5.
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
+import logging
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -39,7 +43,7 @@ Base = declarative_base()
 
 def get_db():
     """
-    Dependency function for FastAPI/Flask routes.
+    Dependency function for FastAPI routes.
     Yields a database session and ensures cleanup.
     """
     db = SessionLocal()
@@ -57,6 +61,6 @@ def init_db():
     # Import all models here to register them with Base
     from models import user, department, program, facial_profile, subject, class_, enrollment, device, attendance_log
     
-    print("🗄️ Creating database tables...")
+    logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
-    print("✅ All tables created successfully!")
+    logger.info("All tables created successfully")

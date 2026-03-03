@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import '../FacultyDashboard/FacultyReportsPage.css';
 import FacultyReportModal from '../FacultyDashboard/FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
@@ -41,8 +41,6 @@ const DeptHeadReportsPage = () => {
 
     const [academicYear, setAcademicYear] = useState('');
 
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
@@ -50,16 +48,26 @@ const DeptHeadReportsPage = () => {
 
     // Fetch room list & academic year
     useEffect(() => {
-        axios.get(`${API}/api/dept/management-data`).then(res => {
+        const controller = new AbortController();
+        api.get('/api/dept/management-data', { signal: controller.signal }).then(res => {
             setRooms(res.data?.rooms || []);
-        }).catch(() => { });
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                // silently ignore
+            }
+        });
 
         if (user?.department_id) {
-            axios.get(`${API}/api/dept/academic-year?dept_id=${user.department_id}`)
+            api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
                     if (res.data.academic_year) setAcademicYear(res.data.academic_year);
-                }).catch(() => { });
+                }).catch((err) => {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        // silently ignore
+                    }
+                });
         }
+        return () => controller.abort();
     }, [user]);
 
     const groupedReports = useMemo(() => {
@@ -79,7 +87,7 @@ const DeptHeadReportsPage = () => {
             if (dateTo) params.date_to = dateTo;
             if (room) params.room = room;
 
-            const res = await axios.get(`${API}/api/dept/reports/data`, { params });
+            const res = await api.get('/api/dept/reports/data', { params });
             setReportData(res.data || []);
         } catch (err) {
             console.error('Dept report fetch error:', err);
