@@ -6,6 +6,7 @@ export default defineConfig({
     plugins: [react()],
     server: {
         port: 3000,
+        host: '0.0.0.0',  // Allow access from Pi's browser over network
         open: true,
         proxy: {
             '/api': {
