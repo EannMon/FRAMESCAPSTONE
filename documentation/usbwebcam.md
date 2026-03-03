@@ -218,6 +218,30 @@ This dual-backend architecture means that **switching to a USB webcam requires m
 | **Price** | ~$25 USD (₱1,400) |
 | **Availability** | Good (common in PH market) |
 
+#### ICON Camera 720p HD (FRAMES Actual — Budget Wide-Angle)
+
+> **This is the camera the FRAMES team actually uses.** Due to Raspberry Pi Camera Module compatibility issues (likely OS version mismatch with libcamera), the team pivoted to this readily available USB webcam.
+
+| Specification | Value |
+|--------------|-------|
+| **Sensor** | 1/4" CMOS |
+| **Physical Pixels** | 200W (2 megapixels) |
+| **Resolution** | 720p (1280 × 720) HD |
+| **Video FPS** | 30fps @ 720p |
+| **Field of View (FOV)** | 90° wide angle |
+| **Focus** | Fixed focus |
+| **Microphone** | None |
+| **Interface** | USB 2.0 Type-A |
+| **Mounting** | Clip mount (laptop/monitor) |
+| **Cable Length** | 1.4m (140cm) |
+| **Driver** | Driverless — UVC protocol plug-and-play |
+| **OS Support** | Windows Vista/7/8/10, Linux (UVC), any UVC-compatible OS |
+| **Low-Light** | Basic — no dedicated light correction |
+| **Use Cases** | Video conferencing, online teaching, live broadcasting, smart TV, kiosk |
+| **Price** | ~$5–$10 USD (₱280–₱560) |
+| **Availability** | Excellent — Lazada, Shopee, local computer shops |
+| **FRAMES Notes** | 90° wide angle is advantageous for kiosk use (captures faces at closer distance). 720p native resolution is optimal for InsightFace — matches recommended resolution without wasting processing power. UVC compliance means zero driver setup on Raspberry Pi OS. |
+
 #### Generic 1080p USB Webcam (Unbranded)
 
 | Specification | Value |
@@ -236,22 +260,22 @@ This dual-backend architecture means that **switching to a USB webcam requires m
 
 ### 2.3 Comprehensive Comparison Table
 
-| Feature | RPi Cam v2 | RPi Cam v3 | Logitech C270 | Logitech C920 | A4Tech PK-910H | Generic 1080p |
-|---------|-----------|-----------|---------------|---------------|----------------|---------------|
-| **Max Resolution** | 1080p | 1080p | 720p | 1080p | 1080p | 720p* |
-| **Effective FPS** | 30 (1080p) | 50 (1080p) | 30 (720p) | 30 (1080p) | 30 (1080p) | 15–30 |
-| **Autofocus** | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ |
-| **FOV** | 62° | 66–75° | 60° | 78° | ~65° | ~50–70° |
-| **Low-Light** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐ |
-| **Interface** | CSI ribbon | CSI ribbon | USB 2.0 | USB 2.0 | USB 2.0 | USB 2.0 |
-| **Plug-and-Play** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Linux UVC** | ❌ (libcamera) | ❌ (libcamera) | ✅ | ✅ | ✅ | ✅ |
-| **Cable Length** | ~15–30cm | ~15–30cm | 1.5m | 1.5m | 1.5m | 1–1.5m |
-| **Built-in Mount** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| **Price (USD)** | ~$25 | ~$25–35 | ~$20 | ~$60 | ~$25 | ~$10–15 |
-| **Price (PHP)** | ₱1,400 | ₱1,400–1,960 | ₱1,120 | ₱3,360 | ₱1,400 | ₱560–840 |
-| **Reliability** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| **FRAMES Rating** | ✅ Good | ✅ Great | ✅ **Best Budget** | ✅ **Best Overall** | ✅ Good | ⚠️ Risky |
+| Feature | RPi Cam v2 | RPi Cam v3 | ICON 720p HD | Logitech C270 | Logitech C920 | A4Tech PK-910H | Generic 1080p |
+|---------|-----------|-----------|-------------|---------------|---------------|----------------|---------------|
+| **Max Resolution** | 1080p | 1080p | 720p | 720p | 1080p | 1080p | 720p* |
+| **Effective FPS** | 30 (1080p) | 50 (1080p) | 30 (720p) | 30 (720p) | 30 (1080p) | 30 (1080p) | 15–30 |
+| **Autofocus** | ❌ | ✅ | ❌ Fixed | ❌ | ✅ | ✅ | ❌ |
+| **FOV** | 62° | 66–75° | 90° | 60° | 78° | ~65° | ~50–70° |
+| **Low-Light** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐ |
+| **Interface** | CSI ribbon | CSI ribbon | USB 2.0 | USB 2.0 | USB 2.0 | USB 2.0 | USB 2.0 |
+| **Plug-and-Play** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Linux UVC** | ❌ (libcamera) | ❌ (libcamera) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Cable Length** | ~15–30cm | ~15–30cm | 1.4m | 1.5m | 1.5m | 1.5m | 1–1.5m |
+| **Built-in Mount** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Price (USD)** | ~$25 | ~$25–35 | ~$5–10 | ~$20 | ~$60 | ~$25 | ~$10–15 |
+| **Price (PHP)** | ₱1,400 | ₱1,400–1,960 | ₱280–560 | ₱1,120 | ₱3,360 | ₱1,400 | ₱560–840 |
+| **Reliability** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **FRAMES Rating** | ✅ Good | ✅ Great | ✅ **Actual (Team Pick)** | ✅ **Best Budget** | ✅ **Best Overall** | ✅ Good | ⚠️ Risky |
 
 *\*Generic webcams often advertise 1080p but deliver interpolated 720p or lower native resolution.*
 
@@ -725,36 +749,38 @@ v4l2-ctl -d /dev/video0 --list-formats-ext
 
 | Use Case | Recommended Webcam | Price (USD) | Price (PHP) | Why |
 |----------|-------------------|-------------|-------------|-----|
+| **FRAMES Actual (Current)** | ICON Camera 720p HD | $5–10 | ₱280–560 | 90° wide-angle, UVC plug-and-play, 720p native matches optimal resolution for InsightFace. Cheapest option that actually works. |
 | **Budget Deployment (per kiosk)** | Logitech C270 | $20 | ₱1,120 | 720p is sufficient, proven reliable, lowest cost from a reputable brand |
 | **Standard Deployment** | A4Tech PK-910H | $25 | ₱1,400 | 1080p + autofocus at budget price, widely available in PH |
 | **Best Accuracy** | Logitech C920 | $60 | ₱3,360 | 1080p, autofocus, best low-light performance, glass lens |
 | **Maximum Savings** | Generic 1080p | $10–15 | ₱560–840 | Cheapest option, but quality varies — test before bulk purchase |
-| **Multi-Kiosk (5+ units)** | Logitech C270 × 5 | $100 total | ₱5,600 total | Proven reliability, lowest total cost for fleet deployment |
+| **Multi-Kiosk (5+ units)** | ICON 720p HD × 5 | $25–50 total | ₱1,400–2,800 total | Lowest total cost for fleet deployment with proven FRAMES compatibility |
 
 ### 6.2 Detailed Comparison for FRAMES
 
-| Feature | Logitech C270 | Logitech C310 | Logitech C920 | Logitech C922 | A4Tech PK-910H | Generic 1080p |
-|---------|--------------|--------------|---------------|---------------|----------------|---------------|
-| **Resolution** | 720p | 720p | 1080p | 1080p | 1080p | 720p (actual) |
-| **FPS** | 30fps | 30fps | 30fps | 30/60fps | 30fps | 15–30fps |
-| **Autofocus** | ❌ Fixed | ❌ Fixed | ✅ 20-step | ✅ Glass lens | ✅ Auto | ❌ Fixed |
-| **Low-Light** | ⭐⭐ Basic | ⭐⭐ RightLight | ⭐⭐⭐⭐ HD Light | ⭐⭐⭐⭐ HD Light | ⭐⭐ Basic | ⭐ Poor |
-| **FOV** | 60° | 60° | 78° | 78° | 65° | ~50° |
-| **Lens** | Plastic | Plastic | Glass | Glass | Plastic | Plastic |
-| **UVC Compliant** | ✅ | ✅ | ✅ | ✅ | ✅ | Usually ✅ |
-| **Linux Support** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Good | ⚠️ Varies |
-| **Build Quality** | ⭐⭐⭐ Good | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐ Good | ⭐⭐ Poor |
-| **Warranty** | 2 years | 2 years | 2 years | 2 years | 1 year | None |
-| **Cable Length** | 1.5m | 1.5m | 1.5m | 1.5m | 1.5m | 1–1.5m |
-| **Price (USD)** | ~$20 | ~$25 | ~$60 | ~$80 | ~$25 | ~$10–15 |
-| **Price (PHP)** | ₱1,120 | ₱1,400 | ₱3,360 | ₱4,480 | ₱1,400 | ₱560–840 |
-| **FRAMES Score** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
-| **Verdict** | **Best Budget** | Better build | **Best Overall** | Overkill | **PH-Friendly** | Last resort |
+| Feature | ICON 720p HD | Logitech C270 | Logitech C310 | Logitech C920 | Logitech C922 | A4Tech PK-910H | Generic 1080p |
+|---------|-------------|--------------|--------------|---------------|---------------|----------------|---------------|
+| **Resolution** | 720p | 720p | 720p | 1080p | 1080p | 1080p | 720p (actual) |
+| **FPS** | 30fps | 30fps | 30fps | 30fps | 30/60fps | 30fps | 15–30fps |
+| **Autofocus** | ❌ Fixed | ❌ Fixed | ❌ Fixed | ✅ 20-step | ✅ Glass lens | ✅ Auto | ❌ Fixed |
+| **Low-Light** | ⭐⭐ Basic | ⭐⭐ Basic | ⭐⭐ RightLight | ⭐⭐⭐⭐ HD Light | ⭐⭐⭐⭐ HD Light | ⭐⭐ Basic | ⭐ Poor |
+| **FOV** | **90°** | 60° | 60° | 78° | 78° | 65° | ~50° |
+| **Lens** | Plastic | Plastic | Plastic | Glass | Glass | Plastic | Plastic |
+| **UVC Compliant** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Usually ✅ |
+| **Linux Support** | ✅ Good | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Good | ⚠️ Varies |
+| **Build Quality** | ⭐⭐ Basic | ⭐⭐⭐ Good | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐ Good | ⭐⭐ Poor |
+| **Warranty** | None | 2 years | 2 years | 2 years | 2 years | 1 year | None |
+| **Cable Length** | 1.4m | 1.5m | 1.5m | 1.5m | 1.5m | 1.5m | 1–1.5m |
+| **Price (USD)** | ~$5–10 | ~$20 | ~$25 | ~$60 | ~$80 | ~$25 | ~$10–15 |
+| **Price (PHP)** | ₱280–560 | ₱1,120 | ₱1,400 | ₱3,360 | ₱4,480 | ₱1,400 | ₱560–840 |
+| **FRAMES Score** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| **Verdict** | **FRAMES Actual** | **Best Budget** | Better build | **Best Overall** | Overkill | **PH-Friendly** | Last resort |
 
 ### 6.3 Philippine Market Availability
 
 | Webcam | Lazada/Shopee | PC Express | Octagon | Silicon Valley | CDR-King |
 |--------|-------------|-----------|---------|---------------|---------|
+| **ICON 720p HD** | **✅ ₱280–560** | ❌ | ❌ | ❌ | **✅ ₱300–500** |
 | Logitech C270 | ✅ ₱1,000–1,300 | ✅ ~₱1,200 | ✅ ~₱1,200 | ✅ ~₱1,150 | ❌ |
 | Logitech C310 | ✅ ₱1,200–1,500 | ✅ ~₱1,400 | ✅ ~₱1,400 | ✅ ~₱1,350 | ❌ |
 | Logitech C920 | ✅ ₱2,800–3,500 | ✅ ~₱3,200 | ✅ ~₱3,300 | ✅ ~₱3,100 | ❌ |

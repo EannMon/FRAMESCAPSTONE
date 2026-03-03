@@ -195,6 +195,14 @@ const DeptHeadLayout = () => {
             return;
         }
 
+        // --- FACE ENROLLMENT CHECK ---
+        // Dept heads must register their face before accessing the dashboard,
+        // identical to the enforcement on Faculty and Student layouts.
+        if (!authUser.face_registered) {
+            navigate('/face-enrollment');
+            return;
+        }
+
         const firstName = authUser.first_name || authUser.firstName || '';
         const lastName = authUser.last_name || authUser.lastName || '';
         setUser({
