@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import './FaceEnrollmentPage.css';
 
 const FaceEnrollmentPage = () => {
     const navigate = useNavigate();
+    const { updateUser } = useAuth();
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
@@ -164,16 +166,19 @@ const FaceEnrollmentPage = () => {
             if (response.data.success) {
                 setStatus(`✅ Successfully enrolled! Quality: ${(response.data.quality_score * 100).toFixed(0)}%`);
 
-                // Update user in localStorage
+                // Update user in localStorage AND AuthContext
                 const updatedUser = { ...user, face_registered: true };
                 localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                updateUser({ face_registered: true });
 
                 // Redirect based on role
                 setTimeout(() => {
                     const role = user.role?.toLowerCase();
                     if (role === 'student') {
                         navigate('/student-dashboard');
-                    } else if (role === 'faculty' || role === 'head') {
+                    } else if (role === 'head' || role === 'dept_head') {
+                        navigate('/dept-head-dashboard');
+                    } else if (role === 'faculty') {
                         navigate('/faculty-dashboard');
                     } else if (role === 'admin') {
                         navigate('/admin-dashboard');
