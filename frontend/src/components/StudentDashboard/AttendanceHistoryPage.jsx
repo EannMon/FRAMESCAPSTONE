@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 
 import './AttendanceHistoryPage.css';
 import StudentReportModal from './StudentReportModal';
@@ -61,6 +61,8 @@ const AttendanceHistoryPage = () => {
     };
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchData = async () => {
             try {
                 const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -69,7 +71,7 @@ const AttendanceHistoryPage = () => {
 
                 // A. Get Schedule & Pre-process
                 const userId = storedUser.id || storedUser.user_id;
-                const schedRes = await axios.get(`http://localhost:5000/api/student/schedule/${userId}`);
+                const schedRes = await api.get(`/api/student/schedule/${userId}`, { signal: controller.signal });
                 
                 // OPTIMIZATION: Pre-calculate start/end minutes for schedule
                 const processedSchedule = (schedRes.data || []).map(cls => ({
@@ -91,7 +93,7 @@ const AttendanceHistoryPage = () => {
                 setUniqueSubjects(subjects);
 
                 // B. Get Logs & SMART MAPPING
-                const historyRes = await axios.get(`http://localhost:5000/api/student/history/${userId}`);
+                const historyRes = await api.get(`/api/student/history/${userId}`, { signal: controller.signal });
                 const rawLogData = historyRes.data || [];
 
                 const mappedLogs = rawLogData.map(log => {
@@ -128,11 +130,15 @@ const AttendanceHistoryPage = () => {
                 setLoading(false);
 
             } catch (error) {
-                console.error("Error:", error);
-                setLoading(false);
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error("Error:", error);
+                    setLoading(false);
+                }
             }
         };
         fetchData();
+
+        return () => controller.abort();
     }, []);
 
     // --- FILTER LOGIC ---

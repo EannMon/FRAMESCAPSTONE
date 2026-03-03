@@ -1,14 +1,17 @@
 """
-Auth Router - Login and Registration endpoints
+Auth Router - Login, Registration, and Token endpoints.
+Issues JWT access + refresh tokens on login per FRAMES_SECURITY_RULES.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 import bcrypt
 import logging
 
 from db.database import get_db
 from core.errors import api_error
 from core.limiter import limiter
+from core.auth import create_access_token, create_refresh_token, verify_token
 from models.user import User, UserRole, VerificationStatus
 from models.facial_profile import FacialProfile
 from schemas.user import (
@@ -64,10 +67,17 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
             message="Invalid email or password"
         )
     
-    logger.info("Login Successful for: %s %s", user.first_name, user.last_name)
+    # Generate JWT tokens per FRAMES_SECURITY_RULES §1.1
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user)
+
+    logger.info("AUTH | login user=%d success=True", user.id)
     
     return LoginResponse(
         message="Login Successful",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
         user=UserResponse(
             id=user.id,
             email=user.email,
@@ -141,7 +151,7 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     db.commit()
     db.refresh(new_user)
     
-    logger.info("Registered: %s %s (ID: %d)", new_user.first_name, new_user.last_name, new_user.id)
+    logger.info("AUTH | registered user=%d role=%s", new_user.id, new_user.role.value)
     
     return MessageResponse(message=f"Registration Successful! User ID: {new_user.id}")
 
@@ -183,3 +193,33 @@ def get_programs(db: Session = Depends(get_db)):
     from models.program import Program
     programs = db.query(Program).order_by(Program.name).all()
     return [{"id": p.id, "name": p.name, "code": p.code, "department_id": p.department_id} for p in programs]
+
+
+# --- Token Refresh ---
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+@router.post("/refresh")
+def refresh_access_token(body: RefreshRequest, db: Session = Depends(get_db)):
+    """
+    Issue a new access token using a valid refresh token.
+    Per FRAMES_SECURITY_RULES §1.5 — refresh token endpoint.
+    """
+    payload = verify_token(body.refresh_token, expected_type="refresh")
+
+    user = db.query(User).filter(User.id == payload["sub"]).first()
+    if not user:
+        raise api_error(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="USER_NOT_FOUND",
+            message="User no longer exists",
+        )
+
+    new_access_token = create_access_token(user)
+    logger.info("AUTH | token refreshed user=%d", user.id)
+
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer",
+    }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
@@ -23,13 +23,13 @@ const SchedulePage = () => {
   const [loading, setLoading] = useState(true);
 
   // --- FETCH SCHEDULE FUNCTION ---
-  const fetchSchedule = async () => {
+  const fetchSchedule = async (signal) => {
     try {
       const storedUser = JSON.parse(localStorage.getItem('currentUser'));
       if (!storedUser) return;
 
       const userId = storedUser.id || storedUser.user_id;
-      const response = await axios.get(`http://localhost:5000/api/student/schedule/${userId}`);
+      const response = await api.get(`/api/student/schedule/${userId}`, { signal });
       const rawData = response.data;
 
       const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
@@ -48,13 +48,17 @@ const SchedulePage = () => {
       setLoading(false);
 
     } catch (error) {
-      console.error("Error fetching schedule:", error);
-      setLoading(false);
+      if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+        console.error("Error fetching schedule:", error);
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchSchedule();
+    const controller = new AbortController();
+    fetchSchedule(controller.signal);
+    return () => controller.abort();
   }, []);
 
 

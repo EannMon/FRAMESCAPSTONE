@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from 'axios';
+import api from '../../services/api';
 import './DeptHeadUserManagementPage.css';
 
 // Helper for status colors
@@ -59,19 +59,21 @@ const DeptHeadUserManagementPage = () => {
     }, [location.state, location.hash]);
 
     useEffect(() => {
+        const controller = new AbortController();
         // Fetch users on mount or when tab changes (to ensure freshness)
         // Optimization: Could check if data is already loaded
-        fetchUsers();
+        fetchUsers(controller.signal);
+        return () => controller.abort();
     }, [activeTab]); // Refetch on tab change to keep in sync
 
     // ==========================================
     // SHARED FETCH HANDLER
     // ==========================================
-    const fetchUsers = async () => {
+    const fetchUsers = async (signal) => {
         setVerificationLoading(true);
         setVerificationError(null);
         try {
-            const response = await axios.get('http://localhost:5000/api/admin/verification/list');
+            const response = await api.get('/api/admin/verification/list', { signal });
 
             // Map for Verification Tab
             const mappedVerificationData = (response.data || []).map(user => ({
@@ -105,10 +107,14 @@ const DeptHeadUserManagementPage = () => {
             setUsers(mappedDirectoryData);
 
         } catch (err) {
-            console.error("Failed to fetch users:", err);
-            setVerificationError("Failed to load user data. Check backend connection.");
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                console.error("Failed to fetch users:", err);
+                setVerificationError("Failed to load user data. Check backend connection.");
+            }
         } finally {
-            setVerificationLoading(false);
+            if (!signal || !signal.aborted) {
+                setVerificationLoading(false);
+            }
         }
     };
 
@@ -147,13 +153,13 @@ const DeptHeadUserManagementPage = () => {
     const handleStatusUpdate = async (id, newStatus) => {
         setVerificationOpenMenuId(null);
         const endpoint = newStatus === 'Approved'
-            ? 'http://localhost:5000/api/admin/verification/approve'
-            : 'http://localhost:5000/api/admin/verification/reject';
+            ? '/api/admin/verification/approve'
+            : '/api/admin/verification/reject';
 
         try {
             const apiStatus = newStatus === 'Approved' ? 'Verified' : 'Rejected';
 
-            await axios.post(endpoint, {
+            await api.post(endpoint, {
                 user_id: id,
                 verification_status: apiStatus
             });
@@ -180,7 +186,7 @@ const DeptHeadUserManagementPage = () => {
     const deleteApplication = async (id) => {
         if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/admin/user/${id}`);
+            await api.delete(`/api/admin/user/${id}`);
             setVerificationUsers(prev => prev.filter(app => app.id !== id));
             alert(`User ID ${id} deleted.`);
         } catch (error) {

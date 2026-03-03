@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import './LandingPage.css';
 import landingBg from '../../assets/images/landing_bg.png';
@@ -13,6 +13,7 @@ import Footer from '../Common/Footer';
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
     const toast = useToast();
+    const { login, logout } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -26,24 +27,23 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
         setIsSubmitting(true);
         try {
             setErrorMessage('');
-            const response = await axios.post('http://localhost:5000/api/auth/login', {
-                email, password
-            });
+            // AuthContext login stores JWT tokens and user state
+            const userData = await login(email, password);
 
-            if (response.data.message === "Login Successful") {
-                const userData = response.data.user;
-                const userRole = userData.role.toUpperCase();
-                const verificationStatus = userData.verification_status?.toUpperCase();
+            const userRole = userData.role.toUpperCase();
+            const verificationStatus = userData.verification_status?.toUpperCase();
 
-                if (verificationStatus === 'VERIFIED') {
-                    localStorage.setItem('currentUser', JSON.stringify(userData));
-                    toast.success(`Welcome back, ${userData.first_name}!`);
+            if (verificationStatus === 'VERIFIED') {
+                toast.success(`Welcome back, ${userData.first_name}!`);
 
-                    if (userRole === 'ADMIN') navigate('/admin-dashboard');
-                    else if (userRole === 'STUDENT') navigate('/student-dashboard');
-                    else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
-                    else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
-                } else if (verificationStatus === 'PENDING') {
+                if (userRole === 'ADMIN') navigate('/admin-dashboard');
+                else if (userRole === 'STUDENT') navigate('/student-dashboard');
+                else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
+                else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
+            } else {
+                // Non-verified users — clear auth state, show meaningful message
+                logout();
+                if (verificationStatus === 'PENDING') {
                     setErrorMessage("Your account is still pending approval. Please wait for your Department Head to verify your account.");
                 } else if (verificationStatus === 'REJECTED') {
                     setErrorMessage("Your account has been rejected. Please contact the administrator for details.");

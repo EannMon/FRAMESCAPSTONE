@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import './FacultyDashboardPage.css';
 import '../Common/Utility.css';
@@ -484,10 +484,10 @@ const FacultyDashboardPage = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const controller = new AbortController();
 
         // Refresh face_registered from DB
-        axios.get(`${API}/api/users/${user.id}`).then(res => {
+        api.get(`/api/users/${user.id}`, { signal: controller.signal }).then(res => {
             const fresh = res.data?.face_registered ?? false;
             setFaceRegistered(fresh);
             // Update localStorage too
@@ -495,20 +495,31 @@ const FacultyDashboardPage = () => {
                 const updated = { ...user, face_registered: fresh };
                 localStorage.setItem('currentUser', JSON.stringify(updated));
             }
-        }).catch(() => { });
+        }).catch((err) => {
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                console.error('Failed to refresh face_registered:', err);
+            }
+        });
 
         const fetchData = async () => {
             try {
                 const [statsRes, schedRes] = await Promise.all([
-                    axios.get(`${API}/api/faculty/dashboard-stats/${user.id}`),
-                    axios.get(`${API}/api/faculty/schedule/${user.id}`).catch(() => ({ data: [] }))
+                    api.get(`/api/faculty/dashboard-stats/${user.id}`, { signal: controller.signal }),
+                    api.get(`/api/faculty/schedule/${user.id}`, { signal: controller.signal }).catch((err) => {
+                        if (err.name === 'AbortError' || err.name === 'CanceledError') throw err;
+                        return { data: [] };
+                    })
                 ]);
                 setStats(statsRes.data);
                 setSchedule(schedRes.data || []);
             } catch (err) {
-                console.error('Dashboard fetch error:', err);
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Dashboard fetch error:', err);
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
         fetchData();
@@ -516,16 +527,21 @@ const FacultyDashboardPage = () => {
         // Live room status polling
         const fetchLiveRooms = async () => {
             try {
-                const res = await axios.get(`${API}/api/faculty/live-room-status/${user.id}`);
+                const res = await api.get(`/api/faculty/live-room-status/${user.id}`, { signal: controller.signal });
                 setLiveRooms(res.data.rooms || []);
             } catch (err) {
-                console.error('Live room status error:', err);
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Live room status error:', err);
+                }
             }
         };
         fetchLiveRooms();
         const liveInterval = setInterval(fetchLiveRooms, 10000); // Poll every 10s
 
-        return () => clearInterval(liveInterval);
+        return () => {
+            controller.abort();
+            clearInterval(liveInterval);
+        };
     }, [user]);
 
     if (loading) {
