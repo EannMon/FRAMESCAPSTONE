@@ -12,10 +12,13 @@
     gap: 30px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #f5f6fa;
-    padding-top: 95px; /* 65px header + 30px padding */
+    padding-top: 95px;
+    /* 65px header + 30px padding */
 }
+
 .settings-page-container.embedded {
-    padding: 0; /* Let main-content-area handle padding */
+    padding: 0;
+    /* Let main-content-area handle padding */
     max-width: 100%;
     margin: 0;
     min-height: auto;
@@ -48,10 +51,11 @@
     justify-content: center;
     transition: all 0.2s;
 }
+
 .settings-back-button:hover {
-    background-color: #f8f9fa;
-    color: #dc3545;
-    border-color: #f8d7da;
+    background-color: #EEF2FF;
+    color: #0F172A;
+    border-color: #163269;
 }
 
 .settings-main-title {
@@ -74,6 +78,7 @@
     flex-direction: column;
     gap: 20px;
 }
+
 .settings-card h3 {
     font-size: 1.3em;
     font-weight: 600;
@@ -82,6 +87,7 @@
     padding-bottom: 15px;
     border-bottom: 1px solid #eee;
 }
+
 .settings-card p {
     font-size: 0.95em;
     color: #666;
@@ -93,12 +99,14 @@
     display: flex;
     flex-direction: column;
 }
+
 .settings-field label {
     font-size: 0.9em;
     font-weight: 500;
     color: #555;
     margin-bottom: 5px;
 }
+
 .settings-select-input {
     font-size: 1em;
     padding: 10px 12px;
@@ -110,7 +118,8 @@
 }
 
 /* --- Buttons --- */
-.settings-link-button, .settings-action-button {
+.settings-link-button,
+.settings-action-button {
     background-color: #fff;
     border: 1px solid #e0e0e0;
     color: #555;
@@ -120,28 +129,36 @@
     font-weight: 500;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Link button */
+    justify-content: space-between;
+    /* Link button */
     gap: 8px;
     font-size: 0.95em;
     transition: all 0.2s;
     text-decoration: none;
 }
+
 .settings-action-button {
-    justify-content: flex-start; /* Regular button */
+    justify-content: flex-start;
+    /* Regular button */
 }
 
-.settings-link-button:hover, .settings-action-button:hover {
-    background-color: #f8f9fa;
-    color: #dc3545;
-    border-color: #f8d7da;
+.settings-link-button:hover,
+.settings-action-button:hover {
+    background-color: #EEF2FF;
+    color: #0F172A;
+    border-color: #163269;
 }
-.settings-link-button i, .settings-action-button i {
+
+.settings-link-button i,
+.settings-action-button i {
     color: #888;
     transition: color 0.2s;
     margin-right: 5px;
 }
-.settings-link-button:hover i, .settings-action-button:hover i {
-    color: #dc3545;
+
+.settings-link-button:hover i,
+.settings-action-button:hover i {
+    color: #0F172A;
 }
 
 
@@ -151,22 +168,28 @@
     justify-content: space-between;
     align-items: center;
 }
+
 .toggle-switch-label {
     font-size: 1em;
     font-weight: 500;
     color: #333;
 }
+
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 50px; /* Width of the switch */
-    height: 28px; /* Height of the switch */
+    width: 50px;
+    /* Width of the switch */
+    height: 28px;
+    /* Height of the switch */
 }
+
 .toggle-switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
+
 .toggle-slider {
     position: absolute;
     cursor: pointer;
@@ -178,6 +201,7 @@
     transition: .4s;
     border-radius: 28px;
 }
+
 .toggle-slider:before {
     position: absolute;
     content: "";
@@ -189,28 +213,28 @@
     transition: .4s;
     border-radius: 50%;
 }
-.toggle-switch input:checked + .toggle-slider {
-    background-color: #dc3545; /* Red when on */
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: #0F172A;
+    /* Navy when on */
 }
-.toggle-switch input:checked + .toggle-slider:before {
+
+.toggle-switch input:checked+.toggle-slider:before {
     transform: translateX(22px);
 }
 
 /* =========================================== */
-/* FACULTY THEME OVERRIDES (Navy #163269)      */
+/* Responsive Styles */
 /* =========================================== */
-.settings-page-container.faculty-theme .toggle-switch input:checked + .toggle-slider {
-    background-color: #163269; /* Navy */
-}
+@media (max-width: 576px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
 
-.settings-page-container.faculty-theme .settings-link-button:hover,
-.settings-page-container.faculty-theme .settings-action-button:hover {
-    color: #163269;
-    background-color: #EEF2FF;
-    border-color: #163269;
-}
-
-.settings-page-container.faculty-theme .settings-link-button:hover i,
-.settings-page-container.faculty-theme .settings-action-button:hover i {
-    color: #163269;
+    .settings-header-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
 }

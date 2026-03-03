@@ -12,7 +12,8 @@
     background-color: #FFFFFF;
     border-radius: 12px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    border: 1px solid #E2E8F0; /* Subtle border for definition */
+    border: 1px solid #E2E8F0;
+    /* Subtle border for definition */
     padding: 20px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -30,7 +31,8 @@
     top: 0;
     left: 0;
     bottom: 0;
-    background-color: #0F172A; /* FRAMES Navy */
+    background-color: #0F172A;
+    /* FRAMES Navy */
     color: #F8FAFC;
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -38,6 +40,24 @@
     z-index: 1100;
     border-right: none;
     transition: width 0.3s ease;
+}
+
+/* Hide scrollbar for sidebar and nav containers */
+.frames-sidebar::-webkit-scrollbar,
+.faculty-nav::-webkit-scrollbar,
+.student-nav::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.frames-sidebar,
+.faculty-nav,
+.student-nav,
+.sidebar-nav {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
 }
 
 .frames-sidebar.collapsed {
@@ -48,14 +68,16 @@
 .frames-sidebar-link {
     display: flex;
     align-items: center;
-    padding: 10px 25px; /* Standardized Compact Spacing */
+    padding: 10px 25px;
+    /* Standardized Compact Spacing */
     color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
     font-weight: 500;
     transition: all 0.2s ease;
     border-left: 4px solid transparent;
     white-space: nowrap;
-    height: 44px; /* Standardized Height */
+    height: 44px;
+    /* Standardized Height */
     box-sizing: border-box;
 }
 
@@ -81,12 +103,14 @@
 /* Collapsed State for Links */
 .frames-sidebar.collapsed .frames-sidebar-link {
     justify-content: center;
-    padding: 0; /* Center icons */
+    padding: 0;
+    /* Center icons */
     width: 100%;
 }
 
 .frames-sidebar.collapsed .frames-sidebar-link span {
-    display: none; /* Hide text */
+    display: none;
+    /* Hide text */
 }
 
 .frames-sidebar.collapsed .frames-sidebar-link i {
@@ -96,24 +120,27 @@
 
 /* --- 3. HEADER TOGGLE BUTTON (Navy Square) --- */
 .frames-header-toggle {
-    background-color: #0F172A; /* FRAMES Navy */
+    background-color: #0F172A;
+    /* FRAMES Navy */
     color: white;
     border: none;
     width: 36px;
     height: 36px;
-    border-radius: 8px; /* Standard Radius */
+    border-radius: 8px;
+    /* Standard Radius */
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .frames-header-toggle:hover {
-    background-color: #1E293B; /* Lighter Navy */
+    background-color: #1E293B;
+    /* Lighter Navy */
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* --- 4. SIDEBAR ROLE TAG (Global) --- */
@@ -133,9 +160,166 @@
     overflow: hidden;
 }
 
-/* Dept Head Override (Specific Color) */
-.dept-head-sidebar .frames-role-tag {
-    background-color: rgba(249, 168, 37, 0.15); /* Amber Tint */
-    color: #F9A825; /* Amber Text */
-    border-color: #F9A825;
+/* --- 5. SIDEBAR PROFILE POPUP --- */
+.sidebar-profile-popup {
+    position: absolute;
+    left: 85px;
+    /* Just outside the collapsed sidebar */
+    bottom: 20px;
+    background-color: #1E293B;
+    /* Slightly lighter navy than sidebar */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    width: 200px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #F8FAFC;
+}
+
+/* Arrow pointer */
+.sidebar-profile-popup::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    bottom: 20px;
+    width: 10px;
+    height: 10px;
+    background-color: #1E293B;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transform: rotate(45deg);
+}
+
+.popup-user-info {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.popup-user-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.popup-user-email {
+    font-size: 0.75rem;
+    color: #94A3B8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.popup-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.popup-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.popup-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #FFFFFF !important;
+}
+
+.popup-menu-item.logout-item:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #EF4444 !important;
+}
+
+/* --- 6. MOBILE SIDEBAR CLOSE BUTTON --- */
+.mobile-sidebar-close {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto;
+}
+
+/* =========================================== */
+/* 7. GLOBAL MEDIA QUERIES (RESPONSIVE) */
+/* =========================================== */
+@media (max-width: 992px) {
+    .frames-sidebar {
+        transform: translateX(-100%);
+        width: 270px;
+        transition: transform 0.3s ease-in-out;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .frames-sidebar.collapsed {
+        transform: translateX(-100%);
+        /* collapsed means hidden on mobile */
+        width: 270px;
+    }
+
+    .frames-sidebar.open {
+        transform: translateX(0) !important;
+        /* Force open on mobile regardless of collapsed state */
+    }
+
+    .mobile-sidebar-close {
+        display: block;
+    }
+
+    /* Adjust main content padding when sidebar is hidden */
+    .dashboard-body .main-content-area,
+    .dashboard-body .main-content-area.collapsed {
+        padding-left: 20px !important;
+    }
+
+    /* Mobile Menu Overlay */
+    .frames-sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        /* below sidebar 1100 */
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+
+    .frames-sidebar-overlay.open {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .frames-sidebar,
+    .frames-sidebar.collapsed {
+        width: 270px;
+    }
+
+    .dashboard-body .main-content-area {
+        padding: 15px !important;
+    }
 }

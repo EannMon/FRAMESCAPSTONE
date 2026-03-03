@@ -180,7 +180,6 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
         subject = cls.subject if cls else None
         recent_attendance.append({
             "timestamp": str(log.timestamp),
-            "action": log.action.value if log.action else None,
             "course_name": subject.title if subject else "Unknown",
             "room": cls.room if cls else "Unknown"
         })

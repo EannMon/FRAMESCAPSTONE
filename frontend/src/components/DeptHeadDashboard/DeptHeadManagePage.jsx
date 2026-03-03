@@ -130,7 +130,6 @@ const WeeklyCalendarView = ({ courses }) => {
 };
 
 const DeptHeadManagePage = () => {
-    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);
@@ -160,6 +159,61 @@ const DeptHeadManagePage = () => {
     });
 
     const [logs, setLogs] = useState([]);
+
+    // --- ACADEMIC YEAR SETTINGS (from DB via API) ---
+    const defaultAY = {
+        academicYear: '2025-2026',
+        semester: '2nd Semester',
+        startMonth: 'August',
+        endMonth: 'May',
+    };
+    const [ayConfig, setAyConfig] = useState(defaultAY);
+    const [editingAY, setEditingAY] = useState(false);
+    const [ayForm, setAyForm] = useState(defaultAY);
+
+    useEffect(() => {
+        // Fetch academic year from backend
+        const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const deptId = storedUser.department_id;
+        if (deptId) {
+            axios.get(`http://localhost:5000/api/dept/academic-year?dept_id=${deptId}`)
+                .then(res => {
+                    const needsSave = !res.data.academic_year || !res.data.semester;
+                    const data = {
+                        ...defaultAY,
+                        academicYear: res.data.academic_year || defaultAY.academicYear,
+                        semester: res.data.semester || defaultAY.semester,
+                    };
+                    setAyConfig(data);
+                    setAyForm(data);
+                    // Auto-save defaults to DB if not set yet
+                    if (needsSave && storedUser.id) {
+                        axios.put('http://localhost:5000/api/dept/academic-year', {
+                            user_id: storedUser.id,
+                            academic_year: data.academicYear,
+                            semester: data.semester,
+                        }).catch(err => console.error('Failed to auto-save academic year:', err));
+                    }
+                })
+                .catch(err => console.error('Failed to fetch academic year:', err));
+        }
+    }, []);
+
+    const handleSaveAY = async () => {
+        const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        try {
+            await axios.put('http://localhost:5000/api/dept/academic-year', {
+                user_id: storedUser.id,
+                academic_year: ayForm.academicYear,
+                semester: ayForm.semester,
+            });
+            setAyConfig(ayForm);
+            setEditingAY(false);
+            toast.success('Academic Year settings saved.');
+        } catch (error) {
+            toast.error('Failed to save academic year: ' + (error.response?.data?.detail?.error?.message || error.message));
+        }
+    };
 
     // --- 1. FETCH DATA FROM DB ---
     const fetchManagementData = async () => {
@@ -286,6 +340,105 @@ const DeptHeadManagePage = () => {
 
     return (
         <div className="dept-mgmt-container">
+            {/* ── ACADEMIC YEAR SETTINGS CARD ── */}
+            <div className="ay-settings-card card">
+                <div className="ay-settings-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <i className="fas fa-calendar-alt" style={{ color: '#163269', fontSize: '1.1rem' }} />
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '1rem', color: '#163269' }}>Academic Year Settings</h3>
+                            <p style={{ margin: 0, fontSize: '0.82em', color: '#666' }}>Controls the active academic period for reports and calendar limits.</p>
+                        </div>
+                    </div>
+                    {!editingAY ? (
+                        <button className="mgmt-btn outline" style={{ padding: '6px 14px' }} onClick={() => setEditingAY(true)}>
+                            <i className="fas fa-pen" /> Edit
+                        </button>
+                    ) : (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="mgmt-btn outline" style={{ padding: '6px 14px' }} onClick={() => setEditingAY(false)}>Cancel</button>
+                            <button className="mgmt-btn primary" style={{ padding: '6px 14px' }} onClick={handleSaveAY}>
+                                <i className="fas fa-save" /> Save
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {!editingAY ? (
+                    <div className="ay-info-row">
+                        <div className="ay-stat">
+                            <span className="ay-stat-label">Academic Year</span>
+                            <span className="ay-stat-value">{ayConfig.academicYear}</span>
+                        </div>
+                        <div className="ay-stat">
+                            <span className="ay-stat-label">Semester</span>
+                            <span className="ay-stat-value">{ayConfig.semester}</span>
+                        </div>
+                        <div className="ay-stat">
+                            <span className="ay-stat-label">Start Month</span>
+                            <span className="ay-stat-value">{ayConfig.startMonth}</span>
+                        </div>
+                        <div className="ay-stat">
+                            <span className="ay-stat-label">End Month</span>
+                            <span className="ay-stat-value">{ayConfig.endMonth}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="ay-edit-form">
+                        <div className="form-row">
+                            <div className="form-group half">
+                                <label>Academic Year</label>
+                                <input
+                                    type="text"
+                                    className="modal-input"
+                                    placeholder="e.g. 2025-2026"
+                                    value={ayForm.academicYear}
+                                    onChange={e => setAyForm({ ...ayForm, academicYear: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group half">
+                                <label>Semester</label>
+                                <select
+                                    className="modal-select"
+                                    value={ayForm.semester}
+                                    onChange={e => setAyForm({ ...ayForm, semester: e.target.value })}
+                                >
+                                    <option>1st Semester</option>
+                                    <option>2nd Semester</option>
+                                    <option>Summer</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group half">
+                                <label>Start Month</label>
+                                <select
+                                    className="modal-select"
+                                    value={ayForm.startMonth}
+                                    onChange={e => setAyForm({ ...ayForm, startMonth: e.target.value })}
+                                >
+                                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => (
+                                        <option key={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group half">
+                                <label>End Month</label>
+                                <select
+                                    className="modal-select"
+                                    value={ayForm.endMonth}
+                                    onChange={e => setAyForm({ ...ayForm, endMonth: e.target.value })}
+                                >
+                                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => (
+                                        <option key={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             {/* HEADER */}
             <div className="mgmt-header">
                 <div>

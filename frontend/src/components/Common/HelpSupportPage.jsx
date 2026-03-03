@@ -6,9 +6,9 @@ import Header from './Header';
 import Footer from './Footer';
 
 // --- Theme Definition ---
-const redTheme = {
-    primary: '#A62525',
-    dark: '#c82333',
+const navyTheme = {
+    primary: '#0F172A',
+    dark: '#163269',
     lightBg: 'rgba(255, 255, 255, 0.15)',
     text: '#FFFFFF'
 };
@@ -135,7 +135,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
 
     return (
         <>
-            {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
+            {!isEmbedded && <Header theme={navyTheme} user={user} setPanel={() => navigate('/')} />}
 
             <div className={`help-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass} fade-in`}>
 

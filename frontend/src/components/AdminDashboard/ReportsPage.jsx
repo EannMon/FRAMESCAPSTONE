@@ -192,7 +192,7 @@ const ReportsPage = () => {
             if (newData.length > 0) {
                 handleView(null, newReport);
             } else {
-                toast.warning(`Report generated successfully, but no records were found for the selected dates. Try expanding the date range.`);
+                alert(`Report generated successfully, but no records were found for the selected dates.\n\nTry expanding the date range.`);
             }
 
         } catch (error) {

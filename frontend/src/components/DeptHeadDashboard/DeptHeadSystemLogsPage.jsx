@@ -63,11 +63,7 @@ const DeptHeadSystemLogsPage = () => {
 
     return (
         <div className="system-logs-page">
-            <div className="logs-header">
-                <div>
-                    <h2><i className="fas fa-clipboard-list"></i> System Logs</h2>
-                    <p>Real-time audit and attendance logs from the database</p>
-                </div>
+            <div className="logs-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="logs-refresh-btn" onClick={fetchLogs}>
                     <i className="fas fa-sync-alt"></i> Refresh
                 </button>

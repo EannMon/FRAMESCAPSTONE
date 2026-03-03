@@ -85,7 +85,7 @@ def send_approval_email(email: str, first_name: str, role: str):
             <p style="color: #94A3B8; margin: 8px 0 0 0; font-size: 13px;">Facial Recognition Attendance & Monitoring System</p>
         </div>
         <div style="padding: 32px; background: #ffffff;">
-            <h2 style="color: #0F172A; margin: 0 0 16px 0; font-size: 22px;">Account Approved ✅</h2>
+            <h2 style="color: #0F172A; margin: 0 0 16px 0; font-size: 22px;">Account Approved &#x2705;</h2>
             <p style="color: #334155; font-size: 15px; line-height: 1.6;">
                 Hello <strong>{first_name}</strong>,
             </p>
@@ -114,7 +114,7 @@ def send_approval_email(email: str, first_name: str, role: str):
         "personalizations": [
             {
                 "to": [{"email": email}],
-                "subject": "Your FRAMES Account has been Approved ✅"
+                "subject": "Your FRAMES Account has been Approved \u2705"
             }
         ],
         "from": {

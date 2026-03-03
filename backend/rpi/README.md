@@ -311,6 +311,12 @@ The 7" display should show the Raspberry Pi desktop after 1-2 minutes.
 
 On the Pi's terminal (click the terminal icon on the desktop taskbar):
 ```bash
+pip install numpy==1.26.4
+```
+> **Why 1.26.4 specifically?** It's new enough for `insightface`/`scipy` (which need `numpy.exceptions`, added in 1.25) but old enough to be ABI-compatible with the system's `simplejpeg` (which `picamera2` depends on). Do **NOT** install numpy 2.x.
+
+Then:
+```bash
 hostname -I
 ```
 Write down the IP address (e.g., `192.168.1.105`).

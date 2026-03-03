@@ -7,7 +7,6 @@ const API_BASE_URL = 'http://127.0.0.1:5000'; // Palitan base sa inyong Flask UR
 // NOTE: Kailangan mo ring i-pass ang ID ng naka-login na Admin para sa SystemAudit log.
 
 const UserVerificationPage = ({ adminUser }) => {
-    const toast = useToast();
     const [pendingUsers, setPendingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const adminId = adminUser ? adminUser.user_id : 1; // Default to 1 if adminUser is null for testing
@@ -37,8 +36,7 @@ const UserVerificationPage = ({ adminUser }) => {
     const handleAction = async (userId, status, name) => {
         const action = status === 'Verified' ? 'Approve' : 'Reject';
 
-        const confirmed = await toast.confirm(`Are you sure you want to ${action} the account for ${name}?`);
-        if (!confirmed) return;
+        if (!window.confirm(`Are you sure you want to ${action} the account for ${name}?`)) return;
 
         try {
             // 1. Update verification_status
@@ -62,7 +60,7 @@ const UserVerificationPage = ({ adminUser }) => {
                 })
             });
 
-            toast.success(`User ${name} successfully ${status}.`);
+            alert(`User ${name} successfully ${status}.`);
             fetchPendingUsers(); // Refresh the list
         } catch (error) {
             console.error(`Error ${action}ing user:`, error);

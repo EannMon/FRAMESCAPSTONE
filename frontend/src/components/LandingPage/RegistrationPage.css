@@ -324,6 +324,18 @@
     }
 }
 
+@media (max-width: 576px) {
+    .city-zip-wrapper {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .zip-part,
+    .city-part {
+        width: 100%;
+    }
+}
+
 /* ANIMATIONS */
 @keyframes fadeInUp {
     from {

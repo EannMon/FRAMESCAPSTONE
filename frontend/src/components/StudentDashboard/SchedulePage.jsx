@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useToast } from '../Common/ToastProvider';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
@@ -16,17 +15,12 @@ const ClassItem = ({ time, title, room }) => (
 );
 
 const SchedulePage = () => {
-  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState('This Week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekSchedule, setWeekSchedule] = useState({
     Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
   });
   const [loading, setLoading] = useState(true);
-
-  // Upload States
-  const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(true); // Can toggle based on semester start
 
   // --- FETCH SCHEDULE FUNCTION ---
   const fetchSchedule = async () => {
@@ -63,41 +57,6 @@ const SchedulePage = () => {
     fetchSchedule();
   }, []);
 
-  // --- HANDLE FILE UPLOAD ---
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate PDF
-    if (file.type !== 'application/pdf') {
-      toast.error("Please upload a valid PDF file.");
-      return;
-    }
-
-    const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('user_id', storedUser.id || storedUser.user_id);
-
-    setUploading(true);
-
-    try {
-      // BFF NOTE: Removed the manual header configuration here. 
-      // Let Axios handle the boundary automatically.
-      const response = await axios.post('http://localhost:5000/api/student/upload-cor', formData);
-
-      toast.success(`Success! ${response.data.message}`);
-      fetchSchedule(); // Refresh schedule after upload
-    } catch (error) {
-      console.error("Upload failed", error);
-      const errMsg = error.response?.data?.error || "Failed to parse CoR.";
-      toast.error(`Upload Failed: ${errMsg}`);
-    } finally {
-      setUploading(false);
-      // Clear the input so you can upload the same file again if needed
-      event.target.value = null;
-    }
-  };
 
   // Calendar Helpers
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -111,55 +70,26 @@ const SchedulePage = () => {
   return (
     <div className="schedule-view-container">
 
-      {/* --- 1. UPLOAD COR SECTION --- */}
-      {showUpload && (
-        <div className="card upload-cor-section" style={{ marginBottom: '20px', borderLeft: '5px solid #163269' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ margin: '0 0 5px 0', color: '#333' }}>Schedule Setup</h3>
-              <p style={{ margin: 0, fontSize: '0.9em', color: '#666' }}>
-                Upload your Certificate of Registration (PDF) to generate your schedule.
-              </p>
-
-              {/* NEW: Show Uploaded File Name & View Link */}
-              <div id="file-preview" style={{ marginTop: '10px', fontSize: '0.9em' }}></div>
-            </div>
-            <div>
-              <input
-                type="file"
-                accept="application/pdf"
-                id="cor-upload"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  // Logic to show preview immediately
-                  if (e.target.files[0]) {
-                    const file = e.target.files[0];
-                    const fileUrl = URL.createObjectURL(file);
-                    const previewDiv = document.getElementById('file-preview');
-                    previewDiv.innerHTML = `
-                                    <span style="color:#28a745; font-weight:600;">
-                                        <i class="fas fa-check-circle"></i> Selected: 
-                                    </span> 
-                                    <a href="${fileUrl}" target="_blank" style="color:#A62525; text-decoration:underline; margin-left:5px;">
-                                        ${file.name}
-                                    </a>
-                                  `;
-                    handleFileUpload(e); // Proceed to upload
-                  }
-                }}
-              />
-              <label
-                htmlFor="cor-upload"
-                className="schedule-filter-btn active"
-                style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                {uploading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-upload"></i>}
-                {uploading ? "Processing..." : "Upload CoR"}
-              </label>
-            </div>
+      {/* --- AUTO-SYNC INFO BANNER --- */}
+      <div className="card" style={{
+        marginBottom: '20px',
+        borderLeft: '5px solid #2E7D32',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+        padding: '16px 20px',
+        background: '#F1FDF4'
+      }}>
+        <i className="fas fa-sync-alt" style={{ fontSize: '1.4rem', color: '#2E7D32' }} />
+        <div>
+          <div style={{ fontWeight: 700, color: '#1a5c2a', marginBottom: 2 }}>
+            Schedule Automatically Synced
+          </div>
+          <div style={{ fontSize: '0.875em', color: '#388E3C' }}>
+            Your class schedule is automatically populated from your enrollment records. No action needed — it updates whenever you are enrolled in or dropped from a class.
           </div>
         </div>
-      )}
+      </div>
 
       {/* --- HEADER --- */}
       <div className="schedule-header">

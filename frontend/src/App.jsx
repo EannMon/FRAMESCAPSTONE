@@ -14,7 +14,6 @@ import FacultyLayout from './components/FacultyDashboard/FacultyLayout';
 import DeptHeadLayout from './components/DeptHeadDashboard/DeptHeadLayout';
 import StudentLayout from './components/StudentDashboard/StudentLayout';
 
-
 // --- Import Admin Pages ---
 import AdminDashboardPage from './components/AdminDashboard/AdminDashboardPage';
 import UserManagementPage from './components/AdminDashboard/UserManagementPage';
@@ -35,6 +34,7 @@ import DeptHeadManagePage from './components/DeptHeadDashboard/DeptHeadManagePag
 import DeptHeadReportsPage from './components/DeptHeadDashboard/DeptHeadReportsPage';
 import DeptHeadUserManagementPage from './components/DeptHeadDashboard/DeptHeadUserManagementPage';
 import DeptHeadSystemLogsPage from './components/DeptHeadDashboard/DeptHeadSystemLogsPage';
+import DeptHeadMyClassesPage from './components/DeptHeadDashboard/DeptHeadMyClassesPage';
 
 // --- Import Student Pages ---
 import StudentDashboardPage from './components/StudentDashboard/StudentDashboardPage';
@@ -48,15 +48,10 @@ import SettingsPage from './components/Common/SettingsPage';
 import NotificationsPage from './components/Common/NotificationsPage';
 import TestPDFPage from './components/TestPDFPage'; // New Template Sandbox
 import KioskDashboardPage from './components/KioskDashboard/KioskDashboardPage';
+import ErrorBoundary from './components/Common/ErrorBoundary';
 import './components/Common/DarkMode.css'; // Global dark mode styles
 
 function App() {
-    // Apply dark mode from localStorage on mount
-    useEffect(() => {
-        if (localStorage.getItem('frames-dark-mode') === 'true') {
-            document.body.classList.add('dark-mode');
-        }
-    }, []);
 
     return (
         <ToastProvider>
@@ -72,25 +67,22 @@ function App() {
                         <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
 
                         {/* --- Admin Routes (using AdminLayout) --- */}
-                        <Route element={<AdminLayout />}>
+                        <Route element={<ErrorBoundary><AdminLayout /></ErrorBoundary>}>
                             <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                             <Route path="/admin-application" element={<ApplicationPage />} />
                             <Route path="/admin-user-management" element={<UserManagementPage />} />
-                            {/* TINANGGAL: <Route path="/admin-verification" element={<UserVerificationPage />} /> */}
                             <Route path="/admin-reports" element={<ReportsPage />} />
                             <Route path="/admin-logs" element={<SystemLogsPage />} />
                         </Route>
 
                         {/* --- Dept Head Routes (using DeptHeadLayout) --- */}
-                        <Route element={<DeptHeadLayout />}>
-                            <Route path="/dept-head-dashboard" element={<DeptHeadDashboardPage />} />
-                            <Route path="/dept-head-classes" element={<MyClassesPage />} />
-                            <Route path="/dept-head-management" element={<DeptHeadManagePage />} />
-                            <Route path="/dept-head-reports" element={<DeptHeadReportsPage />} />
-                            <Route path="/dept-head-users" element={<DeptHeadUserManagementPage />} />
-                            <Route path="/dept-head-logs" element={<DeptHeadSystemLogsPage />} />
-
-                            {/* Common Embedded for Dept Head */}
+                        <Route element={<ErrorBoundary><DeptHeadLayout /></ErrorBoundary>}>
+                            <Route path="/dept-head-dashboard" element={<ErrorBoundary><DeptHeadDashboardPage /></ErrorBoundary>} />
+                            <Route path="/dept-head-classes" element={<ErrorBoundary><DeptHeadMyClassesPage /></ErrorBoundary>} />
+                            <Route path="/dept-head-management" element={<ErrorBoundary><DeptHeadManagePage /></ErrorBoundary>} />
+                            <Route path="/dept-head-reports" element={<ErrorBoundary><DeptHeadReportsPage /></ErrorBoundary>} />
+                            <Route path="/dept-head-users" element={<ErrorBoundary><DeptHeadUserManagementPage /></ErrorBoundary>} />
+                            <Route path="/dept-head-logs" element={<ErrorBoundary><DeptHeadSystemLogsPage /></ErrorBoundary>} />
                             <Route path="/dept-head-profile" element={<MyProfilePage isEmbedded={true} />} />
                             <Route path="/dept-head-settings" element={<SettingsPage isEmbedded={true} />} />
                             <Route path="/dept-head-help" element={<HelpSupportPage isEmbedded={true} />} />
@@ -98,30 +90,24 @@ function App() {
                         </Route>
 
                         {/* --- Faculty Routes (using FacultyLayout) --- */}
-                        <Route element={<FacultyLayout />}>
-                            <Route index path="/faculty-dashboard" element={<FacultyDashboardPage />} />
-                            <Route path="/faculty-classes" element={<MyClassesPage />} />
-                            <Route path="/faculty-attendance" element={<FacultyAttendancePage />} />
-                            <Route path="/faculty-reports" element={<FacultyReportsPage />} />
-
-                            {/* REMOVED Dept Head pages from here */}
-
+                        <Route element={<ErrorBoundary><FacultyLayout /></ErrorBoundary>}>
+                            <Route index path="/faculty-dashboard" element={<ErrorBoundary><FacultyDashboardPage /></ErrorBoundary>} />
+                            <Route path="/faculty-classes" element={<ErrorBoundary><MyClassesPage /></ErrorBoundary>} />
+                            <Route path="/faculty-attendance" element={<ErrorBoundary><FacultyAttendancePage /></ErrorBoundary>} />
+                            <Route path="/faculty-reports" element={<ErrorBoundary><FacultyReportsPage /></ErrorBoundary>} />
                             <Route path="/faculty-settings" element={<SettingsPage isEmbedded={true} />} />
                             <Route path="/faculty-help" element={<HelpSupportPage isEmbedded={true} />} />
-                            {/* New Embedded Pages */}
                             <Route path="/faculty-profile" element={<MyProfilePage isEmbedded={true} />} />
                             <Route path="/faculty-notifications" element={<NotificationsPage isEmbedded={true} />} />
                         </Route>
 
                         {/* --- Student Routes (using StudentLayout) --- */}
-                        <Route element={<StudentLayout />}>
-                            <Route index path="/student-dashboard" element={<StudentDashboardPage />} />
-                            <Route path="/student-schedule" element={<SchedulePage />} />
-                            <Route path="/student-attendance" element={<AttendanceHistoryPage />} />
-                            {/* These pages will use the StudentLayout header/sidebar but link to common pages */}
+                        <Route element={<ErrorBoundary><StudentLayout /></ErrorBoundary>}>
+                            <Route index path="/student-dashboard" element={<ErrorBoundary><StudentDashboardPage /></ErrorBoundary>} />
+                            <Route path="/student-schedule" element={<ErrorBoundary><SchedulePage /></ErrorBoundary>} />
+                            <Route path="/student-attendance" element={<ErrorBoundary><AttendanceHistoryPage /></ErrorBoundary>} />
                             <Route path="/student-notifications" element={<NotificationsPage isEmbedded={true} />} />
-                            <Route path="/student-access-requests" element={<AttendanceHistoryPage />} />
-                            {/* Wrapper Routes for Common Pages to keep Sidebar */}
+                            <Route path="/student-access-requests" element={<ErrorBoundary><AttendanceHistoryPage /></ErrorBoundary>} />
                             <Route path="/student-settings" element={<SettingsPage isEmbedded={true} />} />
                             <Route path="/student-help" element={<HelpSupportPage isEmbedded={true} />} />
                             <Route path="/student-profile" element={<MyProfilePage isEmbedded={true} />} />

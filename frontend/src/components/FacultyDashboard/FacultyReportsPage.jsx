@@ -56,6 +56,8 @@ const FacultyReportsPage = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
+    const [academicYear, setAcademicYear] = useState('');
+
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
@@ -69,6 +71,14 @@ const FacultyReportsPage = () => {
         axios.get(`${API}/api/faculty/schedule/${user.id}`).then(res => {
             setClasses(res.data || []);
         }).catch(() => { });
+
+        // Fetch Academic Year
+        if (user.department_id) {
+            axios.get(`${API}/api/dept/academic-year?dept_id=${user.department_id}`)
+                .then(res => {
+                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                }).catch(() => { });
+        }
     }, [user]);
 
     // Group report options by category
@@ -171,15 +181,32 @@ const FacultyReportsPage = () => {
     return (
         <div className="faculty-reports-page">
             {/* Header */}
-            <div className="reports-header">
-                <div>
-                    <h2>Reports</h2>
-                    <p className="reports-subtitle">Generate and download attendance reports from real-time data</p>
+            <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
+                <div className="academic-year-badge">
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
                 </div>
             </div>
 
             {/* Filters Bar */}
             <div className="reports-filters-bar">
+                <div className="filter-group">
+                    <label>Report Type</label>
+                    <select
+                        value={selectedReport?.id || ''}
+                        onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
+                        className="filter-select"
+                        style={{ minWidth: '240px' }}
+                    >
+                        <option value="" disabled>Select a report...</option>
+                        {Object.entries(groupedReports).map(([category, options]) => (
+                            <optgroup key={category} label={category}>
+                                {options.map(opt => (
+                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                ))}
+                            </optgroup>
+                        ))}
+                    </select>
+                </div>
                 <div className="filter-group">
                     <label>Subject / Class</label>
                     <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="filter-select">
@@ -197,37 +224,13 @@ const FacultyReportsPage = () => {
                     <label>To</label>
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="filter-input" />
                 </div>
-                {selectedReport && (
-                    <button className="filter-refresh-btn" onClick={handleRefresh}>
-                        <i className="fas fa-sync-alt"></i> Refresh
-                    </button>
-                )}
+                <button className="filter-refresh-btn" onClick={handleRefresh} disabled={!selectedReport} style={{ opacity: !selectedReport ? 0.5 : 1 }}>
+                    <i className="fas fa-sync-alt"></i> Refresh
+                </button>
             </div>
 
-            <div className="reports-layout">
-                {/* Left: Report Types */}
-                <div className="reports-sidebar">
-                    {Object.entries(groupedReports).map(([category, options]) => (
-                        <div key={category} className="report-category">
-                            <h4 className="category-label">{category}</h4>
-                            {options.map(opt => (
-                                <div
-                                    key={opt.id}
-                                    className={`report-option ${selectedReport?.id === opt.id ? 'active' : ''}`}
-                                    onClick={() => handleSelectReport(opt)}
-                                >
-                                    <div className="report-option-info">
-                                        <span className="report-option-label">{opt.label}</span>
-                                        <span className="report-option-desc">{opt.desc}</span>
-                                    </div>
-                                    <span className={`report-type-badge ${opt.type.toLowerCase()}`}>{opt.type}</span>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Right: Report Preview */}
+            <div className="reports-layout-full">
+                {/* Report Preview */}
                 <div className="reports-content">
                     {!selectedReport ? (
                         <div className="reports-empty-state">

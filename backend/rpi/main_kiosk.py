@@ -294,11 +294,7 @@ class AttendanceKiosk:
 
     def check_gesture(self, cap, timeout: float = None) -> Optional[Gesture]:
         """
-        Fast gesture-only detection loop.
-
-        Reads directly from camera and runs ONLY MediaPipe Hands at high
-        frequency (~50fps) without any InsightFace or schedule overhead.
-        Uses GESTURE_POLL_SLEEP_SECONDS from config for polling interval.
+        Wait for gesture confirmation within timeout.
 
         Returns:
             Gesture enum if detected, None if timeout
@@ -306,13 +302,8 @@ class AttendanceKiosk:
         if timeout is None:
             timeout = self.config.GESTURE_TIMEOUT_SECONDS
 
-        poll_sleep = getattr(self.config, "GESTURE_POLL_SLEEP_SECONDS", 0.02)
         start_time = time.time()
         self.gesture_detector.reset_buffer()
-
-        logger.info(
-            "GESTURE | Fast detection started, timeout=%.1fs", timeout,
-        )
 
         while time.time() - start_time < timeout:
             ret, frame = cap.read()
@@ -340,15 +331,10 @@ class AttendanceKiosk:
             cv2.waitKey(1)
 
             if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
-                elapsed_ms = (time.time() - start_time) * 1000
-                logger.info(
-                    "GESTURE | Detected %s in %.0fms", gesture.value, elapsed_ms,
-                )
                 return gesture
 
-            time.sleep(poll_sleep)
+            time.sleep(0.03)
 
-        logger.warning("GESTURE | Timeout after %.0fms", timeout * 1000)
         return None
 
     def is_on_cooldown(self, user_id: int) -> bool:

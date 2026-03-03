@@ -32,6 +32,8 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('frames-dark-mode');
+        document.body.classList.remove('dark-mode');
         navigate('/');
         window.location.reload();
     };
@@ -65,7 +67,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
         ? `${firstName} ${lastName}`
         : (user?.name || 'User');
 
-    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=A62525&color=fff`;
+    const avatarSrc = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0F172A&color=fff`;
 
     const location = useLocation();
 
@@ -87,6 +89,7 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
 
         // Dept Head Routes
         if (path.includes('/dept-head-dashboard')) return 'Dashboard';
+        if (path.includes('/dept-head-classes')) return 'My Classes';
         if (path.includes('/dept-head-management')) return 'Department Management';
         if (path.includes('/dept-head-verification')) return 'User Verification';
         if (path.includes('/dept-head-users')) return 'User Management';
@@ -159,8 +162,8 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                                     <div className="notification-list">
                                         {notifications.length > 0 ? (
                                             notifications.map(notif => (
-                                                <div 
-                                                    key={notif.id} 
+                                                <div
+                                                    key={notif.id}
                                                     className={`notification-item ${notif.read ? 'read' : 'unread'}`}
                                                     onClick={() => handleNotificationClick(notif.link)}
                                                     style={{ cursor: 'pointer' }}

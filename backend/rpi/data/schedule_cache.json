@@ -4,20 +4,6 @@
   "synced_at": "2026-02-28T21:22:40.861960",
   "schedule": [
     {
-      "class_id": 14,
-      "subject_code": "CC303-M",
-      "subject_title": "Methods of Research in Computing",
-      "faculty_id": 4,
-      "faculty_name": "Anna Reyes",
-      "section": "BSIT-3A-M",
-      "day_of_week": "Friday",
-      "start_time": "16:00:00",
-      "end_time": "20:00:00",
-      "room": "Room 306",
-      "semester": "1st Semester",
-      "academic_year": "2024-2025"
-    },
-    {
       "class_id": 3,
       "subject_code": "IT232-M",
       "subject_title": "IT232-M - Computer Architecture and Organization, Lec Venue : ONLINE",

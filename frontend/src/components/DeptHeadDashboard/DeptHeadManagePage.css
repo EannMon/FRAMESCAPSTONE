@@ -586,9 +586,7 @@
     position: relative;
 }
 
-.calendar-cell.occupied {
-    /* Cells that are part of a multi-hour block but not the start */
-}
+
 
 /* Event Blocks */
 .cal-event-block {
@@ -686,4 +684,49 @@ body.dark-mode .calendar-legend {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* ============================================
+   Academic Year Settings Card
+   ============================================ */
+.ay-settings-card {
+    padding: 20px 24px;
+    border-left: 5px solid #163269;
+}
+
+.ay-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.ay-info-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.ay-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ay-stat-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ay-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #163269;
+}
+
+.ay-edit-form {
+    margin-top: 4px;
 }

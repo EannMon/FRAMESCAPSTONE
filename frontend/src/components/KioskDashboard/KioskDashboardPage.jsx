@@ -28,25 +28,19 @@ const KioskDashboardPage = () => {
 
     // WebSocket connection
     useEffect(() => {
-        let ws = null;
-        let reconnectTimeout = null;
-        // Guard flag — prevents reconnect attempts after the component unmounts
-        let destroyed = false;
+        let ws;
+        let reconnectTimeout;
 
         const connectWebSocket = () => {
-            if (destroyed) return;
-
             console.log('Connecting to WebSocket...', WS_URL);
             ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
-                if (destroyed) { ws.close(); return; }
                 console.log('WebSocket connected');
                 setOffline(false);
             };
 
             ws.onmessage = (event) => {
-                if (destroyed) return;
                 try {
                     const data = JSON.parse(event.data);
                     setKioskState(data);
@@ -56,29 +50,22 @@ const KioskDashboardPage = () => {
             };
 
             ws.onclose = () => {
-                if (destroyed) return;
                 console.warn('WebSocket disconnected. Reconnecting in 3s...');
                 setOffline(true);
                 reconnectTimeout = setTimeout(connectWebSocket, 3000);
             };
 
-            ws.onerror = () => {
-                // onerror is ALWAYS followed by onclose — do NOT call ws.close() here.
-                // Calling close() on a still-connecting socket causes the
-                // "WebSocket is closed before the connection is established" warning.
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                ws.close();
             };
         };
 
         connectWebSocket();
 
         return () => {
-            destroyed = true;
             clearTimeout(reconnectTimeout);
-            if (ws) {
-                // Null out onclose so closing during cleanup doesn't schedule another reconnect
-                ws.onclose = null;
-                ws.close();
-            }
+            if (ws) ws.close();
         };
     }, [WS_URL]);
 
@@ -125,15 +112,13 @@ const KioskDashboardPage = () => {
                             {kioskState.message}
                         </div>
                     )}
-                    {!offline && (
-                        <img
-                            src={VIDEO_STREAM_URL}
-                            alt="Kiosk Camera Feed"
-                            className="kiosk-video-feed"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                            onLoad={(e) => { e.target.style.display = 'block'; }}
-                        />
-                    )}
+                    <img
+                        src={offline ? '' : VIDEO_STREAM_URL}
+                        alt="Kiosk Camera Feed"
+                        className="kiosk-video-feed"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                        onLoad={(e) => { e.target.style.display = 'block'; }}
+                    />
                 </div>
             </div>
 
