@@ -179,6 +179,51 @@ def validate_face(request: Request, data: dict):
 
 # --- Registration Dropdown Data ---
 
+class DepartmentRequest(BaseModel):
+    name: str
+    code: str
+
+
+@router.post("/departments", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+def find_or_create_department(
+    request: Request,
+    data: DepartmentRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Find an existing department by name (case-insensitive) or create a new one.
+    Called during registration when no departments exist yet.
+    Returns: {id, name, code}
+    """
+    from models.department import Department
+    from sqlalchemy import func
+
+    normalized_name = data.name.strip().upper()
+    normalized_code = data.code.strip().upper()
+
+    if not normalized_name or not normalized_code:
+        raise api_error(400, "INVALID_INPUT", "Department name and code are required")
+
+    # Case-insensitive lookup
+    existing = db.query(Department).filter(
+        func.upper(Department.name) == normalized_name
+    ).first()
+
+    if existing:
+        logger.info("AUTH | department found id=%d name=%s", existing.id, existing.name)
+        return {"id": existing.id, "name": existing.name, "code": existing.code}
+
+    # Create new department
+    new_dept = Department(name=normalized_name, code=normalized_code)
+    db.add(new_dept)
+    db.commit()
+    db.refresh(new_dept)
+
+    logger.info("AUTH | department created id=%d name=%s", new_dept.id, new_dept.name)
+    return {"id": new_dept.id, "name": new_dept.name, "code": new_dept.code}
+
+
 @router.get("/departments")
 def get_departments(db: Session = Depends(get_db)):
     """Return all departments for the registration form dropdown."""

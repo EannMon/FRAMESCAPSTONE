@@ -47,36 +47,39 @@ const RegistrationPage = () => {
         tupmYear: '',
         tupmSerial: '',
         email: '',
-        departmentId: '',
+        departmentName: '',
+        departmentCode: '',
         programId: '',
-        currentTerm: ''
     });
 
-    const [departments, setDepartments] = useState([]);
     const [programs, setPrograms] = useState([]);
 
     useEffect(() => {
         const controller = new AbortController();
-        const fetchDropdowns = async () => {
+        const fetchPrograms = async () => {
             try {
-                const deptRes = await api.get('/api/auth/departments', { signal: controller.signal });
-                setDepartments(deptRes.data);
                 const progRes = await api.get('/api/auth/programs', { signal: controller.signal });
                 setPrograms(progRes.data);
             } catch (error) {
                 if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
-                    console.error("Error fetching dropdowns:", error);
+                    console.error("Error fetching programs:", error);
                 }
             }
         };
-        fetchDropdowns();
+        fetchPrograms();
         return () => controller.abort();
     }, []);
 
-    // Filter programs based on selected department
-    const filteredPrograms = formData.departmentId
-        ? programs.filter(p => p.department_id === parseInt(formData.departmentId))
-        : programs;
+    // Auto-generate a department code from the department name.
+    // Takes the first letter of each word and appends 'D' — e.g. "COMPUTER STUDIES" → "CSD"
+    const generateDeptCode = (name) => {
+        const words = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
+        if (words.length === 0) return '';
+        return words.map(w => w[0]).join('') + 'D';
+    };
+
+    // For faculty role: show all programs (dept filtering happens after registration)
+    const filteredPrograms = programs;
 
     // Scroll top on step change
     useEffect(() => {
@@ -87,12 +90,21 @@ const RegistrationPage = () => {
         if (['tupmYear', 'tupmSerial'].includes(field)) {
             if (value && !/^\d*$/.test(value)) return;
         }
-        setFormData(prev => ({ ...prev, [field]: value }));
 
-        // Clear dependent program if department changes
-        if (field === 'departmentId') {
-            setFormData(prev => ({ ...prev, programId: '' }));
+        if (field === 'departmentName') {
+            const upperVal = value.toUpperCase();
+            setFormData(prev => ({
+                ...prev,
+                departmentName: upperVal,
+                departmentCode: generateDeptCode(upperVal),
+            }));
+            if (errors.departmentName) {
+                setErrors(prev => { const n = { ...prev }; delete n.departmentName; return n; });
+            }
+            return;
         }
+
+        setFormData(prev => ({ ...prev, [field]: value }));
 
         if (errors[field]) {
             setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
@@ -117,7 +129,7 @@ const RegistrationPage = () => {
             }
             if (!formData.tupmYear.trim() || formData.tupmYear.length !== 2) newErrors.tupmYear = true;
             if (!formData.tupmSerial.trim() || formData.tupmSerial.length !== 4) newErrors.tupmSerial = true;
-            if (!formData.departmentId) newErrors.departmentId = true;
+            if (!formData.departmentName.trim()) newErrors.departmentName = true;
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -146,6 +158,14 @@ const RegistrationPage = () => {
 
         setIsSubmitting(true);
         try {
+            // Step 1: find or create the department, get its integer id
+            const deptRes = await api.post('/api/auth/departments', {
+                name: formData.departmentName.trim().toUpperCase(),
+                code: formData.departmentCode,
+            });
+            const departmentId = deptRes.data.id;
+
+            // Step 2: register the user
             const payload = {
                 email: formData.email,
                 password: password,
@@ -154,14 +174,12 @@ const RegistrationPage = () => {
                 first_name: formData.firstName,
                 last_name: formData.lastName,
                 middle_name: formData.middleName || null,
-                department_id: formData.departmentId ? parseInt(formData.departmentId) : null,
+                department_id: departmentId,
                 program_id: formData.programId ? parseInt(formData.programId) : null,
-                current_term: formData.currentTerm || null
             };
 
             const response = await api.post('/api/auth/register', payload);
             if (response.data.message) {
-                // If HEAD, they are auto-verified
                 if (role === 'head') {
                     showAlert("Registration Successful", "Department Head account created successfully. You can now log in.", "success");
                     setTimeout(() => navigate('/'), 2000);
@@ -171,11 +189,13 @@ const RegistrationPage = () => {
             }
         } catch (error) {
             console.error("Error registering:", error);
-            const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message;
-            if (errorMsg.includes("already exists")) {
+            const errorMsg = error.response?.data?.error?.message
+                || error.response?.data?.detail
+                || error.message;
+            if (typeof errorMsg === 'string' && errorMsg.includes("already exists")) {
                 showAlert("Registration Failed", "Email or TUPM ID already exists in the system.", "error");
             } else {
-                showAlert("Registration Failed", errorMsg, "error");
+                showAlert("Registration Failed", errorMsg || "An unexpected error occurred.", "error");
             }
         } finally {
             setIsSubmitting(false);
@@ -337,16 +357,30 @@ const RegistrationPage = () => {
                             <div className="signup-step">
                                 <div className="reg-form-group full-width">
                                     <label>Department <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <select
-                                        value={formData.departmentId}
-                                        onChange={e => handleInputChange('departmentId', e.target.value)}
-                                        className={errors.departmentId ? 'input-error' : ''}
-                                    >
-                                        <option value="">Select Department</option>
-                                        {departments.map(d => (
-                                            <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
-                                        ))}
-                                    </select>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. COMPUTER STUDIES"
+                                            value={formData.departmentName}
+                                            onChange={e => handleInputChange('departmentName', e.target.value)}
+                                            className={errors.departmentName ? 'input-error' : ''}
+                                            style={{ flex: 1 }}
+                                        />
+                                        {formData.departmentCode && (
+                                            <span style={{
+                                                padding: '6px 12px',
+                                                borderRadius: '6px',
+                                                background: '#e0f2fe',
+                                                color: '#0369a1',
+                                                fontWeight: 600,
+                                                fontSize: '13px',
+                                                whiteSpace: 'nowrap',
+                                                border: '1px solid #bae6fd'
+                                            }}>
+                                                {formData.departmentCode}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 {role === 'faculty' && (
                                     <div className="reg-form-group full-width">
@@ -354,7 +388,6 @@ const RegistrationPage = () => {
                                         <select
                                             value={formData.programId}
                                             onChange={e => handleInputChange('programId', e.target.value)}
-                                            disabled={!formData.departmentId}
                                         >
                                             <option value="">Select Program</option>
                                             {filteredPrograms.map(p => (
@@ -363,18 +396,6 @@ const RegistrationPage = () => {
                                         </select>
                                     </div>
                                 )}
-                                <div className="reg-form-group full-width">
-                                    <label>Current Term <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
-                                    <select
-                                        value={formData.currentTerm}
-                                        onChange={e => handleInputChange('currentTerm', e.target.value)}
-                                    >
-                                        <option value="">Select Term</option>
-                                        <option value="1st Semester">1st Semester</option>
-                                        <option value="2nd Semester">2nd Semester</option>
-                                        <option value="Summer">Summer</option>
-                                    </select>
-                                </div>
                             </div>
                         </>
                     )}
@@ -446,7 +467,9 @@ const RegistrationPage = () => {
                                     <div className="summary-item">
                                         <span className="summary-label">Department</span>
                                         <span className="summary-value">
-                                            {departments.find(d => d.id === parseInt(formData.departmentId))?.code || 'Not specified'}
+                                            {formData.departmentCode
+                                                ? `${formData.departmentCode} — ${formData.departmentName}`
+                                                : 'Not specified'}
                                         </span>
                                     </div>
                                     {formData.programId && (
@@ -455,12 +478,6 @@ const RegistrationPage = () => {
                                             <span className="summary-value">
                                                 {programs.find(p => p.id === parseInt(formData.programId))?.code || '—'}
                                             </span>
-                                        </div>
-                                    )}
-                                    {formData.currentTerm && (
-                                        <div className="summary-item">
-                                            <span className="summary-label">Current Term</span>
-                                            <span className="summary-value">{formData.currentTerm}</span>
                                         </div>
                                     )}
                                 </div>

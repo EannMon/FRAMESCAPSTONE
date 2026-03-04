@@ -194,21 +194,50 @@ class DatabaseImporter:
         print(f"✅ Import verification completed")
         print(f"   📊 Total records in database: {total_records:,}")
     
+    def auto_backup(self) -> str:
+        """
+        Export the current database to a timestamped SQL backup file
+        BEFORE any truncation occurs.
+        Returns the backup filename.
+        """
+        import sys
+        import os
+        # Import the exporter from the same directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, script_dir)
+        from export_database import DatabaseExporter
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"frames_PRE_IMPORT_backup_{timestamp}.sql"
+
+        print(f"📦 Creating safety backup before truncation: {backup_filename}")
+        exporter = DatabaseExporter()
+        # Reuse the existing open connection so we don't need a second connect
+        exporter.conn = self.conn
+        exporter.export_database(backup_filename)
+        # Don't close — we're still using self.conn
+        exporter.conn = None
+        print(f"✅ Backup saved to: {backup_filename}")
+        return backup_filename
+
     def import_database(self, sql_file: str, clear_existing: bool = True):
         """Import database from SQL file"""
         print(f"🚀 Starting database import from: {sql_file}")
-        
+
         if clear_existing:
+            # ── Safety: export current data BEFORE wiping anything ────────────
+            backup_file = self.auto_backup()
+            print(f"🛡️  Safety backup complete → {backup_file}")
             print("🧹 Clearing existing data...")
             # Get list of tables to clear
             query = """
-            SELECT tablename 
-            FROM pg_tables 
-            WHERE schemaname = 'public' 
+            SELECT tablename
+            FROM pg_tables
+            WHERE schemaname = 'public'
             AND tablename NOT LIKE 'pg_%'
             ORDER BY tablename;
             """
-            
+
             with self.conn.cursor(cursor_factory=DictCursor) as cursor:
                 cursor.execute(query)
                 tables = [row['tablename'] for row in cursor.fetchall()]

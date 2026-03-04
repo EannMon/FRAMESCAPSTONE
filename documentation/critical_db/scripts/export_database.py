@@ -38,8 +38,36 @@ class DatabaseExporter:
             print(f"❌ Failed to connect to database: {e}")
             sys.exit(1)
     
+    # Export order respects FK dependencies so INSERT statements are always valid.
+    # Parent tables first, child tables last.
+    TABLE_EXPORT_ORDER = [
+        # ── Tier 0: no foreign keys ──────────────────────────────
+        'departments',
+        'programs',        # → departments
+        'subjects',
+        # ── Tier 1: depend only on Tier 0 ───────────────────────
+        'users',           # → departments, programs
+        'devices',
+        # ── Tier 2: depend on Tier 1 ────────────────────────────
+        'facial_profiles', # → users
+        'classes',         # → subjects, users
+        'audit_logs',      # → users
+        'support_tickets', # → users
+        'user_settings',   # → users
+        'system_metrics',
+        'security_logs',   # → users, devices
+        # ── Tier 3: depend on Tier 2 ────────────────────────────
+        'enrollments',     # → users, classes
+        'session_exceptions', # → users, classes
+        # ── Tier 4: deepest dependencies ────────────────────────
+        'attendance_logs', # → users, classes, devices
+    ]
+
     def get_all_tables(self) -> List[str]:
-        """Get all user-defined tables in the database"""
+        """
+        Return tables in FK-dependency order (parents before children).
+        Any tables in the DB not in TABLE_EXPORT_ORDER are appended at the end.
+        """
         query = """
         SELECT tablename 
         FROM pg_tables 
@@ -47,10 +75,21 @@ class DatabaseExporter:
         AND tablename NOT LIKE 'pg_%'
         ORDER BY tablename;
         """
-        
         with self.conn.cursor(cursor_factory=DictCursor) as cursor:
             cursor.execute(query)
-            return [row['tablename'] for row in cursor.fetchall()]
+            db_tables = {row['tablename'] for row in cursor.fetchall()}
+
+        # Start with known-ordered tables that actually exist in the DB
+        ordered = [t for t in self.TABLE_EXPORT_ORDER if t in db_tables]
+
+        # Append any tables present in DB but not in our ordered list
+        known = set(self.TABLE_EXPORT_ORDER)
+        extras = sorted(db_tables - known)
+        if extras:
+            print(f"⚠️  Tables not in export order list (appended at end): {extras}")
+        ordered.extend(extras)
+
+        return ordered
     
     def get_table_columns(self, table_name: str) -> List[Dict[str, Any]]:
         """Get column information for a table"""
