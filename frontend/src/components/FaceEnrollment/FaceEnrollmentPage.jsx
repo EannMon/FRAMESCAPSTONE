@@ -155,10 +155,11 @@ const FaceEnrollmentPage = () => {
         updatePhase();
 
         try {
+            // Face enrollment is slow (10-40s on CPU) — use 120s timeout, not the global 10s default
             const response = await axios.post('/api/face/enroll', {
                 user_id: userId,
                 frames: capturedFrames
-            });
+            }, { timeout: 120000 });
 
             // Clear phase animation
             clearTimeout(phaseTimeout);
@@ -192,14 +193,18 @@ const FaceEnrollmentPage = () => {
         } catch (err) {
             clearTimeout(phaseTimeout);
             console.error('Enrollment error:', err);
-            // Handle error detail - it may be an object or string
+
             let errorMessage = 'Enrollment failed. Please try again.';
-            if (err.response?.data?.detail) {
+
+            // Timeout means backend is still processing — it likely succeeded already.
+            // Tell the user to check their profile rather than showing a generic error.
+            if (err.code === 'ECONNABORTED') {
+                errorMessage = '⏱️ The request timed out, but enrollment may have completed in the background. Please refresh the page or log out and back in to check if your face was registered.';
+            } else if (err.response?.data?.detail) {
                 const detail = err.response.data.detail;
                 if (typeof detail === 'string') {
                     errorMessage = detail;
                 } else if (Array.isArray(detail)) {
-                    // Pydantic validation errors come as array
                     errorMessage = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
                 } else if (typeof detail === 'object') {
                     errorMessage = detail.msg || detail.message || JSON.stringify(detail);
