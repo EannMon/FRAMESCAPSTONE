@@ -41,9 +41,9 @@ const DeptHeadSidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
     // Navigation Items for Department Head
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/dept-head-dashboard' },
+        { name: 'My Profile', icon: 'fas fa-user', to: '/dept-head-profile' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/dept-head-classes' },
         { name: 'Department Mgmt', icon: 'fas fa-university', to: '/dept-head-management' },
-
         { name: 'User Management', icon: 'fas fa-users-cog', to: '/dept-head-users' },
         { name: 'Reports', icon: 'fas fa-chart-line', to: '/dept-head-reports' },
         { name: 'System Logs', icon: 'fas fa-clipboard-list', to: '/dept-head-logs' },

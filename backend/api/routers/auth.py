@@ -47,9 +47,11 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
     Login with email/TUPM ID and password.
     Returns user data on success.
     """
-    # Find user by email OR TUPM ID
+    # Find user by email, TUPM ID, or Employee ID
     user = db.query(User).filter(
-        (User.email == credentials.email) | (User.tupm_id == credentials.email)
+        (User.email == credentials.email) |
+        (User.tupm_id == credentials.email) |
+        (User.employee_id == credentials.email)
     ).first()
     
     if not user:
@@ -104,55 +106,72 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     """
     Register a new user (Faculty/Head).
     Students are created via faculty COR upload.
+    Faculty/Head use employee_id (numbers only) instead of TUPM ID.
     """
     # Check if email already exists
-    existing_email = db.query(User).filter(User.email == user_data.email).first()
-    if existing_email:
-        raise api_error(
-            status_code=status.HTTP_409_CONFLICT,
-            code="EMAIL_EXISTS",
-            message="Email already exists"
-        )
-    
-    # Check if TUPM ID already exists
-    existing_tupm = db.query(User).filter(User.tupm_id == user_data.tupm_id).first()
-    if existing_tupm:
-        raise api_error(
-            status_code=status.HTTP_409_CONFLICT,
-            code="TUPM_ID_EXISTS",
-            message="TUPM ID already exists"
-        )
-    
+    if user_data.email:
+        existing_email = db.query(User).filter(User.email == user_data.email).first()
+        if existing_email:
+            raise api_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="EMAIL_EXISTS",
+                message="Email already exists"
+            )
+
+    # Check employee_id for faculty/head
+    employee_id = getattr(user_data, 'employee_id', None)
+    if employee_id:
+        existing_emp = db.query(User).filter(User.employee_id == employee_id).first()
+        if existing_emp:
+            raise api_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="EMPLOYEE_ID_EXISTS",
+                message="Employee ID already exists"
+            )
+
+    # Check TUPM ID if provided (for backward compatibility)
+    if user_data.tupm_id:
+        existing_tupm = db.query(User).filter(User.tupm_id == user_data.tupm_id).first()
+        if existing_tupm:
+            raise api_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="TUPM_ID_EXISTS",
+                message="TUPM ID already exists"
+            )
+
     # Hash password
     hashed_pw = hash_password(user_data.password)
-    
-    # Determine verification status (Admin = auto verified)
-    verification = VerificationStatus.VERIFIED if user_data.role == UserRole.ADMIN else VerificationStatus.PENDING
-    
-    # Convert string role to enum
+
+    # Determine verification status
+    # HEAD = auto-verified (they create the department), FACULTY = pending
     role_enum = UserRole[user_data.role.upper()] if isinstance(user_data.role, str) else user_data.role
-    
+    if role_enum in (UserRole.ADMIN, UserRole.HEAD):
+        verification = VerificationStatus.VERIFIED
+    else:
+        verification = VerificationStatus.PENDING
+
     # Create new user
     new_user = User(
         email=user_data.email,
         password_hash=hashed_pw,
-        tupm_id=user_data.tupm_id,
+        tupm_id=user_data.tupm_id if user_data.tupm_id else None,
+        employee_id=employee_id,
         role=role_enum,
-        first_name=user_data.first_name,
-        last_name=user_data.last_name,
-        middle_name=user_data.middle_name,
+        first_name=user_data.first_name.upper(),
+        last_name=user_data.last_name.upper(),
+        middle_name=user_data.middle_name.upper() if user_data.middle_name else None,
         department_id=user_data.department_id,
         program_id=user_data.program_id,
         verification_status=verification,
         face_registered=False
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     logger.info("AUTH | registered user=%d role=%s", new_user.id, new_user.role.value)
-    
+
     return MessageResponse(message=f"Registration Successful! User ID: {new_user.id}")
 
 
@@ -182,6 +201,15 @@ def validate_face(request: Request, data: dict):
 class DepartmentRequest(BaseModel):
     name: str
     code: str
+    college_id: int = None
+
+
+@router.get("/colleges")
+def get_colleges(db: Session = Depends(get_db)):
+    """Return all colleges for the registration form dropdown."""
+    from models.college import College
+    colleges = db.query(College).order_by(College.name).all()
+    return [{"id": c.id, "name": c.name, "code": c.code} for c in colleges]
 
 
 @router.post("/departments", status_code=status.HTTP_200_OK)
@@ -194,7 +222,7 @@ def find_or_create_department(
     """
     Find an existing department by name (case-insensitive) or create a new one.
     Called during registration when no departments exist yet.
-    Returns: {id, name, code}
+    Returns: {id, name, code, college_id}
     """
     from models.department import Department
     from sqlalchemy import func
@@ -211,33 +239,100 @@ def find_or_create_department(
     ).first()
 
     if existing:
+        # Update college_id if provided and not set yet
+        if data.college_id and not existing.college_id:
+            existing.college_id = data.college_id
+            db.commit()
+            db.refresh(existing)
         logger.info("AUTH | department found id=%d name=%s", existing.id, existing.name)
-        return {"id": existing.id, "name": existing.name, "code": existing.code}
+        return {"id": existing.id, "name": existing.name, "code": existing.code, "college_id": existing.college_id}
 
     # Create new department
-    new_dept = Department(name=normalized_name, code=normalized_code)
+    new_dept = Department(name=normalized_name, code=normalized_code, college_id=data.college_id)
     db.add(new_dept)
     db.commit()
     db.refresh(new_dept)
 
-    logger.info("AUTH | department created id=%d name=%s", new_dept.id, new_dept.name)
-    return {"id": new_dept.id, "name": new_dept.name, "code": new_dept.code}
+    logger.info("AUTH | department created id=%d name=%s college_id=%s", new_dept.id, new_dept.name, new_dept.college_id)
+    return {"id": new_dept.id, "name": new_dept.name, "code": new_dept.code, "college_id": new_dept.college_id}
 
 
 @router.get("/departments")
-def get_departments(db: Session = Depends(get_db)):
-    """Return all departments for the registration form dropdown."""
+def get_departments(college_id: int = None, db: Session = Depends(get_db)):
+    """
+    Return departments for the registration form dropdown.
+    Optionally filter by college_id for cascading dropdowns.
+    """
     from models.department import Department
-    departments = db.query(Department).order_by(Department.name).all()
-    return [{"id": d.id, "name": d.name, "code": d.code} for d in departments]
+    query = db.query(Department)
+    if college_id:
+        query = query.filter(Department.college_id == college_id)
+    departments = query.order_by(Department.name).all()
+    return [{"id": d.id, "name": d.name, "code": d.code, "college_id": d.college_id} for d in departments]
 
 
 @router.get("/programs")
-def get_programs(db: Session = Depends(get_db)):
-    """Return all programs for the registration form dropdown."""
+def get_programs(department_id: int = None, db: Session = Depends(get_db)):
+    """
+    Return programs for the registration form dropdown.
+    Optionally filter by department_id for cascading dropdowns.
+    """
     from models.program import Program
-    programs = db.query(Program).order_by(Program.name).all()
+    query = db.query(Program)
+    if department_id:
+        query = query.filter(Program.department_id == department_id)
+    programs = query.order_by(Program.name).all()
     return [{"id": p.id, "name": p.name, "code": p.code, "department_id": p.department_id} for p in programs]
+
+
+class ProgramRequest(BaseModel):
+    name: str
+    code: str
+    department_id: int
+
+
+@router.post("/programs", status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
+def create_program(
+    request: Request,
+    data: ProgramRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new program under a department.
+    Called by dept heads during registration to initialize programs.
+    Returns: {id, name, code, department_id}
+    """
+    from models.program import Program
+    from sqlalchemy import func
+
+    normalized_name = data.name.strip().upper()
+    normalized_code = data.code.strip().upper()
+
+    if not normalized_name or not normalized_code:
+        raise api_error(400, "INVALID_INPUT", "Program name and code are required")
+
+    # Check for duplicates within the same department
+    existing = db.query(Program).filter(
+        func.upper(Program.code) == normalized_code,
+        Program.department_id == data.department_id
+    ).first()
+
+    if existing:
+        logger.info("AUTH | program already exists id=%d code=%s", existing.id, existing.code)
+        return {"id": existing.id, "name": existing.name, "code": existing.code, "department_id": existing.department_id}
+
+    new_program = Program(
+        name=normalized_name,
+        code=normalized_code,
+        department_id=data.department_id,
+    )
+    db.add(new_program)
+    db.commit()
+    db.refresh(new_program)
+
+    logger.info("AUTH | program created id=%d code=%s dept=%d", new_program.id, new_program.code, new_program.department_id)
+    return {"id": new_program.id, "name": new_program.name, "code": new_program.code, "department_id": new_program.department_id}
 
 
 # --- Token Refresh ---

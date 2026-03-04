@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import './FaceEnrollmentPage.css';
 
@@ -111,7 +111,11 @@ const FaceEnrollmentPage = () => {
         }, CAPTURE_INTERVAL);
     };
 
-    // Submit enrollment with progress phases
+    // Enrollment progress percentage (0-100)
+    const [enrollProgress, setEnrollProgress] = useState(0);
+    const MIN_QUALITY = 0.80; // 80% minimum enrollment quality
+
+    // Submit enrollment with progress percentage
     const enrollFace = async () => {
         if (capturedFrames.length < 5) {
             setError('Not enough frames captured. Please try again.');
@@ -128,14 +132,15 @@ const FaceEnrollmentPage = () => {
 
         setIsEnrolling(true);
         setError('');
+        setEnrollProgress(0);
 
         // Simulated progress phases while backend processes
         const phases = [
-            { msg: '⏳ Uploading frames...', duration: 1000 },
-            { msg: '🧠 Loading AI model...', duration: 2000 },
-            { msg: '🔍 Detecting faces...', duration: 3000 },
-            { msg: '📐 Extracting features...', duration: 5000 },
-            { msg: '💾 Saving to database...', duration: 2000 },
+            { msg: 'Uploading frames...', pct: 10, duration: 1000 },
+            { msg: 'Loading AI model...', pct: 25, duration: 2000 },
+            { msg: 'Detecting faces...', pct: 50, duration: 3000 },
+            { msg: 'Extracting facial features...', pct: 75, duration: 5000 },
+            { msg: 'Saving to database...', pct: 90, duration: 2000 },
         ];
 
         let phaseTimeout;
@@ -144,6 +149,7 @@ const FaceEnrollmentPage = () => {
         const updatePhase = () => {
             if (currentPhase < phases.length) {
                 setStatus(phases[currentPhase].msg);
+                setEnrollProgress(phases[currentPhase].pct);
                 phaseTimeout = setTimeout(() => {
                     currentPhase++;
                     updatePhase();
@@ -155,8 +161,8 @@ const FaceEnrollmentPage = () => {
         updatePhase();
 
         try {
-            // Face enrollment is slow (10-40s on CPU) — use 120s timeout, not the global 10s default
-            const response = await axios.post('/api/face/enroll', {
+            // Face enrollment is slow (10-40s on CPU) — use 120s timeout
+            const response = await api.post('/api/face/enroll', {
                 user_id: userId,
                 frames: capturedFrames
             }, { timeout: 120000 });
@@ -165,41 +171,55 @@ const FaceEnrollmentPage = () => {
             clearTimeout(phaseTimeout);
 
             if (response.data.success) {
-                setStatus(`✅ Successfully enrolled! Quality: ${(response.data.quality_score * 100).toFixed(0)}%`);
+                const qualityPct = (response.data.quality_score * 100).toFixed(0);
+
+                // Check if quality meets minimum threshold (80%)
+                if (response.data.quality_score < MIN_QUALITY) {
+                    setEnrollProgress(0);
+                    setError(
+                        `Enrollment quality is ${qualityPct}%, which is below the required 80% threshold. ` +
+                        'Please retake your photo with better lighting, face the camera directly, ' +
+                        'and ensure your face is clearly visible.'
+                    );
+                    setStatus('Quality check failed. Please retake.');
+                    return;
+                }
+
+                setEnrollProgress(100);
+                setStatus(`Face enrolled successfully. Enrollment quality: ${qualityPct}%`);
 
                 // Update user in localStorage AND AuthContext
                 const updatedUser = { ...user, face_registered: true };
                 localStorage.setItem('currentUser', JSON.stringify(updatedUser));
                 updateUser({ face_registered: true });
 
-                // Redirect based on role
+                // Redirect to dashboard based on role
                 setTimeout(() => {
-                    const role = user.role?.toLowerCase();
-                    if (role === 'student') {
+                    const userRole = user.role?.toLowerCase();
+                    if (userRole === 'student') {
                         navigate('/student-dashboard');
-                    } else if (role === 'head' || role === 'dept_head') {
+                    } else if (userRole === 'head' || userRole === 'dept_head') {
                         navigate('/dept-head-dashboard');
-                    } else if (role === 'faculty') {
+                    } else if (userRole === 'faculty') {
                         navigate('/faculty-dashboard');
-                    } else if (role === 'admin') {
+                    } else if (userRole === 'admin') {
                         navigate('/admin-dashboard');
                     } else {
                         navigate('/');
                     }
                 }, 2000);
             } else {
-                setError(response.data.message || 'Enrollment failed');
+                setEnrollProgress(0);
+                setError(response.data.message || 'Enrollment failed. Please try again.');
             }
         } catch (err) {
             clearTimeout(phaseTimeout);
-            console.error('Enrollment error:', err);
+            setEnrollProgress(0);
 
             let errorMessage = 'Enrollment failed. Please try again.';
 
-            // Timeout means backend is still processing — it likely succeeded already.
-            // Tell the user to check their profile rather than showing a generic error.
             if (err.code === 'ECONNABORTED') {
-                errorMessage = '⏱️ The request timed out, but enrollment may have completed in the background. Please refresh the page or log out and back in to check if your face was registered.';
+                errorMessage = 'The request timed out, but enrollment may have completed in the background. Please refresh the page or log out and back in to check if your face was registered.';
             } else if (err.response?.data?.detail) {
                 const detail = err.response.data.detail;
                 if (typeof detail === 'string') {
@@ -227,7 +247,7 @@ const FaceEnrollmentPage = () => {
         <div className="face-enrollment-page">
             <div className="enrollment-container">
                 <div className="enrollment-header">
-                    <h1>🔐 Face Enrollment</h1>
+                    <h1><i className="fas fa-user-shield" style={{ marginRight: '10px' }}></i>Face Enrollment</h1>
                     <p>Please register your face to access the system</p>
                 </div>
 
@@ -245,7 +265,7 @@ const FaceEnrollmentPage = () => {
                         {isCapturing && (
                             <div className="capture-overlay">
                                 <div className="capture-indicator">
-                                    📸 Capturing...
+                                    <i className="fas fa-camera" style={{ marginRight: '6px' }}></i> Capturing...
                                 </div>
                             </div>
                         )}
@@ -258,9 +278,15 @@ const FaceEnrollmentPage = () => {
                         />
                     </div>
 
-                    <p className="status-text">{status}</p>
+                    {/* Progress percentage during enrollment */}
+                    {isEnrolling && (
+                        <p className="status-text" style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+                            {enrollProgress}% — {status}
+                        </p>
+                    )}
+                    {!isEnrolling && <p className="status-text">{status}</p>}
 
-                    {error && <p className="error-text">❌ {error}</p>}
+                    {error && <p className="error-text"><i className="fas fa-exclamation-circle" style={{ marginRight: '6px' }}></i>{error}</p>}
                 </div>
 
                 <div className="controls-section">
@@ -270,7 +296,7 @@ const FaceEnrollmentPage = () => {
                             onClick={startCapture}
                             disabled={!cameraReady}
                         >
-                            📸 Start Capture
+                            <i className="fas fa-camera" style={{ marginRight: '8px' }}></i> Start Capture
                         </button>
                     )}
 
@@ -283,17 +309,17 @@ const FaceEnrollmentPage = () => {
                     {capturedFrames.length >= REQUIRED_FRAMES && !isEnrolling && (
                         <>
                             <button className="btn-primary" onClick={enrollFace}>
-                                ✅ Enroll Face
+                                <i className="fas fa-check-circle" style={{ marginRight: '8px' }}></i> Enroll Face
                             </button>
                             <button className="btn-secondary" onClick={resetCapture}>
-                                🔄 Retake
+                                <i className="fas fa-redo" style={{ marginRight: '8px' }}></i> Retake
                             </button>
                         </>
                     )}
 
                     {isEnrolling && (
                         <button className="btn-primary" disabled>
-                            ⏳ Processing...
+                            <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Processing... {enrollProgress}%
                         </button>
                     )}
                 </div>

@@ -31,10 +31,13 @@ class UserLogin(BaseModel):
 
 
 class UserRegister(BaseModel):
-    """Registration request for Faculty/Head"""
+    """Registration request for Faculty/Head.
+    Faculty/Head use employee_id (numbers only) instead of TUPM ID.
+    """
     email: EmailStr
     password: str
-    tupm_id: str
+    tupm_id: Optional[str] = None
+    employee_id: Optional[str] = None
     role: UserRole
     first_name: str
     last_name: str
@@ -81,12 +84,13 @@ class PasswordVerify(BaseModel):
 class UserBase(BaseModel):
     """Base user info"""
     id: int
-    email: str
+    email: Optional[str] = None
     first_name: str
     last_name: str
     middle_name: Optional[str] = None
     role: str
-    tupm_id: str
+    tupm_id: Optional[str] = None
+    employee_id: Optional[str] = None
     
     class Config:
         from_attributes = True

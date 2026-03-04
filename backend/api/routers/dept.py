@@ -14,6 +14,7 @@ from models.subject import Subject
 from models.class_ import Class
 from models.user import User, UserRole
 from models.department import Department
+from models.device import Device
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +43,16 @@ class AssignRoomRequest(BaseModel):
 # --- Endpoints ---
 
 @router.get("/management-data")
-def get_management_data(db: Session = Depends(get_db)):
+def get_management_data(
+    academic_year: Optional[str] = Query(None),
+    semester: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
     """
     Get all data needed for the Dept Management Page:
-    - Courses (Subjects + Classes)
+    - Courses (Subjects + Classes), optionally filtered by AY/semester
     - Faculty List
-    - Available Rooms (Mock for now)
+    - Available Rooms
     """
     
     # 1. Fetch all subjects with eager loaded classes and their faculties
@@ -61,10 +66,22 @@ def get_management_data(db: Session = Depends(get_db)):
     for subject in subjects:
         # Avoid N+1 mapping since classes are eagerly loaded
         classes = subject.classes
+
+        # Filter classes by academic year and semester if provided
+        if academic_year or semester:
+            filtered = []
+            for c in classes:
+                if academic_year and c.academic_year and c.academic_year != academic_year:
+                    continue
+                if semester and c.semester and c.semester != semester:
+                    continue
+                filtered.append(c)
+            classes = filtered
         
         if not classes:
             # No class created yet -> Show as unassigned
             courses_data.append({
+                "subject_id": subject.id,
                 "subject_code": subject.code,
                 "name": subject.title,
                 "schedule_id": None, 
@@ -85,9 +102,11 @@ def get_management_data(db: Session = Depends(get_db)):
                     schedule_str = f"{cls.day_of_week} {s_time} - {e_time}"
                 
                 courses_data.append({
+                    "subject_id": subject.id,
                     "subject_code": subject.code,
                     "name": subject.title,
                     "schedule_id": cls.id,
+                    "section": cls.section,
                     "assigned_faculty": cls.faculty.full_name if cls.faculty else None,
                     "room_name": cls.room,
                     "schedule": schedule_str
@@ -101,15 +120,18 @@ def get_management_data(db: Session = Depends(get_db)):
     ).all()
     faculty_list = [{"user_id": f.id, "name": f.full_name, "email": f.email} for f in faculty]
     
-    # 4. Mock Rooms (could be a DB table later)
-    rooms_list = [
-        {"room_name": "CL1 (Computer Lab 1)"},
-        {"room_name": "CL2 (Computer Lab 2)"},
-        {"room_name": "CL3 (Mac Lab)"},
-        {"room_name": "Lecture Hall A"},
-        {"room_name": "Room 301"},
-        {"room_name": "Room 302"},
-    ]
+    # 4. Rooms from DB — union of rooms from classes + devices
+    class_rooms = set(
+        r[0] for r in db.query(Class.room).filter(Class.room.isnot(None), Class.room != "").distinct().all()
+    )
+    device_rooms = set(
+        r[0] for r in db.query(Device.room).filter(Device.room.isnot(None), Device.room != "").distinct().all()
+    )
+    all_rooms = sorted(class_rooms | device_rooms)
+    # Always include an "Online" option
+    if "Online" not in all_rooms:
+        all_rooms.append("Online")
+    rooms_list = [{"room_name": r} for r in all_rooms]
     
     return {
         "courses": courses_data,
@@ -137,6 +159,22 @@ def create_subject(req: SubjectCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_sub)
     return {"message": "Subject created", "id": new_sub.id}
+
+
+@router.delete("/subjects/{subject_id}")
+def delete_subject(subject_id: int, db: Session = Depends(get_db)):
+    """Delete a subject and its associated classes."""
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise api_error(404, "SUBJECT_NOT_FOUND", "Subject not found")
+
+    # Delete associated classes first
+    db.query(Class).filter(Class.subject_id == subject_id).delete()
+    db.delete(subject)
+    db.commit()
+    logger.info("Deleted subject %d (%s)", subject_id, subject.code)
+    return {"message": f"Subject {subject.code} deleted"}
+
 
 @router.post("/assign-faculty")
 def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
@@ -397,3 +435,96 @@ def get_dept_users(dept_id: int = Query(...), db: Session = Depends(get_db)):
 
     logger.info("DEPT | user list fetched: dept_id=%d count=%d", dept_id, len(result))
     return result
+
+
+# ──────────────────────────────────────────────
+# Camera / Device Management
+# ──────────────────────────────────────────────
+
+class DeviceCreateRequest(BaseModel):
+    device_name: str
+    room: str
+    ip_address: Optional[str] = None
+    room_capacity: Optional[int] = 40
+
+class DeviceUpdateRequest(BaseModel):
+    device_name: Optional[str] = None
+    room: Optional[str] = None
+    ip_address: Optional[str] = None
+    room_capacity: Optional[int] = None
+    status: Optional[str] = None
+
+
+@router.get("/devices")
+def list_devices(db: Session = Depends(get_db)):
+    """List all registered camera devices."""
+    devices = db.query(Device).order_by(Device.id).all()
+    return [
+        {
+            "id": d.id,
+            "device_name": d.device_name,
+            "room": d.room,
+            "ip_address": d.ip_address,
+            "status": d.status.value if hasattr(d.status, "value") else str(d.status),
+            "room_capacity": d.room_capacity,
+            "last_heartbeat": d.last_heartbeat.isoformat() if d.last_heartbeat else None,
+        }
+        for d in devices
+    ]
+
+
+@router.post("/devices")
+def create_device(req: DeviceCreateRequest, db: Session = Depends(get_db)):
+    """Register a new camera device for a room."""
+    from models.device import DeviceStatus
+    device = Device(
+        device_name=req.device_name,
+        room=req.room,
+        ip_address=req.ip_address,
+        room_capacity=req.room_capacity or 40,
+        status=DeviceStatus.ACTIVE,
+    )
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    logger.info("DEVICE | created device %d for room %s", device.id, device.room)
+    return {"message": "Device registered", "id": device.id}
+
+
+@router.put("/devices/{device_id}")
+def update_device(device_id: int, req: DeviceUpdateRequest, db: Session = Depends(get_db)):
+    """Update a camera device's settings."""
+    from models.device import DeviceStatus
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+
+    if req.device_name is not None:
+        device.device_name = req.device_name
+    if req.room is not None:
+        device.room = req.room
+    if req.ip_address is not None:
+        device.ip_address = req.ip_address
+    if req.room_capacity is not None:
+        device.room_capacity = req.room_capacity
+    if req.status is not None:
+        try:
+            device.status = DeviceStatus(req.status)
+        except ValueError:
+            raise api_error(400, "INVALID_STATUS", f"Invalid status: {req.status}")
+
+    db.commit()
+    logger.info("DEVICE | updated device %d", device_id)
+    return {"message": "Device updated"}
+
+
+@router.delete("/devices/{device_id}")
+def delete_device(device_id: int, db: Session = Depends(get_db)):
+    """Remove a camera device."""
+    device = db.query(Device).filter(Device.id == device_id).first()
+    if not device:
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+    db.delete(device)
+    db.commit()
+    logger.info("DEVICE | deleted device %d", device_id)
+    return {"message": "Device deleted"}

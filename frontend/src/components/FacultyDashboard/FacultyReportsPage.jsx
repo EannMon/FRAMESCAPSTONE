@@ -46,7 +46,7 @@ const getColumnConfig = (reportType) => {
 };
 
 const FacultyReportsPage = () => {
-    const [selectedReport, setSelectedReport] = useState(null);
+    const [selectedReport, setSelectedReport] = useState(reportOptions[0]);
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
@@ -55,6 +55,7 @@ const FacultyReportsPage = () => {
     const [selectedClass, setSelectedClass] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    const [error, setError] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
 
@@ -81,6 +82,8 @@ const FacultyReportsPage = () => {
             api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
                     if (res.data.academic_year) setAcademicYear(res.data.academic_year);
+                    if (res.data.semester_start_date) setDateFrom(res.data.semester_start_date);
+                    if (res.data.semester_end_date) setDateTo(res.data.semester_end_date);
                 }).catch((err) => {
                     if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                         console.error('Failed to fetch academic year:', err);
@@ -101,9 +104,17 @@ const FacultyReportsPage = () => {
         return groups;
     }, []);
 
+    // Auto-fetch when default report + dates are ready
+    useEffect(() => {
+        if (selectedReport && dateFrom && dateTo) {
+            fetchReportData(selectedReport.id);
+        }
+    }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const fetchReportData = async (reportId) => {
         if (!user?.id) return;
         setLoading(true);
+        setError(null);
         try {
             const params = { report_type: reportId };
             if (selectedClass) params.class_id = selectedClass;
@@ -114,6 +125,7 @@ const FacultyReportsPage = () => {
             setReportData(res.data || []);
         } catch (err) {
             console.error('Report fetch error:', err);
+            setError('Failed to load report data. Please try again.');
             setReportData([]);
         } finally {
             setLoading(false);
@@ -275,6 +287,12 @@ const FacultyReportsPage = () => {
                                     <div className="report-loading">
                                         <i className="fas fa-spinner fa-spin"></i>
                                         <p>Loading report data...</p>
+                                    </div>
+                                ) : error ? (
+                                    <div className="report-no-data">
+                                        <i className="fas fa-exclamation-triangle" style={{ color: '#b91c1c' }}></i>
+                                        <h4>Error</h4>
+                                        <p>{error}</p>
                                     </div>
                                 ) : reportData.length === 0 ? (
                                     <div className="report-no-data">

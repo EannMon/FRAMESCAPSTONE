@@ -19,6 +19,8 @@ from models.subject import Subject
 from models.enrollment import Enrollment
 from models.attendance_log import AttendanceLog, AttendanceAction
 from models.session_exception import SessionException, ExceptionType
+from models.device import Device, DeviceStatus
+from models.department import Department
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -435,7 +437,7 @@ async def upload_schedule(
                     hashed_pw = bcrypt.hashpw(default_password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
                     
                     student_user = User(
-                        email=f"{tupm_id.lower()}@tup.edu.ph",
+                        email=None,  # Students set their own email via profile
                         password_hash=hashed_pw,
                         role=UserRole.STUDENT,
                         tupm_id=tupm_id,
@@ -647,7 +649,7 @@ def confirm_schedule(
                     hashed_pw = bcrypt.hashpw(default_password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
                     
                     student_user = User(
-                        email=f"{tupm_id.lower()}@tup.edu.ph",
+                        email=None,  # Students set their own email via profile
                         password_hash=hashed_pw,
                         role=UserRole.STUDENT,
                         tupm_id=tupm_id,
@@ -1021,4 +1023,221 @@ def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
     return {
         "class_id": class_id,
         "late_threshold_minutes": cls.late_threshold_minutes or 15
+    }
+
+
+# ============================================
+# Live Room Status Endpoints
+# ============================================
+
+def _build_room_status(db: Session, classes, today_start):
+    """
+    Build live room status data for a set of classes.
+    Returns list of room dicts with present/on_break student lists.
+    Uses batch queries — no N+1.
+    """
+    from sqlalchemy.orm import joinedload
+
+    if not classes:
+        return []
+
+    class_ids = [c.id for c in classes]
+
+    # Batch query: all today's attendance logs for these classes
+    logs = (
+        db.query(AttendanceLog)
+        .options(joinedload(AttendanceLog.user))
+        .filter(
+            AttendanceLog.class_id.in_(class_ids),
+            AttendanceLog.timestamp >= today_start,
+        )
+        .order_by(AttendanceLog.timestamp.desc())
+        .all()
+    )
+
+    # Group by (class_id, user_id) — keep only the latest log per user per class
+    latest_by_user = {}
+    for log in logs:
+        key = (log.class_id, log.user_id)
+        if key not in latest_by_user:
+            latest_by_user[key] = log
+
+    # Build room data per class
+    rooms = []
+    for cls in classes:
+        subject = cls.subject
+        faculty = cls.faculty
+
+        present = []
+        on_break = []
+
+        for (cid, uid), log in latest_by_user.items():
+            if cid != cls.id:
+                continue
+            user = log.user
+            name = f"{user.first_name} {user.last_name}" if user else "Unknown"
+            if log.action in (AttendanceAction.ENTRY, AttendanceAction.BREAK_IN):
+                present.append({"name": name, "id": uid})
+            elif log.action == AttendanceAction.BREAK_OUT:
+                on_break.append({"name": name, "id": uid})
+            # EXIT = no longer in room, skip
+
+        rooms.append({
+            "room": cls.room or "N/A",
+            "class_id": cls.id,
+            "subject_code": subject.code if subject else "N/A",
+            "subject_title": subject.title if subject else "",
+            "faculty_name": f"{faculty.first_name} {faculty.last_name}" if faculty else "N/A",
+            "start_time": str(cls.start_time) if cls.start_time else None,
+            "end_time": str(cls.end_time) if cls.end_time else None,
+            "present": present,
+            "on_break": on_break,
+            "present_count": len(present),
+            "break_count": len(on_break),
+        })
+
+    return rooms
+
+
+@router.get("/live-room-status/{user_id}")
+def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get live room status for all classrooms a faculty member teaches.
+    Returns dot-representation data: present students and on-break students per room.
+    Only shows classes scheduled for today.
+    """
+    from sqlalchemy.orm import joinedload
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    today = datetime.now().strftime('%A')
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get today's classes for this faculty with subject and faculty eagerly loaded
+    classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.faculty_id == user_id, Class.day_of_week == today)
+        .all()
+    )
+
+    # Only include classes in rooms that have an active device (camera installed)
+    device_rooms = set(
+        r[0] for r in db.query(Device.room)
+        .filter(Device.status == DeviceStatus.ACTIVE)
+        .distinct()
+        .all()
+    )
+    classes_with_device = [c for c in classes if c.room in device_rooms]
+
+    rooms = _build_room_status(db, classes_with_device, today_start)
+    return {"rooms": rooms}
+
+
+@router.get("/live-room-status-dept/{dept_id}")
+def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
+    """
+    Get live room status for ALL classrooms in a department.
+    Used by dept heads to monitor all rooms with active schedules + cameras.
+    """
+    from sqlalchemy.orm import joinedload
+
+    today = datetime.now().strftime('%A')
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get all today's classes for faculty in this department
+    dept_faculty_ids = [
+        uid for (uid,) in db.query(User.id)
+        .filter(User.department_id == dept_id, User.role.in_([UserRole.FACULTY, UserRole.DEPT_HEAD]))
+        .all()
+    ]
+
+    if not dept_faculty_ids:
+        return {"rooms": []}
+
+    classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.faculty_id.in_(dept_faculty_ids), Class.day_of_week == today)
+        .all()
+    )
+
+    # Only include rooms that have an active device
+    device_rooms = set(
+        r[0] for r in db.query(Device.room)
+        .filter(Device.status == DeviceStatus.ACTIVE)
+        .distinct()
+        .all()
+    )
+    classes_with_device = [c for c in classes if c.room in device_rooms]
+
+    rooms = _build_room_status(db, classes_with_device, today_start)
+    return {"rooms": rooms}
+
+
+@router.get("/personal-live-status/{user_id}")
+def get_personal_live_status(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get personal live status for any user (faculty, dept head, etc).
+    Returns current state (PRESENT/BREAK/EXITED/IDLE) with room and class info.
+    Reusable endpoint similar to student live-status.
+    """
+    from sqlalchemy.orm import joinedload
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get the latest attendance log today
+    latest_log = (
+        db.query(AttendanceLog)
+        .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.timestamp >= today_start,
+        )
+        .order_by(AttendanceLog.timestamp.desc())
+        .first()
+    )
+
+    if not latest_log:
+        return {
+            "status": "IDLE",
+            "status_color": "grey",
+            "status_text": "No activity today",
+            "room": None,
+            "subject_code": None,
+            "subject_title": None,
+            "last_action": None,
+            "last_timestamp": None,
+        }
+
+    action = latest_log.action
+    cls = latest_log.class_
+    subject = cls.subject if cls else None
+
+    status_map = {
+        AttendanceAction.ENTRY: ("PRESENT", "#2E7D32", "Currently in class"),
+        AttendanceAction.BREAK_IN: ("PRESENT", "#2E7D32", "Returned from break"),
+        AttendanceAction.BREAK_OUT: ("BREAK", "#F9A825", "On break"),
+        AttendanceAction.EXIT: ("EXITED", "grey", "Exited class"),
+    }
+    info = status_map.get(action, ("IDLE", "grey", "Unknown"))
+
+    return {
+        "status": info[0],
+        "status_color": info[1],
+        "status_text": info[2],
+        "room": cls.room if cls else None,
+        "subject_code": subject.code if subject else None,
+        "subject_title": subject.title if subject else None,
+        "last_action": action.value,
+        "last_timestamp": str(latest_log.timestamp),
     }

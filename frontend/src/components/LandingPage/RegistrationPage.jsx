@@ -44,53 +44,119 @@ const RegistrationPage = () => {
         firstName: '',
         lastName: '',
         middleName: '',
-        tupmYear: '',
-        tupmSerial: '',
+        employeeId: '',
         email: '',
+        collegeId: '',
+        departmentId: '',
         departmentName: '',
         departmentCode: '',
         programId: '',
     });
 
+    // Dropdown data
+    const [colleges, setColleges] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [programs, setPrograms] = useState([]);
 
+    // Dept head program setup section
+    const [newPrograms, setNewPrograms] = useState([]);
+    const [programInput, setProgramInput] = useState({ name: '', code: '' });
+
+    // Total steps: head gets 3 steps (Personal, Academic + Programs, Password), faculty gets 2 (Personal + Academic, Password)
+    const totalSteps = role === 'head' ? 3 : 2;
+
+    // Fetch colleges on mount
     useEffect(() => {
         const controller = new AbortController();
-        const fetchPrograms = async () => {
+        const fetchColleges = async () => {
             try {
-                const progRes = await api.get('/api/auth/programs', { signal: controller.signal });
-                setPrograms(progRes.data);
-            } catch (error) {
-                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
-                    console.error("Error fetching programs:", error);
+                const res = await api.get('/api/auth/colleges', { signal: controller.signal });
+                setColleges(res.data);
+            } catch (err) {
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Failed to fetch colleges:', err);
                 }
             }
         };
-        fetchPrograms();
+        fetchColleges();
         return () => controller.abort();
     }, []);
 
-    // Auto-generate a department code from the department name.
-    // Takes the first letter of each word and appends 'D' — e.g. "COMPUTER STUDIES" → "CSD"
+    // Fetch departments when college changes (faculty: cascading dropdown)
+    useEffect(() => {
+        if (role !== 'faculty' || !formData.collegeId) {
+            if (role === 'faculty') setDepartments([]);
+            return;
+        }
+        const controller = new AbortController();
+        const fetchDepts = async () => {
+            try {
+                const res = await api.get(`/api/auth/departments?college_id=${formData.collegeId}`, { signal: controller.signal });
+                setDepartments(res.data);
+            } catch (err) {
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Failed to fetch departments:', err);
+                }
+            }
+        };
+        fetchDepts();
+        return () => controller.abort();
+    }, [formData.collegeId, role]);
+
+    // Fetch programs when department changes (faculty: cascading dropdown)
+    useEffect(() => {
+        if (role !== 'faculty' || !formData.departmentId) {
+            if (role === 'faculty') setPrograms([]);
+            return;
+        }
+        const controller = new AbortController();
+        const fetchProgs = async () => {
+            try {
+                const res = await api.get(`/api/auth/programs?department_id=${formData.departmentId}`, { signal: controller.signal });
+                setPrograms(res.data);
+            } catch (err) {
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    console.error('Failed to fetch programs:', err);
+                }
+            }
+        };
+        fetchProgs();
+        return () => controller.abort();
+    }, [formData.departmentId, role]);
+
+    // Auto-generate department code from name (for dept head)
     const generateDeptCode = (name) => {
         const words = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
         if (words.length === 0) return '';
         return words.map(w => w[0]).join('') + 'D';
     };
 
-    // For faculty role: show all programs (dept filtering happens after registration)
-    const filteredPrograms = programs;
+    // Auto-generate program code from name
+    const generateProgramCode = (name) => {
+        const words = name.trim().toUpperCase().split(/\s+/).filter(Boolean);
+        if (words.length === 0) return '';
+        return words.filter(w => w.length > 2).map(w => w[0]).join('');
+    };
 
     // Scroll top on step change
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [step]);
 
+    /**
+     * Handle input changes with auto-uppercase for all fields except email/password.
+     * Employee ID is numbers-only.
+     */
     const handleInputChange = (field, value) => {
-        if (['tupmYear', 'tupmSerial'].includes(field)) {
+        // Employee ID: numbers only
+        if (field === 'employeeId') {
             if (value && !/^\d*$/.test(value)) return;
+            setFormData(prev => ({ ...prev, employeeId: value }));
+            if (errors.employeeId) setErrors(prev => { const n = { ...prev }; delete n.employeeId; return n; });
+            return;
         }
 
+        // Department name (for dept head): auto-uppercase + auto-generate code
         if (field === 'departmentName') {
             const upperVal = value.toUpperCase();
             setFormData(prev => ({
@@ -98,43 +164,92 @@ const RegistrationPage = () => {
                 departmentName: upperVal,
                 departmentCode: generateDeptCode(upperVal),
             }));
-            if (errors.departmentName) {
-                setErrors(prev => { const n = { ...prev }; delete n.departmentName; return n; });
-            }
+            if (errors.departmentName) setErrors(prev => { const n = { ...prev }; delete n.departmentName; return n; });
             return;
         }
 
-        setFormData(prev => ({ ...prev, [field]: value }));
-
-        if (errors[field]) {
-            setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+        // College/Department/Program selects (faculty)
+        if (['collegeId', 'departmentId', 'programId'].includes(field)) {
+            setFormData(prev => {
+                const updated = { ...prev, [field]: value };
+                // Reset dependent dropdowns
+                if (field === 'collegeId') {
+                    updated.departmentId = '';
+                    updated.programId = '';
+                }
+                if (field === 'departmentId') {
+                    updated.programId = '';
+                }
+                return updated;
+            });
+            if (errors[field]) setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+            return;
         }
+
+        // Auto-uppercase for name fields (not email/password)
+        const upperCaseFields = ['firstName', 'lastName', 'middleName'];
+        const finalValue = upperCaseFields.includes(field) ? value.toUpperCase() : value;
+
+        setFormData(prev => ({ ...prev, [field]: finalValue }));
+        if (errors[field]) setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
     };
 
+    /**
+     * Validate each step before proceeding.
+     */
     const validateStep = (currentStep) => {
         const newErrors = {};
+
         if (currentStep === 1) {
             if (!formData.firstName.trim()) newErrors.firstName = true;
             if (!formData.lastName.trim()) newErrors.lastName = true;
+
+            // Middle name is required — prompt dash if none
+            if (!formData.middleName.trim()) {
+                newErrors.middleName = true;
+            }
+
+            // Email validation: must be @tup.edu.ph
             if (!formData.email.trim()) {
                 newErrors.email = true;
             } else {
-                const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-                if (!emailRegex.test(formData.email)) {
+                const tupEmailRegex = /^[a-zA-Z0-9._%+-]+@tup\.edu\.ph$/i;
+                if (!tupEmailRegex.test(formData.email)) {
                     newErrors.email = true;
-                    showAlert("Invalid Email", "Please enter a valid email address (e.g., name@example.com).", "warning");
+                    showAlert('Invalid Email', 'Please enter a valid TUP email address (e.g., name@tup.edu.ph).', 'warning');
                     setErrors(newErrors);
                     return false;
                 }
             }
-            if (!formData.tupmYear.trim() || formData.tupmYear.length !== 2) newErrors.tupmYear = true;
-            if (!formData.tupmSerial.trim() || formData.tupmSerial.length !== 4) newErrors.tupmSerial = true;
-            if (!formData.departmentName.trim()) newErrors.departmentName = true;
+
+            // Employee ID required
+            if (!formData.employeeId.trim()) {
+                newErrors.employeeId = true;
+            }
+
+            // Academic fields
+            if (role === 'head') {
+                if (!formData.collegeId) newErrors.collegeId = true;
+                if (!formData.departmentName.trim()) newErrors.departmentName = true;
+            } else {
+                // Faculty
+                if (!formData.collegeId) newErrors.collegeId = true;
+                if (!formData.departmentId) newErrors.departmentId = true;
+                if (!formData.programId) newErrors.programId = true;
+            }
+        }
+
+        // Step 2 for head: program setup — at least 1 program required
+        if (role === 'head' && currentStep === 2) {
+            if (newPrograms.length === 0) {
+                showAlert('Programs Required', 'Please add at least one program under your department. You can configure more later.', 'warning');
+                return false;
+            }
         }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
-            showAlert("Incomplete Fields", "Please fill in all required fields indicated by the red asterisk (*).", "warning");
+            showAlert('Incomplete Fields', 'Please fill in all required fields indicated by the red asterisk (*).', 'warning');
             return false;
         }
         return true;
@@ -149,27 +264,71 @@ const RegistrationPage = () => {
         else navigate('/');
     };
 
+    /**
+     * Add a program to the dept head's program setup list.
+     */
+    const handleAddProgram = () => {
+        const name = programInput.name.trim().toUpperCase();
+        const code = programInput.code.trim().toUpperCase() || generateProgramCode(name);
+        if (!name) {
+            showAlert('Program Name Required', 'Please enter the program name.', 'warning');
+            return;
+        }
+        if (!code) {
+            showAlert('Program Code Required', 'Please enter or auto-generate a program code.', 'warning');
+            return;
+        }
+        // Check for duplicate codes
+        if (newPrograms.some(p => p.code === code)) {
+            showAlert('Duplicate Code', `A program with code "${code}" already exists in your list.`, 'warning');
+            return;
+        }
+        setNewPrograms(prev => [...prev, { name, code }]);
+        setProgramInput({ name: '', code: '' });
+    };
+
+    const handleRemoveProgram = (index) => {
+        setNewPrograms(prev => prev.filter((_, i) => i !== index));
+    };
+
+    /**
+     * Complete registration: create department (head), programs (head), then register user.
+     */
     const handleFinish = async () => {
         if (isSubmitting) return;
         if (password !== retypePassword || password.length < 6) {
-            showAlert("Invalid Password", "Passwords must match and be at least 6 characters long.", "warning");
+            showAlert('Invalid Password', 'Passwords must match and be at least 6 characters long.', 'warning');
             return;
         }
 
         setIsSubmitting(true);
         try {
-            // Step 1: find or create the department, get its integer id
-            const deptRes = await api.post('/api/auth/departments', {
-                name: formData.departmentName.trim().toUpperCase(),
-                code: formData.departmentCode,
-            });
-            const departmentId = deptRes.data.id;
+            let departmentId = formData.departmentId ? parseInt(formData.departmentId) : null;
 
-            // Step 2: register the user
+            // For dept head: find or create department
+            if (role === 'head') {
+                const deptRes = await api.post('/api/auth/departments', {
+                    name: formData.departmentName.trim().toUpperCase(),
+                    code: formData.departmentCode,
+                    college_id: parseInt(formData.collegeId),
+                });
+                departmentId = deptRes.data.id;
+
+                // Create programs under the department
+                for (const prog of newPrograms) {
+                    await api.post('/api/auth/programs', {
+                        name: prog.name,
+                        code: prog.code,
+                        department_id: departmentId,
+                    });
+                }
+            }
+
+            // Register the user
             const payload = {
                 email: formData.email,
                 password: password,
-                tupm_id: `TUPM-${formData.tupmYear}-${formData.tupmSerial}`,
+                employee_id: formData.employeeId,
                 role: role.toUpperCase(),
                 first_name: formData.firstName,
                 last_name: formData.lastName,
@@ -181,21 +340,20 @@ const RegistrationPage = () => {
             const response = await api.post('/api/auth/register', payload);
             if (response.data.message) {
                 if (role === 'head') {
-                    showAlert("Registration Successful", "Department Head account created successfully. You can now log in.", "success");
+                    showAlert('Registration Successful', 'Department Head account created successfully. You can now log in.', 'success');
                     setTimeout(() => navigate('/'), 2000);
                 } else {
                     navigate('/register/status?s=pending');
                 }
             }
         } catch (error) {
-            console.error("Error registering:", error);
             const errorMsg = error.response?.data?.error?.message
                 || error.response?.data?.detail
                 || error.message;
-            if (typeof errorMsg === 'string' && errorMsg.includes("already exists")) {
-                showAlert("Registration Failed", "Email or TUPM ID already exists in the system.", "error");
+            if (typeof errorMsg === 'string' && errorMsg.includes('already exists')) {
+                showAlert('Registration Failed', 'Email or Employee ID already exists in the system.', 'error');
             } else {
-                showAlert("Registration Failed", errorMsg || "An unexpected error occurred.", "error");
+                showAlert('Registration Failed', errorMsg || 'An unexpected error occurred.', 'error');
             }
         } finally {
             setIsSubmitting(false);
@@ -206,20 +364,20 @@ const RegistrationPage = () => {
     if (status) {
         let title, message, iconClass, iconColor;
         if (status === 'pending') {
-            title = "Verification Pending";
-            message = "Thank you for registering! Your account is currently under review. You will receive an email once verified.";
-            iconClass = "fas fa-user-clock";
-            iconColor = "#f59e0b";
+            title = 'Verification Pending';
+            message = 'Thank you for registering! Your account is currently under review. You will receive an email once verified.';
+            iconClass = 'fas fa-user-clock';
+            iconColor = '#f59e0b';
         } else if (status === 'rejected') {
-            title = "Access Denied";
-            message = "Your registration was rejected. Please contact the administrator for details.";
-            iconClass = "fas fa-times-circle";
-            iconColor = "#dc3545";
+            title = 'Access Denied';
+            message = 'Your registration was rejected. Please contact the administrator for details.';
+            iconClass = 'fas fa-times-circle';
+            iconColor = '#dc3545';
         } else {
-            title = "Invalid Status";
-            message = "An unexpected error occurred.";
-            iconClass = "fas fa-exclamation-triangle";
-            iconColor = "#6c757d";
+            title = 'Invalid Status';
+            message = 'An unexpected error occurred.';
+            iconClass = 'fas fa-exclamation-triangle';
+            iconColor = '#6c757d';
         }
 
         return (
@@ -240,6 +398,18 @@ const RegistrationPage = () => {
         );
     }
 
+    // Determine step labels based on role
+    const stepLabels = role === 'head'
+        ? ['Personal & Academic Info', 'Program Setup', 'Password']
+        : ['Personal & Academic Info', 'Password'];
+
+    // Get selected college/department/program names for summary
+    const selectedCollege = colleges.find(c => c.id === parseInt(formData.collegeId));
+    const selectedDepartment = role === 'head'
+        ? { name: formData.departmentName, code: formData.departmentCode }
+        : departments.find(d => d.id === parseInt(formData.departmentId));
+    const selectedProgram = programs.find(p => p.id === parseInt(formData.programId));
+
     // --- Registration Form ---
     return (
         <div className="registration-page-wrapper">
@@ -252,9 +422,9 @@ const RegistrationPage = () => {
                     <div className="custom-alert-overlay" onClick={closeAlert}>
                         <div className="custom-alert-box" onClick={e => e.stopPropagation()}>
                             <div className={`custom-alert-icon ${alertConfig.type}`}>
-                                {alertConfig.type === 'success' && '✅'}
-                                {alertConfig.type === 'error' && '❌'}
-                                {alertConfig.type === 'warning' && '⚠️'}
+                                {alertConfig.type === 'success' && <i className="fas fa-check-circle"></i>}
+                                {alertConfig.type === 'error' && <i className="fas fa-times-circle"></i>}
+                                {alertConfig.type === 'warning' && <i className="fas fa-exclamation-triangle"></i>}
                             </div>
                             <h3 className="custom-alert-title">{alertConfig.title}</h3>
                             <p className="custom-alert-message">{alertConfig.message}</p>
@@ -275,13 +445,14 @@ const RegistrationPage = () => {
 
                     {/* Step Indicators */}
                     <div className="signup-step-indicators">
-                        {[1, 2].map(n => (
-                            <div key={n} className={`step-circle ${step >= n ? "active" : ""}`}>{n}</div>
+                        {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
+                            <div key={n} className={`step-circle ${step >= n ? 'active' : ''}`}>{n}</div>
                         ))}
                     </div>
                     <div className="signup-step-labels" style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', fontSize: '12px', color: '#64748b' }}>
-                        <span>Personal & Academic Info</span>
-                        <span>Password</span>
+                        {stepLabels.map((label, i) => (
+                            <span key={i}>{label}</span>
+                        ))}
                     </div>
 
                     {/* === STEP 1: PERSONAL & ACADEMIC INFO === */}
@@ -293,7 +464,7 @@ const RegistrationPage = () => {
                                     <label>First Name <span style={{ color: '#ef4444' }}>*</span></label>
                                     <input
                                         type="text"
-                                        placeholder="Juan"
+                                        placeholder="JUAN"
                                         value={formData.firstName}
                                         onChange={e => handleInputChange('firstName', e.target.value)}
                                         className={errors.firstName ? 'input-error' : ''}
@@ -303,70 +474,165 @@ const RegistrationPage = () => {
                                     <label>Last Name <span style={{ color: '#ef4444' }}>*</span></label>
                                     <input
                                         type="text"
-                                        placeholder="Dela Cruz"
+                                        placeholder="DELA CRUZ"
                                         value={formData.lastName}
                                         onChange={e => handleInputChange('lastName', e.target.value)}
                                         className={errors.lastName ? 'input-error' : ''}
                                     />
                                 </div>
                                 <div className="reg-form-group full-width">
-                                    <label>Middle Name <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                                    <label>Middle Name <span style={{ color: '#ef4444' }}>*</span></label>
                                     <input
                                         type="text"
-                                        placeholder="Santos"
+                                        placeholder="Enter middle name or type - if none"
                                         value={formData.middleName}
                                         onChange={e => handleInputChange('middleName', e.target.value)}
+                                        className={errors.middleName ? 'input-error' : ''}
                                     />
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                                        If you have no middle name, please enter a dash ( - )
+                                    </span>
                                 </div>
                                 <div className="reg-form-group">
                                     <label>Email <span style={{ color: '#ef4444' }}>*</span></label>
                                     <input
                                         type="email"
-                                        placeholder="example@tup.edu.ph"
+                                        placeholder="name@tup.edu.ph"
                                         value={formData.email}
                                         onChange={e => handleInputChange('email', e.target.value)}
                                         className={errors.email ? 'input-error' : ''}
                                     />
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                                        Must be a valid TUP email (@tup.edu.ph)
+                                    </span>
                                 </div>
                                 <div className="reg-form-group">
-                                    <label>TUPM ID <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <div className={`tupm-id-wrapper ${errors.tupmYear || errors.tupmSerial ? 'input-error-wrapper' : ''}`}>
-                                        <span className="tupm-prefix">TUPM-</span>
-                                        <input
-                                            type="text"
-                                            placeholder="YY"
-                                            maxLength="2"
-                                            value={formData.tupmYear}
-                                            onChange={e => handleInputChange('tupmYear', e.target.value)}
-                                            className={`tupm-year-input ${errors.tupmYear ? 'input-error' : ''}`}
-                                        />
-                                        <span className="tupm-sep">-</span>
-                                        <input
-                                            type="text"
-                                            placeholder="####"
-                                            maxLength="4"
-                                            value={formData.tupmSerial}
-                                            onChange={e => handleInputChange('tupmSerial', e.target.value)}
-                                            className={`tupm-serial-input ${errors.tupmSerial ? 'input-error' : ''}`}
-                                        />
-                                    </div>
+                                    <label>Employee ID <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 12345"
+                                        value={formData.employeeId}
+                                        onChange={e => handleInputChange('employeeId', e.target.value)}
+                                        className={errors.employeeId ? 'input-error' : ''}
+                                        maxLength="20"
+                                    />
+                                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                                        Numbers only
+                                    </span>
                                 </div>
                             </div>
 
                             <h3 className="step-title" style={{ marginTop: '24px' }}>Academic Details</h3>
                             <div className="signup-step">
+                                {/* College Dropdown — same for both roles */}
                                 <div className="reg-form-group full-width">
-                                    <label>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <label>College <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <select
+                                        value={formData.collegeId}
+                                        onChange={e => handleInputChange('collegeId', e.target.value)}
+                                        className={errors.collegeId ? 'input-error' : ''}
+                                    >
+                                        <option value="">Select College</option>
+                                        {colleges.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Department — different UI for head vs faculty */}
+                                {role === 'head' ? (
+                                    <div className="reg-form-group full-width">
+                                        <label>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. COMPUTER STUDIES"
+                                                value={formData.departmentName}
+                                                onChange={e => handleInputChange('departmentName', e.target.value)}
+                                                className={errors.departmentName ? 'input-error' : ''}
+                                                style={{ flex: 1 }}
+                                            />
+                                            {formData.departmentCode && (
+                                                <span style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '6px',
+                                                    background: '#e0f2fe',
+                                                    color: '#0369a1',
+                                                    fontWeight: 600,
+                                                    fontSize: '13px',
+                                                    whiteSpace: 'nowrap',
+                                                    border: '1px solid #bae6fd'
+                                                }}>
+                                                    {formData.departmentCode}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="reg-form-group full-width">
+                                        <label>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                                        <select
+                                            value={formData.departmentId}
+                                            onChange={e => handleInputChange('departmentId', e.target.value)}
+                                            className={errors.departmentId ? 'input-error' : ''}
+                                            disabled={!formData.collegeId}
+                                        >
+                                            <option value="">{formData.collegeId ? 'Select Department' : 'Select a college first'}</option>
+                                            {departments.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {/* Program — only for faculty, cascading from department */}
+                                {role === 'faculty' && (
+                                    <div className="reg-form-group full-width">
+                                        <label>Program <span style={{ color: '#ef4444' }}>*</span></label>
+                                        <select
+                                            value={formData.programId}
+                                            onChange={e => handleInputChange('programId', e.target.value)}
+                                            className={errors.programId ? 'input-error' : ''}
+                                            disabled={!formData.departmentId}
+                                        >
+                                            <option value="">{formData.departmentId ? 'Select Program' : 'Select a department first'}</option>
+                                            {programs.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* === STEP 2 (HEAD ONLY): PROGRAM SETUP === */}
+                    {role === 'head' && step === 2 && (
+                        <>
+                            <h3 className="step-title">Program Setup</h3>
+                            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>
+                                Add the academic programs offered under your department.
+                                You must add at least one program. You can configure more later in your module.
+                            </p>
+                            <div className="signup-step">
+                                <div className="reg-form-group full-width">
+                                    <label>Program Name</label>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <input
                                             type="text"
-                                            placeholder="e.g. COMPUTER STUDIES"
-                                            value={formData.departmentName}
-                                            onChange={e => handleInputChange('departmentName', e.target.value)}
-                                            className={errors.departmentName ? 'input-error' : ''}
+                                            placeholder="e.g. BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY"
+                                            value={programInput.name}
+                                            onChange={e => {
+                                                const upper = e.target.value.toUpperCase();
+                                                setProgramInput(prev => ({
+                                                    ...prev,
+                                                    name: upper,
+                                                    code: generateProgramCode(upper),
+                                                }));
+                                            }}
                                             style={{ flex: 1 }}
                                         />
-                                        {formData.departmentCode && (
+                                        {programInput.code && (
                                             <span style={{
                                                 padding: '6px 12px',
                                                 borderRadius: '6px',
@@ -377,31 +643,85 @@ const RegistrationPage = () => {
                                                 whiteSpace: 'nowrap',
                                                 border: '1px solid #bae6fd'
                                             }}>
-                                                {formData.departmentCode}
+                                                {programInput.code}
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                {role === 'faculty' && (
-                                    <div className="reg-form-group full-width">
-                                        <label>Program <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
-                                        <select
-                                            value={formData.programId}
-                                            onChange={e => handleInputChange('programId', e.target.value)}
-                                        >
-                                            <option value="">Select Program</option>
-                                            {filteredPrograms.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                                            ))}
-                                        </select>
+                                <div className="reg-form-group full-width" style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label>Code</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. BSIT"
+                                            value={programInput.code}
+                                            onChange={e => setProgramInput(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                                        />
                                     </div>
-                                )}
+                                    <button
+                                        type="button"
+                                        onClick={handleAddProgram}
+                                        style={{
+                                            padding: '10px 20px',
+                                            background: '#163269',
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            fontSize: '14px',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        <i className="fas fa-plus" style={{ marginRight: '6px' }}></i> Add
+                                    </button>
+                                </div>
                             </div>
+
+                            {/* Program List */}
+                            {newPrograms.length > 0 && (
+                                <div style={{ marginTop: '20px' }}>
+                                    <h4 style={{ fontSize: '14px', color: '#334155', marginBottom: '12px' }}>
+                                        Programs Added ({newPrograms.length})
+                                    </h4>
+                                    {newPrograms.map((prog, index) => (
+                                        <div key={index} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '10px 14px',
+                                            background: '#f8fafc',
+                                            borderRadius: '8px',
+                                            marginBottom: '8px',
+                                            border: '1px solid #e2e8f0',
+                                        }}>
+                                            <div>
+                                                <span style={{ fontWeight: 600, color: '#0369a1', marginRight: '8px' }}>{prog.code}</span>
+                                                <span style={{ color: '#475569', fontSize: '13px' }}>{prog.name}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveProgram(index)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#ef4444',
+                                                    cursor: 'pointer',
+                                                    fontSize: '16px',
+                                                }}
+                                                title="Remove program"
+                                            >
+                                                <i className="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </>
                     )}
 
-                    {/* === STEP 2: PASSWORD === */}
-                    {step === 2 && (
+                    {/* === PASSWORD STEP (last step for both roles) === */}
+                    {step === totalSteps && (
                         <>
                             <h3 className="step-title">Set Your Password</h3>
                             <div className="signup-step">
@@ -409,7 +729,7 @@ const RegistrationPage = () => {
                                     <label>Password <span style={{ color: '#ef4444' }}>*</span></label>
                                     <div className="reg-password-wrapper">
                                         <input
-                                            type={showPassword ? "text" : "password"}
+                                            type={showPassword ? 'text' : 'password'}
                                             placeholder="At least 6 characters"
                                             value={password}
                                             onChange={e => setPassword(e.target.value)}
@@ -419,7 +739,7 @@ const RegistrationPage = () => {
                                             className="reg-password-toggle"
                                             onClick={() => setShowPassword(!showPassword)}
                                         >
-                                            <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                                            <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
                                         </button>
                                     </div>
                                 </div>
@@ -427,7 +747,7 @@ const RegistrationPage = () => {
                                     <label>Confirm Password <span style={{ color: '#ef4444' }}>*</span></label>
                                     <div className="reg-password-wrapper">
                                         <input
-                                            type={showRetypePassword ? "text" : "password"}
+                                            type={showRetypePassword ? 'text' : 'password'}
                                             placeholder="Retype your password"
                                             value={retypePassword}
                                             onChange={e => setRetypePassword(e.target.value)}
@@ -437,7 +757,7 @@ const RegistrationPage = () => {
                                             className="reg-password-toggle"
                                             onClick={() => setShowRetypePassword(!showRetypePassword)}
                                         >
-                                            <i className={showRetypePassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
+                                            <i className={showRetypePassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
                                         </button>
                                     </div>
                                 </div>
@@ -449,34 +769,50 @@ const RegistrationPage = () => {
                                     <div className="summary-item">
                                         <span className="summary-label">Role</span>
                                         <span className="summary-value" style={{ textTransform: 'capitalize' }}>
-                                            {role === 'head' ? 'Department Head' : role}
+                                            {role === 'head' ? 'Department Head' : 'Faculty'}
                                         </span>
                                     </div>
                                     <div className="summary-item">
                                         <span className="summary-label">Name</span>
-                                        <span className="summary-value">{formData.firstName} {formData.lastName}</span>
+                                        <span className="summary-value">
+                                            {formData.firstName} {formData.middleName && formData.middleName !== '-' ? formData.middleName + ' ' : ''}{formData.lastName}
+                                        </span>
                                     </div>
                                     <div className="summary-item">
-                                        <span className="summary-label">TUPM ID</span>
-                                        <span className="summary-value">TUPM-{formData.tupmYear}-{formData.tupmSerial}</span>
+                                        <span className="summary-label">Employee ID</span>
+                                        <span className="summary-value">{formData.employeeId}</span>
                                     </div>
                                     <div className="summary-item">
                                         <span className="summary-label">Email</span>
                                         <span className="summary-value">{formData.email}</span>
                                     </div>
                                     <div className="summary-item">
-                                        <span className="summary-label">Department</span>
+                                        <span className="summary-label">College</span>
                                         <span className="summary-value">
-                                            {formData.departmentCode
-                                                ? `${formData.departmentCode} — ${formData.departmentName}`
-                                                : 'Not specified'}
+                                            {selectedCollege ? `${selectedCollege.name} (${selectedCollege.code})` : '-'}
                                         </span>
                                     </div>
-                                    {formData.programId && (
+                                    <div className="summary-item">
+                                        <span className="summary-label">Department</span>
+                                        <span className="summary-value">
+                                            {selectedDepartment
+                                                ? `${selectedDepartment.name}${selectedDepartment.code ? ` (${selectedDepartment.code})` : ''}`
+                                                : '-'}
+                                        </span>
+                                    </div>
+                                    {role === 'faculty' && (
                                         <div className="summary-item">
                                             <span className="summary-label">Program</span>
                                             <span className="summary-value">
-                                                {programs.find(p => p.id === parseInt(formData.programId))?.code || '—'}
+                                                {selectedProgram ? `${selectedProgram.name} (${selectedProgram.code})` : '-'}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {role === 'head' && newPrograms.length > 0 && (
+                                        <div className="summary-item">
+                                            <span className="summary-label">Programs</span>
+                                            <span className="summary-value">
+                                                {newPrograms.map(p => p.code).join(', ')}
                                             </span>
                                         </div>
                                     )}
@@ -486,7 +822,7 @@ const RegistrationPage = () => {
                     )}
 
                     <div className="form-actions">
-                        {step < 2 ? (
+                        {step < totalSteps ? (
                             <button type="button" className="reg-submit-button" onClick={handleNext}>
                                 Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '8px' }}></i>
                             </button>

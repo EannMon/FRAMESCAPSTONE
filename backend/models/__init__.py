@@ -1,4 +1,5 @@
 # Models package - Import all models for easy access
+from models.college import College
 from models.department import Department
 from models.program import Program
 from models.user import User, UserRole, VerificationStatus
@@ -12,8 +13,10 @@ from models.session_exception import SessionException, ExceptionType
 from models.security_log import SecurityLog, SecurityEventType
 from models.audit_log import AuditLog, AuditActions
 from models.system_metric import SystemMetric, MetricTypes
+from models.notification import Notification
 
 __all__ = [
+    "College",
     "Department",
     "Program", 
     "User",
@@ -36,4 +39,5 @@ __all__ = [
     "AuditActions",
     "SystemMetric",
     "MetricTypes",
+    "Notification",
 ]

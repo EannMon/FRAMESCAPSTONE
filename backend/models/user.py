@@ -28,9 +28,10 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Authentication
-    email = Column(String(255), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=True)     # Nullable for students without TUP email
     password_hash = Column(String(255), nullable=False)
-    tupm_id = Column(String(50), unique=True, nullable=False)  # e.g., "TUPM-21-1234"
+    tupm_id = Column(String(50), unique=True, nullable=True)    # Students: "TUPM-21-1234", nullable for faculty/head
+    employee_id = Column(String(50), unique=True, nullable=True) # Faculty/Head: numeric employee ID
     
     # Role & Status
     role = Column(Enum(UserRole), nullable=False, index=True)

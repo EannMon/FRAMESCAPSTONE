@@ -66,6 +66,41 @@ class StudentDashboard(BaseModel):
     recent_attendance: List[dict] = []
 
 
+class StudentMetricsResponse(BaseModel):
+    """Attendance and punctuality metrics with tier classification."""
+    attendance_rate: float          # Percentage 0-100
+    punctuality_rate: float         # Percentage 0-100
+    attendance_tier: str            # Compliant / Acceptable / Warning / Probation
+    punctuality_tier: str           # Compliant / Acceptable / Warning / Probation
+    attendance_tier_color: str      # Color code for UI
+    punctuality_tier_color: str     # Color code for UI
+    sessions_attended: int          # Total sessions the student entered
+    total_sessions: int             # Total sessions available (class actually happened)
+    on_time_arrivals: int           # ENTRY logs where is_late = False
+    late_arrivals: int              # ENTRY logs where is_late = True
+
+
+def _classify_tier(rate: float) -> tuple:
+    """
+    Classify a percentage rate into a performance tier.
+    Returns (tier_name, tier_color).
+    
+    Tiers:
+        ≥95% → Compliant (#2E7D32 green)
+        85–94% → Acceptable (#1565C0 blue)
+        75–84% → Warning (#F9A825 amber)
+        <75% → Probation (#C62828 red)
+    """
+    if rate >= 95:
+        return "Compliant", "#2E7D32"
+    elif rate >= 85:
+        return "Acceptable", "#1565C0"
+    elif rate >= 75:
+        return "Warning", "#F9A825"
+    else:
+        return "Probation", "#C62828"
+
+
 # ============================================
 # Endpoints
 # ============================================
@@ -134,6 +169,131 @@ def get_live_status(user_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/metrics/{user_id}", response_model=StudentMetricsResponse)
+def get_student_metrics(user_id: int, db: Session = Depends(get_db)):
+    """
+    Calculate Attendance Rate and Punctuality Rate for a student.
+    
+    Attendance Rate = (sessions attended / total available sessions) * 100
+    Punctuality Rate = (on-time arrivals / total attended sessions) * 100
+    
+    "Sessions attended" = distinct (class_id, date) where the student has an ENTRY log.
+    "Total sessions" = distinct (class_id, date) for all enrolled classes where
+                       any student logged attendance (class actually took place).
+    
+    Uses batch queries — no N+1. Max 3 DB round-trips.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    # 1. Get enrolled class IDs (single query)
+    enrolled_class_ids = [
+        cid for (cid,) in
+        db.query(Enrollment.class_id)
+        .filter(Enrollment.student_id == user_id)
+        .all()
+    ]
+
+    if not enrolled_class_ids:
+        att_tier, att_color = _classify_tier(0)
+        punc_tier, punc_color = _classify_tier(0)
+        return StudentMetricsResponse(
+            attendance_rate=0.0,
+            punctuality_rate=0.0,
+            attendance_tier=att_tier,
+            punctuality_tier=punc_tier,
+            attendance_tier_color=att_color,
+            punctuality_tier_color=punc_color,
+            sessions_attended=0,
+            total_sessions=0,
+            on_time_arrivals=0,
+            late_arrivals=0,
+        )
+
+    # 2. Count total sessions that actually happened for enrolled classes.
+    #    A "session" = distinct (class_id, date) with at least one ENTRY log by any student.
+    total_sessions = (
+        db.query(
+            func.count(
+                func.distinct(
+                    func.concat(
+                        AttendanceLog.class_id,
+                        '_',
+                        func.date(AttendanceLog.timestamp)
+                    )
+                )
+            )
+        )
+        .filter(
+            AttendanceLog.class_id.in_(enrolled_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+        )
+        .scalar()
+    ) or 0
+
+    # 3. Count this student's attended sessions + punctuality stats.
+    #    Sessions attended = distinct (class_id, date) with ENTRY by THIS student.
+    student_entry_logs = (
+        db.query(
+            AttendanceLog.class_id,
+            func.date(AttendanceLog.timestamp).label('log_date'),
+            AttendanceLog.is_late,
+        )
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.class_id.in_(enrolled_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+        )
+        .all()
+    )
+
+    # Deduplicate by (class_id, date) — keep the first entry per session
+    seen_sessions = set()
+    on_time_count = 0
+    late_count = 0
+    for class_id, log_date, is_late in student_entry_logs:
+        session_key = (class_id, str(log_date))
+        if session_key in seen_sessions:
+            continue
+        seen_sessions.add(session_key)
+        if is_late:
+            late_count += 1
+        else:
+            on_time_count += 1
+
+    sessions_attended = len(seen_sessions)
+
+    # Calculate rates
+    attendance_rate = (sessions_attended / total_sessions * 100) if total_sessions > 0 else 0.0
+    punctuality_rate = (on_time_count / sessions_attended * 100) if sessions_attended > 0 else 0.0
+
+    # Round to 1 decimal
+    attendance_rate = round(attendance_rate, 1)
+    punctuality_rate = round(punctuality_rate, 1)
+
+    att_tier, att_color = _classify_tier(attendance_rate)
+    punc_tier, punc_color = _classify_tier(punctuality_rate)
+
+    logger.info(
+        "METRICS | student=%d attendance=%.1f%% (%s) punctuality=%.1f%% (%s)",
+        user_id, attendance_rate, att_tier, punctuality_rate, punc_tier,
+    )
+
+    return StudentMetricsResponse(
+        attendance_rate=attendance_rate,
+        punctuality_rate=punctuality_rate,
+        attendance_tier=att_tier,
+        punctuality_tier=punc_tier,
+        attendance_tier_color=att_color,
+        punctuality_tier_color=punc_color,
+        sessions_attended=sessions_attended,
+        total_sessions=total_sessions,
+        on_time_arrivals=on_time_count,
+        late_arrivals=late_count,
+    )
+
+
 @router.get("/dashboard/{user_id}", response_model=StudentDashboard)
 def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     """
@@ -152,16 +312,58 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
             recent_attendance=[]
         )
     
-    # Count enrolled courses
-    enrolled_count = db.query(Enrollment).filter(Enrollment.student_id == user_id).count()
-    
-    # Count attendance records
-    total_attendance = db.query(AttendanceLog).filter(
-        AttendanceLog.user_id == user_id
-    ).count()
-    
-    # Calculate attendance rate (simplified)
-    attendance_rate = f"{min(total_attendance * 10, 100)}%"
+    # Count enrolled courses + class IDs for attendance calculation
+    enrolled_rows = (
+        db.query(Enrollment.class_id)
+        .filter(Enrollment.student_id == user_id)
+        .all()
+    )
+    enrolled_count = len(enrolled_rows)
+    enrolled_class_ids = [cid for (cid,) in enrolled_rows]
+
+    # Calculate real attendance rate using session-based logic
+    if enrolled_class_ids:
+        total_sessions = (
+            db.query(
+                func.count(
+                    func.distinct(
+                        func.concat(
+                            AttendanceLog.class_id, '_',
+                            func.date(AttendanceLog.timestamp)
+                        )
+                    )
+                )
+            )
+            .filter(
+                AttendanceLog.class_id.in_(enrolled_class_ids),
+                AttendanceLog.action == AttendanceAction.ENTRY,
+            )
+            .scalar()
+        ) or 0
+
+        sessions_attended = (
+            db.query(
+                func.count(
+                    func.distinct(
+                        func.concat(
+                            AttendanceLog.class_id, '_',
+                            func.date(AttendanceLog.timestamp)
+                        )
+                    )
+                )
+            )
+            .filter(
+                AttendanceLog.user_id == user_id,
+                AttendanceLog.class_id.in_(enrolled_class_ids),
+                AttendanceLog.action == AttendanceAction.ENTRY,
+            )
+            .scalar()
+        ) or 0
+
+        rate = round(sessions_attended / total_sessions * 100, 1) if total_sessions > 0 else 0.0
+        attendance_rate = f"{rate}%"
+    else:
+        attendance_rate = "0%"
     
     # Get recent attendance — eager load Class + Subject in one query (no N+1)
     recent_logs = (

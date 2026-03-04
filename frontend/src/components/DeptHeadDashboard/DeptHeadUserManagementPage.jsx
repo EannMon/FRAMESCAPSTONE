@@ -29,10 +29,11 @@ const DeptHeadUserManagementPage = () => {
     // ==========================================
     // USER DIRECTORY STATE
     // ==========================================
-    const [users, setUsers] = useState([]); // Empty initially, populated by API
+    const [users, setUsers] = useState([]);
     const [searchValue, setSearchValue] = useState("");
-    const [roleFilter, setRoleFilter] = useState("All Roles");
+    const [roleFilter, setRoleFilter] = useState("FACULTY"); // Default to Faculty per Task 40
     const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [selectedDirectoryUser, setSelectedDirectoryUser] = useState(null); // Row click detail
 
     // ==========================================
     // USER VERIFICATION STATE
@@ -129,21 +130,70 @@ const DeptHeadUserManagementPage = () => {
     // ==========================================
     // DIRECTORY HANDLERS
     // ==========================================
+    const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
     const [newUser, setNewUser] = useState({
-        name: "", email: "", password: "", confirmPassword: "", role: "Student", department: "", faceStatus: "Pending"
+        first_name: "", middle_name: "", last_name: "", email: "",
+        password: "", confirmPassword: "", role: "FACULTY",
+        employee_id: "", tupm_id: "", program_id: ""
     });
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setNewUser(prev => ({ ...prev, [name]: value }));
+        // Auto-uppercase name fields
+        const uppercaseFields = ['first_name', 'middle_name', 'last_name'];
+        const finalValue = uppercaseFields.includes(name) ? value.toUpperCase() : value;
+        setNewUser(prev => ({ ...prev, [name]: finalValue }));
     };
 
-    const handleAddUser = (e) => {
+    const handleAddUser = async (e) => {
         e.preventDefault();
-        // Mock add for now - effectively local only since we fetched from API
-        // ideally this would POST to API
-        alert("Manual add is client-side only for this demo right now.");
-        setShowAddUserModal(false);
+        if (newUser.password !== newUser.confirmPassword) {
+            alert('Passwords do not match.');
+            return;
+        }
+        if (newUser.password.length < 6) {
+            alert('Password must be at least 6 characters.');
+            return;
+        }
+
+        try {
+            const payload = {
+                first_name: newUser.first_name,
+                middle_name: newUser.middle_name || '-',
+                last_name: newUser.last_name,
+                email: newUser.email || null,
+                password: newUser.password,
+                role: newUser.role,
+                department_id: storedUser.department_id,
+            };
+
+            // Add role-specific ID
+            if (newUser.role === 'STUDENT') {
+                payload.tupm_id = newUser.tupm_id;
+            } else {
+                payload.employee_id = newUser.employee_id;
+            }
+
+            if (newUser.program_id) {
+                payload.program_id = parseInt(newUser.program_id, 10);
+            }
+
+            await api.post('/api/auth/register', payload);
+            alert('User registered successfully.');
+            setShowAddUserModal(false);
+            setNewUser({
+                first_name: "", middle_name: "", last_name: "", email: "",
+                password: "", confirmPassword: "", role: "FACULTY",
+                employee_id: "", tupm_id: "", program_id: ""
+            });
+            // Refresh user list
+            fetchUsers(new AbortController().signal);
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            const msg = typeof detail === 'string' ? detail : (detail?.message || 'Registration failed.');
+            alert(msg);
+        }
     };
 
     const filteredUsers = users.filter(user => {
@@ -245,8 +295,6 @@ const DeptHeadUserManagementPage = () => {
                             <select className="app-filter-select" value={verificationRoleFilter} onChange={(e) => setVerificationRoleFilter(e.target.value)}>
                                 <option>All</option>
                                 <option>Faculty</option>
-                                <option>Student</option>
-                                <option>Admin</option>
                             </select>
                             <select className="app-filter-select" value={verificationStatusFilter} onChange={(e) => setVerificationStatusFilter(e.target.value)}>
                                 <option>Status</option>
@@ -382,16 +430,16 @@ const DeptHeadUserManagementPage = () => {
                     {/* USER DIRECTORY CONTENT */}
                     <div className="user-summary-cards">
                         <div className="card user-summary-card">
-                            <span className="user-summary-value">{users.filter(u => u.role === "ADMIN").length}</span>
-                            <span className="user-summary-title">Administrators</span>
-                        </div>
-                        <div className="card user-summary-card">
                             <span className="user-summary-value">{users.filter(u => u.role === "FACULTY" || u.role === "HEAD").length}</span>
                             <span className="user-summary-title">Faculty Members</span>
                         </div>
                         <div className="card user-summary-card">
                             <span className="user-summary-value">{users.filter(u => u.role === "STUDENT").length}</span>
                             <span className="user-summary-title">Students</span>
+                        </div>
+                        <div className="card user-summary-card">
+                            <span className="user-summary-value">{users.length}</span>
+                            <span className="user-summary-title">Total Users</span>
                         </div>
                     </div>
 
@@ -405,8 +453,8 @@ const DeptHeadUserManagementPage = () => {
                                 </div>
                                 <select className="user-role-filter" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                                     <option>All Roles</option>
-                                    <option value="ADMIN">Admin</option>
                                     <option value="FACULTY">Faculty</option>
+                                    <option value="HEAD">Dept Head</option>
                                     <option value="STUDENT">Student</option>
                                 </select>
                                 <div className="add-user-dropdown-wrapper">
@@ -431,13 +479,13 @@ const DeptHeadUserManagementPage = () => {
                             <tbody>
                                 {filteredUsers.length > 0 ? (
                                     filteredUsers.map((user, index) => (
-                                        <tr key={index}>
+                                        <tr key={index} className="user-row" style={{ cursor: 'pointer' }} onClick={() => setSelectedDirectoryUser(user)}>
                                             <td>
                                                 <div className="user-info-cell">
                                                     <div className="user-table-avatar">{(user.role && user.role[0]) ? user.role[0].toUpperCase() : '?'}</div>
                                                     <div>
                                                         <span className="user-table-name">{user.name}</span>
-                                                        <span className="user-table-email">{user.email}</span>
+                                                        <span className="user-table-email">{user.email || 'No email'}</span>
                                                     </div>
                                                 </div>
                                             </td>
@@ -446,7 +494,9 @@ const DeptHeadUserManagementPage = () => {
                                             <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
                                             <td>{user.lastActive}</td>
                                             <td>
-                                                <button className="action-button"><i className="fas fa-pen"></i></button>
+                                                <button className="action-button" onClick={(e) => { e.stopPropagation(); setSelectedDirectoryUser(user); }}>
+                                                    <i className="fas fa-eye"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
@@ -457,29 +507,122 @@ const DeptHeadUserManagementPage = () => {
                         </table>
                     </div>
 
-                    {/* REGISTER MODAL */}
-                    {showAddUserModal && (
-                        <div className="modal-backdrop" onClick={() => setShowAddUserModal(false)}>
-                            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                                <h3>Register New User</h3>
-                                <form onSubmit={handleAddUser} className="add-user-form">
-                                    <input type="text" name="name" placeholder="Full Name" value={newUser.name} onChange={handleInputChange} required />
-                                    <input type="email" name="email" placeholder="Email" value={newUser.email} onChange={handleInputChange} required />
-                                    <input type="password" name="password" placeholder="Password" value={newUser.password} onChange={handleInputChange} required />
-                                    <input type="text" name="department" placeholder="Department" value={newUser.department} onChange={handleInputChange} required />
-                                    <select name="role" value={newUser.role} onChange={handleInputChange}>
-                                        <option value="ADMIN">Admin</option>
-                                        <option value="FACULTY">Faculty</option>
-                                        <option value="STUDENT">Student</option>
-                                    </select>
-                                    <button type="submit" className="add-user-submit">Register</button>
-                                    <button type="button" className="add-user-cancel" onClick={() => setShowAddUserModal(false)}>Cancel</button>
-                                </form>
+                    {/* DIRECTORY USER DETAIL MODAL */}
+                    {selectedDirectoryUser && (
+                        <div className="modal-backdrop" onClick={() => setSelectedDirectoryUser(null)}>
+                            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                <h3>User Details: {selectedDirectoryUser.name}</h3>
+                                <div className="modal-body">
+                                    <p><strong>Email:</strong> {selectedDirectoryUser.email || 'Not set'}</p>
+                                    <p><strong>TUP-M ID:</strong> {selectedDirectoryUser.tupm_id || 'N/A'}</p>
+                                    <p><strong>Employee ID:</strong> {selectedDirectoryUser.employee_id || 'N/A'}</p>
+                                    <p><strong>Role:</strong> <span className={`role-tag ${selectedDirectoryUser.roleColor}`}>{selectedDirectoryUser.role}</span></p>
+                                    <p><strong>Department:</strong> {selectedDirectoryUser.department}</p>
+                                    <p><strong>Face Status:</strong> <span className={`status-tag ${selectedDirectoryUser.statusColor}`}>{selectedDirectoryUser.faceStatus}</span></p>
+                                    <p><strong>Verification:</strong> {selectedDirectoryUser.verification_status || 'N/A'}</p>
+                                    <p><strong>Last Active:</strong> {selectedDirectoryUser.lastActive}</p>
+                                </div>
+                                <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                                    <button className="modal-close-button" onClick={() => setSelectedDirectoryUser(null)}>Close</button>
+                                </div>
                             </div>
                         </div>
                     )}
+
+                    {/* REGISTER MODAL */}
+                    {showAddUserModal && <AddUserModal
+                        newUser={newUser}
+                        handleInputChange={handleInputChange}
+                        handleAddUser={handleAddUser}
+                        onClose={() => setShowAddUserModal(false)}
+                        departmentId={storedUser.department_id}
+                    />}
                 </>
             )}
+        </div>
+    );
+};
+
+/**
+ * Add User Modal — separated for clarity.
+ * Fetches programs from API for the department, provides role-specific fields.
+ */
+const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, departmentId }) => {
+    const [programs, setPrograms] = useState([]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        if (departmentId) {
+            api.get(`/api/auth/programs?department_id=${departmentId}`, { signal: controller.signal })
+                .then(res => setPrograms(res.data || []))
+                .catch(err => {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        console.error('Failed to fetch programs:', err);
+                    }
+                });
+        }
+        return () => controller.abort();
+    }, [departmentId]);
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3>Register New User</h3>
+                <form onSubmit={handleAddUser} className="add-user-form">
+                    <label>Role <span style={{ color: 'red' }}>*</span></label>
+                    <select name="role" value={newUser.role} onChange={handleInputChange}>
+                        <option value="FACULTY">Faculty</option>
+                        <option value="STUDENT">Student</option>
+                    </select>
+
+                    <label>First Name <span style={{ color: 'red' }}>*</span></label>
+                    <input type="text" name="first_name" placeholder="First Name" value={newUser.first_name} onChange={handleInputChange} required />
+
+                    <label>Middle Name</label>
+                    <input type="text" name="middle_name" placeholder="Middle Name" value={newUser.middle_name} onChange={handleInputChange} />
+
+                    <label>Last Name <span style={{ color: 'red' }}>*</span></label>
+                    <input type="text" name="last_name" placeholder="Last Name" value={newUser.last_name} onChange={handleInputChange} required />
+
+                    {newUser.role === 'STUDENT' ? (
+                        <>
+                            <label>TUP-M ID <span style={{ color: 'red' }}>*</span></label>
+                            <input type="text" name="tupm_id" placeholder="e.g. TUPM-21-1234" value={newUser.tupm_id} onChange={handleInputChange} required />
+                        </>
+                    ) : (
+                        <>
+                            <label>Employee ID <span style={{ color: 'red' }}>*</span></label>
+                            <input type="text" name="employee_id" placeholder="Employee ID" value={newUser.employee_id} onChange={handleInputChange} required />
+                        </>
+                    )}
+
+                    <label>Email</label>
+                    <input type="email" name="email" placeholder="user@tup.edu.ph" value={newUser.email} onChange={handleInputChange} />
+
+                    {programs.length > 0 && (
+                        <>
+                            <label>Program</label>
+                            <select name="program_id" value={newUser.program_id} onChange={handleInputChange}>
+                                <option value="">-- Select Program --</option>
+                                {programs.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                                ))}
+                            </select>
+                        </>
+                    )}
+
+                    <label>Password <span style={{ color: 'red' }}>*</span></label>
+                    <input type="password" name="password" placeholder="Min. 6 characters" value={newUser.password} onChange={handleInputChange} required />
+
+                    <label>Confirm Password <span style={{ color: 'red' }}>*</span></label>
+                    <input type="password" name="confirmPassword" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={handleInputChange} required />
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button type="submit" className="add-user-submit">Register</button>
+                        <button type="button" className="add-user-cancel" onClick={onClose}>Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

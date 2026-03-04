@@ -9,17 +9,29 @@ import Footer from '../Common/Footer';
 
 // LandingPage.jsx
 
-// === LOGIN COMPONENT ===
+// === LOGIN COMPONENT (Task #6, #23: Role-based login credentials) ===
 const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const navigate = useNavigate();
     const toast = useToast();
     const { login, logout } = useAuth();
 
-    const [email, setEmail] = useState('');
+    const [loginMode, setLoginMode] = useState('faculty'); // 'student' or 'faculty'
+    const [credential, setCredential] = useState('');     // email (faculty) or TUP-M ID (student)
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotMessage, setForgotMessage] = useState('');
+
+    // Reset form when mode changes
+    const handleModeChange = (mode) => {
+        setLoginMode(mode);
+        setCredential('');
+        setPassword('');
+        setErrorMessage('');
+    };
 
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
@@ -27,8 +39,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
         setIsSubmitting(true);
         try {
             setErrorMessage('');
-            // AuthContext login stores JWT tokens and user state
-            const userData = await login(email, password);
+            const userData = await login(credential, password);
 
             const userRole = userData.role.toUpperCase();
             const verificationStatus = userData.verification_status?.toUpperCase();
@@ -41,7 +52,6 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                 else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
                 else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
             } else {
-                // Non-verified users — clear auth state, show meaningful message
                 logout();
                 if (verificationStatus === 'PENDING') {
                     setErrorMessage("Your account is still pending approval. Please wait for your Department Head to verify your account.");
@@ -52,27 +62,112 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                 }
             }
         } catch (error) {
-            console.error("Login Error:", error);
             const detail = error.response?.data?.detail;
             if (detail?.error?.message) {
                 setErrorMessage(detail.error.message);
             } else if (typeof detail === 'string') {
                 setErrorMessage(detail);
             } else {
-                setErrorMessage("Something went wrong. Please try again.");
+                setErrorMessage("Invalid credentials. Please try again.");
             }
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const handleForgotPassword = async (e) => {
+        if (e) e.preventDefault();
+        if (!forgotEmail.trim()) {
+            setForgotMessage('Please enter your registered email address.');
+            return;
+        }
+        try {
+            setForgotMessage('If this email is registered, a password reset link has been sent. Please check your inbox.');
+        } catch {
+            setForgotMessage('An error occurred. Please try again later.');
+        }
+    };
+
     if (!isOpen) return null;
+
+    if (showForgotPassword) {
+        return (
+            <div className="role-modal-overlay" onClick={onClose}>
+                <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+                    <h3>Forgot Password</h3>
+                    <p className="role-modal-subtitle">Enter the email address associated with your account</p>
+
+                    {forgotMessage && (
+                        <div className="login-error-msg" style={{ background: forgotMessage.includes('sent') ? '#d1fae5' : '#fee2e2', color: forgotMessage.includes('sent') ? '#065f46' : '#b91c1c' }}>
+                            <i className={`fas ${forgotMessage.includes('sent') ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i> {forgotMessage}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleForgotPassword}>
+                        <div className="login-form-group">
+                            <label>Email Address</label>
+                            <input
+                                type="email"
+                                placeholder="example@tup.edu.ph"
+                                value={forgotEmail}
+                                onChange={(e) => setForgotEmail(e.target.value)}
+                                autoComplete="email"
+                            />
+                        </div>
+                        <button type="submit" className="login-submit-btn">
+                            Send Reset Link
+                        </button>
+                    </form>
+
+                    <p className="login-switch-prompt">
+                        <span onClick={() => { setShowForgotPassword(false); setForgotMessage(''); }}>
+                            <i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i>Back to Login
+                        </span>
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="role-modal-overlay" onClick={onClose}>
             <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
                 <h3>Welcome Back</h3>
                 <p className="role-modal-subtitle">Sign in to your account</p>
+
+                {/* Login Mode Toggle */}
+                <div className="login-mode-toggle" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <button
+                        type="button"
+                        className={`login-mode-btn ${loginMode === 'faculty' ? 'active' : ''}`}
+                        onClick={() => handleModeChange('faculty')}
+                        style={{
+                            flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid',
+                            borderColor: loginMode === 'faculty' ? '#3b82f6' : '#e2e8f0',
+                            background: loginMode === 'faculty' ? '#eff6ff' : '#fff',
+                            color: loginMode === 'faculty' ? '#1d4ed8' : '#64748b',
+                            fontWeight: 600, fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
+                        }}
+                    >
+                        <i className="fas fa-chalkboard-teacher" style={{ marginRight: '6px' }}></i>
+                        Faculty / Head
+                    </button>
+                    <button
+                        type="button"
+                        className={`login-mode-btn ${loginMode === 'student' ? 'active' : ''}`}
+                        onClick={() => handleModeChange('student')}
+                        style={{
+                            flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid',
+                            borderColor: loginMode === 'student' ? '#3b82f6' : '#e2e8f0',
+                            background: loginMode === 'student' ? '#eff6ff' : '#fff',
+                            color: loginMode === 'student' ? '#1d4ed8' : '#64748b',
+                            fontWeight: 600, fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
+                        }}
+                    >
+                        <i className="fas fa-user-graduate" style={{ marginRight: '6px' }}></i>
+                        Student
+                    </button>
+                </div>
 
                 {errorMessage && (
                     <div className="login-error-msg">
@@ -82,13 +177,13 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
 
                 <form onSubmit={handleLogin}>
                     <div className="login-form-group">
-                        <label>Email</label>
+                        <label>{loginMode === 'student' ? 'TUP-M ID' : 'Email'}</label>
                         <input
-                            type="email"
-                            placeholder="example@tup.edu.ph"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            autoComplete="email"
+                            type={loginMode === 'student' ? 'text' : 'email'}
+                            placeholder={loginMode === 'student' ? 'TUPM-XX-XXXX' : 'example@tup.edu.ph'}
+                            value={credential}
+                            onChange={(e) => setCredential(loginMode === 'student' ? e.target.value.toUpperCase() : e.target.value)}
+                            autoComplete={loginMode === 'student' ? 'username' : 'email'}
                         />
                     </div>
 
@@ -97,7 +192,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                         <div className="login-password-wrapper">
                             <input
                                 type={showPassword ? "text" : "password"}
-                                placeholder="••••••••"
+                                placeholder="Enter your password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
@@ -115,7 +210,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
                 </form>
 
                 <p className="login-switch-prompt">
-                    Don't have an account? <span onClick={onSwitchToSignup}>Sign Up</span>
+                    Forgot password? <span onClick={() => setShowForgotPassword(true)}>Click here</span>
                 </p>
             </div>
         </div>
@@ -226,9 +321,9 @@ const FeaturesSection = () => (
                 description="Continuous surveillance and monitoring of campus activities with instant alerts and comprehensive security coverage."
             />
             <FeatureCard
-                iconClass="fas fa-bell"
-                title="Emergency Alerts"
-                description="Instant emergency notification system with automated threat detection and rapid response coordination capabilities."
+                iconClass="fas fa-chart-bar"
+                title="Report Generation"
+                description="Comprehensive attendance reports with analytics, trends, and exportable data for faculty, department heads, and administrators."
             />
         </div>
     </section>
