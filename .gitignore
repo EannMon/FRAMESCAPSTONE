@@ -32,3 +32,6 @@ Thumbs.db
 
 # Test output
 recognition_results/
+
+#pictures
+images/
