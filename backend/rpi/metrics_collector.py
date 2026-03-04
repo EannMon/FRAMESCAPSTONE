@@ -9,9 +9,14 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 # Thresholds from FRAMES_OBSERVABILITY_RULES and ENGINEERING_STANDARDS
+# RPi 4 target: <250ms/frame  (hardware constraint)
+# Laptop CPU-only: buffalo_l takes 300-600ms on CPU without GPU — 1500ms is a
+# realistic budget that catches genuine hangs without flooding logs on normal runs.
 FRAME_TIME_WARN_MS_RPI = 250
-FRAME_TIME_WARN_MS_LAPTOP = 100
-RECOGNITION_WARN_MS = 200
+FRAME_TIME_WARN_MS_LAPTOP = 1500
+RECOGNITION_WARN_MS_RPI = 200
+RECOGNITION_WARN_MS_LAPTOP = 1000  # CPU-only laptop: 300-600ms is normal
+RECOGNITION_WARN_MS = RECOGNITION_WARN_MS_RPI  # kept for backward compat
 EMBEDDING_COMPARE_WARN_MS = 50
 
 
@@ -55,18 +60,20 @@ class KioskMetricsCollector:
             self._match_times_ms.append(match_ms)
 
         # Warn on threshold breach (per observability rules)
-        limit = FRAME_TIME_WARN_MS_RPI if self.platform == "rpi" else FRAME_TIME_WARN_MS_LAPTOP
+        is_rpi = self.platform == "rpi"
+        limit = FRAME_TIME_WARN_MS_RPI if is_rpi else FRAME_TIME_WARN_MS_LAPTOP
+        rec_limit = RECOGNITION_WARN_MS_RPI if is_rpi else RECOGNITION_WARN_MS_LAPTOP
         if frame_time_ms > limit:
             logger.warning(
                 "Frame processing exceeded budget: %.1fms (limit %dms)",
                 frame_time_ms,
                 limit,
             )
-        if recognition_ms is not None and recognition_ms > RECOGNITION_WARN_MS:
+        if recognition_ms is not None and recognition_ms > rec_limit:
             logger.warning(
                 "Face recognition inference slow: %.1fms (threshold %dms)",
                 recognition_ms,
-                RECOGNITION_WARN_MS,
+                rec_limit,
             )
         if match_ms is not None and match_ms > EMBEDDING_COMPARE_WARN_MS:
             logger.warning(

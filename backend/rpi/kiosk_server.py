@@ -248,7 +248,9 @@ class StreamingAttendanceKiosk:
                 label = overlay.get("label")
                 color = overlay.get("color") or (0, 255, 0)
                 expires_at = overlay.get("expires_at") or 0.0
-                if bbox and now_ts < expires_at:
+                # Use `is not None` — bbox may be a numpy array, which raises
+                # ValueError if used directly in a boolean expression.
+                if bbox is not None and now_ts < expires_at:
                     x1, y1, x2, y2 = bbox
                     cv2.rectangle(frame_to_send, (x1, y1), (x2, y2), color, 2)
                     if label:
