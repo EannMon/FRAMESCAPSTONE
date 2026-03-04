@@ -2,19 +2,22 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     plugins: [react()],
     server: {
         port: 3000,
         host: '0.0.0.0',  // Allow access from Pi's browser over network
         open: true,
-        proxy: {
-            '/api': {
-                target: 'http://127.0.0.1:5000',
-                changeOrigin: true,
-                secure: false
+        // Proxy is ONLY used in local dev — in production Vercel calls Render directly
+        ...(mode === 'development' && {
+            proxy: {
+                '/api': {
+                    target: 'http://127.0.0.1:5000',
+                    changeOrigin: true,
+                    secure: false
+                }
             }
-        }
+        })
     },
     build: {
         outDir: 'dist',
@@ -25,4 +28,4 @@ export default defineConfig({
             '@': '/src'
         }
     }
-})
+}))
