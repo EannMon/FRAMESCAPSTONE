@@ -73,7 +73,15 @@ const DeptHeadUserManagementPage = () => {
         setVerificationLoading(true);
         setVerificationError(null);
         try {
-            const response = await api.get('/api/admin/verification/list', { signal });
+            // Use dept-scoped endpoint — Dept Head should only see their own department's users
+            const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const deptId = storedUser.department_id;
+            if (!deptId) {
+                setVerificationError("No department assigned to your account.");
+                setVerificationLoading(false);
+                return;
+            }
+            const response = await api.get(`/api/dept/users?dept_id=${deptId}`, { signal });
 
             // Map for Verification Tab
             const mappedVerificationData = (response.data || []).map(user => ({
@@ -331,7 +339,40 @@ const DeptHeadUserManagementPage = () => {
                                     <p><strong>Department:</strong> {verificationModalUser.department}</p>
                                     <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>
                                 </div>
-                                <button className="modal-close-button" onClick={() => setVerificationModalUser(null)}>Close</button>
+                                <div className="modal-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+                                    {/* Approve — only shown if not already verified */}
+                                    {verificationModalUser.status !== 'Verified' && verificationModalUser.status !== 'Approved' && (
+                                        <button
+                                            className="add-user-submit"
+                                            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onClick={() => {
+                                                handleStatusUpdate(verificationModalUser.id, 'Approved');
+                                                setVerificationModalUser(null);
+                                            }}
+                                        >
+                                            <i className="fas fa-check"></i> Approve
+                                        </button>
+                                    )}
+                                    {/* Reject — only shown if not already rejected */}
+                                    {verificationModalUser.status !== 'Rejected' && (
+                                        <button
+                                            style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onClick={() => {
+                                                handleStatusUpdate(verificationModalUser.id, 'Rejected');
+                                                setVerificationModalUser(null);
+                                            }}
+                                        >
+                                            <i className="fas fa-times"></i> Reject
+                                        </button>
+                                    )}
+                                    <button
+                                        className="modal-close-button"
+                                        onClick={() => setVerificationModalUser(null)}
+                                        style={{ marginLeft: 'auto' }}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

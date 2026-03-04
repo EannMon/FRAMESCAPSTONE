@@ -280,3 +280,120 @@ def update_academic_year(req: AcademicYearUpdate, db: Session = Depends(get_db))
     
     logger.info("Academic year updated to %s %s for department %s", req.academic_year, req.semester, dept.name)
     return {"message": "Academic year updated", "academic_year": req.academic_year, "semester": req.semester}
+
+
+# --- Program Management ---
+
+class ProgramCreate(BaseModel):
+    name: str
+    code: str
+    dept_id: int
+
+
+@router.get("/programs")
+def list_programs(dept_id: int = Query(...), db: Session = Depends(get_db)):
+    """List all programs for a department."""
+    from models.program import Program
+    programs = db.query(Program).filter(
+        Program.department_id == dept_id
+    ).order_by(Program.name).all()
+    return [{"id": p.id, "name": p.name, "code": p.code} for p in programs]
+
+
+@router.post("/programs", status_code=status.HTTP_201_CREATED)
+def create_program(req: ProgramCreate, db: Session = Depends(get_db)):
+    """Create a new program under a department."""
+    from models.program import Program
+    from sqlalchemy import func
+
+    normalized_name = req.name.strip().upper()
+    normalized_code = req.code.strip().upper()
+
+    if not normalized_name or not normalized_code:
+        raise api_error(400, "INVALID_INPUT", "Program name and code are required")
+
+    # Check for duplicate name or code within this department
+    existing = db.query(Program).filter(
+        Program.department_id == req.dept_id,
+        (func.upper(Program.name) == normalized_name) | (func.upper(Program.code) == normalized_code)
+    ).first()
+    if existing:
+        raise api_error(409, "PROGRAM_EXISTS", "A program with that name or code already exists in this department")
+
+    new_prog = Program(name=normalized_name, code=normalized_code, department_id=req.dept_id)
+    db.add(new_prog)
+    db.commit()
+    db.refresh(new_prog)
+
+    logger.info("DEPT | program created: %s (%s) dept=%d", new_prog.name, new_prog.code, req.dept_id)
+    return {"id": new_prog.id, "name": new_prog.name, "code": new_prog.code}
+
+
+@router.delete("/programs/{program_id}")
+def delete_program(program_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a program.
+    Blocked if any users are currently assigned to it.
+    """
+    from models.program import Program
+
+    prog = db.query(Program).filter(Program.id == program_id).first()
+    if not prog:
+        raise api_error(404, "PROGRAM_NOT_FOUND", "Program not found")
+
+    user_count = db.query(User).filter(User.program_id == program_id).count()
+    if user_count > 0:
+        raise api_error(
+            409, "PROGRAM_IN_USE",
+            f"Cannot delete: {user_count} user(s) are currently assigned to '{prog.name}'"
+        )
+
+    name = prog.name
+    db.delete(prog)
+    db.commit()
+    logger.info("DEPT | program deleted: %s (id=%d)", name, program_id)
+    return {"message": f"Program '{name}' deleted successfully"}
+
+
+# --- Dept-Scoped User List ---
+
+@router.get("/users")
+def get_dept_users(dept_id: int = Query(...), db: Session = Depends(get_db)):
+    """
+    Get all users belonging to a department.
+    Used by Dept Head User Management page — shows only their department's members.
+    """
+    from models.department import Department as Dept
+
+    users = (
+        db.query(User)
+        .outerjoin(Dept, User.department_id == Dept.id)
+        .filter(User.department_id == dept_id)
+        .order_by(User.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for u in users:
+        result.append({
+            "id": u.id,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "email": u.email,
+            "tupm_id": u.tupm_id,
+            "role": u.role.value if hasattr(u.role, "value") else u.role,
+            "verification_status": (
+                u.verification_status.value
+                if hasattr(u.verification_status, "value")
+                else u.verification_status
+            ),
+            "face_registered": bool(u.face_registered),
+            "department_id": u.department_id,
+            "department_name": u.department.name if u.department else None,
+            "program_id": u.program_id,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_active": u.last_active.isoformat() if u.last_active else None,
+        })
+
+    logger.info("DEPT | user list fetched: dept_id=%d count=%d", dept_id, len(result))
+    return result
