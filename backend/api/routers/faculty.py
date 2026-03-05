@@ -21,6 +21,8 @@ from models.attendance_log import AttendanceLog, AttendanceAction
 from models.session_exception import SessionException, ExceptionType
 from models.device import Device, DeviceStatus
 from models.department import Department
+from models.device import Device, DeviceStatus
+from models.department import Department
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

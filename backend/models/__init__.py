@@ -1,5 +1,6 @@
 # Models package - Import all models for easy access
 from models.college import College
+from models.college import College
 from models.department import Department
 from models.program import Program
 from models.user import User, UserRole, VerificationStatus
@@ -17,6 +18,7 @@ from models.notification import Notification
 from models.support_ticket import SupportTicket, TicketStatus
 
 __all__ = [
+    "College",
     "College",
     "Department",
     "Program", 

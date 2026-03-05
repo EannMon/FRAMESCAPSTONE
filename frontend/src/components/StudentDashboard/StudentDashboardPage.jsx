@@ -18,6 +18,7 @@ const WelcomeBanner = ({ studentName, studentId }) => (
 );
 
 const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor }) => (
+const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor }) => (
     <div className="card student-summary-card">
         <div className={`summary-icon-container ${iconBgClass}`}>
             <i className={iconClass}></i>

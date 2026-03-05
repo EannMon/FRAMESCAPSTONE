@@ -67,6 +67,7 @@ const getColumnConfig = (reportId) => {
 
 const DeptHeadReportsPage = () => {
     const [selectedReport, setSelectedReport] = useState(reportOptions[0]);
+    const [selectedReport, setSelectedReport] = useState(reportOptions[0]);
     const [reportData, setReportData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);

@@ -42,6 +42,7 @@ const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, 
 
 // --- SVG LINE CHART (Student-style) ---
 const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView }) => {
+const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL');
 
@@ -110,6 +111,8 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
         // Return real data (zeros if no logs exist — never show fake data)
         return dataPoints;
     }, [logs, filter]);
+
+    const trendLabel = trendView === 'personal' ? 'Personal' : 'Classroom';
 
     const trendLabel = trendView === 'personal' ? 'Personal' : 'Classroom';
 
