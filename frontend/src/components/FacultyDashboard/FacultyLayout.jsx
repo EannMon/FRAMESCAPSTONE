@@ -43,6 +43,7 @@ const FacultySidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
 
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/faculty-dashboard' },
+        { name: 'My Profile', icon: 'fas fa-user', to: '/faculty-profile' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/faculty-classes' },
         { name: 'Attendance', icon: 'fas fa-user-check', to: '/faculty-attendance' },
         { name: 'Reports', icon: 'fas fa-chart-bar', to: '/faculty-reports' },

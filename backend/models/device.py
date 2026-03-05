@@ -21,7 +21,6 @@ class Device(Base):
     room = Column(String(100), index=True)                      # e.g., "CL1", "Lab 201"
     ip_address = Column(String(45))                 # IPv4 or IPv6
     device_name = Column(String(100))               # e.g., "KIOSK-CL1"
-    api_key = Column(String(255))                   # Device-level auth key for kiosk endpoints
     status = Column(Enum(DeviceStatus), default=DeviceStatus.ACTIVE)
     room_capacity = Column(Integer, default=40)     # Max occupancy for overcrowding alerts
     

@@ -105,6 +105,11 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
     const toast = useToast();
     const [openFaq, setOpenFaq] = useState(null);
 
+    // Contact form state
+    const [contactSubject, setContactSubject] = useState('');
+    const [contactMessage, setContactMessage] = useState('');
+    const [contactError, setContactError] = useState('');
+
     // --- USER CONTEXT ---
     const [user] = useState(() => {
         const stored = localStorage.getItem('currentUser');
@@ -194,25 +199,63 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                     </div>
                 </div>
 
-                {/* Contact Support Section (Mock) */}
+                {/* Contact Support Section — sends email to FRAMES support */}
                 <div className="contact-support-section">
                     <div className="section-title">
                         <i className="fas fa-paper-plane"></i>
                         <h3>Contact Support</h3>
                     </div>
                     <div className="card contact-form-card">
-                        <p className="contact-subtitle">Can't find what you're looking for? Send us a message.</p>
-                        <form className="mock-contact-form" onSubmit={(e) => e.preventDefault()}>
+                        <p className="contact-subtitle">
+                            For technical issues, send an email to <strong>framessys01@gmail.com</strong>
+                        </p>
+                        <form className="mock-contact-form" onSubmit={(e) => {
+                            e.preventDefault();
+                            setContactError('');
+
+                            if (!contactSubject.trim()) {
+                                setContactError('Subject is required.');
+                                return;
+                            }
+                            if (!contactMessage.trim()) {
+                                setContactError('Message is required.');
+                                return;
+                            }
+
+                            // Open mailto link with subject and body
+                            const mailto = `mailto:framessys01@gmail.com?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactMessage)}`;
+                            window.open(mailto, '_blank');
+                            toast.success('Email client opened. Please send the email.');
+                        }}>
+                            {contactError && (
+                                <div style={{ color: '#d63031', background: '#ffe6e6', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px', fontSize: '0.9rem' }}>
+                                    {contactError}
+                                </div>
+                            )}
                             <div className="form-group">
-                                <label>Subject</label>
-                                <input type="text" placeholder="e.g., Login Issue" className="form-input" />
+                                <label>Subject <span style={{ color: '#d63031' }}>*</span></label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g., Login Issue, Camera Not Working"
+                                    className="form-input"
+                                    value={contactSubject}
+                                    onChange={(e) => setContactSubject(e.target.value)}
+                                    required
+                                />
                             </div>
                             <div className="form-group">
-                                <label>Message</label>
-                                <textarea placeholder="Describe your issue..." rows="4" className="form-input"></textarea>
+                                <label>Message <span style={{ color: '#d63031' }}>*</span></label>
+                                <textarea
+                                    placeholder="Describe your issue in detail..."
+                                    rows="4"
+                                    className="form-input"
+                                    value={contactMessage}
+                                    onChange={(e) => setContactMessage(e.target.value)}
+                                    required
+                                ></textarea>
                             </div>
-                            <button type="submit" className="btn-submit-support" onClick={() => toast.success("Message sent! (Mock Action)")}>
-                                <i className="fas fa-paper-plane"></i> Send Message
+                            <button type="submit" className="btn-submit-support">
+                                <i className="fas fa-paper-plane"></i> Send Email
                             </button>
                         </form>
                     </div>

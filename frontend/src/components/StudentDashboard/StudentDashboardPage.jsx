@@ -17,23 +17,56 @@ const WelcomeBanner = ({ studentName, studentId }) => (
     </div>
 );
 
-const StudentSummaryCard = ({ iconClass, value, title, iconBgClass }) => (
+const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor }) => (
     <div className="card student-summary-card">
         <div className={`summary-icon-container ${iconBgClass}`}>
             <i className={iconClass}></i>
         </div>
         <div className="summary-value">{value}</div>
         <div className="summary-title">{title}</div>
+        {subtitle && (
+            <div className="summary-subtitle" style={{ color: subtitleColor || '#888', fontWeight: 600, fontSize: '0.75em', marginTop: '2px' }}>
+                {subtitle}
+            </div>
+        )}
     </div>
 );
 
-const StudentSummaryCards = ({ stats }) => (
-    <div className="student-summary-cards-container">
-        <StudentSummaryCard iconClass="fas fa-user-check" value={stats.attendanceRate} title="Attendance Rate" iconBgClass="s-attendance-bg" />
-        <StudentSummaryCard iconClass="fas fa-book" value={stats.courses} title="Enrolled Courses" iconBgClass="s-courses-bg" />
-        <StudentSummaryCard iconClass="fas fa-clock" value="On Time" title="Punctuality" iconBgClass="s-access-bg" />
-    </div>
-);
+const StudentSummaryCards = ({ stats, metrics }) => {
+    const attTier = metrics ? metrics.attendance_tier : null;
+    const puncTier = metrics ? metrics.punctuality_tier : null;
+    const attColor = metrics ? metrics.attendance_tier_color : '#888';
+    const puncColor = metrics ? metrics.punctuality_tier_color : '#888';
+    const attRate = metrics ? `${metrics.attendance_rate}%` : stats.attendanceRate;
+    const puncRate = metrics ? `${metrics.punctuality_rate}%` : '--';
+
+    return (
+        <div className="student-summary-cards-container">
+            <StudentSummaryCard
+                iconClass="fas fa-user-check"
+                value={attRate}
+                title="Attendance Rate"
+                iconBgClass="s-attendance-bg"
+                subtitle={attTier}
+                subtitleColor={attColor}
+            />
+            <StudentSummaryCard
+                iconClass="fas fa-book"
+                value={stats.courses}
+                title="Enrolled Courses"
+                iconBgClass="s-courses-bg"
+            />
+            <StudentSummaryCard
+                iconClass="fas fa-clock"
+                value={puncRate}
+                title="Punctuality Rate"
+                iconBgClass="s-access-bg"
+                subtitle={puncTier}
+                subtitleColor={puncColor}
+            />
+        </div>
+    );
+};
 
 // --- RIGHT PANEL COMPONENTS ---
 
@@ -91,6 +124,65 @@ const LiveClassStatus = ({ recentLog }) => {
     );
 };
 
+// --- METRICS PANEL COMPONENT ---
+const StudentMetricsPanel = ({ metrics }) => {
+    if (!metrics) return null;
+
+    const renderMeter = (rate, color, label) => {
+        const pct = Math.min(Math.max(rate, 0), 100);
+        return (
+            <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.85em', fontWeight: 600, color: '#444' }}>{label}</span>
+                    <span style={{ fontSize: '0.85em', fontWeight: 700, color }}>{pct}%</span>
+                </div>
+                <div style={{ background: '#f0f0f0', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', borderRadius: '6px', background: color, transition: 'width 0.5s ease' }} />
+                </div>
+            </div>
+        );
+    };
+
+    const renderTierBadge = (tier, color) => (
+        <span style={{
+            display: 'inline-block',
+            padding: '2px 10px',
+            borderRadius: '12px',
+            fontSize: '0.72em',
+            fontWeight: 700,
+            color: '#fff',
+            background: color,
+        }}>
+            {tier}
+        </span>
+    );
+
+    return (
+        <div className="card" style={{ padding: '16px 18px' }}>
+            <h3 style={{ margin: '0 0 14px 0', fontSize: '1em', color: '#333' }}>
+                <i className="fas fa-chart-bar" style={{ marginRight: '8px', color: '#5c67f2' }}></i>
+                Performance Metrics
+            </h3>
+
+            {renderMeter(metrics.attendance_rate, metrics.attendance_tier_color, 'Attendance Rate')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.78em', color: '#666' }}>
+                    {metrics.sessions_attended} / {metrics.total_sessions} sessions
+                </span>
+                {renderTierBadge(metrics.attendance_tier, metrics.attendance_tier_color)}
+            </div>
+
+            {renderMeter(metrics.punctuality_rate, metrics.punctuality_tier_color, 'Punctuality Rate')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.78em', color: '#666' }}>
+                    {metrics.on_time_arrivals} on-time / {metrics.late_arrivals} late
+                </span>
+                {renderTierBadge(metrics.punctuality_tier, metrics.punctuality_tier_color)}
+            </div>
+        </div>
+    );
+};
+
 // ... (Recent Attendance Component skipped as it mostly depends on CSS) ... 
 const StudentRecentAttendance = ({ logs }) => (
     <div className="card student-recent-attendance">
@@ -133,7 +225,7 @@ const StudentRecentAttendance = ({ logs }) => (
 
 const AttendanceTrendChart = ({ logs }) => {
     // 1. Local State for Filters
-    const [timeFilter, setTimeFilter] = useState('MONTHLY'); // 'WEEKLY', 'MONTHLY', 'YEARLY'
+    const [timeFilter, setTimeFilter] = useState('MONTHLY'); // 'WEEKLY', 'MONTHLY', 'SEMESTRAL'
     const [typeFilter, setTypeFilter] = useState('ALL'); // 'ALL', 'PRESENT', 'ABSENT', 'BREAK'
     const [hoveredIndex, setHoveredIndex] = useState(null);
 
@@ -192,7 +284,7 @@ const AttendanceTrendChart = ({ logs }) => {
                 });
             });
 
-        } else if (timeFilter === 'YEARLY') {
+        } else if (timeFilter === 'SEMESTRAL') {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const currentYear = now.getFullYear();
 
@@ -214,7 +306,7 @@ const AttendanceTrendChart = ({ logs }) => {
 
         if (safeLogs.length === 0) {
             // Generate realistic dummy data based on filter
-            if (timeFilter === 'YEARLY') {
+            if (timeFilter === 'SEMESTRAL') {
                 return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 30) + 20, break: Math.floor(Math.random() * 10) }));
             } else if (timeFilter === 'MONTHLY') {
                 return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 10) + 5, break: Math.floor(Math.random() * 5) }));
@@ -228,7 +320,7 @@ const AttendanceTrendChart = ({ logs }) => {
     // 3. Determine Insight Text
     const insightText = useMemo(() => {
         const total = chartData.reduce((acc, curr) => acc + curr.present, 0);
-        if (timeFilter === 'YEARLY') return `Total ${total} attendances recorded this year.`;
+        if (timeFilter === 'SEMESTRAL') return `Total ${total} attendances recorded this semester.`;
         if (timeFilter === 'MONTHLY') return `You have attended ${total} classes this month.`;
         return `Performance for the last 7 days: ${total} present.`;
     }, [chartData, timeFilter]);
@@ -266,7 +358,7 @@ const AttendanceTrendChart = ({ logs }) => {
 
                 <div className="chart-filters-group">
                     <div className="filter-pill-group">
-                        {['WEEKLY', 'MONTHLY', 'YEARLY'].map(t => (
+                        {['WEEKLY', 'MONTHLY', 'SEMESTRAL'].map(t => (
                             <button
                                 key={t}
                                 className={`filter-pill ${timeFilter === t ? 'active' : ''}`}
@@ -426,6 +518,7 @@ const StudentDashboardPage = () => {
     });
     const [userData, setUserData] = useState({ firstName: "Student", tupm_id: "..." });
     const [allLogs, setAllLogs] = useState([]);
+    const [metrics, setMetrics] = useState(null);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -438,9 +531,10 @@ const StudentDashboardPage = () => {
 
                 const userId = storedUser.id || storedUser.user_id;
 
-                const [dashRes, histRes] = await Promise.all([
+                const [dashRes, histRes, metricsRes] = await Promise.all([
                     api.get(`/api/student/dashboard/${userId}`, { signal: controller.signal }),
-                    api.get(`/api/student/history/${userId}`, { signal: controller.signal })
+                    api.get(`/api/student/history/${userId}`, { signal: controller.signal }),
+                    api.get(`/api/student/metrics/${userId}`, { signal: controller.signal }).catch(() => null),
                 ]);
 
                 setDashboardData(prev => ({
@@ -451,6 +545,9 @@ const StudentDashboardPage = () => {
                 }));
 
                 setAllLogs(histRes.data || []);
+                if (metricsRes && metricsRes.data) {
+                    setMetrics(metricsRes.data);
+                }
                 setLoading(false);
             } catch (error) {
                 if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
@@ -474,11 +571,14 @@ const StudentDashboardPage = () => {
         <div className="student-content-grid">
             <WelcomeBanner studentName={userData.first_name || userData.firstName} studentId={userData.tupm_id} />
 
-            <StudentSummaryCards stats={{
-                attendanceRate: dashboardData.attendance_rate || "0%",
-                courses: dashboardData.enrolled_courses || 0,
-                notifCount: (dashboardData.notifications || []).filter(n => !n.is_read).length
-            }} />
+            <StudentSummaryCards
+                stats={{
+                    attendanceRate: dashboardData.attendance_rate || "0%",
+                    courses: dashboardData.enrolled_courses || 0,
+                    notifCount: (dashboardData.notifications || []).filter(n => !n.is_read).length
+                }}
+                metrics={metrics}
+            />
 
             {/* NEW 2-COLUMN LAYOUT */}
             <div className="dashboard-main-layout">
@@ -490,6 +590,7 @@ const StudentDashboardPage = () => {
                 {/* RIGHT: 30% Status & History */}
                 <div className="dashboard-right-column">
                     <LiveClassStatus recentLog={latestLog} />
+                    <StudentMetricsPanel metrics={metrics} />
                     <StudentRecentAttendance logs={dashboardData.recent_attendance} />
                 </div>
             </div>

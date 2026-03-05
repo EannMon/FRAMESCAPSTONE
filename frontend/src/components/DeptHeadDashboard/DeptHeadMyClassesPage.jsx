@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
+import { formatTo12Hr } from '../../utils/timeUtils';
 import './DeptHeadMyClassesPage.css';
 
 
@@ -38,6 +39,7 @@ const DeptHeadMyClassesPage = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadedSchedules, setUploadedSchedules] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadMessage, setUploadMessage] = useState('');
     const [semester, setSemester] = useState('');
     const [academicYear, setAcademicYear] = useState('');
@@ -179,6 +181,7 @@ const DeptHeadMyClassesPage = () => {
         }
 
         setIsUploading(true);
+        setUploadProgress(0);
         setUploadMessage('Parsing schedule...');
 
         const formData = new FormData();
@@ -189,14 +192,43 @@ const DeptHeadMyClassesPage = () => {
             const response = await api.post(
                 '/api/faculty/parse-schedule',
                 formData,
-                { headers: { 'Content-Type': 'multipart/form-data' } }
+                {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: 120000, // 2 min for large PDFs
+                    onUploadProgress: (progressEvent) => {
+                        const pct = progressEvent.total
+                            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                            : 0;
+                        setUploadProgress(pct);
+                    },
+                }
             );
 
             if (response.data.success) {
+                // Validate parsed schedule against dept settings (Task 45)
+                const parsedSem = response.data.semester || '';
+                const parsedAy = response.data.academic_year || '';
+                const mismatchParts = [];
+                if (semester && parsedSem && parsedSem !== semester) {
+                    mismatchParts.push(`Semester: file says "${parsedSem}" but department is set to "${semester}"`);
+                }
+                if (academicYear && parsedAy && parsedAy !== academicYear) {
+                    mismatchParts.push(`Academic Year: file says "${parsedAy}" but department is set to "${academicYear}"`);
+                }
+                if (mismatchParts.length > 0) {
+                    // TEMP OVERRIDE: ignore mismatch, use department head settings
+                    console.warn('[TEMP] Semester/AY mismatch detected — overriding with department settings:', mismatchParts);
+                    // Override parsed data semester/AY with the locked dept values
+                    response.data.semester = semester || response.data.semester;
+                    response.data.academic_year = academicYear || response.data.academic_year;
+                }
+
                 // Store parsed data and switch to preview
                 setPreviewData(response.data);
-                if (response.data.semester) setSemester(response.data.semester);
-                if (response.data.academic_year) setAcademicYear(response.data.academic_year);
+                if (semester) setSemester(semester);
+                else if (response.data.semester) setSemester(response.data.semester);
+                if (academicYear) setAcademicYear(academicYear);
+                else if (response.data.academic_year) setAcademicYear(response.data.academic_year);
                 setUploadMessage('');
                 setSelectedFile(null);
                 setSubView('preview');
@@ -221,7 +253,9 @@ const DeptHeadMyClassesPage = () => {
                 academic_year: academicYear,
                 courses: previewData.courses
             };
-            const response = await api.post('/api/faculty/confirm-schedule', payload);
+            const response = await api.post('/api/faculty/confirm-schedule', payload, {
+                timeout: 120000, // 2 min for saving many students
+            });
             toast.success(`✅ ${response.data.message}`);
             setPreviewData(null);
             setSubView('main');
@@ -542,7 +576,7 @@ const DeptHeadMyClassesPage = () => {
                             <span className="faculty-class-code">{cls.subject_code}</span>
                         </div>
                         <div className="faculty-class-details">
-                            <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {cls.start_time}</div>
+                            <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {formatTo12Hr(cls.start_time)}</div>
                             <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
                             <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
                         </div>
@@ -775,9 +809,9 @@ const DeptHeadMyClassesPage = () => {
     const renderUploadView = () => (
         <div className="upload-container fade-in">
             <div className="upload-section card">
-                <h3>📚 Upload Course Schedule (PDF)</h3>
+                <h3><i className="fas fa-book" style={{ marginRight: '8px' }}></i>Upload Course Schedule (PDF)</h3>
                 <p className="info-text">
-                    Upload your COR/Schedule PDF to automatically create courses and enroll students
+                    Upload your Schedule PDF to automatically create courses and enroll students
                 </p>
 
                 <div className="form-group">
@@ -813,7 +847,9 @@ const DeptHeadMyClassesPage = () => {
                     disabled={isUploading}
                     className="upload-btn"
                 >
-                    {isUploading ? '⏳ Parsing...' : '📄 Upload & Preview'}
+                    {isUploading
+                        ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 6 }}></i> Parsing... {uploadProgress}%</>
+                        : <><i className="fas fa-file-upload" style={{ marginRight: 6 }}></i> Upload &amp; Preview</>}
                 </button>
 
                 {uploadMessage && (
@@ -885,7 +921,7 @@ const DeptHeadMyClassesPage = () => {
                                 <h4>{course.subject_code} — {course.subject_name}</h4>
                                 <p className="preview-detail-row">
                                     <span><i className="fas fa-calendar-day"></i> {course.day}</span>
-                                    <span><i className="fas fa-clock"></i> {course.start_time} - {course.end_time}</span>
+                                    <span><i className="fas fa-clock"></i> {formatTo12Hr(course.start_time)} - {formatTo12Hr(course.end_time)}</span>
                                     <span><i className="fas fa-users"></i> {course.section}</span>
                                     <span><i className="fas fa-map-marker-alt"></i> {course.venue}</span>
                                 </p>

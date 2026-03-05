@@ -19,6 +19,22 @@ import psycopg2
 from psycopg2.extras import DictCursor
 import json
 
+# Auto-load backend/.env so DATABASE_URL is available when running this script directly
+# Walks up from this file's location until it finds a folder containing backend/.env
+def _load_backend_env():
+    current = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):  # max 6 levels up
+        candidate = os.path.join(current, 'backend', '.env')
+        if os.path.exists(candidate):
+            from dotenv import load_dotenv
+            load_dotenv(candidate)
+            print(f"✅ Loaded env from: {candidate}")
+            return
+        current = os.path.dirname(current)
+    print("⚠️  Could not find backend/.env — DATABASE_URL must be set manually")
+
+_load_backend_env()
+
 class DatabaseExporter:
     def __init__(self):
         self.db_url = os.getenv('DATABASE_URL')

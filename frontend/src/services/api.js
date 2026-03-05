@@ -31,11 +31,16 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid — clear auth and redirect to login
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('currentUser');
-            window.location.href = '/';
+            // Skip auto-logout for requests that explicitly opt out
+            // (e.g., password verification where 401 means wrong password, not expired token)
+            const skipRedirect = error.config?.skipAuthRedirect;
+            if (!skipRedirect) {
+                // Token expired or invalid — clear auth and redirect to login
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('currentUser');
+                window.location.href = '/';
+            }
         }
         if (error.code === 'ECONNABORTED') {
             console.warn('[FRAMES] Request timed out:', error.config?.url);

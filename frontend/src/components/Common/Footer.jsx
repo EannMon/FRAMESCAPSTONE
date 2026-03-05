@@ -1,5 +1,5 @@
 import React from 'react';
-import './Footer.css'; // New CSS file for the footer
+import './Footer.css';
 
 const Footer = () => {
     return (
@@ -9,15 +9,23 @@ const Footer = () => {
                 <div className="footer-column">
                     <h4>About Us</h4>
                     <p>
-                        We are dedicated to providing innovative solutions that 
-                        help our campus grow and succeed in the digital age.
+                        FRAMES — Facial Recognition Attendance and Monitoring System.
+                        A smart campus management solution powered by Raspberry Pi,
+                        featuring facial recognition for secure, automated attendance tracking.
                     </p>
-                    {/* Social icons from the image (optional) */}
                     <div className="footer-social-icons">
-                        <a href="#!" className="social-icon fb"><i className="fab fa-facebook-f"></i></a>
-                        <a href="#!" className="social-icon tw"><i className="fab fa-twitter"></i></a>
-                        <a href="#!" className="social-icon ig"><i className="fab fa-instagram"></i></a>
-                        <a href="#!" className="social-icon li"><i className="fab fa-linkedin-in"></i></a>
+                        <a href="https://www.facebook.com/dencmiks/" target="_blank" rel="noopener noreferrer" className="social-icon fb" aria-label="Facebook">
+                            <i className="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="https://x.com/" target="_blank" rel="noopener noreferrer" className="social-icon tw" aria-label="X (formerly Twitter)">
+                            <i className="fa-brands fa-x-twitter"></i>
+                        </a>
+                        <a href="https://www.instagram.com/_moneann/" target="_blank" rel="noopener noreferrer" className="social-icon ig" aria-label="Instagram">
+                            <i className="fab fa-instagram"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/in/angelica-terana-524297258" target="_blank" rel="noopener noreferrer" className="social-icon li" aria-label="LinkedIn">
+                            <i className="fab fa-linkedin-in"></i>
+                        </a>
                     </div>
                 </div>
 
@@ -27,23 +35,24 @@ const Footer = () => {
                     <ul className="contact-list">
                         <li>
                             <i className="fas fa-map-marker-alt"></i>
-                            <span>Ayala Blvd., Ermita, Manila 1000, Philippines</span>
+                            <a href="https://maps.google.com/?q=Ayala+Blvd+Ermita+Manila+Philippines" target="_blank" rel="noopener noreferrer">
+                                Ayala Blvd., Ermita, Manila 1000, Philippines
+                            </a>
                         </li>
                         <li>
                             <i className="fas fa-phone-alt"></i>
-                            <span>+1 (234) 567-890</span>
+                            <a href="tel:09669837650">0966 983 7650</a>
                         </li>
                         <li>
                             <i className="fas fa-envelope"></i>
-                            <span>contact@university.edu</span>
+                            <a href="mailto:framessys01@gmail.com">framessys01@gmail.com</a>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            {/* Bottom Copyright Bar */}
             <div className="footer-bottom-bar">
-                <p>© 2025 FRAMES. All rights reserved.</p>
+                <p>&copy; {new Date().getFullYear()} FRAMES. All rights reserved.</p>
             </div>
         </footer>
     );

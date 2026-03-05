@@ -1,22 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { formatTo12Hr } from '../../utils/timeUtils';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './SchedulePage.css';
-
-/**
- * Converts 24-hour time string (e.g. "22:45:00") to 12-hour format ("10:45 PM").
- * Returns '—' if input is null/undefined.
- */
-const formatTo12Hr = (timeStr) => {
-  if (!timeStr) return '—';
-  const parts = timeStr.split(':');
-  let hours = parseInt(parts[0], 10);
-  const minutes = parts[1] || '00';
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${ampm}`;
-};
 
 const ClassItem = ({ time, title, subjectCode, room, professor, section }) => (
   <div className="week-class-item">

@@ -2,7 +2,7 @@
 ## Complete Field-Level Reference for All Database Entities
 
 **FRAMES** — Facial Recognition Attendance and Monitoring System  
-**Version:** 2.0 | **Date:** March 4, 2026  
+**Version:** 3.0 | **Date:** February 27, 2026  
 **Database:** PostgreSQL 15 (Aiven Cloud) | **ORM:** SQLAlchemy 2.x
 
 ---
@@ -12,25 +12,25 @@
 1. [Purpose](#-purpose)
 2. [Conventions Used](#-conventions-used)
 3. [Enum Reference](#-enum-reference)
-4. [Table: departments](#-table-departments)
-5. [Table: programs](#-table-programs)
-6. [Table: subjects](#-table-subjects)
-7. [Table: users](#-table-users)
-8. [Table: facial_profiles](#-table-facial_profiles)
-9. [Table: classes](#-table-classes)
-10. [Table: enrollments](#-table-enrollments)
-11. [Table: devices](#-table-devices)
-12. [Table: attendance_logs](#-table-attendance_logs)
-13. [Table: session_exceptions](#-table-session_exceptions)
-14. [Table: security_logs](#-table-security_logs)
-15. [Table: audit_logs](#-table-audit_logs)
-16. [Table: system_metrics](#-table-system_metrics)
-15. [Table: support_tickets](#-table-support_tickets)
-16. [Table: user_settings](#-table-user_settings)
-17. [Cross-Reference: Foreign Key Map](#-cross-reference-foreign-key-map)
-18. [Cross-Reference: Enum Usage Map](#-cross-reference-enum-usage-map)
-19. [Data Volume Estimates](#-data-volume-estimates)
-20. [Changelog](#-changelog)
+4. [Table: colleges](#-table-colleges)
+5. [Table: departments](#-table-departments)
+6. [Table: programs](#-table-programs)
+7. [Table: subjects](#-table-subjects)
+8. [Table: users](#-table-users)
+9. [Table: facial_profiles](#-table-facial_profiles)
+10. [Table: classes](#-table-classes)
+11. [Table: enrollments](#-table-enrollments)
+12. [Table: devices](#-table-devices)
+13. [Table: attendance_logs](#-table-attendance_logs)
+14. [Table: session_exceptions](#-table-session_exceptions)
+15. [Table: notifications](#-table-notifications)
+16. [Table: security_logs](#-table-security_logs)
+17. [Table: audit_logs](#-table-audit_logs)
+18. [Table: system_metrics](#-table-system_metrics)
+19. [Cross-Reference: Foreign Key Map](#-cross-reference-foreign-key-map)
+20. [Cross-Reference: Enum Usage Map](#-cross-reference-enum-usage-map)
+21. [Data Volume Estimates](#-data-volume-estimates)
+22. [Changelog](#-changelog)
 
 ---
 
@@ -122,15 +122,6 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | `CANCELLED` | Class cancelled | No attendance expected |
 | `HOLIDAY` | Holiday — no classes | No attendance expected |
 
-### `ticketstatus`
-
-| Value | Description | Used By |
-|-------|-------------|----------|
-| `OPEN` | Newly submitted ticket, awaiting review | Support Tickets |
-| `IN_PROGRESS` | Ticket is being addressed by admin/support | Support Tickets |
-| `RESOLVED` | Issue has been resolved | Support Tickets |
-| `CLOSED` | Ticket closed (resolved or declined) | Support Tickets |
-
 ### `securityeventtype`
 
 | Value | Description | Severity |
@@ -140,25 +131,66 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | `SPOOF_ATTEMPT` | Suspected photo/video spoof detected | High |
 | `UNAUTHORIZED_ACCESS` | Recognized user attempted unauthorized action | High |
 
+### `notificationtype`
+
+| Value | Description | Triggered By |
+|-------|-------------|-------------|
+| `ATTENDANCE_ENTRY` | Student entered a classroom | Kiosk ENTRY log |
+| `ATTENDANCE_BREAK` | Student went on break | Kiosk BREAK_OUT log |
+| `ATTENDANCE_EXIT` | Student exited class | Kiosk EXIT log |
+| `LATE_ALERT` | Student arrived late | ENTRY with `is_late = true` |
+| `ABSENT_CONSECUTIVE` | Student absent for multiple consecutive sessions | Background check |
+| `SESSION_EXCEPTION` | Class session exception created (online, cancelled, holiday) | Faculty/admin action |
+| `VERIFICATION_APPROVED` | User account was verified | Admin/head approval |
+| `VERIFICATION_REJECTED` | User account was rejected | Admin/head rejection |
+| `SYSTEM_ALERT` | System-level alert (maintenance, etc.) | System admin |
+| `GENERAL` | General notification | Various |
+
+---
+
+## 📋 Table: `colleges`
+
+**Category:** 🏫 Academic Structure  
+**Purpose:** Stores academic colleges (e.g., College of Science). Colleges contain departments.  
+**ORM Model:** `backend/models/college.py` → `College`  
+**Estimated Volume:** 3–10 records (very slow growth)
+
+| # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
+|---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
+| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique college identifier | `1` | System-generated |
+| 2 | `name` | `varchar(150)` | UK, NN | — | No | Full college name | `"College of Science"` | 1–150 chars, must be unique |
+| 3 | `code` | `varchar(20)` | UK | — | Yes | Abbreviated code | `"COS"` | 1–20 chars, uppercase preferred, must be unique |
+| 4 | `created_at` | `timestamp` | — | `NOW()` | Yes | Record creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
+
+**Relationships:**
+- Parent of `departments` (1:N via `departments.college_id`)
+
 ---
 
 ## 📋 Table: `departments`
 
 **Category:** 🏫 Academic Structure  
-**Purpose:** Stores academic departments/colleges in the university  
+**Purpose:** Stores academic departments within colleges  
 **ORM Model:** `backend/models/department.py` → `Department`  
 **Estimated Volume:** 5–15 records (slow growth)
 
 | # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
 |---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
 | 1 | `id` | `serial4` | PK | Auto-increment | No | Unique department identifier | `1` | System-generated |
-| 2 | `name` | `varchar(100)` | UK, NN | — | No | Full department name | `"College of Industrial Technology"` | 1–100 chars, must be unique |
-| 3 | `code` | `varchar(20)` | UK | — | Yes | Abbreviated code | `"CIT"` | 1–20 chars, uppercase preferred, must be unique |
-| 4 | `active_academic_year` | `varchar(20)` | — | `'2025-2026'` | Yes | Currently active academic year for this department | `"2025-2026"` | Format: YYYY-YYYY |
-| 5 | `active_semester` | `varchar(50)` | — | `'2nd Semester'` | Yes | Currently active semester for this department | `"2nd Semester"` | E.g., "1st Semester", "2nd Semester", "Summer" |
-| 6 | `created_at` | `timestamp` | — | `NOW()` | Yes | Record creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
+| 2 | `name` | `varchar(100)` | UK, NN | — | No | Full department name | `"Computer Studies Department"` | 1–100 chars, must be unique |
+| 3 | `code` | `varchar(20)` | UK | — | Yes | Abbreviated code | `"CSD"` | 1–20 chars, uppercase preferred, must be unique |
+| 4 | `college_id` | `int4` | FK → `colleges.id`, IDX | — | Yes | Parent college | `1` | Must reference existing college (nullable for legacy data) |
+| 5 | `active_academic_year` | `varchar(20)` | — | — | Yes | Currently active academic year for this department | `"2025-2026"` | Format: YYYY-YYYY; set by department head |
+| 6 | `active_semester` | `varchar(50)` | — | — | Yes | Currently active semester for this department | `"1st Semester"` | E.g., "1st Semester", "2nd Semester", "Summer"; set by department head |
+| 7 | `semester_start_date` | `date` | — | — | Yes | Start date of the active semester | `2026-01-06` | Valid date; set by department head |
+| 8 | `semester_end_date` | `date` | — | — | Yes | End date of the active semester | `2026-05-15` | Valid date; must be after `semester_start_date` |
+| 9 | `created_at` | `timestamp` | — | `NOW()` | Yes | Record creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
+
+**Indexes:**
+- `ix_departments_college_id` on `college_id` — fast college-scoped lookups
 
 **Relationships:**
+- Child of `colleges` (N:1 via `college_id`)
 - Parent of `programs` (1:N via `programs.department_id`)
 - Parent of `users` (1:N via `users.department_id`)
 
@@ -215,9 +247,9 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
 |---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
 | 1 | `id` | `serial4` | PK | Auto-increment | No | Unique user identifier | `1` | System-generated |
-| 2 | `email` | `varchar(255)` | UK, NN | — | No | Login email address | `"john.doe@tup.edu.ph"` | Valid email format, unique |
+| 2 | `email` | `varchar(255)` | UK | — | Yes | Login email address | `"john.doe@tup.edu.ph"` | Valid email format, unique; nullable for legacy/migration records |
 | 3 | `password_hash` | `varchar(255)` | NN | — | No | Bcrypt-hashed password | `"$2b$12$..."` | Bcrypt hash string, never stored as plaintext |
-| 4 | `tupm_id` | `varchar(50)` | UK, NN | — | No | TUP Manila student/faculty ID | `"TUPM-21-1234"` | Format: TUPM-YY-NNNN, unique |
+| 4 | `tupm_id` | `varchar(50)` | UK | — | Yes | TUP Manila student/faculty ID | `"TUPM-21-1234"` | Format: TUPM-YY-NNNN, unique; nullable for legacy/migration records |
 | 5 | `role` | `userrole` (enum) | NN | — | No | User role in the system | `"STUDENT"` | One of: STUDENT, FACULTY, HEAD, ADMIN |
 | 6 | `verification_status` | `verificationstatus` (enum) | — | `PENDING` | Yes | Account approval status | `"VERIFIED"` | One of: PENDING, VERIFIED, REJECTED |
 | 7 | `face_registered` | `bool` | — | `false` | Yes | Whether user completed face enrollment | `true` | Set to `true` after successful face enrollment |
@@ -240,6 +272,7 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 | 24 | `emergency_contact_address` | `varchar(255)` | — | — | Yes | Emergency contact address | `"456 Oak Ave, Manila"` | Free text |
 | 25 | `created_at` | `timestamp` | — | `NOW()` | Yes | Account creation timestamp | `2026-01-15 08:00:00` | Auto-set on creation |
 | 26 | `last_active` | `timestamp` | — | `NOW()` | Yes | Last activity timestamp | `2026-02-02 10:30:00` | Auto-updated on activity |
+| 27 | `employee_id` | `varchar(50)` | UK | — | Yes | Numeric employee ID for faculty/head users | `"12345"` | Unique; nullable for students |
 
 **Column Groups:**
 - **Authentication** (2–4): Credentials and school ID
@@ -248,6 +281,7 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 - **Academic Info** (14–20): Department, program, section, GPA
 - **Emergency Contact** (21–24): Emergency contact details
 - **Timestamps** (25–26): Creation and activity tracking
+- **Faculty-Specific** (27): Employee ID
 
 **Relationships:**
 - Child of `departments` (N:1 via `department_id`)
@@ -258,8 +292,7 @@ All enum types used across the FRAMES database. These are PostgreSQL custom type
 - Parent of `attendance_logs` (1:N via `attendance_logs.user_id`, CASCADE DELETE)
 - Parent of `audit_logs` (1:N via `audit_logs.user_id`)
 - Parent of `session_exceptions` as creator (1:N via `session_exceptions.created_by`)
-- Parent of `support_tickets` (1:N via `support_tickets.user_id`)
-- Parent of `user_settings` (1:1 via `user_settings.user_id`)
+- Parent of `notifications` (1:N via `notifications.user_id`, CASCADE DELETE)
 
 ---
 
@@ -547,52 +580,34 @@ After EXIT → ENTRY again (new cycle within same day)
 
 ---
 
-## � Table: `support_tickets`
+## 📋 Table: `notifications`
 
-**Category:** 🔧 Support & Settings  
-**Purpose:** Stores user-submitted support tickets for issue tracking and help requests  
-**ORM Model:** `backend/models/support_ticket.py` → `SupportTicket`  
-**Estimated Volume:** 50–500 records (event-driven)
-
-| # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
-|---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
-| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique ticket identifier | `1` | System-generated |
-| 2 | `user_id` | `int4` | FK → `users.id`, NN, IDX | — | No | User who submitted the ticket | `10` | Must reference existing user |
-| 3 | `subject` | `varchar(200)` | NN | — | No | Ticket subject/title | `"Cannot access schedule page"` | 1–200 chars |
-| 4 | `message` | `text` | NN | — | No | Full description of the issue | `"When I click on Schedule..."` | Free text, no max length |
-| 5 | `status` | `ticketstatus` (enum) | — | `'OPEN'` | Yes | Current ticket status | `"OPEN"` | One of: OPEN, IN_PROGRESS, RESOLVED, CLOSED |
-| 6 | `created_at` | `timestamp` | — | `NOW()` | Yes | Ticket submission timestamp | `2026-03-01 14:30:00` | Auto-set on creation |
-
-**Indexes:**
-- `ix_support_tickets_user_id` on `user_id` — fast lookup of tickets by user
-
-**Relationships:**
-- Child of `users` (N:1 via `user_id`)
-
----
-
-## 📋 Table: `user_settings`
-
-**Category:** 🔧 Support & Settings  
-**Purpose:** Stores per-user preference settings for notifications, theme, and language  
-**ORM Model:** `backend/models/user_settings.py` → `UserSettings`  
-**Estimated Volume:** 1:1 with users (created on first settings update)
+**Category:** 🔔 Communication  
+**Purpose:** Stores user notifications for attendance events, system alerts, verification updates, and other important messages  
+**ORM Model:** `backend/models/notification.py` → `Notification`  
+**Estimated Volume:** Grows with system usage — 5–50 per user per semester
 
 | # | Column | PostgreSQL Type | Constraints | Default | Nullable | Description | Example Value | Validation Rules |
 |---|--------|----------------|-------------|---------|----------|-------------|---------------|------------------|
-| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique settings identifier | `1` | System-generated |
-| 2 | `user_id` | `int4` | FK → `users.id`, UK, NN | — | No | Associated user (one-to-one) | `10` | Must reference existing user, unique per user |
-| 3 | `email_notifications` | `bool` | — | `true` | Yes | Whether to receive email notifications | `true` | Boolean |
-| 4 | `sms_notifications` | `bool` | — | `false` | Yes | Whether to receive SMS notifications | `false` | Boolean |
-| 5 | `push_notifications` | `bool` | — | `true` | Yes | Whether to receive push notifications | `true` | Boolean |
-| 6 | `theme` | `varchar(20)` | — | `'light'` | Yes | UI theme preference | `"dark"` | E.g., "light", "dark" |
-| 7 | `language` | `varchar(10)` | — | `'en'` | Yes | Preferred language code | `"en"` | ISO 639-1 code (e.g., "en", "fil") |
+| 1 | `id` | `serial4` | PK | Auto-increment | No | Unique notification identifier | `1` | System-generated |
+| 2 | `user_id` | `int4` | FK → `users.id`, NN, IDX | — | No | Recipient user | `10` | Must reference existing user; CASCADE on delete |
+| 3 | `notification_type` | `notificationtype` (enum) | NN, IDX | — | No | Type of notification | `"LATE_ALERT"` | One of: ATTENDANCE_ENTRY, ATTENDANCE_BREAK, ATTENDANCE_EXIT, LATE_ALERT, ABSENT_CONSECUTIVE, SESSION_EXCEPTION, VERIFICATION_APPROVED, VERIFICATION_REJECTED, SYSTEM_ALERT, GENERAL |
+| 4 | `title` | `varchar(200)` | NN | — | No | Short notification title | `"Late Arrival"` | 1–200 chars |
+| 5 | `message` | `varchar(500)` | NN | — | No | Full notification message | `"You arrived 12 minutes late to CPE101"` | 1–500 chars |
+| 6 | `is_read` | `bool` | IDX | `false` | Yes | Whether the user has read this notification | `false` | Boolean |
+| 7 | `reference_id` | `int4` | — | — | Yes | Associated record ID for navigation context | `42` | E.g., attendance_log_id, class_id, or user_id |
+| 8 | `reference_type` | `varchar(50)` | — | — | Yes | Type of the referenced entity | `"attendance_log"` | E.g., "attendance_log", "class", "user" |
+| 9 | `created_at` | `timestamp` | IDX | `NOW()` | Yes | Notification creation timestamp | `2026-03-01 14:30:00` | Auto-set on creation |
 
 **Indexes:**
-- `ix_user_settings_user_id` (unique) on `user_id` — enforces one settings record per user
+- `ix_notifications_user_id` on `user_id` — fast lookup of notifications by user
+- `ix_notifications_notification_type` on `notification_type` — filter by type
+- `ix_notifications_is_read` on `is_read` — unread count queries
+- `ix_notifications_created_at` on `created_at` — chronological ordering
+- `ix_notification_user_unread` composite on (`user_id`, `is_read`, `created_at`) — optimized unread query
 
 **Relationships:**
-- Child of `users` (1:1 via `user_id`)
+- Child of `users` (N:1 via `user_id`, CASCADE DELETE)
 
 ---
 
@@ -602,24 +617,24 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 
 | # | Child Table | FK Column | Parent Table | Parent Column | ON DELETE | Index Required |
 |---|-------------|-----------|--------------|---------------|-----------|----------------|
-| 1 | `programs` | `department_id` | `departments` | `id` | NO ACTION | Yes |
-| 2 | `users` | `department_id` | `departments` | `id` | NO ACTION | Yes |
-| 3 | `users` | `program_id` | `programs` | `id` | NO ACTION | Yes |
-| 4 | `facial_profiles` | `user_id` | `users` | `id` | CASCADE | Yes (+ UK) |
-| 5 | `classes` | `subject_id` | `subjects` | `id` | NO ACTION | Yes |
-| 6 | `classes` | `faculty_id` | `users` | `id` | NO ACTION | Yes |
-| 7 | `enrollments` | `class_id` | `classes` | `id` | CASCADE | Yes |
-| 8 | `enrollments` | `student_id` | `users` | `id` | CASCADE | Yes |
-| 9 | `attendance_logs` | `user_id` | `users` | `id` | NO ACTION | Yes |
-| 10 | `attendance_logs` | `class_id` | `classes` | `id` | NO ACTION | Yes |
-| 11 | `attendance_logs` | `device_id` | `devices` | `id` | NO ACTION | Yes |
-| 12 | `session_exceptions` | `class_id` | `classes` | `id` | NO ACTION | Yes |
-| 13 | `session_exceptions` | `created_by` | `users` | `id` | NO ACTION | Yes |
-| 14 | `security_logs` | `device_id` | `devices` | `id` | NO ACTION | Yes |
-| 15 | `audit_logs` | `user_id` | `users` | `id` | NO ACTION | Yes |
-| 16 | `system_metrics` | `device_id` | `devices` | `id` | NO ACTION | Yes |
-| 17 | `support_tickets` | `user_id` | `users` | `id` | NO ACTION | Yes |
-| 18 | `user_settings` | `user_id` | `users` | `id` | NO ACTION | Yes (+ UK) |
+| 1 | `departments` | `college_id` | `colleges` | `id` | NO ACTION | Yes |
+| 2 | `programs` | `department_id` | `departments` | `id` | NO ACTION | Yes |
+| 3 | `users` | `department_id` | `departments` | `id` | NO ACTION | Yes |
+| 4 | `users` | `program_id` | `programs` | `id` | NO ACTION | Yes |
+| 5 | `facial_profiles` | `user_id` | `users` | `id` | CASCADE | Yes (+ UK) |
+| 6 | `classes` | `subject_id` | `subjects` | `id` | NO ACTION | Yes |
+| 7 | `classes` | `faculty_id` | `users` | `id` | NO ACTION | Yes |
+| 8 | `enrollments` | `class_id` | `classes` | `id` | CASCADE | Yes |
+| 9 | `enrollments` | `student_id` | `users` | `id` | CASCADE | Yes |
+| 10 | `attendance_logs` | `user_id` | `users` | `id` | NO ACTION | Yes |
+| 11 | `attendance_logs` | `class_id` | `classes` | `id` | NO ACTION | Yes |
+| 12 | `attendance_logs` | `device_id` | `devices` | `id` | NO ACTION | Yes |
+| 13 | `session_exceptions` | `class_id` | `classes` | `id` | NO ACTION | Yes |
+| 14 | `session_exceptions` | `created_by` | `users` | `id` | NO ACTION | Yes |
+| 15 | `notifications` | `user_id` | `users` | `id` | CASCADE | Yes |
+| 16 | `security_logs` | `device_id` | `devices` | `id` | NO ACTION | Yes |
+| 17 | `audit_logs` | `user_id` | `users` | `id` | NO ACTION | Yes |
+| 18 | `system_metrics` | `device_id` | `devices` | `id` | NO ACTION | Yes |
 
 ---
 
@@ -634,7 +649,7 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | `verifiedby` | `attendance_logs` | `verified_by` | FACE, FACE+GESTURE |
 | `exceptiontype` | `session_exceptions` | `exception_type` | ONSITE, ONLINE, CANCELLED, HOLIDAY |
 | `securityeventtype` | `security_logs` | `event_type` | UNRECOGNIZED_FACE, GESTURE_FAILURE, SPOOF_ATTEMPT, UNAUTHORIZED_ACCESS |
-| `ticketstatus` | `support_tickets` | `status` | OPEN, IN_PROGRESS, RESOLVED, CLOSED |
+| `notificationtype` | `notifications` | `notification_type` | ATTENDANCE_ENTRY, ATTENDANCE_BREAK, ATTENDANCE_EXIT, LATE_ALERT, ABSENT_CONSECUTIVE, SESSION_EXCEPTION, VERIFICATION_APPROVED, VERIFICATION_REJECTED, SYSTEM_ALERT, GENERAL |
 
 ---
 
@@ -642,7 +657,8 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 
 | Entity | Expected Records | Growth Rate | Storage per Record | Notes |
 |--------|-----------------|-------------|-------------------|-------|
-| `departments` | 5–15 | Very slow | ~150 bytes | Static reference data |
+| `colleges` | 3–10 | Very slow | ~100 bytes | Top-level academic grouping |
+| `departments` | 5–15 | Very slow | ~200 bytes | Static reference data; now linked to colleges |
 | `programs` | 20–50 | Slow | ~150 bytes | Static reference data |
 | `subjects` | 50–200 | Per semester | ~300 bytes | Grows with curriculum |
 | `users` | 1,000–5,000 | Per semester | ~1.5 KB | Students + faculty + admin |
@@ -655,8 +671,7 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | `security_logs` | Variable | Event-driven | ~2.2 KB | Includes embedding when available |
 | `audit_logs` | Grows with usage | Moderate | ~500 bytes | JSON values increase size |
 | `system_metrics` | High (time-series) | Continuous | ~100 bytes | May need retention policy |
-| `support_tickets` | 50–500 | Event-driven | ~500 bytes | Grows with user issues |
-| `user_settings` | 1:1 with users | Same as users | ~100 bytes | One per user, small rows |
+| `notifications` | 5–50 per user/semester | Moderate | ~300 bytes | Grows with attendance events and alerts |
 
 ---
 
@@ -667,10 +682,10 @@ Complete mapping of all foreign key relationships in the FRAMES database.
 | 2026-02-08 | 0.1 | Initial data dictionary draft |
 | 2026-02-23 | 1.0 | Full field-level documentation for all 13 tables; aligned with `updatedSchema` SQL dump; added new `users` columns (contact_number, birthday, home_address, emergency contacts, current_term, academic_advisor, gpa); added `classes.late_threshold_minutes`; added `attendance_logs.is_late`; added `devices.room_capacity`; updated `verificationstatus` enum values to UPPERCASE |
 | 2026-03-04 | 2.0 | Added 2 new tables: `support_tickets` (help desk tickets with ticketstatus enum), `user_settings` (per-user preferences for notifications/theme/language); added `ticketstatus` enum (OPEN, IN_PROGRESS, RESOLVED, CLOSED); added `departments.active_academic_year` (varchar(20), default '2025-2026'), `departments.active_semester` (varchar(50), default '2nd Semester'); updated FK map (18 relationships total), enum usage map, and data volume estimates; total tables now 15 |
+| 2026-02-27 | 3.0 | **Major update aligned with actual ORM models.** Added `colleges` table (college.py → College); added `notifications` table (notification.py → Notification) with `notificationtype` enum (10 values); removed `support_tickets` and `user_settings` tables (no corresponding ORM models exist — these were speculative); added 3 columns to `departments`: `college_id` (FK→colleges), `semester_start_date` (Date), `semester_end_date` (Date); removed incorrect defaults from `departments.active_academic_year` and `departments.active_semester` (no model defaults); added `users.employee_id` (varchar(50), UK, nullable); fixed `users.email` and `users.tupm_id` nullable from No→Yes (model allows null); removed `ticketstatus` enum (no model uses it); updated FK map (18 relationships, renumbered); updated enum usage map; updated data volume estimates; total tables now 16 |
 
 ---
 
 **Document verified against:**
-- DDL export (March 4, 2026)
-- SQLAlchemy models in `backend/models/`
+- SQLAlchemy models in `backend/models/` (February 27, 2026)
 - Live PostgreSQL schema on Aiven

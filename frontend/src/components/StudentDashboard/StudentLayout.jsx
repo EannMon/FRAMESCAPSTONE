@@ -44,9 +44,10 @@ const StudentSidebar = ({ user, isMobileOpen, toggleMobile, isCollapsed }) => {
 
     const navItems = [
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/student-dashboard' },
+        { name: 'My Profile', icon: 'fas fa-user', to: '/student-profile' },
         { name: 'Schedule', icon: 'fas fa-calendar-alt', to: '/student-schedule' },
         { name: 'Attendance History', icon: 'fas fa-history', to: '/student-attendance' },
-        { type: 'divider' }, // Visual separator
+        { type: 'divider' },
         { name: 'Settings', icon: 'fas fa-cog', to: '/student-settings' },
         { name: 'Help & Support', icon: 'fas fa-question-circle', to: '/student-help' },
     ];

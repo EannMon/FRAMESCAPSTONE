@@ -1,20 +1,20 @@
 {
   "device_id": 1,
-  "device_room": "Room 306",
-  "synced_at": "2026-02-28T21:22:40.861960",
+  "device_room": "Room 328",
+  "synced_at": "2026-03-05T11:12:11.000988",
   "schedule": [
     {
-      "class_id": 3,
+      "class_id": 1,
       "subject_code": "IT232-M",
-      "subject_title": "IT232-M - Computer Architecture and Organization, Lec Venue : ONLINE",
-      "faculty_id": 6,
-      "faculty_name": "Elena Fernandez",
+      "subject_title": "Computer Architecture and Organization, Lec",
+      "faculty_id": 2,
+      "faculty_name": "JERICHO  DEL SOCORRO",
       "section": "BSIT-2B-M",
-      "day_of_week": "Saturday",
-      "start_time": "20:50:00",
-      "end_time": "23:30:00",
-      "room": "Room 306",
-      "semester": "1st Semester",
+      "day_of_week": "Thursday",
+      "start_time": "11:00:00",
+      "end_time": "13:00:00",
+      "room": "Room 328",
+      "semester": "2nd Semester",
       "academic_year": "2025-2026"
     }
   ]

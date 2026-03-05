@@ -28,6 +28,7 @@ const ProfileField = ({ label, name, value, onChange, type = 'text', isEditing, 
 // NEW: Change Password Modal Component
 // ===========================================
 const PasswordModal = ({ isOpen, onClose, userId }) => {
+    const toast = useToast();
     const [step, setStep] = useState(1); // Step 1: Verify, Step 2: New Password
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -58,19 +59,27 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isOpen, onClose]);
 
-    // Step 1: Verify Current Password
+    // Step 1: Verify Current Password (skip auto-logout on 401)
     const handleVerify = async () => {
+        if (!currentPassword.trim()) {
+            setError('Please enter your current password');
+            return;
+        }
         setLoading(true);
         setError('');
         try {
             await api.post('/api/users/verify-password', {
                 user_id: userId,
                 password: currentPassword
-            });
+            }, { skipAuthRedirect: true });
             // If successful, move to step 2
             setStep(2);
         } catch (err) {
-            setError(err.response?.data?.error || "Incorrect Password");
+            if (err.response?.status === 429) {
+                setError('Too many attempts. Please try again later.');
+            } else {
+                setError(err.response?.data?.error?.message || err.response?.data?.error || 'Incorrect password. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -171,6 +180,50 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 // ===========================================
 // MAIN PAGE COMPONENT
 // ===========================================
+
+/**
+ * Derives program name from section code.
+ * For example: 'BSIT-3A-M' → 'Bachelor of Science in Information Technology'
+ */
+const PROGRAM_MAP = {
+    'BSIT': 'Bachelor of Science in Information Technology',
+    'BSCPE': 'Bachelor of Science in Computer Engineering',
+    'BSEE': 'Bachelor of Science in Electrical Engineering',
+    'BSECE': 'Bachelor of Science in Electronics Engineering',
+    'BSME': 'Bachelor of Science in Mechanical Engineering',
+    'BSCE': 'Bachelor of Science in Civil Engineering',
+    'BSIE': 'Bachelor of Science in Industrial Engineering',
+    'BSARCH': 'Bachelor of Science in Architecture',
+    'BET': 'Bachelor of Engineering Technology',
+    'BSCS': 'Bachelor of Science in Computer Science',
+};
+
+const deriveProgramFromSection = (section) => {
+    if (!section) return 'N/A';
+    // Extract program code from section (e.g., 'BSIT-3A-M' → 'BSIT')
+    const code = section.split('-')[0]?.toUpperCase();
+    return PROGRAM_MAP[code] || code || 'N/A';
+};
+
+/**
+ * Derives year level from section code.
+ * For example: 'BSIT-3A-M' → '3rd Year'
+ */
+const deriveYearFromSection = (section) => {
+    if (!section) return 'N/A';
+    // Find the first digit after the program code
+    const parts = section.split('-');
+    if (parts.length >= 2) {
+        const yearMatch = parts[1].match(/(\d)/);
+        if (yearMatch) {
+            const year = parseInt(yearMatch[1], 10);
+            const suffix = year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th';
+            return `${year}${suffix} Year`;
+        }
+    }
+    return 'N/A';
+};
+
 const MyProfilePage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
     const toast = useToast();
@@ -253,71 +306,99 @@ const MyProfilePage = ({ isEmbedded = false }) => {
                     </div>
                 )}
 
+                {/* Email Warning for Students */}
+                {isStudent && !user.email && (
+                    <div className="profile-email-warning" style={{
+                        background: '#FEF3CD', border: '1px solid #FFC107', borderRadius: '8px',
+                        padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px'
+                    }}>
+                        <i className="fas fa-exclamation-triangle" style={{ color: '#856404' }}></i>
+                        <span style={{ color: '#856404', fontSize: '0.9rem' }}>
+                            Your TUP email is not set up. Please update your email in the profile below to receive notifications and enable password recovery.
+                        </span>
+                    </div>
+                )}
+
                 {/* Summary Card */}
                 <div className="card profile-summary-card" style={{ position: 'relative' }}>
-
-                    {/* --- MOVED: EDIT BUTTONS TO TOP RIGHT OF CARD --- */}
-                    <div style={{ position: 'absolute', top: '25px', right: '25px' }}>
-                        {!isEditing ? (
-                            <button className="profile-edit-button" onClick={() => setIsEditing(true)}>
-                                <i className="fas fa-pen"></i> Edit Profile
-                            </button>
-                        ) : (
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="profile-cancel-button" onClick={() => setIsEditing(false)}>Cancel</button>
-                                <button className="profile-save-button" onClick={handleSave}>
-                                    <i className="fas fa-save"></i> Save Changes
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
                     <img
-                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=0F172A&color=fff`}
+                        src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.first_name || user.firstName || '')}+${encodeURIComponent(user.last_name || user.lastName || '')}&background=0F172A&color=fff`}
                         alt="User Avatar"
                         className="profile-avatar"
                     />
                     <div className="profile-summary-info">
-                        <h2 className="profile-name">{user.first_name || user.firstName} {user.last_name || user.lastName}</h2>
-                        <p className="profile-sub-details">ID: {user.tupm_id}</p>
-                        <p className="profile-sub-details">{user.department_name || user.college} - {user.program_name || user.course}</p>
+                        <h2 className="profile-name">{user.first_name || user.firstName} {user.middle_name ? user.middle_name + ' ' : ''}{user.last_name || user.lastName}</h2>
+                        {/* Show Employee ID for faculty/head, TUP-M ID for students */}
+                        {isStudent ? (
+                            <p className="profile-sub-details">TUP-M ID: {user.tupm_id || 'N/A'}</p>
+                        ) : (
+                            <p className="profile-sub-details">Employee ID: {user.employee_id || 'N/A'}</p>
+                        )}
+                        <p className="profile-sub-details">
+                            {user.college_name || ''}{user.college_name && user.department_name ? ' - ' : ''}{user.department_name || ''}
+                        </p>
 
-                        {/* --- EDITED: CAPITALIZED STATUS --- */}
                         <div className="profile-status-tag" style={{ textTransform: 'capitalize' }}>
                             <i className="fas fa-check-circle"></i> {user.student_status || user.faculty_status || 'Active'}
                         </div>
-
                     </div>
                 </div>
 
                 {/* Info Grid */}
                 <div className="profile-info-grid">
                     <div className="card profile-info-card">
-                        <h3>Personal Information</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <h3 style={{ margin: 0 }}>Personal Information</h3>
+                            {/* Edit button positioned in Personal Information header */}
+                            {!isEditing ? (
+                                <button className="profile-edit-button" onClick={() => setIsEditing(true)}>
+                                    <i className="fas fa-pen"></i> Edit
+                                </button>
+                            ) : (
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button className="profile-cancel-button" onClick={() => setIsEditing(false)}>Cancel</button>
+                                    <button className="profile-save-button" onClick={handleSave}>
+                                        <i className="fas fa-save"></i> Save
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <ProfileField label="First Name" name="first_name" value={user.first_name} onChange={handleChange} isEditing={isEditing} />
+                        <ProfileField label="Middle Name" name="middle_name" value={user.middle_name} onChange={handleChange} isEditing={isEditing} />
                         <ProfileField label="Last Name" name="last_name" value={user.last_name} onChange={handleChange} isEditing={isEditing} />
-                        <ProfileField label="TUPM ID" value={user.tupm_id} disabled={true} isEditing={isEditing} />
-                        <ProfileField label="Email" value={user.email} disabled={true} isEditing={isEditing} />
+                        {/* Show the correct ID field based on role */}
+                        {isStudent ? (
+                            <ProfileField label="TUP-M ID" value={user.tupm_id} disabled={true} isEditing={isEditing} />
+                        ) : (
+                            <ProfileField label="Employee ID" value={user.employee_id} disabled={true} isEditing={isEditing} />
+                        )}
+                        <ProfileField label="Email" name="email" value={user.email} onChange={handleChange} isEditing={isStudent && isEditing} disabled={!isStudent} />
                     </div>
 
-                    {/* ACADEMIC INFO: Filter based on Role */}
+                    {/* ACADEMIC INFO: Enriched with college, program, year extraction */}
                     <div className="card profile-info-card">
                         <h3>Academic Information</h3>
-                        <ProfileField label="College" value={user.department_name} disabled={true} isEditing={isEditing} />
+                        <ProfileField label="College" value={user.college_name || user.department_name || 'N/A'} disabled={true} isEditing={isEditing} />
+                        <ProfileField label="Department" value={user.department_name || 'N/A'} disabled={true} isEditing={isEditing} />
 
-                        {/* Show these only if Student */}
+                        {/* Student-specific academic fields */}
                         {isStudent && (
                             <>
-                                <ProfileField label="Course" value={user.program_name} disabled={true} isEditing={isEditing} />
-                                <ProfileField label="Year Level" value={user.year_level} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Course / Program" value={user.program_name || deriveProgramFromSection(user.section)} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Year Level" value={user.year_level || deriveYearFromSection(user.section)} disabled={true} isEditing={isEditing} />
                                 <ProfileField label="Section" value={user.section} disabled={true} isEditing={isEditing} />
-                                <ProfileField label="Term" value={user.current_term} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Academic Year" value={user.academic_year || 'N/A'} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Semester" value={user.semester || user.current_term || 'N/A'} disabled={true} isEditing={isEditing} />
                             </>
                         )}
 
-                        {/* Optional: Add specific Faculty fields here if needed */}
-                        {!isStudent && user.department_name && (
-                            <ProfileField label="Department" value={user.department_name} disabled={true} isEditing={isEditing} />
+                        {/* Faculty/Head: show programs under their department */}
+                        {!isStudent && (
+                            <>
+                                <ProfileField label="Programs" value={user.programs_list || user.program_name || 'N/A'} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Academic Year" value={user.academic_year || 'N/A'} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Semester" value={user.semester || 'N/A'} disabled={true} isEditing={isEditing} />
+                            </>
                         )}
                     </div>
                 </div>
