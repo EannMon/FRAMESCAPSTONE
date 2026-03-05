@@ -226,7 +226,7 @@ const DeptHeadLayout = () => {
         return () => document.body.classList.remove('dark-mode');
     }, []);
 
-    if (loading) return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
+    if (loading) return <div className="dashboard-loading">Loading dashboard...</div>;
     if (!user) return null;
 
     return (

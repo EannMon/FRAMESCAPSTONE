@@ -123,7 +123,7 @@ const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
                             <label>Date Range Coverage</label>
                             <div className="admin-filter-group-row">
                                 <input type="date" className="admin-filter-select" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                                <span style={{ alignSelf: 'center', color: '#888' }}>to</span>
+                                <span className="date-range-separator">to</span>
                                 <input type="date" className="admin-filter-select" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             </div>
                         </div>
@@ -310,8 +310,8 @@ const ReportsPage = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={columns.length} style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
-                                            <i className="fas fa-search" style={{ marginBottom: '10px', fontSize: '20px' }}></i><br />
+                                        <td colSpan={columns.length} className="td-empty-state-large">
+                                            <i className="fas fa-search search-icon-empty"></i><br />
                                             No data found for the selected criteria.
                                         </td>
                                     </tr>
@@ -376,7 +376,7 @@ const ReportsPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: "center", padding: "30px", color: "#888" }}>
+                                    <td colSpan="5" className="td-empty-state-large">
                                         No reports generated yet. Click a card above to start.
                                     </td>
                                 </tr>

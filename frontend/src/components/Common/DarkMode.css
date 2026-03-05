@@ -422,3 +422,2696 @@ body.dark-mode .help-card h3 {
 body.dark-mode .report-footer {
     color: #64748B;
 }
+
+/* ============================================
+   COMPREHENSIVE DARK MODE FOR ALL DASHBOARDS
+   Student, Faculty, and Dept Head
+   ============================================ */
+
+/* --- Root Level Dark Mode --- */
+html.dark-mode,
+body.dark-mode {
+    background-color: #0B1120 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode #root,
+body.dark-mode .App {
+    background-color: #0B1120 !important;
+    min-height: 100vh;
+}
+
+/* --- Dashboard Container --- */
+body.dark-mode .dashboard-container {
+    background-color: #0B1120 !important;
+    min-height: 100vh;
+}
+
+body.dark-mode .dashboard-body {
+    background-color: #0F172A !important;
+}
+
+/* ============================================
+   WELCOME BANNER - All Dashboards
+   ============================================ */
+body.dark-mode .welcome-banner {
+    background: linear-gradient(135deg, #1E293B, #0F172A) !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .welcome-avatar {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .welcome-avatar i {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .welcome-info h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .welcome-info p,
+body.dark-mode .welcome-info span {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .welcome-status {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .face-status {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode .face-status.registered {
+    background: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .face-status.not-registered {
+    background: rgba(239, 68, 68, 0.2) !important;
+    color: #F87171 !important;
+}
+
+/* ============================================
+   SUMMARY CARDS - Premium Style
+   ============================================ */
+body.dark-mode .summary-card,
+body.dark-mode .summary-card.premium,
+body.dark-mode .student-summary-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .summary-card:hover,
+body.dark-mode .summary-card.premium:hover {
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .summary-content-left {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .summary-title {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .summary-value {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .summary-sub-value {
+    color: #64748B !important;
+}
+
+body.dark-mode .summary-value-row {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .summary-badge {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .summary-badge.success {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+/* Summary Icon Containers */
+body.dark-mode .summary-icon-container,
+body.dark-mode .summary-icon,
+body.dark-mode .icon-circle {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .summary-icon-container i,
+body.dark-mode .summary-icon i,
+body.dark-mode .icon-circle i {
+    color: inherit !important;
+}
+
+/* Colored icon backgrounds */
+body.dark-mode .summary-icon-container.s-attendance-bg,
+body.dark-mode .icon-circle.green {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .summary-icon-container.s-courses-bg,
+body.dark-mode .icon-circle.blue {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .summary-icon-container.s-access-bg,
+body.dark-mode .icon-circle.amber {
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .summary-icon-container.s-notifications-bg,
+body.dark-mode .icon-circle.red {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #F87171 !important;
+}
+
+body.dark-mode .icon-circle.purple {
+    background-color: rgba(139, 92, 246, 0.2) !important;
+    color: #A78BFA !important;
+}
+
+/* ============================================
+   FACULTY DASHBOARD SPECIFIC
+   ============================================ */
+body.dark-mode .faculty-dashboard-page,
+body.dark-mode .faculty-dashboard-loading {
+    background-color: transparent !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .faculty-dashboard-loading {
+    color: #64748B !important;
+}
+
+body.dark-mode .loading-spinner {
+    border-color: #334155 !important;
+    border-top-color: #60A5FA !important;
+}
+
+/* Summary Cards Row */
+body.dark-mode .summary-cards-row {
+    background-color: transparent !important;
+}
+
+/* Faculty Stat Cards */
+body.dark-mode .stat-card,
+body.dark-mode .metric-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .stat-card h4,
+body.dark-mode .metric-card h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .stat-card p,
+body.dark-mode .metric-card p {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   DEPT HEAD DASHBOARD SPECIFIC
+   ============================================ */
+body.dark-mode .quick-actions-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .quick-actions-card h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .quick-actions-card h3 i {
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .quick-action-item {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .quick-action-item:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .quick-action-icon {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .quick-action-text {
+    color: #E2E8F0 !important;
+}
+
+/* Verification List */
+body.dark-mode .pending-verifications-list {
+    background-color: transparent !important;
+}
+
+body.dark-mode .verification-row {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .verification-row:hover {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .v-avatar {
+    background: linear-gradient(135deg, #334155, #475569) !important;
+}
+
+body.dark-mode .v-info {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .v-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .v-meta {
+    color: #64748B !important;
+}
+
+body.dark-mode .v-role-badge {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .v-role-badge.faculty {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .v-role-badge.student {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .v-role-badge.head {
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .v-btn-review {
+    background: linear-gradient(135deg, #334155, #475569) !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .v-btn-review:hover {
+    background: linear-gradient(135deg, #475569, #64748B) !important;
+}
+
+/* ============================================
+   REPORTS PAGE - All Dashboards
+   ============================================ */
+body.dark-mode .faculty-reports-page,
+body.dark-mode .dept-reports-page,
+body.dark-mode .student-reports-page {
+    background-color: transparent !important;
+}
+
+body.dark-mode .reports-header h2 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .reports-subtitle {
+    color: #64748B !important;
+}
+
+body.dark-mode .academic-year-badge {
+    background-color: #1E293B !important;
+    border-color: #475569 !important;
+    color: #94A3B8 !important;
+}
+
+/* Reports Filters Bar */
+body.dark-mode .reports-filters-bar {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .filter-group label {
+    color: #64748B !important;
+}
+
+body.dark-mode .filter-select,
+body.dark-mode .filter-input {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .filter-select:focus,
+body.dark-mode .filter-input:focus {
+    border-color: #60A5FA !important;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2) !important;
+}
+
+body.dark-mode .filter-refresh-btn {
+    background: linear-gradient(135deg, #334155, #475569) !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   MY CLASSES PAGE - Faculty & Dept Head
+   ============================================ */
+body.dark-mode .faculty-my-classes-container {
+    background-color: transparent !important;
+}
+
+body.dark-mode .view-toggle-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .view-toggle-header h2 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .toggle-buttons {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .toggle-btn {
+    color: #64748B !important;
+    background-color: transparent !important;
+}
+
+body.dark-mode .toggle-btn:hover {
+    color: #94A3B8 !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .toggle-btn.active {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* Class Cards */
+body.dark-mode .faculty-class-card,
+body.dark-mode .class-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    border-left-color: #475569 !important;
+}
+
+body.dark-mode .faculty-class-card:hover,
+body.dark-mode .class-card:hover {
+    background-color: #273548 !important;
+}
+
+body.dark-mode .class-card h3,
+body.dark-mode .class-card h4,
+body.dark-mode .faculty-class-card h3,
+body.dark-mode .faculty-class-card h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .class-card p,
+body.dark-mode .class-card span,
+body.dark-mode .faculty-class-card p,
+body.dark-mode .faculty-class-card span {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   ATTENDANCE PAGE - Faculty
+   ============================================ */
+body.dark-mode .attendance-management {
+    background-color: transparent !important;
+}
+
+body.dark-mode .attendance-stats-grid {
+    background-color: transparent !important;
+}
+
+/* ============================================
+   SCHEDULE PAGE - Student
+   ============================================ */
+body.dark-mode .schedule-page,
+body.dark-mode .schedule-container {
+    background-color: transparent !important;
+}
+
+body.dark-mode .schedule-header {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .schedule-header h2 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .schedule-card,
+body.dark-mode .schedule-item {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .schedule-card h4,
+body.dark-mode .schedule-item h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .schedule-card p,
+body.dark-mode .schedule-card span,
+body.dark-mode .schedule-item p,
+body.dark-mode .schedule-item span {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .schedule-day-header {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .schedule-time-slot {
+    color: #64748B !important;
+}
+
+/* ============================================
+   SYSTEM LOGS PAGE - Dept Head
+   ============================================ */
+body.dark-mode .system-logs-page,
+body.dark-mode .logs-page {
+    background-color: transparent !important;
+}
+
+body.dark-mode .logs-container {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .log-entry {
+    background-color: transparent !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .log-entry:hover {
+    background-color: #273548 !important;
+}
+
+body.dark-mode .log-timestamp {
+    color: #64748B !important;
+}
+
+body.dark-mode .log-message {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .log-user {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .log-icon {
+    color: #64748B !important;
+}
+
+/* ============================================
+   USER MANAGEMENT PAGE - Dept Head
+   ============================================ */
+body.dark-mode .user-management-page {
+    background-color: transparent !important;
+}
+
+body.dark-mode .user-list-container {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .user-card,
+body.dark-mode .user-item,
+body.dark-mode .user-row {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .user-card:hover,
+body.dark-mode .user-item:hover,
+body.dark-mode .user-row:hover {
+    background-color: #273548 !important;
+}
+
+body.dark-mode .user-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .user-email,
+body.dark-mode .user-role-text,
+body.dark-mode .user-department {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   LIVE STATUS CARD - Student Dashboard
+   ============================================ */
+body.dark-mode .live-status-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .live-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .live-header h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .live-indicator {
+    background-color: #0F172A !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .live-body {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .room-icon,
+body.dark-mode .room-icon i {
+    color: #64748B !important;
+}
+
+body.dark-mode .room-info h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .room-info p {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   ATTENDANCE TRENDS CHART - Student Dashboard
+   ============================================ */
+body.dark-mode .attendance-trend-chart-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .trend-chart-header h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .trend-chart-header h3 i {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .filter-pill-group {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .filter-pill {
+    color: #64748B !important;
+    background-color: transparent !important;
+}
+
+body.dark-mode .filter-pill:hover {
+    color: #94A3B8 !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .filter-pill.active {
+    background-color: #334155 !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .type-filter-bar {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .type-text-btn {
+    color: #64748B !important;
+}
+
+body.dark-mode .type-text-btn:hover {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .type-text-btn.active-type {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .type-text-btn.active-type::after {
+    background-color: #F8FAFC !important;
+}
+
+body.dark-mode .chart-footer {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .chart-insight {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .legend-item {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   RECENT ATTENDANCE - Student Dashboard
+   ============================================ */
+body.dark-mode .student-recent-attendance {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .student-recent-attendance h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .student-attendance-item {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .attendance-day {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .attendance-time {
+    color: #64748B !important;
+}
+
+body.dark-mode .attendance-percent {
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   GENERIC CARDS & CONTAINERS
+   ============================================ */
+body.dark-mode .card,
+body.dark-mode .frames-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .card h2,
+body.dark-mode .card h3,
+body.dark-mode .card h4,
+body.dark-mode .frames-card h2,
+body.dark-mode .frames-card h3,
+body.dark-mode .frames-card h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .card p,
+body.dark-mode .card span,
+body.dark-mode .frames-card p,
+body.dark-mode .frames-card span {
+    color: #CBD5E1 !important;
+}
+
+/* ============================================
+   TEXT COLORS - Global Overrides
+   ============================================ */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode p {
+    color: #CBD5E1;
+}
+
+body.dark-mode a {
+    color: #60A5FA;
+}
+
+body.dark-mode a:hover {
+    color: #93C5FD;
+}
+
+/* Muted/Gray text */
+body.dark-mode .text-muted,
+body.dark-mode .text-secondary,
+body.dark-mode .text-gray,
+body.dark-mode .muted {
+    color: #64748B !important;
+}
+
+/* ============================================
+   ICONS - All Dashboards
+   ============================================ */
+body.dark-mode i.fa,
+body.dark-mode i.fas,
+body.dark-mode i.far,
+body.dark-mode i.fab {
+    color: inherit;
+}
+
+body.dark-mode .icon,
+body.dark-mode [class*="icon-"] {
+    color: #94A3B8;
+}
+
+body.dark-mode button i,
+body.dark-mode .btn i,
+body.dark-mode a i {
+    color: inherit !important;
+}
+
+body.dark-mode .action-icon,
+body.dark-mode .icon-btn {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .action-icon:hover,
+body.dark-mode .icon-btn:hover {
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   BUTTONS - All Dashboards
+   ============================================ */
+body.dark-mode .btn-primary {
+    background-color: #2563EB !important;
+    border-color: #2563EB !important;
+    color: #FFFFFF !important;
+}
+
+body.dark-mode .btn-primary:hover {
+    background-color: #1D4ED8 !important;
+}
+
+body.dark-mode .btn-secondary {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background-color: #475569 !important;
+}
+
+body.dark-mode .btn-outline {
+    border-color: #475569 !important;
+    color: #94A3B8 !important;
+    background-color: transparent !important;
+}
+
+body.dark-mode .btn-outline:hover {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   MODALS - All Dashboards
+   ============================================ */
+body.dark-mode .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+body.dark-mode .modal-content,
+body.dark-mode .report-modal-content {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .report-modal-header {
+    background-color: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .modal-header h2,
+body.dark-mode .modal-header h3,
+body.dark-mode .report-modal-header h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .modal-body,
+body.dark-mode .report-modal-body {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .modal-footer,
+body.dark-mode .report-modal-footer {
+    background-color: #0F172A !important;
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .close-modal-btn {
+    color: #64748B !important;
+}
+
+body.dark-mode .close-modal-btn:hover {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .modal-info-text {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .config-card {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .config-row {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .config-label {
+    color: #64748B !important;
+}
+
+body.dark-mode .config-value {
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   TABLES - All Dashboards
+   ============================================ */
+body.dark-mode table,
+body.dark-mode .data-table {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode thead,
+body.dark-mode th {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode tbody tr {
+    border-color: #334155 !important;
+}
+
+body.dark-mode tbody tr:hover {
+    background-color: #273548 !important;
+}
+
+body.dark-mode td {
+    color: #CBD5E1 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode tbody tr:nth-child(even) {
+    background-color: #1a2332 !important;
+}
+
+/* ============================================
+   SIDEBAR - Already Dark
+   ============================================ */
+body.dark-mode .frames-sidebar {
+    background-color: #0B1120 !important;
+    border-right-color: #1E293B !important;
+}
+
+body.dark-mode .sidebar-brand {
+    border-bottom-color: #1E293B !important;
+}
+
+body.dark-mode .sidebar-user-footer {
+    border-top-color: #1E293B !important;
+    background-color: #0B1120 !important;
+}
+
+/* ============================================
+   HEADER - Dark Mode
+   ============================================ */
+body.dark-mode .universal-header {
+    background-color: #0F172A !important;
+    border-bottom-color: #1E293B !important;
+}
+
+body.dark-mode .header-page-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .header-current-date {
+    color: #64748B !important;
+}
+
+body.dark-mode .user-role {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .icon-button {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .icon-button:hover {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .dropdown-icon {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* Header Dropdowns */
+body.dark-mode .header-dropdown-menu,
+body.dark-mode .notification-dropdown-menu {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .header-dropdown-item {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .header-dropdown-item i {
+    color: #64748B !important;
+}
+
+body.dark-mode .header-dropdown-item:hover {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .header-dropdown-item:hover i {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .dropdown-logout-button {
+    border-top-color: #334155 !important;
+}
+
+/* Notification Panel */
+body.dark-mode .notification-header {
+    background-color: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .notification-header h4 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .notification-item {
+    border-bottom-color: #334155 !important;
+    background: #1E293B !important;
+}
+
+body.dark-mode .notification-item:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .notification-item.unread {
+    background-color: #273548 !important;
+}
+
+body.dark-mode .notification-text {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .notification-time {
+    color: #64748B !important;
+}
+
+body.dark-mode .notification-empty {
+    color: #64748B !important;
+}
+
+body.dark-mode .notification-footer {
+    background-color: #0F172A !important;
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .notification-dropdown-header {
+    background: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .notification-dropdown-header h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .notification-dropdown-header .mark-as-read {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .notification-dropdown-footer {
+    background-color: #0F172A !important;
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .notification-dropdown-footer a {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .notification-icon-bg {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .notification-item.unread .notification-icon-bg {
+    background-color: #1E3A5F !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .notification-content {
+    color: #CBD5E1 !important;
+}
+
+/* ============================================
+   SETTINGS & PROFILE PAGES
+   ============================================ */
+body.dark-mode .settings-page-container,
+body.dark-mode .profile-page-container {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .settings-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .settings-card h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .settings-card p {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .toggle-switch-label {
+    color: #E2E8F0 !important;
+}
+
+/* ============================================
+   SCROLLBAR - Dark Mode
+   ============================================ */
+body.dark-mode ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: #1E293B;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+}
+
+/* ============================================
+   EMPTY STATES
+   ============================================ */
+body.dark-mode .empty-state,
+body.dark-mode .no-data,
+body.dark-mode .no-results {
+    color: #64748B !important;
+}
+
+body.dark-mode .empty-state h3,
+body.dark-mode .empty-state h4,
+body.dark-mode .no-data h3,
+body.dark-mode .no-data h4 {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .empty-state i,
+body.dark-mode .no-data i {
+    color: #475569 !important;
+}
+
+/* ============================================
+   STATUS BADGES
+   ============================================ */
+body.dark-mode .badge,
+body.dark-mode .status-badge {
+    background-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .badge-success,
+body.dark-mode .status-present,
+body.dark-mode .status-active {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .badge-danger,
+body.dark-mode .status-absent,
+body.dark-mode .status-inactive {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #F87171 !important;
+}
+
+body.dark-mode .badge-warning,
+body.dark-mode .status-late,
+body.dark-mode .status-pending {
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .badge-info {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #60A5FA !important;
+}
+
+/* ============================================
+   DIVIDERS & BORDERS
+   ============================================ */
+body.dark-mode hr,
+body.dark-mode .divider {
+    border-color: #334155 !important;
+}
+
+/* ============================================
+   TOOLTIPS
+   ============================================ */
+body.dark-mode .tooltip {
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+/* ============================================
+   SCHEDULE PAGE - Complete Dark Mode
+   ============================================ */
+body.dark-mode .schedule-view-container {
+    background-color: transparent !important;
+}
+
+body.dark-mode .schedule-header {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .schedule-header h2 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .schedule-filters {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .schedule-filter-btn {
+    color: #94A3B8 !important;
+    background-color: transparent !important;
+}
+
+body.dark-mode .schedule-filter-btn:hover {
+    color: #F8FAFC !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode .schedule-filter-btn.active {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* Today's Classes Card */
+body.dark-mode .today-classes-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .today-classes-card h3 {
+    color: #F8FAFC !important;
+    border-bottom-color: #334155 !important;
+}
+
+/* Weekly Schedule Grid */
+body.dark-mode .week-schedule-grid {
+    background-color: transparent !important;
+}
+
+body.dark-mode .week-day-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .week-day-header {
+    background-color: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .week-day-header .day-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .week-day-header .day-date {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .week-day-classes {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .week-class-item {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .week-class-item.none {
+    color: #64748B !important;
+}
+
+body.dark-mode .week-class-time {
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .week-class-title {
+    color: #CBD5E1 !important;
+}
+
+/* Class Item */
+body.dark-mode .class-item {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .class-time-dot .time {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .class-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .class-meta {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .class-status {
+    color: #CBD5E1 !important;
+}
+
+/* Calendar View */
+body.dark-mode .calendar-view {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .calendar-view h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .react-calendar {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .react-calendar__navigation {
+    background-color: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .react-calendar__navigation button {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .react-calendar__navigation button:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .react-calendar__month-view__weekdays {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .react-calendar__tile {
+    color: #CBD5E1 !important;
+    background-color: transparent !important;
+}
+
+body.dark-mode .react-calendar__tile:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .react-calendar__tile--now {
+    background-color: rgba(96, 165, 250, 0.2) !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .react-calendar__tile--active {
+    background-color: #2563EB !important;
+    color: #FFFFFF !important;
+}
+
+body.dark-mode .react-calendar__tile--neighboringMonth {
+    color: #475569 !important;
+}
+
+/* ============================================
+   INLINE STYLE OVERRIDES
+   Fix hardcoded inline colors
+   ============================================ */
+body.dark-mode [style*="color: #777"],
+body.dark-mode [style*="color:#777"],
+body.dark-mode [style*="color: #666"],
+body.dark-mode [style*="color:#666"],
+body.dark-mode [style*="color: #555"],
+body.dark-mode [style*="color:#555"],
+body.dark-mode [style*="color: #333"],
+body.dark-mode [style*="color:#333"],
+body.dark-mode [style*="color: #999"],
+body.dark-mode [style*="color:#999"],
+body.dark-mode [style*="color: #888"],
+body.dark-mode [style*="color:#888"],
+body.dark-mode [style*="color: #444"],
+body.dark-mode [style*="color:#444"],
+body.dark-mode [style*="color: #ccc"],
+body.dark-mode [style*="color:#ccc"],
+body.dark-mode [style*="color: #475569"],
+body.dark-mode [style*="color:#475569"],
+body.dark-mode [style*="color: #64748b"],
+body.dark-mode [style*="color:#64748b"] {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode [style*="background: white"],
+body.dark-mode [style*="background:white"],
+body.dark-mode [style*="background-color: white"],
+body.dark-mode [style*="background-color:white"],
+body.dark-mode [style*="background: #fff"],
+body.dark-mode [style*="background:#fff"],
+body.dark-mode [style*="background-color: #fff"],
+body.dark-mode [style*="background-color:#fff"],
+body.dark-mode [style*="background: #ffffff"],
+body.dark-mode [style*="background:#ffffff"],
+body.dark-mode [style*="background: #f9f9f9"],
+body.dark-mode [style*="background:#f9f9f9"],
+body.dark-mode [style*="background-color: #f9f9f9"],
+body.dark-mode [style*="background-color:#f9f9f9"] {
+    background-color: #1E293B !important;
+}
+
+/* No classes message */
+body.dark-mode .no-classes-message {
+    color: #64748B !important;
+}
+
+/* ============================================
+   GENERAL TEXT COLOR FIXES
+   Catch any remaining gray/dark text
+   ============================================ */
+body.dark-mode [class*="text-dark"],
+body.dark-mode [class*="text-black"] {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode [class*="text-gray"],
+body.dark-mode [class*="text-muted"],
+body.dark-mode [class*="text-secondary"] {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode [class*="bg-white"],
+body.dark-mode [class*="bg-light"] {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode [class*="border-light"],
+body.dark-mode [class*="border-gray"] {
+    border-color: #334155 !important;
+}
+
+/* ============================================
+   CSS CUSTOM PROPERTIES - Dark Mode Override
+   ============================================ */
+body.dark-mode {
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --text-light: #64748B;
+    --bg-primary: #1E293B;
+    --bg-secondary: #0F172A;
+    --bg-muted: #334155;
+    --border-color: #334155;
+    --text-success: #4ADE80;
+    --text-success-dark: #22C55E;
+}
+
+/* Schedule Page Dark Mode - New Classes */
+body.dark-mode .schedule-loading {
+    color: #64748B !important;
+}
+
+body.dark-mode .class-item-details {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .class-title-main {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .class-meta-text {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .class-section,
+body.dark-mode .class-professor,
+body.dark-mode .class-room {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .auto-sync-banner {
+    background: rgba(34, 197, 94, 0.15) !important;
+    border-left-color: #22C55E !important;
+}
+
+body.dark-mode .sync-icon {
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .sync-title {
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .sync-description {
+    color: #86EFAC !important;
+}
+
+/* Dashboard Loading */
+body.dark-mode .dashboard-loading {
+    color: #64748B !important;
+}
+
+/* Metrics Panel Dark Mode */
+body.dark-mode .metrics-panel {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .metrics-panel-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .metrics-icon {
+    color: #818CF8 !important;
+}
+
+body.dark-mode .metrics-label {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .metrics-bar-bg {
+    background: #334155 !important;
+}
+
+body.dark-mode .metrics-detail-text {
+    color: #94A3B8 !important;
+}
+
+/* Live Status Dark Mode */
+body.dark-mode .live-status-text {
+    font-weight: bold;
+}
+
+body.dark-mode .room-icon.inactive,
+body.dark-mode .room-icon-large.inactive {
+    color: #475569 !important;
+}
+
+/* ============================================
+   FACULTY DASHBOARD DARK MODE - New Classes
+   ============================================ */
+
+/* Room Display */
+body.dark-mode .room-display {
+    background: #0F172A !important;
+}
+
+body.dark-mode .room-display-present {
+    background: rgba(34, 197, 94, 0.1) !important;
+}
+
+body.dark-mode .room-display-break {
+    background: rgba(251, 191, 36, 0.1) !important;
+}
+
+body.dark-mode .room-display-idle,
+body.dark-mode .room-display-exited {
+    background: #0F172A !important;
+}
+
+body.dark-mode .room-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .room-status-text {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .room-subject-info {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .room-timestamp {
+    color: #64748B !important;
+}
+
+/* No Records Message */
+body.dark-mode .no-records-message {
+    color: #64748B !important;
+}
+
+/* Summary Sub */
+body.dark-mode .summary-sub {
+    color: var(--sub-color, #94A3B8) !important;
+}
+
+/* ============================================
+   QUICK ACTIONS DARK MODE
+   ============================================ */
+body.dark-mode .quick-action-icon.quick-action-green {
+    background: rgba(34, 197, 94, 0.15) !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .quick-action-icon.quick-action-blue {
+    background: rgba(96, 165, 250, 0.15) !important;
+    color: #60A5FA !important;
+}
+
+body.dark-mode .quick-action-icon.quick-action-purple {
+    background: rgba(167, 139, 250, 0.15) !important;
+    color: #A78BFA !important;
+}
+
+/* ============================================
+   DEPT HEAD SPECIFIC DARK MODE
+   ============================================ */
+
+/* Pending Verifications */
+body.dark-mode .pending-verifications-card {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .pending-verifications-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .pending-icon {
+    color: #FB923C !important;
+}
+
+/* Face Registration Warning */
+body.dark-mode .face-registration-warning {
+    background: rgba(220, 38, 38, 0.1) !important;
+    border-left-color: #EF4444 !important;
+}
+
+body.dark-mode .face-registration-warning .warning-icon {
+    color: #F87171 !important;
+}
+
+body.dark-mode .face-registration-warning .warning-title {
+    color: #FCA5A5 !important;
+}
+
+body.dark-mode .face-registration-warning .warning-message {
+    color: #FCA5A5 !important;
+}
+
+body.dark-mode .warning-action-btn {
+    background: #DC2626 !important;
+}
+
+body.dark-mode .warning-action-btn:hover {
+    background: #EF4444 !important;
+}
+
+/* Info Banner */
+body.dark-mode .info-banner.warning {
+    background: rgba(251, 191, 36, 0.15) !important;
+    color: #FCD34D !important;
+    border-color: rgba(251, 191, 36, 0.3) !important;
+}
+
+/* Dashboard Loading */
+body.dark-mode .dashboard-loading {
+    color: #64748B !important;
+}
+
+/* ============================================
+   ATTENDANCE PAGE DARK MODE
+   ============================================ */
+body.dark-mode .td-student-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .td-student-id {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .td-remarks {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .td-remarks.late {
+    color: #FBBF24 !important;
+}
+
+/* Attendance Status Tags */
+body.dark-mode .log-status-tag {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .log-status-tag.success {
+    background-color: #064E3B !important;
+    color: #D1FAE5 !important;
+}
+
+body.dark-mode .log-status-tag.warning {
+    background-color: #78350F !important;
+    color: #FEF3C7 !important;
+}
+
+body.dark-mode .log-status-tag.danger {
+    background-color: #7F1D1D !important;
+    color: #FEE2E2 !important;
+}
+
+body.dark-mode .log-status-tag.neutral {
+    background-color: #334155 !important;
+    color: #F1F5F9 !important;
+}
+
+body.dark-mode .td-empty-state {
+    color: #64748B !important;
+}
+
+body.dark-mode .edit-btn {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .edit-btn:hover {
+    color: #93C5FD !important;
+}
+
+body.dark-mode .no-action {
+    color: #475569 !important;
+}
+
+body.dark-mode .empty-state-container {
+    color: #64748B !important;
+}
+
+body.dark-mode .empty-state-icon {
+    color: #475569 !important;
+}
+
+/* ============================================
+   MY CLASSES PAGE DARK MODE
+   ============================================ */
+body.dark-mode .no-classes-message {
+    color: #64748B !important;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-buttons {
+    background: #0F172A !important;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-btn {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-btn.active {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .view-toggle-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .view-toggle-header h2 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .faculty-class-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .faculty-class-card:hover {
+    background-color: #273548 !important;
+}
+
+/* ============================================
+   SESSION SUMMARY MODAL DARK MODE
+   ============================================ */
+body.dark-mode .modal-subtitle {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .session-summary-table {
+    background-color: #1E293B !important;
+}
+
+body.dark-mode .session-summary-header-row {
+    background: #0F172A !important;
+}
+
+body.dark-mode .session-summary-th {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .session-summary-row {
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .session-summary-td-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .session-summary-td {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .status-cancelled {
+    background: #2D1F1F !important;
+    color: #F87171 !important;
+}
+
+body.dark-mode .status-completed {
+    background: #1A2D1A !important;
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .search-status-text,
+body.dark-mode .search-empty-text {
+    color: #64748B !important;
+}
+
+body.dark-mode .calendar-grid-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+
+body.dark-mode .no-classes-message {
+    color: #64748B !important;
+}
+
+/* ============================================
+   DEPT HEAD MANAGE PAGE DARK MODE
+   ============================================ */
+body.dark-mode .ay-warning-banner {
+    background: #332701 !important;
+    border-color: #F59E0B !important;
+}
+
+body.dark-mode .ay-warning-icon,
+body.dark-mode .ay-warning-text {
+    color: #FBBF24 !important;
+}
+
+body.dark-mode .ay-header-icon {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .ay-header-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .ay-header-subtitle {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .ay-not-set {
+    color: #64748B !important;
+}
+
+body.dark-mode .ay-label-hint {
+    color: #64748B !important;
+}
+
+body.dark-mode .ay-help-text {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .camera-empty-msg {
+    color: #64748B !important;
+}
+
+body.dark-mode .heartbeat-subtext {
+    color: #64748B !important;
+}
+
+body.dark-mode .action-btn-icon.edit {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .action-btn-icon.delete {
+    color: #F87171 !important;
+}
+
+body.dark-mode .loading-text {
+    color: #64748B !important;
+}
+
+body.dark-mode .card-margin-top {
+    margin-top: 16px;
+}
+
+body.dark-mode .icon-action.delete {
+    color: #F87171 !important;
+}
+
+body.dark-mode .td-empty-state {
+    color: #64748B !important;
+}
+
+body.dark-mode .log-empty {
+    color: #64748B !important;
+}
+
+body.dark-mode .modal-subtitle {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .form-help-text {
+    color: #64748B !important;
+}
+
+/* ============================================
+   USER MANAGEMENT PAGE DARK MODE
+   ============================================ */
+body.dark-mode .action-btn-approve {
+    background: #15803d !important;
+}
+
+body.dark-mode .action-btn-approve:hover {
+    background: #166534 !important;
+}
+
+body.dark-mode .action-btn-reject {
+    background: #b91c1c !important;
+}
+
+body.dark-mode .action-btn-reject:hover {
+    background: #991b1b !important;
+}
+
+/* ============================================
+   REPORTS PAGE DARK MODE
+   ============================================ */
+body.dark-mode .date-range-separator {
+    color: #64748B !important;
+}
+
+body.dark-mode .td-empty-state-large {
+    color: #64748B !important;
+}
+
+body.dark-mode .error-icon {
+    color: #F87171 !important;
+}
+
+/* ============================================
+   EDIT ATTENDANCE MODAL DARK MODE
+   ============================================ */
+body.dark-mode .edit-modal-content {
+    background: #1E293B !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+
+body.dark-mode .edit-modal-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .edit-modal-info-box {
+    background: #0F172A !important;
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .edit-modal-label {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .edit-modal-input {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .edit-modal-hint {
+    color: #64748B !important;
+}
+
+body.dark-mode .edit-modal-cancel-btn {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .edit-modal-cancel-btn:hover {
+    background: #475569 !important;
+}
+
+body.dark-mode .edit-modal-save-btn {
+    background: #3B82F6 !important;
+}
+
+body.dark-mode .edit-modal-save-btn:hover {
+    background: #2563EB !important;
+}
+
+/* ============================================
+   INFO BANNERS & HINT BOXES DARK MODE
+   ============================================ */
+body.dark-mode .info-banner {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border: 1px solid #3B82F6 !important;
+}
+
+body.dark-mode .info-banner i {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .hint-box,
+body.dark-mode .info-hint {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border-color: #3B82F6 !important;
+}
+
+body.dark-mode .hint-box i,
+body.dark-mode .info-hint i {
+    color: #60A5FA !important;
+}
+
+/* ============================================
+   NOTIFICATION DROPDOWN DARK MODE
+   ============================================ */
+body.dark-mode .notification-dropdown,
+body.dark-mode .notif-dropdown {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+
+body.dark-mode .notification-dropdown .notif-header,
+body.dark-mode .notif-dropdown .notif-header {
+    background: #0F172A !important;
+    border-bottom-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .notification-dropdown .notif-item,
+body.dark-mode .notif-dropdown .notif-item {
+    background: #1E293B !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .notification-dropdown .notif-item:hover,
+body.dark-mode .notif-dropdown .notif-item:hover {
+    background: #273548 !important;
+}
+
+body.dark-mode .notification-dropdown .notif-message,
+body.dark-mode .notif-dropdown .notif-message {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .notification-dropdown .notif-type,
+body.dark-mode .notif-dropdown .notif-type {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .notification-dropdown .notif-footer,
+body.dark-mode .notif-dropdown .notif-footer {
+    background: #0F172A !important;
+    border-top-color: #334155 !important;
+}
+
+body.dark-mode .notification-dropdown .notif-footer a,
+body.dark-mode .notif-dropdown .notif-footer a {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .mark-all-read,
+body.dark-mode .notif-header span {
+    color: #60A5FA !important;
+}
+
+/* ============================================
+   ROOM CARDS DARK MODE
+   ============================================ */
+body.dark-mode .room-card .no-detection-area,
+body.dark-mode .no-detection-box,
+body.dark-mode .detection-area {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #64748B !important;
+}
+
+body.dark-mode .room-card .no-one-detected,
+body.dark-mode .no-detection-text {
+    color: #64748B !important;
+}
+
+body.dark-mode .room-stats {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .room-stats span {
+    color: #CBD5E1 !important;
+}
+
+/* ============================================
+   FILE INPUT DARK MODE
+   ============================================ */
+body.dark-mode input[type="file"] {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .file-input-wrapper,
+body.dark-mode .file-upload-area {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .file-hint,
+body.dark-mode .file-help-text {
+    color: #64748B !important;
+}
+
+/* ============================================
+   SEARCH INPUTS DARK MODE
+   ============================================ */
+body.dark-mode .search-input,
+body.dark-mode input[type="search"],
+body.dark-mode .search-box input,
+body.dark-mode .user-search-input {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .search-input::placeholder,
+body.dark-mode input[type="search"]::placeholder,
+body.dark-mode .search-box input::placeholder,
+body.dark-mode .user-search-input::placeholder {
+    color: #64748B !important;
+}
+
+body.dark-mode .search-icon {
+    color: #64748B !important;
+}
+
+/* ============================================
+   BADGES DARK MODE IMPROVEMENTS
+   ============================================ */
+body.dark-mode .badge.registered,
+body.dark-mode .status-tag.registered,
+body.dark-mode .face-status.registered {
+    background: #1A2D1A !important;
+    color: #4ADE80 !important;
+    border: 1px solid #22C55E !important;
+}
+
+body.dark-mode .badge.upcoming,
+body.dark-mode .status-tag.upcoming {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border: 1px solid #3B82F6 !important;
+}
+
+body.dark-mode .badge.faculty,
+body.dark-mode .role-badge.faculty {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border: 1px solid #3B82F6 !important;
+}
+
+/* ============================================
+   TABLE ROW TEXT DARK MODE
+   ============================================ */
+body.dark-mode .user-table tr td,
+body.dark-mode .verification-table tr td,
+body.dark-mode .directory-table tr td {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .user-table tr:hover,
+body.dark-mode .verification-table tr:hover,
+body.dark-mode .directory-table tr:hover {
+    background: #273548 !important;
+}
+
+body.dark-mode .user-email,
+body.dark-mode .user-secondary-info {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   USER DETAILS MODAL DARK MODE
+   ============================================ */
+body.dark-mode .user-details-modal .modal-content,
+body.dark-mode .modal-content.user-details {
+    background: #1E293B !important;
+}
+
+body.dark-mode .user-details-modal h3,
+body.dark-mode .modal-content.user-details h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .user-details-modal p,
+body.dark-mode .modal-content.user-details p {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .user-details-modal strong,
+body.dark-mode .modal-content.user-details strong {
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   ATTENDANCE PAGE INFO BOX DARK MODE
+   ============================================ */
+body.dark-mode .attendance-hint,
+body.dark-mode .select-class-hint,
+body.dark-mode .report-description-box {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border: 1px solid #3B82F6 !important;
+    border-left: 4px solid #3B82F6 !important;
+}
+
+body.dark-mode .attendance-hint i,
+body.dark-mode .select-class-hint i,
+body.dark-mode .report-description-box i {
+    color: #60A5FA !important;
+}
+
+body.dark-mode .report-description-box p,
+body.dark-mode .report-description-box span {
+    color: #93C5FD !important;
+}
+
+/* ============================================
+   CLASS CARD IMPROVEMENTS DARK MODE
+   ============================================ */
+body.dark-mode .class-card .subject-code,
+body.dark-mode .schedule-card .code-badge {
+    background: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .class-card .class-time,
+body.dark-mode .schedule-card .time-info {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .class-card .class-title,
+body.dark-mode .schedule-card .subject-name {
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   LIVE ROOM CARD DARK MODE
+   ============================================ */
+body.dark-mode .live-dots-area {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .live-dots-empty {
+    color: #64748B !important;
+}
+
+body.dark-mode .live-room-counts {
+    border-top-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .live-room-counts span {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .dh-room-faculty,
+body.dark-mode .dh-room-time {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .dh-room-box {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+body.dark-mode .dh-room-box .live-room-label {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .dh-room-subject {
+    background: #0F172A !important;
+    color: #94A3B8 !important;
+}
+
+/* ============================================
+   REPORTS PAGE INFO HINTS DARK MODE
+   ============================================ */
+body.dark-mode .report-config-hint,
+body.dark-mode .filter-hint,
+body.dark-mode .date-hint {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border-color: #3B82F6 !important;
+}
+
+body.dark-mode .report-config-hint i,
+body.dark-mode .filter-hint i {
+    color: #60A5FA !important;
+}
+
+/* ============================================
+   FILE INPUT & UPLOAD AREAS DARK MODE
+   ============================================ */
+body.dark-mode .evidence-upload,
+body.dark-mode .file-upload-container,
+body.dark-mode .upload-area {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .evidence-upload input[type="file"],
+body.dark-mode input[type="file"] {
+    color: #CBD5E1 !important;
+}
+
+body.dark-mode .evidence-hint,
+body.dark-mode .upload-hint {
+    color: #64748B !important;
+}
+
+/* ============================================
+   SEARCH BOX DARK MODE
+   ============================================ */
+body.dark-mode .search-container input,
+body.dark-mode .search-wrapper input,
+body.dark-mode .filter-search input {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .search-container input::placeholder,
+body.dark-mode .search-wrapper input::placeholder,
+body.dark-mode .filter-search input::placeholder {
+    color: #64748B !important;
+}
+
+body.dark-mode .search-container .search-icon,
+body.dark-mode .search-wrapper i {
+    color: #64748B !important;
+}
+
+/* ============================================
+   SCHEDULE PAGE COMPONENTS DARK MODE
+   ============================================ */
+body.dark-mode .schedule-upcoming-card,
+body.dark-mode .upcoming-class-card {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .schedule-upcoming-card .upcoming-badge {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+}
+
+body.dark-mode .schedule-upcoming-card h3,
+body.dark-mode .upcoming-class-card h3 {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .schedule-upcoming-card .class-time,
+body.dark-mode .upcoming-class-card .class-time {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .code-badge,
+body.dark-mode .subject-code-badge {
+    background: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   STUDENT DASHBOARD PROFILE CARD DARK MODE
+   ============================================ */
+body.dark-mode .student-id-row,
+body.dark-mode .face-registration-row {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .face-registration-status {
+    color: #4ADE80 !important;
+}
+
+/* ============================================
+   ROLE TAGS DARK MODE (User Directory)
+   ============================================ */
+body.dark-mode .role-tag {
+    border: 1px solid transparent !important;
+}
+
+body.dark-mode .role-tag.red {
+    background: #3D1C1C !important;
+    color: #FCA5A5 !important;
+    border-color: #EF4444 !important;
+}
+
+body.dark-mode .role-tag.green {
+    background: #1A2D1A !important;
+    color: #86EFAC !important;
+    border-color: #22C55E !important;
+}
+
+body.dark-mode .role-tag.blue {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border-color: #3B82F6 !important;
+}
+
+/* ============================================
+   STATUS TAGS DARK MODE
+   ============================================ */
+body.dark-mode .status-tag {
+    border: 1px solid transparent !important;
+}
+
+body.dark-mode .status-tag.green {
+    background: #1A2D1A !important;
+    color: #86EFAC !important;
+    border-color: #22C55E !important;
+}
+
+body.dark-mode .status-tag.yellow {
+    background: #3D3D1C !important;
+    color: #FDE047 !important;
+    border-color: #EAB308 !important;
+}
+
+body.dark-mode .status-tag.red {
+    background: #3D1C1C !important;
+    color: #FCA5A5 !important;
+    border-color: #EF4444 !important;
+}
+
+body.dark-mode .status-tag.blue {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border-color: #3B82F6 !important;
+}
+
+/* ============================================
+   STATUS BADGES DARK MODE (Class Cards)
+   ============================================ */
+body.dark-mode .status-badge {
+    border: 1px solid transparent !important;
+}
+
+body.dark-mode .status-badge.green {
+    background: #1A2D1A !important;
+    color: #86EFAC !important;
+    border-color: #22C55E !important;
+}
+
+body.dark-mode .status-badge.orange {
+    background: #3D2D1C !important;
+    color: #FDBA74 !important;
+    border-color: #F97316 !important;
+}
+
+body.dark-mode .status-badge.red {
+    background: #3D1C1C !important;
+    color: #FCA5A5 !important;
+    border-color: #EF4444 !important;
+}
+
+/* ============================================
+   APP SEARCH BAR DARK MODE (Dept User Directory)
+   ============================================ */
+body.dark-mode .app-search-bar {
+    background: #0F172A !important;
+    border: 1px solid #334155 !important;
+    border-radius: 8px;
+}
+
+body.dark-mode .app-search-bar input {
+    background: transparent !important;
+    color: #F8FAFC !important;
+    border: none !important;
+}
+
+body.dark-mode .app-search-bar input::placeholder {
+    color: #64748B !important;
+}
+
+body.dark-mode .app-search-bar i {
+    color: #64748B !important;
+}
+
+body.dark-mode .app-filter-select {
+    background: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .app-filter-select option {
+    background: #1E293B !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   USER SEARCH BAR DARK MODE
+   ============================================ */
+body.dark-mode .user-search-bar {
+    background: #0F172A !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .user-search-bar input {
+    background: transparent !important;
+    color: #F8FAFC !important;
+    border: none !important;
+}
+
+body.dark-mode .user-search-bar input::placeholder {
+    color: #64748B !important;
+}
+
+body.dark-mode .user-search-bar i {
+    color: #64748B !important;
+}
+
+/* ============================================
+   REFRESH BUTTON DARK MODE
+   ============================================ */
+body.dark-mode .refresh-button {
+    background: #1E293B !important;
+    color: #CBD5E1 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .refresh-button:hover {
+    background: #334155 !important;
+}
+
+/* ============================================
+   TABLE EMAIL TEXT DARK MODE
+   ============================================ */
+body.dark-mode .user-table-name {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .user-table-email {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .user-table-avatar {
+    background: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   FACE STATUS BADGE DARK MODE
+   ============================================ */
+body.dark-mode .face-status {
+    border: 1px solid transparent !important;
+}
+
+body.dark-mode .face-status.registered,
+body.dark-mode .face-status.Registered {
+    background: #1A2D1A !important;
+    color: #86EFAC !important;
+    border-color: #22C55E !important;
+}
+
+body.dark-mode .face-status.not-registered,
+body.dark-mode .face-status.Not-Registered {
+    background: #3D1C1C !important;
+    color: #FCA5A5 !important;
+    border-color: #EF4444 !important;
+}
+
+/* ============================================
+   CLASS CARD CODE BADGE DARK MODE
+   ============================================ */
+body.dark-mode .faculty-class-code,
+body.dark-mode .dh-class-code,
+body.dark-mode .class-code-badge {
+    background: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   BADGE TODAY & UPCOMING DARK MODE (Class Cards)
+   ============================================ */
+body.dark-mode .badge-today {
+    background: #1A2D1A !important;
+    color: #86EFAC !important;
+    border: 1px solid #22C55E !important;
+}
+
+body.dark-mode .badge-upcoming {
+    background: #1E3A5F !important;
+    color: #93C5FD !important;
+    border: 1px solid #3B82F6 !important;
+}
+
+/* ============================================
+   ADMIN FILTER SEARCH INPUT DARK MODE
+   ============================================ */
+body.dark-mode .admin-filter-search-input {
+    background: #0F172A !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .admin-filter-search-input input {
+    background: transparent !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .admin-filter-search-input input::placeholder {
+    color: #64748B !important;
+}
+
+body.dark-mode .admin-filter-search-input i {
+    color: #64748B !important;
+}
+
+/* ============================================
+   REPORTS & ATTENDANCE FILTER BARS (WHITE BOX FIXES)
+   ============================================ */
+body.dark-mode .reports-header-section,
+body.dark-mode .reports-filters-bar,
+body.dark-mode .app-filter-bar,
+body.dark-mode .admin-report-filter-panel,
+body.dark-mode .type-filter-bar,
+body.dark-mode .cal-controls-row {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .reports-header-section label,
+body.dark-mode .reports-filters-bar label,
+body.dark-mode .app-filter-bar label,
+body.dark-mode .admin-filter-group label,
+body.dark-mode .report-selector-group label,
+body.dark-mode .filter-item label,
+body.dark-mode .filter-group label {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .reports-header-section h2,
+body.dark-mode .reports-header-section h3,
+body.dark-mode .admin-report-filter-panel h3 {
+    color: #F8FAFC !important;
+}
+
+/* Inputs within filter bars */
+body.dark-mode .big-select,
+body.dark-mode .filter-select,
+body.dark-mode .filter-input,
+body.dark-mode .reports-header-section input[type="date"],
+body.dark-mode .reports-header-section input[type="text"] {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+/* Student/Faculty Reports Sidebar */
+body.dark-mode .reports-sidebar,
+body.dark-mode .report-types-sidebar {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .category-label,
+body.dark-mode .report-category h4 {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .report-type-item {
+    color: #CBD5E1 !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .report-type-item:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .report-type-item.active {
+    background-color: #1E3A5F !important;
+    color: #F8FAFC !important;
+}
+
+/* Info Banners (Description Boxes) */
+body.dark-mode .report-description-box,
+body.dark-mode .info-banner {
+    background-color: #1E3A5F !important;
+    border-left-color: #3B82F6 !important;
+    color: #BFDBFE !important;
+}
+
+body.dark-mode .report-description-box i {
+    color: #60A5FA !important;
+}
+
+/* Stats Chips Overrides (Since they use Inline Styles) */
+body.dark-mode [style*="background: rgb(230, 244, 234)"],
+body.dark-mode [style*="background:#E6F4EA"],
+body.dark-mode [style*="background: #E6F4EA"] {
+    background-color: #064E3B !important;
+    color: #D1FAE5 !important;
+}
+
+body.dark-mode [style*="background: rgb(255, 243, 224)"],
+body.dark-mode [style*="background:#FFF3E0"],
+body.dark-mode [style*="background: #FFF3E0"] {
+    background-color: #78350F !important;
+    color: #FEF3C7 !important;
+}
+
+body.dark-mode [style*="background: rgb(255, 248, 225)"],
+body.dark-mode [style*="background:#FFF8E1"],
+body.dark-mode [style*="background: #FFF8E1"] {
+    background-color: #713F12 !important;
+    color: #FEF3C7 !important;
+}
+
+body.dark-mode [style*="background: rgb(255, 235, 238)"],
+body.dark-mode [style*="background:#FFEBEE"],
+body.dark-mode [style*="background: #FFEBEE"] {
+    background-color: #7F1D1D !important;
+    color: #FEE2E2 !important;
+}
+
+body.dark-mode [style*="background: rgb(241, 245, 249)"],
+body.dark-mode [style*="background:#f1f5f9"],
+body.dark-mode [style*="background: #f1f5f9"] {
+    background-color: #334155 !important;
+    color: #F1F5F9 !important;
+}

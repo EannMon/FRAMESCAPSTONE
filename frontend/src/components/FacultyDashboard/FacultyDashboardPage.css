@@ -785,3 +785,114 @@
         justify-content: space-between;
     }
 }
+
+/* ============================================
+   New CSS Classes for Dark Mode Support
+   ============================================ */
+
+/* Summary Sub Value */
+.summary-sub {
+    color: var(--sub-color, var(--text-muted, #888));
+}
+
+/* Live Status Label */
+.live-status-label {
+    color: var(--status-color, var(--text-muted));
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Room Display Variants */
+.room-display {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--bg-muted, #f9f9f9);
+    border-radius: 12px;
+}
+
+.room-display-present {
+    background: rgba(46, 125, 50, 0.06);
+}
+
+.room-display-break {
+    background: rgba(249, 168, 37, 0.06);
+}
+
+.room-display-idle,
+.room-display-exited {
+    background: var(--bg-muted, #f9f9f9);
+}
+
+/* Room Icon */
+.room-icon-large {
+    font-size: 2.2rem;
+}
+
+.room-icon-large.active {
+    color: var(--active-color, #2E7D32);
+}
+
+.room-icon-large.inactive {
+    color: var(--text-light, #ccc);
+}
+
+/* Room Details */
+.room-details {
+    flex: 1;
+}
+
+.room-name {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--text-primary, #333);
+}
+
+.room-status-text {
+    margin: 4px 0 0;
+    color: var(--text-secondary, #666);
+    font-size: 0.95rem;
+}
+
+.room-subject-info {
+    margin: 4px 0 0;
+    color: var(--text-muted, #888);
+    font-size: 0.85rem;
+}
+
+.room-subject-info i {
+    margin-right: 6px;
+}
+
+.room-timestamp {
+    margin: 4px 0 0;
+    color: var(--text-light, #aaa);
+    font-size: 0.8rem;
+}
+
+.room-timestamp i {
+    margin-right: 6px;
+}
+
+/* No Records Message */
+.no-records-message {
+    color: var(--text-muted, #888);
+    padding: 10px;
+}
+
+/* Quick Action Icon Colors */
+.quick-action-icon.quick-action-green {
+    background: rgba(0, 168, 89, 0.1);
+    color: #00A859;
+}
+
+.quick-action-icon.quick-action-blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.quick-action-icon.quick-action-purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}

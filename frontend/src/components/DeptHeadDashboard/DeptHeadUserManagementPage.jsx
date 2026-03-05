@@ -370,7 +370,7 @@ const DeptHeadUserManagementPage = () => {
                                                 </td>
                                             </tr>
                                         ))}
-                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 20, color: "#888" }}>No results found.</td></tr>}
+                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" className="td-empty-state">No results found.</td></tr>}
                                     </tbody>
                                 </table>
                             </div>
@@ -390,12 +390,11 @@ const DeptHeadUserManagementPage = () => {
                                     <p><strong>Department:</strong> {verificationModalUser.department}</p>
                                     <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>
                                 </div>
-                                <div className="modal-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+                                <div className="modal-actions modal-actions-flex">
                                     {/* Approve — only shown if not already verified */}
                                     {verificationModalUser.status !== 'Verified' && verificationModalUser.status !== 'Approved' && (
                                         <button
-                                            className="add-user-submit"
-                                            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            className="action-btn-approve"
                                             onClick={() => {
                                                 handleStatusUpdate(verificationModalUser.id, 'Approved');
                                                 setVerificationModalUser(null);
@@ -407,7 +406,7 @@ const DeptHeadUserManagementPage = () => {
                                     {/* Reject — only shown if not already rejected */}
                                     {verificationModalUser.status !== 'Rejected' && (
                                         <button
-                                            style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            className="action-btn-reject"
                                             onClick={() => {
                                                 handleStatusUpdate(verificationModalUser.id, 'Rejected');
                                                 setVerificationModalUser(null);
@@ -417,9 +416,8 @@ const DeptHeadUserManagementPage = () => {
                                         </button>
                                     )}
                                     <button
-                                        className="modal-close-button"
+                                        className="modal-close-button modal-close-auto"
                                         onClick={() => setVerificationModalUser(null)}
-                                        style={{ marginLeft: 'auto' }}
                                     >
                                         Close
                                     </button>
@@ -504,7 +502,7 @@ const DeptHeadUserManagementPage = () => {
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
+                                    <tr><td colSpan="6" className="td-empty-state">No users found.</td></tr>
                                 )}
                             </tbody>
                         </table>
