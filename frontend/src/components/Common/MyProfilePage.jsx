@@ -29,7 +29,6 @@ const ProfileField = ({ label, name, value, onChange, type = 'text', isEditing, 
 // ===========================================
 const PasswordModal = ({ isOpen, onClose, userId }) => {
     const toast = useToast();
-    const toast = useToast();
     const [step, setStep] = useState(1); // Step 1: Verify, Step 2: New Password
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');

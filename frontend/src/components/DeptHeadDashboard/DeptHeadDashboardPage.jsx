@@ -9,9 +9,6 @@ import '../Common/Utility.css';
 // Summary Card Component — clickable when onClick is provided
 const SummaryCard = ({ iconClass, title, value, subValue, iconBgClass, badge, onClick }) => (
     <div className={`summary-card premium ${onClick ? 'clickable' : ''}`} onClick={onClick} style={onClick ? { cursor: 'pointer' } : {}}>
-// Summary Card Component — clickable when onClick is provided
-const SummaryCard = ({ iconClass, title, value, subValue, iconBgClass, badge, onClick }) => (
-    <div className={`summary-card premium ${onClick ? 'clickable' : ''}`} onClick={onClick} style={onClick ? { cursor: 'pointer' } : {}}>
         <div className="summary-content-left">
             <div className="summary-title">{title}</div>
             <div className="summary-value-row">

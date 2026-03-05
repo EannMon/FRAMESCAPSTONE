@@ -32,7 +32,6 @@ const DeptHeadUserManagementPage = () => {
     // USER DIRECTORY STATE
     // ==========================================
     const [users, setUsers] = useState([]);
-    const [users, setUsers] = useState([]);
     const [searchValue, setSearchValue] = useState("");
     const [roleFilter, setRoleFilter] = useState("FACULTY"); // Default to Faculty per Task 40
     const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -150,7 +149,6 @@ const DeptHeadUserManagementPage = () => {
         setNewUser(prev => ({ ...prev, [name]: finalValue }));
     };
 
-    const handleAddUser = async (e) => {
     const handleAddUser = async (e) => {
         e.preventDefault();
         if (newUser.password !== newUser.confirmPassword) {
