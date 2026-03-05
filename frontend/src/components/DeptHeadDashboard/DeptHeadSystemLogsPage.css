@@ -160,7 +160,7 @@
 
 .logs-apply-btn {
     padding: 8px 14px;
-    background: #3b82f6;
+    background: #163269;
     color: white;
     border: none;
     border-radius: 8px;
@@ -174,7 +174,7 @@
 }
 
 .logs-apply-btn:hover {
-    background: #2563eb;
+    background: #0F2448;
 }
 
 /* --- Logs List --- */
@@ -362,5 +362,33 @@
     .logs-filters {
         flex-direction: column;
         align-items: stretch;
+    }
+}
+
+@media (max-width: 480px) {
+    .logs-stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .logs-stat {
+        padding: 10px 14px;
+    }
+
+    .stat-count {
+        font-size: 1.1rem;
+    }
+
+    .log-entry {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .log-meta {
+        flex-wrap: wrap;
+    }
+
+    .logs-header h2 {
+        font-size: 1.1rem;
     }
 }

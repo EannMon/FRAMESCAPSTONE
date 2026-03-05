@@ -929,10 +929,10 @@ const DeptHeadManagePage = () => {
             {/* ── ADD/EDIT CAMERA MODAL ── */}
             {showDeviceModal && (
                 <div className="modal-overlay" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <div className="modal-header">
                             <h3>{editingDevice ? 'Edit Camera Device' : 'Register Camera Device'}</h3>
-                            <button className="modal-close" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>&times;</button>
+                            <button className="close-btn" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>&times;</button>
                         </div>
                         <form onSubmit={editingDevice ? handleUpdateDevice : handleAddDevice}>
                             <div className="form-group">
@@ -978,10 +978,10 @@ const DeptHeadManagePage = () => {
             {/* ── COURSE DETAIL MODAL ── */}
             {selectedCourse && !showAssignModal && !showRoomModal && (
                 <div className="modal-overlay" onClick={() => setSelectedCourse(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <div className="modal-header">
                             <h3 style={{ margin: 0 }}>{selectedCourse.subject_code} — {selectedCourse.name}</h3>
-                            <button className="modal-close" onClick={() => setSelectedCourse(null)}>&times;</button>
+                            <button className="close-btn" onClick={() => setSelectedCourse(null)}>&times;</button>
                         </div>
                         <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div><strong>Instructor:</strong> {selectedCourse.assigned_faculty || 'Unassigned'}</div>
@@ -990,16 +990,16 @@ const DeptHeadManagePage = () => {
                             <div><strong>Section:</strong> {selectedCourse.section || '—'}</div>
                             <div><strong>Enrolled Students:</strong> {selectedCourse.enrolled_count ?? '—'}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button className="submit-btn" style={{ background: '#163269' }}
+                        <div className="modal-actions-row">
+                            <button className="mgmt-btn primary" style={{ background: '#163269', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); openAssignModal(c); }}>
                                 <i className="fas fa-user-edit" /> Change Instructor
                             </button>
-                            <button className="submit-btn" style={{ background: '#1a5632' }}
+                            <button className="mgmt-btn primary" style={{ background: '#1a5632', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); openRoomModal(c); }}>
                                 <i className="fas fa-door-open" /> Assign Room
                             </button>
-                            <button className="submit-btn" style={{ background: '#b91c1c' }}
+                            <button className="mgmt-btn primary" style={{ background: '#b91c1c', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); handleDeleteCourse(c); }}>
                                 <i className="fas fa-trash" /> Delete
                             </button>

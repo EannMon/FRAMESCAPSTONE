@@ -468,46 +468,48 @@ const DeptHeadUserManagementPage = () => {
                             </div>
                         </div>
 
-                        <table className="user-table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Role</th>
-                                    <th>Department</th>
-                                    <th>Face Status</th>
-                                    <th>Last Active</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredUsers.length > 0 ? (
-                                    filteredUsers.map((user, index) => (
-                                        <tr key={index} className="user-row" style={{ cursor: 'pointer' }} onClick={() => setSelectedDirectoryUser(user)}>
-                                            <td>
-                                                <div className="user-info-cell">
-                                                    <div className="user-table-avatar">{(user.role && user.role[0]) ? user.role[0].toUpperCase() : '?'}</div>
-                                                    <div>
-                                                        <span className="user-table-name">{user.name}</span>
-                                                        <span className="user-table-email">{user.email || 'No email'}</span>
+                        <div className="table-responsive">
+                            <table className="user-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Face Status</th>
+                                        <th>Last Active</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredUsers.length > 0 ? (
+                                        filteredUsers.map((user, index) => (
+                                            <tr key={index} className="user-row" style={{ cursor: 'pointer' }} onClick={() => setSelectedDirectoryUser(user)}>
+                                                <td>
+                                                    <div className="user-info-cell">
+                                                        <div className="user-table-avatar">{(user.role && user.role[0]) ? user.role[0].toUpperCase() : '?'}</div>
+                                                        <div>
+                                                            <span className="user-table-name">{user.name}</span>
+                                                            <span className="user-table-email">{user.email || 'No email'}</span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td><span className={`role-tag ${user.roleColor}`}>{user.role}</span></td>
-                                            <td>{user.department}</td>
-                                            <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
-                                            <td>{user.lastActive}</td>
-                                            <td>
-                                                <button className="action-button" onClick={(e) => { e.stopPropagation(); setSelectedDirectoryUser(user); }}>
-                                                    <i className="fas fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                                                </td>
+                                                <td><span className={`role-tag ${user.roleColor}`}>{user.role}</span></td>
+                                                <td>{user.department}</td>
+                                                <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
+                                                <td>{user.lastActive}</td>
+                                                <td>
+                                                    <button className="action-button" onClick={(e) => { e.stopPropagation(); setSelectedDirectoryUser(user); }}>
+                                                        <i className="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* DIRECTORY USER DETAIL MODAL */}

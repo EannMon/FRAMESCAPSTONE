@@ -1705,3 +1705,155 @@
         padding: 25px;
     }
 }
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIXES — 768px (Tablet)    */
+/* =========================================== */
+@media (max-width: 768px) {
+    .header {
+        padding: 10px 20px;
+    }
+
+    .hero-section {
+        padding: 30px 30px 40px;
+    }
+
+    .hero-title,
+    .hero-content h1 {
+        font-size: 3em;
+    }
+
+    .hero-description {
+        font-size: 1em;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .features-section {
+        padding: 40px 25px;
+    }
+
+    .cta-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cta-buttons a,
+    .cta-buttons button {
+        margin-right: 0;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .role-modal-grid {
+        gap: 15px;
+    }
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIXES — 375px (Mobile)    */
+/* =========================================== */
+@media (max-width: 480px) {
+    .header {
+        padding: 8px 12px;
+    }
+
+    .nav-links a,
+    .login-link {
+        margin-left: 10px;
+        font-size: 0.85em;
+    }
+
+    .get-started-button {
+        padding: 6px 12px;
+        font-size: 0.85em;
+        margin-left: 10px;
+    }
+
+    .hero-section {
+        padding: 20px 16px 30px;
+        min-height: auto;
+    }
+
+    .hero-title,
+    .hero-content h1 {
+        font-size: 2.2em;
+        letter-spacing: -0.5px;
+    }
+
+    .hero-subtitle {
+        font-size: 1em;
+    }
+
+    .hero-description {
+        font-size: 0.9em;
+        margin-bottom: 25px;
+    }
+
+    .hero-content {
+        max-width: 100%;
+    }
+
+    .features-section {
+        padding: 30px 15px;
+    }
+
+    .features-section h2 {
+        font-size: 1.8em;
+    }
+
+    .features-subtitle {
+        font-size: 0.95em;
+    }
+
+    .feature-card {
+        padding: 20px;
+    }
+
+    .cta-buttons a,
+    .cta-buttons button {
+        padding: 12px 20px;
+        font-size: 0.9em;
+    }
+
+    /* Auth modals on narrow screens */
+    .auth-panel.login-panel .auth-form-container {
+        padding: 25px 20px;
+    }
+
+    .signup-panel {
+        padding: 25px 20px;
+    }
+
+    .signup-step {
+        gap: 15px 15px;
+    }
+
+    .auth-form-title {
+        font-size: 1.6rem;
+    }
+
+    .login-modal-card {
+        padding: 20px 16px;
+    }
+
+    .login-modal-card h3 {
+        font-size: 1.3rem;
+    }
+
+    .signup-step-indicators {
+        width: 100%;
+        gap: 8px;
+    }
+
+    .step-circle {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+        margin: 0 6px;
+    }
+}

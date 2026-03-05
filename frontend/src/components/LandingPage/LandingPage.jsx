@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import './LandingPage.css';
-import landingBg from '../../assets/images/landing_bg.png';
+import landingBg from '../../assets/images/landing_bg.jpg';
 import Header from '../Common/Header';
 import Footer from '../Common/Footer';
 

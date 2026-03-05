@@ -475,9 +475,11 @@
     border-color: #dc2626;
     background: #fef2f2;
 }
+
 .dh-room-overcrowded:hover {
     box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
+
 .overcrowding-badge {
     display: inline-flex;
     align-items: center;
@@ -491,14 +493,24 @@
     margin-left: 8px;
     animation: overcrowdPulse 1.5s infinite;
 }
+
 @keyframes overcrowdPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
 }
+
 .live-count-capacity {
     font-size: 0.78rem;
     color: #64748b;
 }
+
 .live-count-capacity.overcrowded {
     color: #dc2626;
     font-weight: 700;
@@ -760,12 +772,37 @@
 
     .welcome-status {
         margin-left: 0;
+        align-self: center;
+    }
+
+    .chart-card,
+    .dh-live-status-card,
+    .recent-activity-card {
+        max-width: 100vw !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
     }
 }
 
 @media (max-width: 576px) {
     .summary-cards-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .summary-icon-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    .summary-value {
+        font-size: 1.3rem;
+    }
+
+    .summary-title {
+        font-size: 0.7rem;
     }
 
     .chart-header {
@@ -783,5 +820,82 @@
     .dh-live-controls {
         width: 100%;
         justify-content: space-between;
+    }
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
+/* =========================================== */
+@media (max-width: 375px) {
+    .welcome-banner {
+        padding: 12px 14px;
+        gap: 8px;
+        border-radius: 10px;
+    }
+
+    .welcome-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .welcome-info h3 {
+        font-size: 0.95rem;
+    }
+
+    .welcome-info p {
+        font-size: 0.8rem;
+    }
+
+    .welcome-status {
+        align-self: center;
+    }
+
+    .summary-cards-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .summary-card.premium {
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .summary-value {
+        font-size: 1.2rem;
+    }
+
+    .summary-title {
+        font-size: 0.65rem;
+    }
+
+    .summary-icon-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .chart-card {
+        padding: 12px;
+        border-radius: 10px;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .recent-activity-card {
+        padding: 12px;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .activity-item {
+        padding: 6px 8px;
+    }
+
+    .dh-room-box {
+        padding: 12px;
     }
 }
