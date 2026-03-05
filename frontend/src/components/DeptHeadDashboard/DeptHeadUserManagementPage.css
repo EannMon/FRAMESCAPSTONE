@@ -1065,3 +1065,55 @@
         padding: 16px;
     }
 }
+
+/* ============================================
+   Dark Mode Support Classes
+   ============================================ */
+.modal-actions-flex {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.action-btn-approve {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn-approve:hover {
+    background: #15803d;
+}
+
+.action-btn-reject {
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn-reject:hover {
+    background: #b91c1c;
+}
+
+.modal-close-auto {
+    margin-left: auto;
+}
+
+.td-empty-state {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted, #888);
+}

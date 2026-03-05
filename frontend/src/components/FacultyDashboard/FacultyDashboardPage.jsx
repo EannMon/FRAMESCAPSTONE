@@ -30,7 +30,7 @@ const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, 
             <div className="summary-title">{title}</div>
             <div className="summary-value-row">
                 <span className="summary-value">{value}</span>
-                {subValue && <span className="summary-sub" style={{ color: subValueColor || '#888' }}>{subValue}</span>}
+                {subValue && <span className="summary-sub" style={{ '--sub-color': subValueColor || 'var(--text-muted)' }}>{subValue}</span>}
             </div>
         </div>
         <div className={`summary-icon-circle ${iconBgClass || ''}`}>
@@ -295,23 +295,23 @@ const LiveRoomStatus = ({ rooms, personalStatus }) => {
                             width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block',
                             backgroundColor: statusColor, animation: status !== 'IDLE' && status !== 'EXITED' ? 'blink 1.5s infinite' : 'none' 
                         }}></span>
-                        <span style={{ color: statusColor, fontWeight: 'bold', fontSize: '1.1rem' }}>{status}</span>
+                        <span className="live-status-label" style={{ '--status-color': statusColor }}>{status}</span>
                     </div>
                 </div>
-                <div className="room-display" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: status === 'PRESENT' ? 'rgba(46,125,50,0.06)' : status === 'BREAK' ? 'rgba(249,168,37,0.06)' : '#f9f9f9', borderRadius: '12px' }}>
-                    <i className="fas fa-chalkboard-teacher" style={{ fontSize: '2.2rem', color: status === 'PRESENT' ? statusColor : '#ccc' }}></i>
-                    <div>
-                        <h4 style={{ margin: 0, fontSize: '1.3rem', color: '#333' }}>{roomName}</h4>
-                        <p style={{ margin: '4px 0 0', color: '#666', fontSize: '0.95rem' }}>{statusText}</p>
+                <div className={`room-display room-display-${status.toLowerCase()}`}>
+                    <i className={`fas fa-chalkboard-teacher room-icon-large ${status === 'PRESENT' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
+                    <div className="room-details">
+                        <h4 className="room-name">{roomName}</h4>
+                        <p className="room-status-text">{statusText}</p>
                         {ps.subject_code && (
-                            <p style={{ margin: '4px 0 0', color: '#888', fontSize: '0.85rem' }}>
-                                <i className="fas fa-book" style={{ marginRight: '6px' }}></i>
+                            <p className="room-subject-info">
+                                <i className="fas fa-book"></i>
                                 {ps.subject_code}{ps.subject_title ? ` — ${ps.subject_title}` : ''}
                             </p>
                         )}
                         {ps.last_timestamp && (
-                            <p style={{ margin: '4px 0 0', color: '#aaa', fontSize: '0.8rem' }}>
-                                <i className="fas fa-clock" style={{ marginRight: '6px' }}></i>
+                            <p className="room-timestamp">
+                                <i className="fas fa-clock"></i>
                                 Last: {new Date(ps.last_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                         )}
@@ -519,19 +519,19 @@ const QuickActions = ({ navigate }) => {
         <div className="card quick-actions-card">
             <h3><i className="fas fa-bolt"></i> Quick Actions</h3>
             <div className="quick-action-item" onClick={() => navigate('/faculty-reports')}>
-                <div className="quick-action-icon" style={{ background: 'rgba(0,168,89,0.1)', color: '#00A859' }}>
+                <div className="quick-action-icon quick-action-green">
                     <i className="fas fa-file-pdf"></i>
                 </div>
                 <div className="quick-action-text">Download Reports</div>
             </div>
             <div className="quick-action-item" onClick={() => navigate('/faculty-classes')}>
-                <div className="quick-action-icon" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
+                <div className="quick-action-icon quick-action-blue">
                     <i className="fas fa-chalkboard"></i>
                 </div>
                 <div className="quick-action-text">My Classes</div>
             </div>
             <div className="quick-action-item" onClick={() => navigate('/faculty-attendance')}>
-                <div className="quick-action-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#8b5cf6' }}>
+                <div className="quick-action-icon quick-action-purple">
                     <i className="fas fa-clipboard-list"></i>
                 </div>
                 <div className="quick-action-text">View Attendance</div>

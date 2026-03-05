@@ -569,3 +569,127 @@
         padding: 12px;
     }
 }
+
+/* =========================================== */
+/* CSS Custom Properties for Dark Mode Support */
+/* =========================================== */
+:root {
+    --text-primary: #333;
+    --text-secondary: #555;
+    --text-muted: #777;
+    --text-light: #888;
+    --bg-primary: #fff;
+    --bg-secondary: #f8f9fa;
+    --bg-muted: #f0f0f0;
+    --border-color: #eee;
+    --text-success: #388E3C;
+    --text-success-dark: #1a5c2a;
+}
+
+/* Dashboard Loading */
+.dashboard-loading {
+    text-align: center;
+    padding-top: 100px;
+    color: var(--text-muted, #666);
+}
+
+/* Summary Subtitle with dynamic color */
+.summary-subtitle {
+    color: var(--subtitle-color, var(--text-muted));
+    font-weight: 600;
+    font-size: 0.75em;
+    margin-top: 2px;
+}
+
+/* Live Status Text */
+.live-status-text {
+    color: var(--status-color, var(--text-muted));
+    font-weight: bold;
+}
+
+/* Room Icon States */
+.room-icon.active {
+    color: var(--active-color, #2E7D32);
+}
+
+.room-icon.inactive {
+    color: var(--text-muted, #ccc);
+}
+
+/* Metrics Panel */
+.metrics-panel {
+    padding: 16px 18px;
+}
+
+.metrics-panel-title {
+    margin: 0 0 14px 0;
+    font-size: 1em;
+    color: var(--text-primary, #333);
+}
+
+.metrics-icon {
+    margin-right: 8px;
+    color: #5c67f2;
+}
+
+.metrics-meter {
+    margin-bottom: 16px;
+}
+
+.metrics-meter-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.metrics-label {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-secondary, #444);
+}
+
+.metrics-value {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: var(--meter-color, var(--text-primary));
+}
+
+.metrics-bar-bg {
+    background: var(--bg-muted, #f0f0f0);
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.metrics-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: var(--bar-color, #5c67f2);
+    transition: width 0.5s ease;
+}
+
+.metrics-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.metrics-detail-last {
+    margin-bottom: 4px;
+}
+
+.metrics-detail-text {
+    font-size: 0.78em;
+    color: var(--text-muted, #666);
+}
+
+.tier-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #fff;
+    background: var(--badge-bg, #888);
+}

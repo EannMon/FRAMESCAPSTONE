@@ -8,11 +8,11 @@ import './SchedulePage.css';
 const ClassItem = ({ time, title, subjectCode, room, professor, section }) => (
   <div className="week-class-item">
     <span className="week-class-time">{time}</span>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      <span className="week-class-title" style={{ fontWeight: '600' }}>{subjectCode} — {title}</span>
-      {section && <span style={{ fontSize: '0.82em', color: '#475569', fontWeight: '500' }}>Section: {section}</span>}
-      {professor && <span style={{ fontSize: '0.82em', color: '#64748b' }}><i className="fas fa-user-tie" style={{ marginRight: '4px', fontSize: '0.75em' }}></i>{professor}</span>}
-      <span style={{ fontSize: '0.82em', color: '#888' }}><i className="fas fa-map-marker-alt" style={{ marginRight: '4px', fontSize: '0.75em' }}></i>{room || 'TBA'}</span>
+    <div className="class-item-details">
+      <span className="week-class-title class-title-main">{subjectCode} — {title}</span>
+      {section && <span className="class-meta-text class-section">Section: {section}</span>}
+      {professor && <span className="class-meta-text class-professor"><i className="fas fa-user-tie class-meta-icon"></i>{professor}</span>}
+      <span className="class-meta-text class-room"><i className="fas fa-map-marker-alt class-meta-icon"></i>{room || 'TBA'}</span>
     </div>
   </div>
 );
@@ -75,27 +75,19 @@ const SchedulePage = () => {
   const todayName = dayNames[new Date().getDay()];
   const classesForToday = weekSchedule[todayName] || [];
 
-  if (loading) return <div style={{ padding: '30px' }}>Loading Schedule...</div>;
+  if (loading) return <div className="schedule-loading">Loading Schedule...</div>;
 
   return (
     <div className="schedule-view-container">
 
       {/* --- AUTO-SYNC INFO BANNER --- */}
-      <div className="card" style={{
-        marginBottom: '20px',
-        borderLeft: '5px solid #2E7D32',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-        padding: '16px 20px',
-        background: '#F1FDF4'
-      }}>
-        <i className="fas fa-sync-alt" style={{ fontSize: '1.4rem', color: '#2E7D32' }} />
+      <div className="card auto-sync-banner">
+        <i className="fas fa-sync-alt sync-icon" />
         <div>
-          <div style={{ fontWeight: 700, color: '#1a5c2a', marginBottom: 2 }}>
+          <div className="sync-title">
             Schedule Automatically Synced
           </div>
-          <div style={{ fontSize: '0.875em', color: '#388E3C' }}>
+          <div className="sync-description">
             Your class schedule is automatically populated from your enrollment records. No action needed — it updates whenever you are enrolled in or dropped from a class.
           </div>
         </div>
@@ -126,7 +118,7 @@ const SchedulePage = () => {
               <ClassItem key={index} time={cls.time} title={cls.title} subjectCode={cls.subjectCode} room={cls.room} professor={cls.professor} section={cls.section} />
             ))
           ) : (
-            <p style={{ color: '#777' }}>No classes scheduled for today.</p>
+            <p className="no-classes-message">No classes scheduled for today.</p>
           )}
         </div>
       )}

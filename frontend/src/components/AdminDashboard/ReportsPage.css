@@ -632,3 +632,26 @@
         /* Bawasan ang padding sa mobile */
     }
 }
+
+/* ============================================
+   Dark Mode Support Classes
+   ============================================ */
+.date-range-separator {
+    align-self: center;
+    color: var(--text-muted, #888);
+}
+
+.td-empty-state-large {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted, #888);
+}
+
+.search-icon-empty {
+    margin-bottom: 10px;
+    font-size: 20px;
+}
+
+.error-icon {
+    color: #b91c1c;
+}
