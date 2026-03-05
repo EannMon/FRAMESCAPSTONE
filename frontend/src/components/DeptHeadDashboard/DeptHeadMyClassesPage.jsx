@@ -596,7 +596,7 @@ const DeptHeadMyClassesPage = () => {
                     </div>
                 ))
             ) : (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: '#888' }}>
+                <div className="no-classes-message">
                     {loading ? "Loading classes..." : "No classes assigned."}
                 </div>
             )}
@@ -788,14 +788,14 @@ const DeptHeadMyClassesPage = () => {
                             <i className="fas fa-file-pdf"></i> Download Month
                         </button>
                         {selectedSessions.length > 0 && (
-                            <button className="schedule-filter-btn" style={{ backgroundColor: '#F9A825', color: 'white' }} onClick={() => setShowManageModal(true)}>
+                            <button className="schedule-filter-btn schedule-filter-btn-warning" onClick={() => setShowManageModal(true)}>
                                 Update {selectedSessions.length} Selected
                             </button>
                         )}
                     </div>
                 </div>
 
-                <div className="calendar-grid-wrapper" style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.04)' }}>
+                <div className="calendar-grid-wrapper calendar-grid-card">
                     <div className="cal-header-row">
                         <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
                     </div>
@@ -951,7 +951,7 @@ const DeptHeadMyClassesPage = () => {
                                         </tr>
                                     ))}
                                     {course.enrolled_students.length === 0 && (
-                                        <tr><td colSpan="4" style={{ textAlign: 'center', color: '#999' }}>No students. Add manually below.</td></tr>
+                                        <tr><td colSpan="4" className="td-empty-state">No students. Add manually below.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -1060,11 +1060,11 @@ const DeptHeadMyClassesPage = () => {
                     <div className="modal-content-box manage-modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <div>
-                                <h3 style={{ margin: 0 }}>
-                                    <i className="fas fa-calendar-check" style={{ marginRight: 8, color: '#2E7D32' }}></i>
+                                <h3 className="modal-title-no-margin">
+                                    <i className="fas fa-calendar-check modal-icon-green"></i>
                                     Session Summary
                                 </h3>
-                                <p style={{ margin: '4px 0 0', fontSize: '0.85em', color: '#666' }}>
+                                <p className="modal-subtitle">
                                     {new Date(dayModal.dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
                                         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                                     })}
@@ -1073,27 +1073,23 @@ const DeptHeadMyClassesPage = () => {
                             <button className="close-btn" onClick={() => setDayModal(null)}>&times;</button>
                         </div>
                         <div className="modal-body">
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+                            <table className="session-summary-table">
                                 <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Subject</th>
-                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Section</th>
-                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Time</th>
-                                        <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Status</th>
+                                    <tr className="session-summary-header-row">
+                                        <th className="session-summary-th">Subject</th>
+                                        <th className="session-summary-th">Section</th>
+                                        <th className="session-summary-th">Time</th>
+                                        <th className="session-summary-th">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {dayModal.events.map((ev, i) => (
-                                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                            <td style={{ padding: '10px 12px', fontWeight: 700, color: '#163269' }}>{ev.title}</td>
-                                            <td style={{ padding: '10px 12px', color: '#555' }}>{ev.section}</td>
-                                            <td style={{ padding: '10px 12px', color: '#555' }}>{ev.time}</td>
-                                            <td style={{ padding: '10px 12px' }}>
-                                                <span style={{
-                                                    background: ev.status === 'cancelled' ? '#FFEBEE' : '#E6F4EA',
-                                                    color: ev.status === 'cancelled' ? '#C62828' : '#2E7D32',
-                                                    padding: '3px 10px', borderRadius: 12, fontSize: '0.8em', fontWeight: 700
-                                                }}>
+                                        <tr key={i} className="session-summary-row">
+                                            <td className="session-summary-td-title">{ev.title}</td>
+                                            <td className="session-summary-td">{ev.section}</td>
+                                            <td className="session-summary-td">{ev.time}</td>
+                                            <td className="session-summary-td-status">
+                                                <span className={`status-badge ${ev.status === 'cancelled' ? 'status-cancelled' : 'status-completed'}`}>
                                                     {ev.status === 'cancelled' ? 'CANCELLED' : 'COMPLETED'}
                                                 </span>
                                             </td>
@@ -1105,7 +1101,7 @@ const DeptHeadMyClassesPage = () => {
                         <div className="modal-footer">
                             <button className="cancel-btn" onClick={() => setDayModal(null)}>Close</button>
                             <button className="save-btn" onClick={handleDayModalPDF}>
-                                <i className="fas fa-file-pdf" style={{ marginRight: 6 }}></i> Download PDF
+                                <i className="fas fa-file-pdf btn-icon"></i> Download PDF
                             </button>
                         </div>
                     </div>
@@ -1117,7 +1113,7 @@ const DeptHeadMyClassesPage = () => {
                 <div className="modal-overlay" onClick={() => setShowAddStudentModal(false)}>
                     <div className="modal-content-box manage-modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3><i className="fas fa-user-plus" style={{ marginRight: 8, color: '#2E7D32' }}></i> Add Student to Class</h3>
+                            <h3><i className="fas fa-user-plus modal-icon-green"></i> Add Student to Class</h3>
                             <button className="close-btn" onClick={() => setShowAddStudentModal(false)}>&times;</button>
                         </div>
                         <div className="modal-body">
@@ -1131,7 +1127,7 @@ const DeptHeadMyClassesPage = () => {
                                     autoFocus
                                 />
                             </div>
-                            {isSearching && <p style={{ color: '#999', fontSize: '0.85em' }}>Searching...</p>}
+                            {isSearching && <p className="search-status-text">Searching...</p>}
                             {studentSearchResults.length > 0 && (
                                 <div className="search-results-list">
                                     {studentSearchResults.map(s => (
@@ -1147,7 +1143,7 @@ const DeptHeadMyClassesPage = () => {
                                 </div>
                             )}
                             {studentSearchQuery.length >= 2 && studentSearchResults.length === 0 && !isSearching && (
-                                <p style={{ color: '#999', fontSize: '0.85em', textAlign: 'center' }}>No students found.</p>
+                                <p className="search-empty-text">No students found.</p>
                             )}
                         </div>
                         <div className="modal-footer">

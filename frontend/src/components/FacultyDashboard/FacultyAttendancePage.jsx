@@ -321,39 +321,36 @@ const FacultyAttendancePage = () => {
                                 <tbody>
                                     {displayStudents.map(student => (
                                         <tr key={student.user_id}>
-                                            <td style={{ fontWeight: '600', color: '#333' }}>
+                                            <td className="td-student-name">
                                                 {student.lastName}, {student.firstName}
                                             </td>
-                                            <td style={{ color: '#666' }}>{student.tupm_id}</td>
+                                            <td className="td-student-id">{student.tupm_id}</td>
                                             <td>{student.timeIn || '--'}</td>
                                             <td>{student.timeOut || '--'}</td>
                                             <td>
                                                 <StatusBadge status={student.status || 'Absent'} />
                                             </td>
-                                            <td style={{ color: student.remarks === 'Late' ? 'orange' : '#555' }}>
+                                            <td className={`td-remarks ${student.remarks === 'Late' ? 'late' : ''}`}>
                                                 {student.remarks || '-'}
                                             </td>
-                                            <td style={{ textAlign: 'center' }}>
+                                            <td className="td-actions">
                                                 {student.entry_log_id ? (
                                                     <button
                                                         onClick={() => openEditModal(student)}
-                                                        style={{
-                                                            background: 'none', border: 'none', cursor: 'pointer',
-                                                            color: '#163269', fontSize: '0.9rem', padding: '4px 8px',
-                                                        }}
+                                                        className="edit-btn"
                                                         title="Edit time-in"
                                                     >
                                                         <i className="fas fa-pen" />
                                                     </button>
                                                 ) : (
-                                                    <span style={{ color: '#ccc' }}>—</span>
+                                                    <span className="no-action">—</span>
                                                 )}
                                             </td>
                                         </tr>
                                     ))}
                                     {displayStudents.length === 0 && (
                                         <tr>
-                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                                            <td colSpan="7" className="td-empty-state">
                                                 No attendance records found for this date.
                                             </td>
                                         </tr>
@@ -367,57 +364,51 @@ const FacultyAttendancePage = () => {
 
             {/* Empty state */}
             {!selectedClass && myClasses.length > 0 && !loading && (
-                <div style={{ textAlign: 'center', padding: '50px', color: '#888' }}>
-                    <i className="fas fa-chalkboard-teacher" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }} />
+                <div className="empty-state-container">
+                    <i className="fas fa-chalkboard-teacher empty-state-icon" />
                     <p>Select a class above and a session date to view attendance.</p>
                 </div>
             )}
             {myClasses.length === 0 && !loading && (
-                <div style={{ textAlign: 'center', padding: '50px', color: '#888' }}>
-                    <i className="fas fa-calendar-plus" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }} />
+                <div className="empty-state-container">
+                    <i className="fas fa-calendar-plus empty-state-icon" />
                     <p>No classes assigned yet. Contact your department head.</p>
                 </div>
             )}
 
             {/* ── EDIT ATTENDANCE MODAL ── */}
             {editModalOpen && editingStudent && (
-                <div className="modal-overlay" style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-                }}>
-                    <div style={{
-                        background: '#fff', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '90%',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-                    }}>
-                        <h3 style={{ margin: '0 0 18px', color: '#163269', fontSize: '1.05rem' }}>
-                            <i className="fas fa-pen" style={{ marginRight: 8 }} />Edit Attendance
+                <div className="modal-overlay edit-attendance-overlay">
+                    <div className="edit-modal-content">
+                        <h3 className="edit-modal-title">
+                            <i className="fas fa-pen btn-icon" />Edit Attendance
                         </h3>
 
                         {/* Non-editable fields */}
-                        <div style={{ marginBottom: 14, padding: '10px 14px', background: '#f8f9fb', borderRadius: 8, fontSize: '0.9em' }}>
+                        <div className="edit-modal-info-box">
                             <div><strong>Student:</strong> {editingStudent.lastName}, {editingStudent.firstName}</div>
                             <div><strong>ID:</strong> {editingStudent.tupm_id}</div>
                         </div>
 
                         {/* Editable: Time In */}
-                        <div style={{ marginBottom: 14 }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: '0.88em', color: '#333' }}>
+                        <div className="edit-modal-field">
+                            <label className="edit-modal-label">
                                 Time In (override)
                             </label>
                             <input
                                 type="time"
                                 value={editTime}
                                 onChange={e => setEditTime(e.target.value)}
-                                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: '0.95em' }}
+                                className="edit-modal-input"
                             />
-                            <p style={{ fontSize: '0.78em', color: '#888', marginTop: 4 }}>
+                            <p className="edit-modal-hint">
                                 Status will auto-update based on class start time.
                             </p>
                         </div>
 
                         {/* Editable: Remarks */}
-                        <div style={{ marginBottom: 18 }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: '0.88em', color: '#333' }}>
+                        <div className="edit-modal-field edit-modal-field-lg">
+                            <label className="edit-modal-label">
                                 Remarks
                             </label>
                             <input
@@ -425,27 +416,20 @@ const FacultyAttendancePage = () => {
                                 value={editRemarks}
                                 onChange={e => setEditRemarks(e.target.value)}
                                 placeholder="Optional remark..."
-                                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: '0.95em' }}
+                                className="edit-modal-input"
                             />
                         </div>
 
                         {/* Buttons */}
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                        <div className="edit-modal-actions">
                             <button
                                 onClick={() => setEditModalOpen(false)}
-                                style={{
-                                    padding: '8px 18px', border: '1px solid #ddd', borderRadius: 8,
-                                    background: '#fff', cursor: 'pointer', fontSize: '0.9em',
-                                }}
+                                className="edit-modal-cancel-btn"
                             >Cancel</button>
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
-                                style={{
-                                    padding: '8px 18px', border: 'none', borderRadius: 8,
-                                    background: '#163269', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
-                                    fontSize: '0.9em', opacity: saving ? 0.6 : 1,
-                                }}
+                                className={`edit-modal-save-btn ${saving ? 'saving' : ''}`}
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>

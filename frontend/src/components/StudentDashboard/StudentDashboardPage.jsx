@@ -25,7 +25,7 @@ const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, su
         <div className="summary-value">{value}</div>
         <div className="summary-title">{title}</div>
         {subtitle && (
-            <div className="summary-subtitle" style={{ color: subtitleColor || '#888', fontWeight: 600, fontSize: '0.75em', marginTop: '2px' }}>
+            <div className="summary-subtitle" style={{ '--subtitle-color': subtitleColor || 'var(--text-muted)' }}>
                 {subtitle}
             </div>
         )}
@@ -108,12 +108,12 @@ const LiveClassStatus = ({ recentLog }) => {
                 <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
                 <div className="live-indicator">
                     <span className="blink-dot" style={{ backgroundColor: statusColor }}></span>
-                    <span style={{ color: statusColor, fontWeight: 'bold' }}>{status}</span>
+                    <span className="live-status-text" style={{ '--status-color': statusColor }}>{status}</span>
                 </div>
             </div>
             <div className="live-body">
                 <div className="room-display">
-                    <i className="fas fa-chalkboard-teacher room-icon" style={{ color: status === 'ACTIVE' ? statusColor : '#ccc' }}></i>
+                    <i className={`fas fa-chalkboard-teacher room-icon ${status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
                     <div className="room-info">
                         <h4>{roomName}</h4>
                         <p>{statusText}</p>
@@ -131,50 +131,42 @@ const StudentMetricsPanel = ({ metrics }) => {
     const renderMeter = (rate, color, label) => {
         const pct = Math.min(Math.max(rate, 0), 100);
         return (
-            <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.85em', fontWeight: 600, color: '#444' }}>{label}</span>
-                    <span style={{ fontSize: '0.85em', fontWeight: 700, color }}>{pct}%</span>
+            <div className="metrics-meter">
+                <div className="metrics-meter-header">
+                    <span className="metrics-label">{label}</span>
+                    <span className="metrics-value" style={{ '--meter-color': color }}>{pct}%</span>
                 </div>
-                <div style={{ background: '#f0f0f0', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', borderRadius: '6px', background: color, transition: 'width 0.5s ease' }} />
+                <div className="metrics-bar-bg">
+                    <div className="metrics-bar-fill" style={{ width: `${pct}%`, '--bar-color': color }} />
                 </div>
             </div>
         );
     };
 
     const renderTierBadge = (tier, color) => (
-        <span style={{
-            display: 'inline-block',
-            padding: '2px 10px',
-            borderRadius: '12px',
-            fontSize: '0.72em',
-            fontWeight: 700,
-            color: '#fff',
-            background: color,
-        }}>
+        <span className="tier-badge" style={{ '--badge-bg': color }}>
             {tier}
         </span>
     );
 
     return (
-        <div className="card" style={{ padding: '16px 18px' }}>
-            <h3 style={{ margin: '0 0 14px 0', fontSize: '1em', color: '#333' }}>
-                <i className="fas fa-chart-bar" style={{ marginRight: '8px', color: '#5c67f2' }}></i>
+        <div className="card metrics-panel">
+            <h3 className="metrics-panel-title">
+                <i className="fas fa-chart-bar metrics-icon"></i>
                 Performance Metrics
             </h3>
 
             {renderMeter(metrics.attendance_rate, metrics.attendance_tier_color, 'Attendance Rate')}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <span style={{ fontSize: '0.78em', color: '#666' }}>
+            <div className="metrics-detail-row">
+                <span className="metrics-detail-text">
                     {metrics.sessions_attended} / {metrics.total_sessions} sessions
                 </span>
                 {renderTierBadge(metrics.attendance_tier, metrics.attendance_tier_color)}
             </div>
 
             {renderMeter(metrics.punctuality_rate, metrics.punctuality_tier_color, 'Punctuality Rate')}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontSize: '0.78em', color: '#666' }}>
+            <div className="metrics-detail-row metrics-detail-last">
+                <span className="metrics-detail-text">
                     {metrics.on_time_arrivals} on-time / {metrics.late_arrivals} late
                 </span>
                 {renderTierBadge(metrics.punctuality_tier, metrics.punctuality_tier_color)}
@@ -206,7 +198,7 @@ const StudentRecentAttendance = ({ logs }) => (
                                 <span className="attendance-percent" style={{
                                     color: isEntry ? '#2E7D32' : '#666',
                                     fontSize: '0.8em',
-                                    backgroundColor: isEntry ? 'rgba(46, 125, 50, 0.1)' : '#f0f0f0'
+                                    backgroundColor: isEntry ? 'rgba(46, 125, 50, 0.1)' : 'var(--bg-muted, #f0f0f0)'
                                 }}>
                                     {displayType}
                                 </span>
@@ -215,7 +207,7 @@ const StudentRecentAttendance = ({ logs }) => (
                     );
                 })
             ) : (
-                <p style={{ color: '#888', padding: '10px' }}>No recent records found.</p>
+                <p className="no-records-message">No recent records found.</p>
             )}
         </div>
     </div>

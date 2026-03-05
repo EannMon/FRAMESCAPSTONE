@@ -242,7 +242,7 @@ const FacultyLayout = () => {
     }, []);
 
     if (loading) {
-        return <div style={{ textAlign: 'center', paddingTop: '100px', color: '#666' }}>Loading dashboard...</div>;
+        return <div className="dashboard-loading">Loading dashboard...</div>;
     }
 
     if (!user) return null;
