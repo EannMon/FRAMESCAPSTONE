@@ -215,14 +215,19 @@ const FacultyMyClassesPage = () => {
                     mismatchParts.push(`Academic Year: file says "${parsedAy}" but department is set to "${academicYear}"`);
                 }
                 if (mismatchParts.length > 0) {
-                    setUploadMessage(`Schedule mismatch with department settings:\n${mismatchParts.join('\n')}\nPlease upload the correct schedule or contact your department head.`);
-                    return;
+                    // TEMP OVERRIDE: ignore mismatch, use department head settings
+                    console.warn('[TEMP] Semester/AY mismatch detected — overriding with department settings:', mismatchParts);
+                    // Override parsed data semester/AY with the locked dept values
+                    response.data.semester = semester || response.data.semester;
+                    response.data.academic_year = academicYear || response.data.academic_year;
                 }
 
                 // Store parsed data and switch to preview
                 setPreviewData(response.data);
-                if (response.data.semester) setSemester(response.data.semester);
-                if (response.data.academic_year) setAcademicYear(response.data.academic_year);
+                if (semester) setSemester(semester);
+                else if (response.data.semester) setSemester(response.data.semester);
+                if (academicYear) setAcademicYear(academicYear);
+                else if (response.data.academic_year) setAcademicYear(response.data.academic_year);
                 setUploadMessage('');
                 setSelectedFile(null);
                 setSubView('preview');

@@ -1,20 +1,20 @@
 {
   "device_id": 1,
-  "device_room": "Room 306",
-  "synced_at": "2026-03-04T12:39:11.293318",
+  "device_room": "Room 328",
+  "synced_at": "2026-03-05T11:12:11.000988",
   "schedule": [
     {
-      "class_id": 2,
-      "subject_code": "IT303-M",
-      "subject_title": "Systems Integration and Architecture 1",
-      "faculty_id": 6,
-      "faculty_name": "Elena Llana",
-      "section": "BSIT-3A-M",
-      "day_of_week": "Wednesday",
-      "start_time": "11:50:00",
+      "class_id": 1,
+      "subject_code": "IT232-M",
+      "subject_title": "Computer Architecture and Organization, Lec",
+      "faculty_id": 2,
+      "faculty_name": "JERICHO  DEL SOCORRO",
+      "section": "BSIT-2B-M",
+      "day_of_week": "Thursday",
+      "start_time": "11:00:00",
       "end_time": "13:00:00",
-      "room": "Room 306",
-      "semester": "1st Semester",
+      "room": "Room 328",
+      "semester": "2nd Semester",
       "academic_year": "2025-2026"
     }
   ]

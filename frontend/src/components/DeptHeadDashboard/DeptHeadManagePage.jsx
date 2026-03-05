@@ -142,6 +142,7 @@ const DeptHeadManagePage = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showRoomModal, setShowRoomModal] = useState(false);
+    const [isCustomRoom, setIsCustomRoom] = useState(false);
 
     // Selection State
     const [selectedCourse, setSelectedCourse] = useState(null);
@@ -321,6 +322,14 @@ const DeptHeadManagePage = () => {
     // 4. ASSIGN ROOM
     const openRoomModal = (course) => {
         setSelectedCourse(course);
+        // Pre-fill room with the course's current room if available
+        const currentRoom = course.room_name || '';
+        const isExisting = currentRoom === '' || availableRooms.includes(currentRoom);
+        setIsCustomRoom(!isExisting && currentRoom !== '');
+        setRoomForm(prev => ({
+            ...prev,
+            roomName: currentRoom || (availableRooms[0] || '')
+        }));
         setShowRoomModal(true);
     };
 
@@ -754,23 +763,44 @@ const DeptHeadManagePage = () => {
                 <div className="modal-overlay">
                     <div className="modal-content-box">
                         <div className="modal-header">
-                            <h3>Assign Room & Schedule</h3>
-                            <button className="close-btn" onClick={() => setShowRoomModal(false)}>&times;</button>
+                            <h3>Assign Room &amp; Schedule</h3>
+                            <button className="close-btn" onClick={() => { setShowRoomModal(false); setIsCustomRoom(false); }}>&times;</button>
                         </div>
                         <form onSubmit={handleAssignRoom}>
                             <div className="form-group">
-                                <label>Select Room</label>
+                                <label>Room</label>
                                 <select
                                     className="modal-select"
-                                    value={roomForm.roomName}
-                                    onChange={e => setRoomForm({ ...roomForm, roomName: e.target.value })}
+                                    value={isCustomRoom ? '__custom__' : roomForm.roomName}
+                                    onChange={e => {
+                                        if (e.target.value === '__custom__') {
+                                            setIsCustomRoom(true);
+                                            setRoomForm({ ...roomForm, roomName: '' });
+                                        } else {
+                                            setIsCustomRoom(false);
+                                            setRoomForm({ ...roomForm, roomName: e.target.value });
+                                        }
+                                    }}
                                 >
                                     {availableRooms.length > 0 ? (
                                         availableRooms.map(r => <option key={r} value={r}>{r}</option>)
                                     ) : (
-                                        <option value="">No rooms available</option>
+                                        <option value="">No rooms available yet</option>
                                     )}
+                                    <option value="__custom__">＋ Add new room...</option>
                                 </select>
+                                {isCustomRoom && (
+                                    <input
+                                        type="text"
+                                        className="modal-input"
+                                        placeholder="Enter room name (e.g. MH-301)"
+                                        required
+                                        autoFocus
+                                        value={roomForm.roomName}
+                                        onChange={e => setRoomForm({ ...roomForm, roomName: e.target.value })}
+                                        style={{ marginTop: '8px' }}
+                                    />
+                                )}
                             </div>
                             <div className="form-group">
                                 <label>Day of Week</label>
