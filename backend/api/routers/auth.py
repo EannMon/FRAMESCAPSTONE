@@ -12,6 +12,7 @@ from db.database import get_db
 from core.errors import api_error
 from core.limiter import limiter
 from core.auth import create_access_token, create_refresh_token, verify_token
+from core.auth import create_password_reset_token, verify_password_reset_token
 from models.user import User, UserRole, VerificationStatus
 from models.facial_profile import FacialProfile
 from schemas.user import (
@@ -88,12 +89,17 @@ def login(request: Request, credentials: UserLogin, db: Session = Depends(get_db
             middle_name=user.middle_name,
             role=user.role.value,
             tupm_id=user.tupm_id,
+            employee_id=user.employee_id,
             department_id=user.department_id,
             program_id=user.program_id,
+            department_name=user.department.name if user.department else None,
+            program_name=user.program.name if user.program else None,
+            college_name=user.department.college.name if user.department and user.department.college else None,
             face_registered=user.face_registered,
             verification_status=user.verification_status.value,
-            year_level=user.year_level,
             section=user.section,
+            academic_year=user.department.active_academic_year if user.department else None,
+            semester=user.department.active_semester if user.department else None,
             created_at=user.created_at,
             last_active=user.last_active
         )
@@ -362,4 +368,94 @@ def refresh_access_token(body: RefreshRequest, db: Session = Depends(get_db)):
     return {
         "access_token": new_access_token,
         "token_type": "bearer",
+    }
+
+
+# --- Forgot / Reset Password ---
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Request a password reset email.
+    Always returns success message to prevent email enumeration.
+    """
+    from services.email_service import send_password_reset_email, is_email_configured
+
+    email = body.email.strip().lower()
+
+    # Always return success to prevent email enumeration attacks
+    success_msg = {
+        "success": True,
+        "message": "If this email is registered, a password reset link has been sent. Please check your inbox."
+    }
+
+    if not is_email_configured():
+        logger.warning("AUTH | forgot-password requested but SMTP is not configured")
+        # Still return success message to not leak configuration details
+        return success_msg
+
+    user = db.query(User).filter(
+        (User.email == email)
+    ).first()
+
+    if not user:
+        logger.info("AUTH | forgot-password for unknown email (not revealing)")
+        return success_msg
+
+    # Generate password reset token (1 hour expiry)
+    reset_token = create_password_reset_token(user.id, user.email)
+
+    # Send email
+    display_name = f"{user.first_name} {user.last_name}"
+    sent = send_password_reset_email(user.email, display_name, reset_token)
+
+    if sent:
+        logger.info("AUTH | password reset email sent for user=%d", user.id)
+    else:
+        logger.error("AUTH | failed to send password reset email for user=%d", user.id)
+
+    return success_msg
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Reset password using a valid reset token.
+    Token is a JWT with type='password_reset', contains user ID and email.
+    """
+    # Validate password length
+    if len(body.new_password) < 8:
+        raise api_error(400, "WEAK_PASSWORD", "Password must be at least 8 characters")
+
+    # Verify and decode the reset token
+    payload = verify_password_reset_token(body.token)
+
+    user = db.query(User).filter(User.id == payload["sub"]).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    # Extra safety: verify email matches
+    if user.email != payload.get("email"):
+        raise api_error(400, "TOKEN_MISMATCH", "Reset token does not match this account")
+
+    # Hash new password and update
+    user.hashed_password = hash_password(body.new_password)
+    db.commit()
+
+    logger.info("AUTH | password reset completed for user=%d", user.id)
+
+    return {
+        "success": True,
+        "message": "Password has been reset successfully. You can now log in with your new password."
     }

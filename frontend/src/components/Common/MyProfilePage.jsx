@@ -385,10 +385,10 @@ const MyProfilePage = ({ isEmbedded = false }) => {
                         {isStudent && (
                             <>
                                 <ProfileField label="Course / Program" value={user.program_name || deriveProgramFromSection(user.section)} disabled={true} isEditing={isEditing} />
-                                <ProfileField label="Year Level" value={user.year_level || deriveYearFromSection(user.section)} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Year Level" value={deriveYearFromSection(user.section)} disabled={true} isEditing={isEditing} />
                                 <ProfileField label="Section" value={user.section} disabled={true} isEditing={isEditing} />
                                 <ProfileField label="Academic Year" value={user.academic_year || 'N/A'} disabled={true} isEditing={isEditing} />
-                                <ProfileField label="Semester" value={user.semester || user.current_term || 'N/A'} disabled={true} isEditing={isEditing} />
+                                <ProfileField label="Semester" value={user.semester || 'N/A'} disabled={true} isEditing={isEditing} />
                             </>
                         )}
 

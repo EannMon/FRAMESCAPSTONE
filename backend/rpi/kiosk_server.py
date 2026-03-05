@@ -684,6 +684,25 @@ async def startup_event():
     loop = asyncio.get_event_loop()
     state_queue = asyncio.Queue()
     
+    # Auto-export embeddings from database before starting kiosk
+    # This ensures the cache is always in sync with the DB (no stale recognitions)
+    try:
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cache_output = os.path.join(backend_dir, "rpi", "data", "embeddings_cache.json")
+        
+        # Import here to avoid circular imports at module level
+        sys.path.insert(0, backend_dir)
+        from scripts.export_embeddings import export_embeddings
+        
+        logger.info("CACHE | Auto-exporting embeddings from database before kiosk start...")
+        success = export_embeddings(cache_output, verbose=False)
+        if success:
+            logger.info("CACHE | Embeddings export completed successfully")
+        else:
+            logger.warning("CACHE | Embeddings export returned failure — kiosk will use existing cache if available")
+    except Exception as e:
+        logger.warning("CACHE | Auto-export failed (DB may be unreachable): %s — using existing cache file", str(e))
+    
     # Initialize kiosk logic
     config = KioskConfig()
     config.DEVICE_ID = int(os.getenv("DEVICE_ID", "1")) # Assuming local test DEVICE_ID 1

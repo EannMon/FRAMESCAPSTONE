@@ -28,7 +28,7 @@ const AdminSidebar = ({ user, isCollapsed, isMobileOpen }) => {
         { name: 'Application', icon: 'fas fa-file-alt', to: '/admin-application' },
         // TINANGGAL: { name: 'Verification', icon: 'fas fa-user-check', to: '/admin-verification' }, 
         { name: 'User Management', icon: 'fas fa-users', to: '/admin-user-management' },
-        { name: 'Reports', icon: 'fas fa-chart-bar', to: '/admin-reports' },
+        // Reports removed — report generation is for student, faculty, and dept head only
         { name: 'System Logs', icon: 'fas fa-clipboard-list', to: '/admin-logs' },
     ];
 

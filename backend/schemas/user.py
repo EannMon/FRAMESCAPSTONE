@@ -47,22 +47,12 @@ class UserRegister(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Profile update request"""
+    """Profile update request — only essential editable fields"""
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     middle_name: Optional[str] = None
-    year_level: Optional[str] = None
     section: Optional[str] = None
-    contact_number: Optional[str] = None
-    birthday: Optional[datetime] = None
-    home_address: Optional[str] = None
-    current_term: Optional[str] = None 
-    academic_advisor: Optional[str] = None
-    gpa: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_relationship: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_address: Optional[str] = None
+    email: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
@@ -97,29 +87,20 @@ class UserBase(BaseModel):
 
 
 class UserResponse(UserBase):
-    """Full user response (no password)"""
+    """Full user response (no password) — data minimized per MUSTFIX #1"""
     department_id: Optional[int] = None
     program_id: Optional[int] = None
     department_name: Optional[str] = None
     program_name: Optional[str] = None
+    college_name: Optional[str] = None
     face_registered: bool = False
     verification_status: str
-    year_level: Optional[str] = None
     section: Optional[str] = None
     created_at: Optional[datetime] = None
     last_active: Optional[datetime] = None
-    
-    # New Fields
-    contact_number: Optional[str] = None
-    birthday: Optional[datetime] = None
-    home_address: Optional[str] = None
-    current_term: Optional[str] = None
-    academic_advisor: Optional[str] = None
-    gpa: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_relationship: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_address: Optional[str] = None
+    # Derived fields — computed from department settings, not stored on user
+    academic_year: Optional[str] = None
+    semester: Optional[str] = None
     
     class Config:
         from_attributes = True

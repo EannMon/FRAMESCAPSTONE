@@ -213,9 +213,7 @@ def seed_capstone():
                     middle_name=sd["mid"],
                     department_id=dept_id,
                     program_id=prog_id,
-                    year_level="4th Year",
                     section=SECTION,
-                    current_term=f"{SEMESTER} {ACADEMIC_YEAR}",
                 )
                 db.add(student)
                 db.flush()

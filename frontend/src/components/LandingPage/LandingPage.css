@@ -279,8 +279,8 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    right: 0;
+    bottom: 0;
     background-color: rgba(0, 0, 0, 0.55);
     /* Dimmed Background */
     backdrop-filter: blur(4px);
@@ -955,8 +955,8 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    right: 0;
+    bottom: 0;
     background-color: rgba(0, 0, 0, 0.55);
     /* Dimmed Background */
     backdrop-filter: blur(4px);
@@ -1039,21 +1039,17 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    /* Full Viewport Width */
-    height: 100vh;
-    /* Full Viewport Height */
+    right: 0;
+    bottom: 0;
     background-color: rgba(0, 0, 0, 0.55);
     /* Dimmed background */
     backdrop-filter: blur(4px);
     /* Optional: Blur effect */
 
-    /* FLEXBOX CENTERING - Ito ang solusyon sa "Gap" */
+    /* FLEXBOX CENTERING */
     display: flex;
     justify-content: center;
-    /* Gitna horizontally */
     align-items: center;
-    /* Gitna vertically (May space na sa taas at baba) */
 
     z-index: 3000;
     padding: 20px;

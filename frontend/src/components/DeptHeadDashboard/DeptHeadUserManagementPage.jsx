@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import api from '../../services/api';
+import { useToast } from '../Common/ToastProvider';
 import './DeptHeadUserManagementPage.css';
 
 // Helper for status colors
@@ -22,6 +23,7 @@ const DeptHeadUserManagementPage = () => {
     console.log("Details: DeptHeadUserManagementPage mounting");
     const navigate = useNavigate();
     const location = useLocation();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('directory'); // 'directory' or 'verification'
 
     console.log("Details: Active Tab:", activeTab);
@@ -70,7 +72,7 @@ const DeptHeadUserManagementPage = () => {
     // ==========================================
     // SHARED FETCH HANDLER
     // ==========================================
-    const fetchUsers = async (signal) => {
+    const fetchUsers = async (signal = null) => {
         setVerificationLoading(true);
         setVerificationError(null);
         try {
@@ -82,7 +84,8 @@ const DeptHeadUserManagementPage = () => {
                 setVerificationLoading(false);
                 return;
             }
-            const response = await api.get(`/api/dept/users?dept_id=${deptId}`, { signal });
+            const reqConfig = signal ? { signal } : {};
+            const response = await api.get(`/api/dept/users?dept_id=${deptId}`, reqConfig);
 
             // Map for Verification Tab
             const mappedVerificationData = (response.data || []).map(user => ({
@@ -149,11 +152,11 @@ const DeptHeadUserManagementPage = () => {
     const handleAddUser = async (e) => {
         e.preventDefault();
         if (newUser.password !== newUser.confirmPassword) {
-            alert('Passwords do not match.');
+            toast.error('Passwords do not match.');
             return;
         }
         if (newUser.password.length < 6) {
-            alert('Password must be at least 6 characters.');
+            toast.error('Password must be at least 6 characters.');
             return;
         }
 
@@ -180,7 +183,7 @@ const DeptHeadUserManagementPage = () => {
             }
 
             await api.post('/api/auth/register', payload);
-            alert('User registered successfully.');
+            toast.success('User registered successfully.');
             setShowAddUserModal(false);
             setNewUser({
                 first_name: "", middle_name: "", last_name: "", email: "",
@@ -192,7 +195,7 @@ const DeptHeadUserManagementPage = () => {
         } catch (err) {
             const detail = err.response?.data?.detail;
             const msg = typeof detail === 'string' ? detail : (detail?.message || 'Registration failed.');
-            alert(msg);
+            toast.error(msg);
         }
     };
 
@@ -233,11 +236,11 @@ const DeptHeadUserManagementPage = () => {
                         : app
                 )
             );
-            alert(`User ID ${id} set to ${apiStatus}.`);
+            toast.success(`User ID ${id} set to ${apiStatus}.`);
 
         } catch (error) {
             console.error(`Error setting status to ${newStatus}:`, error);
-            alert(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to update status: ${error.response?.data?.error || 'Server error'}`);
         }
     };
 
@@ -246,10 +249,10 @@ const DeptHeadUserManagementPage = () => {
         try {
             await api.delete(`/api/admin/user/${id}`);
             setVerificationUsers(prev => prev.filter(app => app.id !== id));
-            alert(`User ID ${id} deleted.`);
+            toast.success(`User ID ${id} deleted successfully.`);
         } catch (error) {
             console.error("Error deleting user:", error);
-            alert(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
+            toast.error(`Failed to delete user: ${error.response?.data?.error || 'Server error'}`);
         }
         setVerificationOpenMenuId(null);
     };
@@ -307,7 +310,7 @@ const DeptHeadUserManagementPage = () => {
                                 <input type="text" placeholder="Search..." value={verificationSearch} onChange={(e) => setVerificationSearch(e.target.value)} />
                             </div>
                         </div>
-                        <button className="refresh-button" onClick={fetchUsers} title="Refresh List">
+                        <button className="refresh-button" onClick={() => fetchUsers()} title="Refresh List">
                             <i className="fas fa-sync-alt"></i> Refresh
                         </button>
                     </div>
@@ -343,7 +346,7 @@ const DeptHeadUserManagementPage = () => {
                                                         <div className="user-table-avatar">{(app.role && app.role[0]) ? app.role[0].toUpperCase() : '?'}</div>
                                                         <div>
                                                             <span className="user-table-name">{app.name}</span>
-                                                            <span className="user-table-email">ID: {app.tupm_id || app.user_id}</span>
+                                                            <span className="user-table-email">{app.role === 'STUDENT' ? `TUP-M ID: ${app.tupm_id || 'N/A'}` : `Employee ID: ${app.employee_id || 'N/A'}`}</span>
                                                         </div>
                                                     </div>
                                                 </td>

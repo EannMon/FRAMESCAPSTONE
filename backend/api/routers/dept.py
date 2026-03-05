@@ -4,6 +4,7 @@ Handles subject creation, course loading, and faculty assignments.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
@@ -15,6 +16,7 @@ from models.class_ import Class
 from models.user import User, UserRole
 from models.department import Department
 from models.device import Device
+from models.enrollment import Enrollment
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,19 @@ def get_management_data(
     subjects = db.query(Subject).options(
         joinedload(Subject.classes).joinedload(Class.faculty)
     ).all()
+
+    # Batch query: enrollment count per class_id (prevents N+1)
+    all_class_ids = [
+        cls.id for subj in subjects for cls in subj.classes
+    ]
+    enrollment_counts = {}
+    if all_class_ids:
+        enrollment_counts = dict(
+            db.query(Enrollment.class_id, func.count(Enrollment.id))
+            .filter(Enrollment.class_id.in_(all_class_ids))
+            .group_by(Enrollment.class_id)
+            .all()
+        )
     
     courses_data = []
     
@@ -87,7 +102,8 @@ def get_management_data(
                 "schedule_id": None, 
                 "assigned_faculty": None,
                 "room_name": None,
-                "schedule": None
+                "schedule": None,
+                "enrolled_count": 0
             })
         else:
             # Show each class section
@@ -109,7 +125,8 @@ def get_management_data(
                     "section": cls.section,
                     "assigned_faculty": cls.faculty.full_name if cls.faculty else None,
                     "room_name": cls.room,
-                    "schedule": schedule_str
+                    "schedule": schedule_str,
+                    "enrolled_count": enrollment_counts.get(cls.id, 0)
                 })
     
     # 3. Fetch Faculty (Only VERIFIED)
@@ -287,6 +304,8 @@ class AcademicYearUpdate(BaseModel):
     user_id: int
     academic_year: str
     semester: str
+    semester_start_date: Optional[str] = None  # ISO date string "YYYY-MM-DD"
+    semester_end_date: Optional[str] = None    # ISO date string "YYYY-MM-DD"
 
 @router.get("/academic-year")
 def get_academic_year(dept_id: int = Query(...), db: Session = Depends(get_db)):
@@ -296,7 +315,9 @@ def get_academic_year(dept_id: int = Query(...), db: Session = Depends(get_db)):
         raise api_error(404, "DEPT_NOT_FOUND", "Department not found")
     return {
         "academic_year": dept.active_academic_year or None,
-        "semester": dept.active_semester or None
+        "semester": dept.active_semester or None,
+        "semester_start_date": dept.semester_start_date.isoformat() if dept.semester_start_date else None,
+        "semester_end_date": dept.semester_end_date.isoformat() if dept.semester_end_date else None,
     }
 
 @router.put("/academic-year")
@@ -314,6 +335,21 @@ def update_academic_year(req: AcademicYearUpdate, db: Session = Depends(get_db))
     
     dept.active_academic_year = req.academic_year
     dept.active_semester = req.semester
+    
+    # Save semester date range if provided
+    if req.semester_start_date:
+        from datetime import date as date_type
+        try:
+            dept.semester_start_date = date_type.fromisoformat(req.semester_start_date)
+        except ValueError:
+            logger.warning("Invalid semester_start_date format: %s", req.semester_start_date)
+    if req.semester_end_date:
+        from datetime import date as date_type
+        try:
+            dept.semester_end_date = date_type.fromisoformat(req.semester_end_date)
+        except ValueError:
+            logger.warning("Invalid semester_end_date format: %s", req.semester_end_date)
+    
     db.commit()
     
     logger.info("Academic year updated to %s %s for department %s", req.academic_year, req.semester, dept.name)

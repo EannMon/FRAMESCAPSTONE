@@ -39,12 +39,17 @@ def get_all_users(
             middle_name=user.middle_name,
             role=user.role.value,
             tupm_id=user.tupm_id,
+            employee_id=user.employee_id,
             department_id=user.department_id,
             program_id=user.program_id,
+            department_name=user.department.name if user.department else None,
+            program_name=user.program.name if user.program else None,
+            college_name=user.department.college.name if user.department and user.department.college else None,
             face_registered=user.face_registered,
             verification_status=user.verification_status.value,
-            year_level=user.year_level,
             section=user.section,
+            academic_year=user.department.active_academic_year if user.department else None,
+            semester=user.department.active_semester if user.department else None,
             created_at=user.created_at,
             last_active=user.last_active
         ))
@@ -203,3 +208,104 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     
     logger.info("User %d deleted permanently", user_id)
     return MessageResponse(message=f"User {user_id} deleted successfully")
+
+
+@router.get("/system-logs")
+def get_system_logs(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    action_type: str = Query(None, description="Filter by action type"),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve audit logs for system logs page.
+    Returns recent audit trail entries with user info.
+    """
+    from models.audit_log import AuditLog
+    from sqlalchemy.orm import joinedload
+
+    query = db.query(AuditLog).options(joinedload(AuditLog.user))
+
+    if action_type:
+        query = query.filter(AuditLog.action_type == action_type)
+
+    total = query.count()
+    logs = query.order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
+
+    result = []
+    for log in logs:
+        # Map action types to service names and log levels for frontend display
+        service = _action_to_service(log.action_type)
+        level = _action_to_level(log.action_type)
+
+        user_name = ""
+        if log.user:
+            user_name = f"{log.user.first_name} {log.user.last_name}"
+
+        result.append({
+            "id": log.id,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "level": level,
+            "service": service,
+            "action_type": log.action_type,
+            "message": _build_log_message(log, user_name),
+            "user_name": user_name,
+            "target_table": log.target_table,
+            "target_id": log.target_id,
+            "ip_address": log.ip_address,
+        })
+
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
+
+
+def _action_to_service(action_type: str) -> str:
+    """Map audit action types to display service names."""
+    mapping = {
+        "USER_CREATE": "AuthService", "USER_UPDATE": "AuthService",
+        "USER_DELETE": "AuthService", "USER_VERIFY": "AuthService",
+        "USER_REJECT": "AuthService",
+        "FACE_ENROLL": "RecognitionEngine", "FACE_UPDATE": "RecognitionEngine",
+        "SCHEDULE_UPLOAD": "ScheduleService",
+        "CLASS_CREATE": "ScheduleService", "CLASS_UPDATE": "ScheduleService",
+        "CLASS_DELETE": "ScheduleService",
+        "DEVICE_CREATE": "DeviceService", "DEVICE_UPDATE": "DeviceService",
+        "DEVICE_DELETE": "DeviceService",
+        "EXPORT_ATTENDANCE": "ReportService", "EXPORT_REPORT": "ReportService",
+        "SESSION_EXCEPTION_CREATE": "ScheduleService",
+    }
+    return mapping.get(action_type, "System")
+
+
+def _action_to_level(action_type: str) -> str:
+    """Map audit action types to log severity levels."""
+    error_actions = {"USER_DELETE", "USER_REJECT"}
+    warn_actions = {"SESSION_EXCEPTION_CREATE", "DEVICE_DELETE"}
+    if action_type in error_actions:
+        return "WARN"
+    if action_type in warn_actions:
+        return "WARN"
+    return "INFO"
+
+
+def _build_log_message(log, user_name: str) -> str:
+    """Build a human-readable message from an audit log entry."""
+    action = log.action_type or "UNKNOWN"
+    target = log.target_table or ""
+    target_id = log.target_id or ""
+
+    templates = {
+        "USER_CREATE": f"New user registered: {user_name or target_id}",
+        "USER_VERIFY": f"User '{user_name}' verification approved (ID: {target_id})",
+        "USER_REJECT": f"User '{user_name}' verification rejected (ID: {target_id})",
+        "USER_DELETE": f"User '{user_name}' deleted (ID: {target_id})",
+        "FACE_ENROLL": f"Face enrolled for user '{user_name}' (ID: {target_id})",
+        "SCHEDULE_UPLOAD": f"Schedule uploaded by '{user_name}'",
+        "CLASS_CREATE": f"Class created (ID: {target_id}) by '{user_name}'",
+        "CLASS_UPDATE": f"Class updated (ID: {target_id}) by '{user_name}'",
+        "DEVICE_CREATE": f"Device registered (ID: {target_id}) by '{user_name}'",
+        "DEVICE_UPDATE": f"Device updated (ID: {target_id}) by '{user_name}'",
+        "DEVICE_DELETE": f"Device removed (ID: {target_id}) by '{user_name}'",
+        "EXPORT_ATTENDANCE": f"Attendance data exported by '{user_name}'",
+        "EXPORT_REPORT": f"Report generated by '{user_name}'",
+    }
+    return templates.get(action, f"{action} on {target} (ID: {target_id}) by '{user_name}'")

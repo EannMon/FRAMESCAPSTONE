@@ -27,7 +27,8 @@ class Class(Base):
     academic_year = Column(String(20))   # e.g., "2025-2026"
     
     # Late threshold — faculty/head configurable (minutes after start_time to mark as late)
-    late_threshold_minutes = Column(Integer, default=15)
+    # Default 0 means no late threshold; faculty/head can toggle and set custom minutes
+    late_threshold_minutes = Column(Integer, default=0)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     

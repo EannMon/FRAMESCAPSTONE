@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from './ToastProvider';
+import api from '../../services/api';
 import './HelpSupportPage.css';
 import Header from './Header';
 import Footer from './Footer';
@@ -109,6 +110,10 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
     const [contactSubject, setContactSubject] = useState('');
     const [contactMessage, setContactMessage] = useState('');
     const [contactError, setContactError] = useState('');
+    const [contactFiles, setContactFiles] = useState([]);
+    const [submitting, setSubmitting] = useState(false);
+    const [myTickets, setMyTickets] = useState([]);
+    const [showTickets, setShowTickets] = useState(false);
 
     // --- USER CONTEXT ---
     const [user] = useState(() => {
@@ -122,6 +127,79 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
 
     const handleBack = () => {
         navigate(-1);
+    };
+
+    // Fetch user's existing tickets
+    const fetchMyTickets = async () => {
+        if (!user?.id) return;
+        try {
+            const res = await api.get(`/api/support-tickets?user_id=${user.id}`);
+            setMyTickets(res.data?.items || []);
+        } catch (err) {
+            console.error('Failed to fetch tickets:', err);
+        }
+    };
+
+    useEffect(() => {
+        if (user?.id) fetchMyTickets();
+    }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // File selection handler
+    const handleFileChange = (e) => {
+        const selected = Array.from(e.target.files || []);
+        const hasPdf = selected.some(f => f.type === 'application/pdf');
+        const hasImages = selected.some(f => f.type.startsWith('image/'));
+
+        if (hasPdf && hasImages) {
+            toast.error('Upload either images or a PDF, not both.');
+            e.target.value = '';
+            return;
+        }
+        if (hasPdf && selected.filter(f => f.type === 'application/pdf').length > 1) {
+            toast.error('Only 1 PDF file is allowed.');
+            e.target.value = '';
+            return;
+        }
+        if (hasImages && selected.filter(f => f.type.startsWith('image/')).length > 3) {
+            toast.error('Maximum 3 image files allowed.');
+            e.target.value = '';
+            return;
+        }
+        setContactFiles(selected);
+    };
+
+    // Submit ticket via API
+    const handleSubmitTicket = async (e) => {
+        e.preventDefault();
+        setContactError('');
+
+        if (!contactSubject.trim()) { setContactError('Subject is required.'); return; }
+        if (!contactMessage.trim()) { setContactError('Message is required.'); return; }
+        if (submitting) return;
+
+        setSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append('user_id', user?.id || 0);
+            formData.append('subject', contactSubject.trim());
+            formData.append('message', contactMessage.trim());
+            contactFiles.forEach(file => formData.append('files', file));
+
+            await api.post('/api/support-tickets', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+
+            toast.success('Support ticket submitted successfully!');
+            setContactSubject('');
+            setContactMessage('');
+            setContactFiles([]);
+            fetchMyTickets();
+        } catch (err) {
+            const msg = err.response?.data?.detail?.error?.message || err.message;
+            toast.error('Failed to submit ticket: ' + msg);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleFaqClick = (index) => {
@@ -199,34 +277,17 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                     </div>
                 </div>
 
-                {/* Contact Support Section — sends email to FRAMES support */}
+                {/* Contact Support Section — submits to support_tickets table */}
                 <div className="contact-support-section">
                     <div className="section-title">
                         <i className="fas fa-paper-plane"></i>
-                        <h3>Contact Support</h3>
+                        <h3>Submit a Support Ticket</h3>
                     </div>
                     <div className="card contact-form-card">
                         <p className="contact-subtitle">
-                            For technical issues, send an email to <strong>framessys01@gmail.com</strong>
+                            Describe your issue and our team will get back to you. You may attach evidence (up to 3 JPG/PNG images or 1 PDF).
                         </p>
-                        <form className="mock-contact-form" onSubmit={(e) => {
-                            e.preventDefault();
-                            setContactError('');
-
-                            if (!contactSubject.trim()) {
-                                setContactError('Subject is required.');
-                                return;
-                            }
-                            if (!contactMessage.trim()) {
-                                setContactError('Message is required.');
-                                return;
-                            }
-
-                            // Open mailto link with subject and body
-                            const mailto = `mailto:framessys01@gmail.com?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactMessage)}`;
-                            window.open(mailto, '_blank');
-                            toast.success('Email client opened. Please send the email.');
-                        }}>
+                        <form className="mock-contact-form" onSubmit={handleSubmitTicket}>
                             {contactError && (
                                 <div style={{ color: '#d63031', background: '#ffe6e6', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px', fontSize: '0.9rem' }}>
                                     {contactError}
@@ -254,11 +315,64 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                                     required
                                 ></textarea>
                             </div>
-                            <button type="submit" className="btn-submit-support">
-                                <i className="fas fa-paper-plane"></i> Send Email
+                            <div className="form-group">
+                                <label>Evidence (optional)</label>
+                                <input
+                                    type="file"
+                                    className="form-input"
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    multiple
+                                    onChange={handleFileChange}
+                                />
+                                <p style={{ fontSize: '0.78em', color: '#888', marginTop: 4 }}>
+                                    Up to 3 images (JPG/PNG) or 1 PDF. Max 5MB each.
+                                </p>
+                            </div>
+                            <button type="submit" className="btn-submit-support" disabled={submitting}>
+                                <i className="fas fa-paper-plane"></i> {submitting ? 'Submitting...' : 'Submit Ticket'}
                             </button>
                         </form>
                     </div>
+                </div>
+
+                {/* My Tickets Section */}
+                <div className="contact-support-section" style={{ marginTop: 20 }}>
+                    <div className="section-title" style={{ cursor: 'pointer' }} onClick={() => setShowTickets(!showTickets)}>
+                        <i className="fas fa-ticket-alt"></i>
+                        <h3>My Tickets ({myTickets.length})</h3>
+                        <i className={`fas fa-chevron-down ${showTickets ? 'open' : ''}`} style={{ marginLeft: 'auto' }}></i>
+                    </div>
+                    {showTickets && (
+                        <div className="card faq-list-card">
+                            {myTickets.length === 0 ? (
+                                <p style={{ padding: 16, color: '#888', textAlign: 'center' }}>No tickets submitted yet.</p>
+                            ) : (
+                                myTickets.map(t => (
+                                    <div key={t.id} style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <strong style={{ fontSize: '0.92em' }}>{t.subject}</strong>
+                                            <span style={{
+                                                fontSize: '0.78em', padding: '3px 10px', borderRadius: 12,
+                                                background: t.status === 'OPEN' ? '#e6f4ea' : t.status === 'IN_PROGRESS' ? '#fff8e1' : t.status === 'RESOLVED' ? '#e3f2fd' : '#f5f5f5',
+                                                color: t.status === 'OPEN' ? '#2e7d32' : t.status === 'IN_PROGRESS' ? '#f57f17' : t.status === 'RESOLVED' ? '#1565c0' : '#666',
+                                            }}>{t.status}</span>
+                                        </div>
+                                        <p style={{ fontSize: '0.85em', color: '#555', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>
+                                            {t.message.length > 120 ? t.message.slice(0, 120) + '...' : t.message}
+                                        </p>
+                                        <div style={{ fontSize: '0.75em', color: '#aaa', marginTop: 4 }}>
+                                            {t.created_at ? new Date(t.created_at).toLocaleString() : ''}
+                                            {t.evidence_files?.length > 0 && (
+                                                <span style={{ marginLeft: 10 }}>
+                                                    <i className="fas fa-paperclip"></i> {t.evidence_files.length} file(s)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
                 </div>
 
             </div>

@@ -470,6 +470,40 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+/* Overcrowding styling */
+.dh-room-overcrowded {
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+.dh-room-overcrowded:hover {
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
+.overcrowding-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #dc2626;
+    background: #fee2e2;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    animation: overcrowdPulse 1.5s infinite;
+}
+@keyframes overcrowdPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.live-count-capacity {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+.live-count-capacity.overcrowded {
+    color: #dc2626;
+    font-weight: 700;
+}
+
 .dh-room-large {
     padding: 24px;
 }

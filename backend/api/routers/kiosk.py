@@ -436,6 +436,10 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
             body.user_id, body.class_id, action_label, late_label
         )
 
+        # Overcrowding check: after ENTRY, count present users in this room
+        if action_enum == AttendanceAction.ENTRY and device and device.room_capacity:
+            _check_overcrowding(db, class_, device, timestamp)
+
         return AttendanceLogResponse(
             success=True,
             log_id=log.id,
@@ -641,3 +645,111 @@ def device_heartbeat(device_id: int, db: Session = Depends(get_db), x_device_key
     db.commit()
     
     return {"success": True, "message": "Heartbeat updated"}
+
+
+def _check_overcrowding(db: Session, class_obj, device, timestamp):
+    """
+    After an ENTRY, count currently-present users in the room.
+    If present_count > device.room_capacity, create overcrowding notifications
+    for the faculty of the class and the department head.
+    Only sends one alert per room per day to avoid spamming.
+    """
+    try:
+        from models.notification import Notification, NotificationType
+        from models.user import UserRole
+
+        room = class_obj.room
+        capacity = device.room_capacity or 50
+
+        # Count present users: latest log per user today in this room must be ENTRY or BREAK_IN
+        today_start = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+
+        # Get all classes in this room today
+        room_classes = db.query(Class).filter(Class.room == room).all()
+        room_class_ids = [c.id for c in room_classes]
+
+        if not room_class_ids:
+            return
+
+        logs = (
+            db.query(AttendanceLog)
+            .filter(
+                AttendanceLog.class_id.in_(room_class_ids),
+                AttendanceLog.timestamp >= today_start,
+                AttendanceLog.timestamp < today_end,
+            )
+            .order_by(AttendanceLog.timestamp.desc())
+            .all()
+        )
+
+        # Determine latest action per user in this room
+        latest_by_user = {}
+        for log in logs:
+            if log.user_id not in latest_by_user:
+                latest_by_user[log.user_id] = log
+
+        present_count = sum(
+            1 for log in latest_by_user.values()
+            if log.action in (AttendanceAction.ENTRY, AttendanceAction.BREAK_IN)
+        )
+
+        if present_count <= capacity:
+            return
+
+        # Check if we already sent an overcrowding alert for this room today
+        existing_alert = db.query(Notification).filter(
+            Notification.notification_type == NotificationType.OVERCROWDING_ALERT,
+            Notification.reference_type == "room",
+            Notification.title.like(f"%{room}%"),
+            Notification.created_at >= today_start,
+            Notification.created_at < today_end,
+        ).first()
+
+        if existing_alert:
+            return  # Already alerted today for this room
+
+        alert_title = f"Overcrowding Alert: {room}"
+        alert_message = (
+            f"Room {room} has {present_count} occupants, "
+            f"exceeding its capacity of {capacity}."
+        )
+
+        # Notify the faculty teaching this class
+        if class_obj.faculty_id:
+            db.add(Notification(
+                user_id=class_obj.faculty_id,
+                notification_type=NotificationType.OVERCROWDING_ALERT,
+                title=alert_title,
+                message=alert_message,
+                reference_id=class_obj.id,
+                reference_type="room",
+            ))
+
+        # Notify department head(s) of the faculty's department
+        faculty_user = db.query(User).filter(User.id == class_obj.faculty_id).first()
+        if faculty_user and faculty_user.department_id:
+            dept_heads = db.query(User).filter(
+                User.department_id == faculty_user.department_id,
+                User.role == UserRole.HEAD,
+            ).all()
+            for head in dept_heads:
+                if head.id != class_obj.faculty_id:  # Avoid duplicate if head is also the teacher
+                    db.add(Notification(
+                        user_id=head.id,
+                        notification_type=NotificationType.OVERCROWDING_ALERT,
+                        title=alert_title,
+                        message=alert_message,
+                        reference_id=class_obj.id,
+                        reference_type="room",
+                    ))
+
+        db.commit()
+        logger.warning(
+            "OVERCROWDING | room=%s present=%d capacity=%d class=%d",
+            room, present_count, capacity, class_obj.id
+        )
+
+    except Exception as e:
+        logger.error("Failed to check overcrowding: %s", str(e))
+        # Non-critical — don't disrupt attendance logging

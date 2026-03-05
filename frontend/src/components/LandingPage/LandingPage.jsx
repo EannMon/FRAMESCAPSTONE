@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
+import api from '../../services/api';
 import './LandingPage.css';
 import landingBg from '../../assets/images/landing_bg.png';
 import Header from '../Common/Header';
@@ -10,12 +11,12 @@ import Footer from '../Common/Footer';
 // LandingPage.jsx
 
 // === LOGIN COMPONENT (Task #6, #23: Role-based login credentials) ===
-const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
+const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
     const navigate = useNavigate();
     const toast = useToast();
     const { login, logout } = useAuth();
 
-    const [loginMode, setLoginMode] = useState('faculty'); // 'student' or 'faculty'
+    const [loginMode, setLoginMode] = useState(initialMode || 'faculty'); // 'student' or 'faculty'
     const [credential, setCredential] = useState('');     // email (faculty) or TUP-M ID (student)
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -24,6 +25,16 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [forgotEmail, setForgotEmail] = useState('');
     const [forgotMessage, setForgotMessage] = useState('');
+
+    // Sync loginMode when initialMode changes (e.g., hero button clicked)
+    useEffect(() => {
+        if (initialMode) {
+            setLoginMode(initialMode);
+            setCredential('');
+            setPassword('');
+            setErrorMessage('');
+        }
+    }, [initialMode]);
 
     // Reset form when mode changes
     const handleModeChange = (mode) => {
@@ -63,7 +74,11 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
             }
         } catch (error) {
             const detail = error.response?.data?.detail;
-            if (detail?.error?.message) {
+            if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+                setErrorMessage("Server is taking longer than expected. Please try again in a moment.");
+            } else if (!error.response) {
+                setErrorMessage("Cannot connect to server. Please check your connection and try again.");
+            } else if (detail?.error?.message) {
                 setErrorMessage(detail.error.message);
             } else if (typeof detail === 'string') {
                 setErrorMessage(detail);
@@ -82,6 +97,8 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup }) => {
             return;
         }
         try {
+            setForgotMessage('Sending...');
+            await api.post('/api/auth/forgot-password', { email: forgotEmail.trim() });
             setForgotMessage('If this email is registered, a password reset link has been sent. Please check your inbox.');
         } catch {
             setForgotMessage('An error occurred. Please try again later.');
@@ -257,7 +274,7 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
 // ==========================================
 // 3. HERO SECTION (UPDATED: Access Portal now opens Login)
 // ==========================================
-const HeroSection = ({ setPanel }) => (
+const HeroSection = ({ setPanel, setLoginMode }) => (
     <section className="hero-section" style={{ backgroundImage: `url(${landingBg})` }}>
         <div className="hero-content">
             <h1 className="hero-title">FRA<span className="hero-title-accent">MES</span></h1>
@@ -273,12 +290,12 @@ const HeroSection = ({ setPanel }) => (
             </p>
 
             <div className="cta-buttons">
-                <button onClick={() => setPanel('login')} className="cta-primary">
-                    <i className="fas fa-lock"></i> Access Portal
+                <button onClick={() => { setLoginMode('faculty'); setPanel('login'); }} className="cta-primary">
+                    <i className="fas fa-chalkboard-teacher"></i> Faculty / Head Login
                 </button>
 
-                <button className="cta-secondary">
-                    <i className="fas fa-play-circle"></i> Watch Demo
+                <button onClick={() => { setLoginMode('student'); setPanel('login'); }} className="cta-secondary" style={{ background: '#1e3a5f', color: '#fff', border: 'none' }}>
+                    <i className="fas fa-user-graduate"></i> Student Login
                 </button>
             </div>
         </div>
@@ -323,7 +340,7 @@ const FeaturesSection = () => (
             <FeatureCard
                 iconClass="fas fa-chart-bar"
                 title="Report Generation"
-                description="Comprehensive attendance reports with analytics, trends, and exportable data for faculty, department heads, and administrators."
+                description="Comprehensive attendance reports with analytics, trends, and exportable data for students, faculty members, and department heads."
             />
         </div>
     </section>
@@ -334,6 +351,7 @@ const FeaturesSection = () => (
 // ==========================================
 const LandingPage = () => {
     const [panel, setPanel] = useState(null); // 'login' or 'signup'
+    const [initialLoginMode, setInitialLoginMode] = useState('faculty');
 
     // Safety net: always remove dark mode on landing page
     useEffect(() => {
@@ -345,8 +363,7 @@ const LandingPage = () => {
             <div className="landing-page">
                 <Header setPanel={setPanel} />
                 <main>
-                    {/* Passed setPanel to HeroSection so buttons work */}
-                    <HeroSection setPanel={setPanel} />
+                    <HeroSection setPanel={setPanel} setLoginMode={setInitialLoginMode} />
                     <FeaturesSection />
                 </main>
 
@@ -355,6 +372,7 @@ const LandingPage = () => {
                     isOpen={panel === 'login'}
                     onClose={() => setPanel(null)}
                     onSwitchToSignup={() => setPanel('signup')}
+                    initialMode={initialLoginMode}
                 />
 
                 {/* Kept this for 'Get Started' button so new users can choose their role */}

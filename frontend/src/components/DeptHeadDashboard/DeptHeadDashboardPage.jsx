@@ -90,14 +90,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
             });
         }
 
-        if (safeLogs.length === 0) {
-            if (filter === 'semestral') {
-                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 30) + 20, late: Math.floor(Math.random() * 8), break: Math.floor(Math.random() * 10) }));
-            } else if (filter === 'monthly') {
-                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 10) + 5, late: Math.floor(Math.random() * 3), break: Math.floor(Math.random() * 5) }));
-            }
-            return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 5) + 1, late: Math.floor(Math.random() * 2), break: Math.floor(Math.random() * 2) }));
-        }
+        // Return real data (zeros if no logs exist — never show fake data)
         return dataPoints;
     }, [logs, filter]);
 
@@ -376,8 +369,15 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
                     ) : (
                         <div className={`dh-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'}`}>
                             {displayRooms.map((room, idx) => (
-                                <div key={idx} className={`dh-room-box ${viewMode === 'single' ? 'dh-room-large' : ''}`}>
-                                    <div className="live-room-label">{room.room}</div>
+                                <div key={idx} className={`dh-room-box ${viewMode === 'single' ? 'dh-room-large' : ''} ${room.is_overcrowded ? 'dh-room-overcrowded' : ''}`}>
+                                    <div className="live-room-label">
+                                        {room.room}
+                                        {room.is_overcrowded && (
+                                            <span className="overcrowding-badge" title={`Capacity: ${room.room_capacity}`}>
+                                                <i className="fas fa-exclamation-triangle"></i> OVERCROWDED
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="dh-room-meta">
                                         <span className="dh-room-subject">{room.subject_code}</span>
                                         {room.faculty_name && (
@@ -429,6 +429,11 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
                                             <span className="live-dot-inline live-dot-yellow"></span>
                                             {room.break_count} On Break
                                         </span>
+                                        {room.room_capacity && (
+                                            <span className={`live-count-capacity ${room.is_overcrowded ? 'overcrowded' : ''}`}>
+                                                <i className="fas fa-users"></i> {room.present_count}/{room.room_capacity}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             ))}

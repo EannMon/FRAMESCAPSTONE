@@ -142,8 +142,9 @@
 
 .app-table-container {
     width: 100%;
-    overflow: visible;
-    /* Fix for dropdowns */
+    overflow-x: auto;
+    overflow-y: visible;
+    /* Allows horizontal scroll on small screens while keeping dropdowns visible */
     min-height: 200px;
 }
 

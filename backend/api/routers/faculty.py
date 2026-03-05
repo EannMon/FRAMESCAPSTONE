@@ -21,6 +21,8 @@ from models.attendance_log import AttendanceLog, AttendanceAction
 from models.session_exception import SessionException, ExceptionType
 from models.device import Device, DeviceStatus
 from models.department import Department
+from models.device import Device, DeviceStatus
+from models.department import Department
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -335,6 +337,28 @@ async def upload_schedule(
         # Use semester/year from form if provided, else from PDF parser
         current_semester = semester or parsed_data.get('semester', '1st Semester')
         current_academic_year = academic_year or parsed_data.get('academic_year', '2025-2026')
+
+        # ── Validate semester/academic_year against department settings ──
+        # This ensures uploads match the dept head's configured semester.
+        # TO REVERT FOR TESTING: Comment out the block below (from "if faculty_id"
+        # to the "raise api_error" line) to allow any semester/academic_year.
+        if faculty_id:
+            faculty_user = db.query(User).filter(User.id == faculty_id).first()
+            if faculty_user and faculty_user.department_id:
+                dept = db.query(Department).filter(Department.id == faculty_user.department_id).first()
+                if dept:
+                    if dept.active_academic_year and current_academic_year != dept.active_academic_year:
+                        raise api_error(
+                            400, "AY_MISMATCH",
+                            f"Academic year '{current_academic_year}' does not match the department setting "
+                            f"'{dept.active_academic_year}'. Please contact your department head."
+                        )
+                    if dept.active_semester and current_semester != dept.active_semester:
+                        raise api_error(
+                            400, "SEMESTER_MISMATCH",
+                            f"Semester '{current_semester}' does not match the department setting "
+                            f"'{dept.active_semester}'. Please contact your department head."
+                        )
         
         for course_data in parsed_data['courses']:
             # Create/Get Subject
@@ -553,7 +577,29 @@ def confirm_schedule(
     Creates subjects, classes, student accounts, and enrollments.
     """
     import bcrypt
-    
+
+    # ── Validate semester/academic_year against department settings ──
+    # This ensures uploads match the dept head's configured semester.
+    # TO REVERT FOR TESTING: Comment out the block below (from "if data.faculty_id"
+    # to the "raise api_error" line) to allow any semester/academic_year to be uploaded.
+    if data.faculty_id:
+        faculty_user = db.query(User).filter(User.id == data.faculty_id).first()
+        if faculty_user and faculty_user.department_id:
+            dept = db.query(Department).filter(Department.id == faculty_user.department_id).first()
+            if dept:
+                if dept.active_academic_year and data.academic_year != dept.active_academic_year:
+                    raise api_error(
+                        400, "AY_MISMATCH",
+                        f"Academic year '{data.academic_year}' does not match the department setting "
+                        f"'{dept.active_academic_year}'. Please contact your department head."
+                    )
+                if dept.active_semester and data.semester != dept.active_semester:
+                    raise api_error(
+                        400, "SEMESTER_MISMATCH",
+                        f"Semester '{data.semester}' does not match the department setting "
+                        f"'{dept.active_semester}'. Please contact your department head."
+                    )
+
     created_schedules = []
     updated_schedules = []
     created_students = []
@@ -784,52 +830,192 @@ def remove_student_from_class(
 
 
 @router.get("/class-details/{schedule_id}")
-def get_class_details_by_schedule_id(schedule_id: int, db: Session = Depends(get_db)):
+def get_class_details_by_schedule_id(
+    schedule_id: int,
+    date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD). Defaults to today."),
+    db: Session = Depends(get_db)
+):
     """
     Get class details including student attendance list.
-    Alias for /class/{class_id} to match frontend expectations.
+    Returns ENTRY (Time In) and EXIT (Time Out) per student,
+    with proper status derivation from the attendance state machine.
     """
     from sqlalchemy.orm import joinedload
+    from datetime import date as date_type
+
     cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == schedule_id).first()
     if not cls:
         raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
-        
+
+    # Determine target date
+    if date:
+        try:
+            target_date = date_type.fromisoformat(date)
+        except ValueError:
+            raise api_error(400, "INVALID_DATE", "Date must be YYYY-MM-DD format")
+    else:
+        target_date = None  # Will use DB's current_date()
+
     # Get enrolled students via eager loading
-    enrollments = db.query(Enrollment).options(joinedload(Enrollment.student)).filter(Enrollment.class_id == schedule_id).all()
-    
+    enrollments = db.query(Enrollment).options(
+        joinedload(Enrollment.student)
+    ).filter(Enrollment.class_id == schedule_id).all()
+
     if not enrollments:
         return []
-        
+
     student_ids = [e.student_id for e in enrollments]
-    
-    # Batch Query: Get all today's attendance logs for enrolled students in this class
-    today_logs = db.query(AttendanceLog).filter(
+
+    # Batch Query: Get ALL attendance logs for enrolled students in this class on target date
+    date_filter = (
+        func.date(AttendanceLog.timestamp) == target_date
+        if target_date
+        else func.date(AttendanceLog.timestamp) == func.current_date()
+    )
+    all_logs = db.query(AttendanceLog).filter(
         AttendanceLog.user_id.in_(student_ids),
         AttendanceLog.class_id == schedule_id,
-        func.date(AttendanceLog.timestamp) == func.current_date()
-    ).all()
-    
-    # Map logs by user_id for O(1) lookup
-    logs_by_user = {log.user_id: log for log in today_logs}
-    
+        date_filter
+    ).order_by(AttendanceLog.timestamp.asc()).all()
+
+    # Group logs by user_id — keep all actions for state derivation
+    from collections import defaultdict
+    logs_by_user = defaultdict(list)
+    for log in all_logs:
+        logs_by_user[log.user_id].append(log)
+
     students = []
-    
     for enrollment in enrollments:
         student = enrollment.student
-        if student:
-            today_log = logs_by_user.get(student.id)
-            
-            students.append({
-                "user_id": student.id,
-                "firstName": student.first_name,
-                "lastName": student.last_name,
-                "tupm_id": student.tupm_id,
-                "timeIn": str(today_log.timestamp.strftime("%I:%M %p")) if today_log else "---",
-                "status": "Present" if today_log else "Absent",
-                "remarks": ""
-            })
-    
+        if not student:
+            continue
+
+        user_logs = logs_by_user.get(student.id, [])
+        entry_log = None
+        exit_log = None
+        last_action = None
+        is_late = False
+
+        for log in user_logs:
+            if log.action == AttendanceAction.ENTRY and entry_log is None:
+                entry_log = log
+                is_late = log.is_late or False
+            elif log.action == AttendanceAction.EXIT:
+                exit_log = log
+            last_action = log.action
+
+        # Derive status from last action in the state machine
+        if last_action is None:
+            status = "Absent"
+        elif last_action == AttendanceAction.ENTRY or last_action == AttendanceAction.BREAK_IN:
+            status = "Late" if is_late else "Present"
+        elif last_action == AttendanceAction.BREAK_OUT:
+            status = "On Break"
+        elif last_action == AttendanceAction.EXIT:
+            status = "Left" if is_late else "Present"
+        else:
+            status = "Present"
+
+        # Determine remarks
+        remarks = ""
+        if entry_log and entry_log.remarks:
+            remarks = entry_log.remarks
+        elif is_late:
+            remarks = "Late"
+
+        students.append({
+            "user_id": student.id,
+            "firstName": student.first_name,
+            "lastName": student.last_name,
+            "tupm_id": student.tupm_id,
+            "timeIn": entry_log.timestamp.strftime("%I:%M %p") if entry_log else "---",
+            "timeOut": exit_log.timestamp.strftime("%I:%M %p") if exit_log else "---",
+            "status": status,
+            "is_late": is_late,
+            "remarks": remarks,
+            "entry_log_id": entry_log.id if entry_log else None,
+            "exit_log_id": exit_log.id if exit_log else None,
+        })
+
     return students
+
+
+# ============================================
+# Attendance Edit Endpoint
+# ============================================
+
+class AttendanceEditRequest(BaseModel):
+    """Schema for editing an attendance record's time."""
+    new_time: str  # "HH:MM" 24-hour format
+    remarks: Optional[str] = None
+
+
+@router.put("/attendance/{log_id}")
+def update_attendance_time(
+    log_id: int,
+    data: AttendanceEditRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update an attendance log's timestamp (time portion only).
+    Auto-recomputes is_late based on the class's start_time and late_threshold_minutes.
+    Only faculty who own the class can edit.
+    """
+    from datetime import time as time_type, timedelta
+
+    log = db.query(AttendanceLog).filter(AttendanceLog.id == log_id).first()
+    if not log:
+        raise api_error(404, "LOG_NOT_FOUND", "Attendance log not found")
+
+    # Validate the class exists and get schedule
+    cls = db.query(Class).filter(Class.id == log.class_id).first()
+    if not cls:
+        raise api_error(404, "CLASS_NOT_FOUND", "Associated class not found")
+
+    # Parse new time
+    try:
+        parts = data.new_time.strip().split(":")
+        new_hour, new_minute = int(parts[0]), int(parts[1])
+        new_time = time_type(new_hour, new_minute)
+    except (ValueError, IndexError):
+        raise api_error(400, "INVALID_TIME", "Time must be in HH:MM format (24-hour)")
+
+    # Update timestamp — keep original date, replace time
+    original_date = log.timestamp.date()
+    new_timestamp = datetime.combine(original_date, new_time)
+    if log.timestamp.tzinfo:
+        new_timestamp = new_timestamp.replace(tzinfo=log.timestamp.tzinfo)
+    log.timestamp = new_timestamp
+
+    # Auto-recompute is_late for ENTRY logs
+    if log.action == AttendanceAction.ENTRY and cls.start_time:
+        try:
+            class_start = datetime.strptime(cls.start_time, "%H:%M").time()
+            threshold = cls.late_threshold_minutes or 0
+            from datetime import timedelta as td
+            grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
+            log.is_late = new_time > grace_limit
+        except (ValueError, TypeError):
+            logger.warning("Could not parse class start_time '%s' for late computation", cls.start_time)
+
+    # Update remarks if provided
+    if data.remarks is not None:
+        log.remarks = data.remarks
+
+    db.commit()
+    db.refresh(log)
+
+    logger.info(
+        "ATTENDANCE | edited log_id=%d user_id=%d new_time=%s is_late=%s",
+        log.id, log.user_id, data.new_time, log.is_late
+    )
+
+    return {
+        "success": True,
+        "log_id": log.id,
+        "new_timestamp": log.timestamp.strftime("%I:%M %p"),
+        "is_late": log.is_late,
+    }
 
 
 # ============================================
@@ -1062,6 +1248,18 @@ def _build_room_status(db: Session, classes, today_start):
         if key not in latest_by_user:
             latest_by_user[key] = log
 
+    # Build a room -> capacity map from devices for overcrowding detection
+    room_names = set(cls.room for cls in classes if cls.room)
+    device_capacities = {}
+    if room_names:
+        capacity_rows = (
+            db.query(Device.room, Device.room_capacity)
+            .filter(Device.room.in_(room_names), Device.room_capacity.isnot(None))
+            .all()
+        )
+        for room, cap in capacity_rows:
+            device_capacities[room] = cap
+
     # Build room data per class
     rooms = []
     for cls in classes:
@@ -1082,6 +1280,9 @@ def _build_room_status(db: Session, classes, today_start):
                 on_break.append({"name": name, "id": uid})
             # EXIT = no longer in room, skip
 
+        room_capacity = device_capacities.get(cls.room, 50)
+        present_count = len(present)
+
         rooms.append({
             "room": cls.room or "N/A",
             "class_id": cls.id,
@@ -1092,8 +1293,10 @@ def _build_room_status(db: Session, classes, today_start):
             "end_time": str(cls.end_time) if cls.end_time else None,
             "present": present,
             "on_break": on_break,
-            "present_count": len(present),
+            "present_count": present_count,
             "break_count": len(on_break),
+            "room_capacity": room_capacity,
+            "is_overcrowded": present_count > room_capacity,
         })
 
     return rooms
@@ -1152,7 +1355,7 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
     # Get all today's classes for faculty in this department
     dept_faculty_ids = [
         uid for (uid,) in db.query(User.id)
-        .filter(User.department_id == dept_id, User.role.in_([UserRole.FACULTY, UserRole.DEPT_HEAD]))
+        .filter(User.department_id == dept_id, User.role.in_([UserRole.FACULTY, UserRole.HEAD]))
         .all()
     ]
 

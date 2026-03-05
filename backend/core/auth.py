@@ -26,6 +26,7 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "frames-dev-secret-change-in-production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+RESET_TOKEN_EXPIRE_HOURS = 1  # Password reset tokens expire in 1 hour
 
 # FastAPI security scheme — extracts Bearer token from Authorization header
 security = HTTPBearer(auto_error=False)
@@ -57,6 +58,31 @@ def create_refresh_token(user) -> str:
         "type": "refresh",
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_password_reset_token(user_id: int, user_email: str) -> str:
+    """
+    Create a short-lived JWT for password reset.
+    Contains user ID and email for verification.
+    Expires in RESET_TOKEN_EXPIRE_HOURS (1 hour).
+    """
+    payload = {
+        "sub": user_id,
+        "email": user_email,
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS),
+        "type": "password_reset",
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_password_reset_token(token: str) -> dict:
+    """
+    Verify a password reset token.
+    Returns payload with 'sub' (user_id) and 'email'.
+    Raises HTTPException if invalid or expired.
+    """
+    return verify_token(token, expected_type="password_reset")
 
 
 def verify_token(token: str, expected_type: str = "access") -> dict:

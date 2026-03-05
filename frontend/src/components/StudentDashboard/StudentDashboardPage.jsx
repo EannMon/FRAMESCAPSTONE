@@ -304,16 +304,7 @@ const AttendanceTrendChart = ({ logs }) => {
             });
         }
 
-        if (safeLogs.length === 0) {
-            // Generate realistic dummy data based on filter
-            if (timeFilter === 'SEMESTRAL') {
-                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 30) + 20, break: Math.floor(Math.random() * 10) }));
-            } else if (timeFilter === 'MONTHLY') {
-                return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 10) + 5, break: Math.floor(Math.random() * 5) }));
-            }
-            return dataPoints.map(d => ({ ...d, present: Math.floor(Math.random() * 5), break: Math.floor(Math.random() * 2) }));
-        }
-
+        // Return real data (zeros if no logs exist — never show fake data)
         return dataPoints;
     }, [logs, timeFilter]);
 
