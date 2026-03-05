@@ -14,6 +14,7 @@ from models.security_log import SecurityLog, SecurityEventType
 from models.audit_log import AuditLog, AuditActions
 from models.system_metric import SystemMetric, MetricTypes
 from models.notification import Notification
+from models.support_ticket import SupportTicket, TicketStatus
 
 __all__ = [
     "College",
@@ -40,4 +41,6 @@ __all__ = [
     "SystemMetric",
     "MetricTypes",
     "Notification",
+    "SupportTicket",
+    "TicketStatus",
 ]

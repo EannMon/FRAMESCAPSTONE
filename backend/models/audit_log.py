@@ -11,15 +11,15 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Who performed the action
-    action_type = Column(String(50), nullable=False)                  # e.g., USER_CREATE, SCHEDULE_UPLOAD
-    target_table = Column(String(50))                                 # Table affected
-    target_id = Column(Integer)                                       # Record ID affected
-    old_value = Column(JSON, nullable=True)                           # Previous state
-    new_value = Column(JSON, nullable=True)                           # New state
-    ip_address = Column(String(45))                                   # Request IP address
-    user_agent = Column(String(255))                                  # Browser/client info
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    action_type = Column(String(50), nullable=False, index=True)
+    target_table = Column(String(50))
+    target_id = Column(Integer)
+    old_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=True)
+    ip_address = Column(String(45))
+    user_agent = Column(String(255))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # Relationships
     user = relationship("User", backref="audit_logs")
