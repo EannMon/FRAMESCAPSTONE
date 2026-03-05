@@ -6,27 +6,64 @@ import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
 
 // ============================================
 // DEPARTMENT HEAD REPORT OPTIONS
+// Includes dept-wide, class-specific, and personal
 // ============================================
 const reportOptions = [
     // --- Faculty Oversight ---
-    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', category: 'Faculty Oversight' },
-    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', category: 'Faculty Oversight' },
-    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', category: 'Faculty Oversight' },
+    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', type: 'DEPT', category: 'Faculty Oversight' },
+    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', type: 'DEPT', category: 'Faculty Oversight' },
+    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', type: 'DEPT', category: 'Faculty Oversight' },
 
     // --- Facility & Room Analytics ---
-    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', category: 'Facility & Room Analytics' },
-    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', category: 'Facility & Room Analytics' },
-    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', category: 'Facility & Room Analytics' },
-    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', category: 'Facility & Room Analytics' },
+    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', type: 'DEPT', category: 'Facility & Room Analytics' },
+    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', type: 'DEPT', category: 'Facility & Room Analytics' },
+    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', type: 'DEPT', category: 'Facility & Room Analytics' },
+    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', type: 'DEPT', category: 'Facility & Room Analytics' },
 
     // --- Departmental Strategy ---
-    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', category: 'Departmental Strategy' },
+    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', type: 'DEPT', category: 'Departmental Strategy' },
+
+    // --- Class-Specific Reports (same as Faculty) ---
+    { id: 'CLASS_DAILY', label: 'Class Daily Attendance', desc: 'Daily attendance entries for a specific class.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'CLASS_MONTHLY', label: 'Class Monthly Summary', desc: 'Monthly aggregation of attendance per student.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'CLASS_SEMESTER', label: 'Class Semester Summary', desc: 'Semester-wide per-student summary: entries, lates, rate.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'CLASS_ABSENCE', label: 'Absent Students Report', desc: 'Enrolled students with no entry in date range.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'CLASS_LATE', label: 'Late Students Report', desc: 'Students who had late entries.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'BREAK_DURATION', label: 'Break Duration Report', desc: 'Break out/in activity logs.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'EARLY_EXITS', label: 'Early Exits Report', desc: 'Students who exited before class end.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'PARTICIPATION_INSIGHT', label: 'Participation Insight', desc: 'Participation summary per student.', type: 'CLASS', category: 'Class-Specific Reports' },
+
+    // --- Personal Records (own attendance as faculty) ---
+    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
 ];
 
-const getColumnConfig = () => ({
-    headers: ['ID', 'Name / Room', 'Detail', 'Status', 'Metric', 'Remarks'],
-    keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
-});
+/**
+ * Returns column headers/keys based on report type for proper table rendering.
+ */
+const getColumnConfig = (reportId) => {
+    const report = reportOptions.find(r => r.id === reportId);
+    if (report?.type === 'PERSONAL') {
+        return {
+            headers: ['ID', 'Date', 'Subject / Room', 'Status', 'Time', 'Remarks'],
+            keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
+        };
+    }
+    if (report?.type === 'CLASS') {
+        return {
+            headers: ['ID', 'Name', 'TUP-M ID', 'Status', 'Time', 'Remarks'],
+            keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
+        };
+    }
+    // Dept-wide reports
+    return {
+        headers: ['ID', 'Name / Room', 'Detail', 'Status', 'Metric', 'Remarks'],
+        keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
+    };
+};
 
 const DeptHeadReportsPage = () => {
     const [selectedReport, setSelectedReport] = useState(reportOptions[0]);
@@ -38,6 +75,8 @@ const DeptHeadReportsPage = () => {
     const [dateTo, setDateTo] = useState('');
     const [room, setRoom] = useState('');
     const [rooms, setRooms] = useState([]);
+    const [classes, setClasses] = useState([]);
+    const [selectedClass, setSelectedClass] = useState('');
     const [error, setError] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
@@ -47,7 +86,7 @@ const DeptHeadReportsPage = () => {
         return stored ? JSON.parse(stored) : null;
     }, []);
 
-    // Fetch room list & academic year
+    // Fetch room list, academic year, and dept head's classes
     useEffect(() => {
         const controller = new AbortController();
         api.get('/api/dept/management-data', { signal: controller.signal }).then(res => {
@@ -58,11 +97,21 @@ const DeptHeadReportsPage = () => {
             }
         });
 
+        // Fetch dept head's own classes (they also teach)
+        if (user?.id) {
+            api.get(`/api/faculty/schedule/${user.id}`, { signal: controller.signal }).then(res => {
+                setClasses(res.data || []);
+            }).catch((err) => {
+                if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                    // Dept head may have no classes — that's fine
+                }
+            });
+        }
+
         if (user?.department_id) {
             api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
                     if (res.data.academic_year) setAcademicYear(res.data.academic_year);
-                    // Set default date range to current semester
                     if (res.data.semester_start_date) setDateFrom(res.data.semester_start_date);
                     if (res.data.semester_end_date) setDateTo(res.data.semester_end_date);
                 }).catch((err) => {
@@ -94,18 +143,34 @@ const DeptHeadReportsPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const params = { report_type: reportId };
-            if (dateFrom) params.date_from = dateFrom;
-            if (dateTo) params.date_to = dateTo;
-            if (room) params.room = room;
-            if (user?.department_id) params.dept_id = user.department_id;
+            const report = reportOptions.find(r => r.id === reportId);
 
-            const res = await api.get('/api/dept/reports/data', { params });
-            setReportData(res.data || []);
+            if (report?.type === 'CLASS' || report?.type === 'PERSONAL') {
+                // Use the faculty reports endpoint for class-specific & personal reports
+                if (!user?.id) return;
+                const params = { report_type: reportId };
+                if (selectedClass) params.class_id = selectedClass;
+                if (dateFrom) params.date_from = dateFrom;
+                if (dateTo) params.date_to = dateTo;
+
+                const res = await api.get(`/api/faculty/reports/data/${user.id}`, { params });
+                setReportData(res.data || []);
+            } else {
+                // Use the dept reports endpoint for department-wide reports
+                const params = { report_type: reportId };
+                if (dateFrom) params.date_from = dateFrom;
+                if (dateTo) params.date_to = dateTo;
+                if (room) params.room = room;
+                if (user?.department_id) params.dept_id = user.department_id;
+
+                const res = await api.get('/api/dept/reports/data', { params });
+                setReportData(res.data || []);
+            }
         } catch (err) {
-            console.error('Dept report fetch error:', err);
-            setError('Failed to load report data. Please try again.');
-            setReportData([]);
+            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                setError('Failed to load report data. Please try again.');
+                setReportData([]);
+            }
         } finally {
             setLoading(false);
         }
@@ -120,7 +185,7 @@ const DeptHeadReportsPage = () => {
         if (selectedReport) fetchReportData(selectedReport.id);
     };
 
-    const config = getColumnConfig();
+    const config = selectedReport ? getColumnConfig(selectedReport.id) : getColumnConfig(null);
 
     const handleDownloadPDF = async () => {
         if (!selectedReport || reportData.length === 0) return;
@@ -129,10 +194,15 @@ const DeptHeadReportsPage = () => {
             config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
             return obj;
         });
+        const reportType = selectedReport.type === 'PERSONAL'
+            ? 'Personal Faculty Report'
+            : selectedReport.type === 'CLASS'
+                ? 'Class Report'
+                : 'Department Head Report';
         const reportInfo = {
             title: selectedReport.label,
-            type: 'Department Head Report',
-            category: 'dept',
+            type: reportType,
+            category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
             context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
         };
@@ -156,10 +226,15 @@ const DeptHeadReportsPage = () => {
             config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
             return obj;
         });
+        const reportType = selectedReport.type === 'PERSONAL'
+            ? 'Personal Faculty Report'
+            : selectedReport.type === 'CLASS'
+                ? 'Class Report'
+                : 'Department Head Report';
         const reportInfo = {
             title: selectedReport.label,
-            type: 'Department Head Report',
-            category: 'dept',
+            type: reportType,
+            category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
             context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
         };
@@ -195,13 +270,31 @@ const DeptHeadReportsPage = () => {
                         ))}
                     </select>
                 </div>
-                <div className="filter-group">
-                    <label>Room</label>
-                    <select value={room} onChange={e => setRoom(e.target.value)} className="filter-select">
-                        <option value="">All Rooms</option>
-                        {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
-                    </select>
-                </div>
+
+                {/* Show Class selector for class-specific reports */}
+                {selectedReport?.type === 'CLASS' && (
+                    <div className="filter-group">
+                        <label>Subject / Class</label>
+                        <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="filter-select">
+                            <option value="">All Classes</option>
+                            {classes.map(c => (
+                                <option key={c.class_id} value={c.class_id}>{c.subject_code} - {c.section || 'N/A'}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {/* Show Room selector for dept-wide reports */}
+                {selectedReport?.type === 'DEPT' && (
+                    <div className="filter-group">
+                        <label>Room</label>
+                        <select value={room} onChange={e => setRoom(e.target.value)} className="filter-select">
+                            <option value="">All Rooms</option>
+                            {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
+                        </select>
+                    </div>
+                )}
+
                 <div className="filter-group">
                     <label>From</label>
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="filter-input" />
@@ -221,7 +314,7 @@ const DeptHeadReportsPage = () => {
                         <div className="reports-empty-state">
                             <i className="fas fa-chart-pie"></i>
                             <h3>Select a Report</h3>
-                            <p>Choose a report type from the sidebar to view department-wide data.</p>
+                            <p>Choose a report type to view department, class, or personal attendance data.</p>
                         </div>
                     ) : (
                         <>

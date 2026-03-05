@@ -8,7 +8,9 @@ const StatusBadge = ({ status }) => {
     let cls = 'neutral';
     if (status === 'Present') cls = 'success';
     else if (status === 'On Break') cls = 'warning';
+    else if (status === 'Late') cls = 'warning';
     else if (status === 'Absent') cls = 'danger';
+    else if (status === 'Left') cls = 'neutral';
     return (
         <span className={`log-status-tag ${cls}`}>
             {status?.toUpperCase() || 'ABSENT'}
@@ -30,6 +32,13 @@ const FacultyAttendancePage = () => {
     const [myClasses, setMyClasses] = useState([]);
     const [studentList, setStudentList] = useState([]);
     const [user, setUser] = useState(null);
+
+    // --- EDIT MODAL STATES ---
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingStudent, setEditingStudent] = useState(null);
+    const [editTime, setEditTime] = useState('');
+    const [editRemarks, setEditRemarks] = useState('');
+    const [saving, setSaving] = useState(false);
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
@@ -57,15 +66,17 @@ const FacultyAttendancePage = () => {
         }
     };
 
-    // --- 3. FETCH CLASS DETAILS (API) ---
-    const fetchClassDetails = useCallback(async (clsId) => {
+    // --- 3. FETCH CLASS DETAILS (API) with date param ---
+    const fetchClassDetails = useCallback(async (clsId, targetDate) => {
         if (!clsId) {
             setStudentList([]);
             return;
         }
         setLoading(true);
         try {
-            const response = await api.get(`/api/faculty/class-details/${clsId}`);
+            const params = {};
+            if (targetDate) params.date = targetDate;
+            const response = await api.get(`/api/faculty/class-details/${clsId}`, { params });
             setStudentList(response.data);
         } catch (error) {
             console.error('Error loading students:', error);
@@ -80,32 +91,75 @@ const FacultyAttendancePage = () => {
         setSelectedClassId(clsId);
         const cls = myClasses.find(c => c.id.toString() === clsId) || null;
         setSelectedClass(cls);
-        await fetchClassDetails(clsId);
+        await fetchClassDetails(clsId, filterDate);
     };
 
-    // Re-fetch when date changes (for date-based filtering — currently frontend-side)
+    // Re-fetch when date changes with backend filtering
     const handleDateChange = (e) => {
-        setFilterDate(e.target.value);
+        const newDate = e.target.value;
+        setFilterDate(newDate);
+        if (selectedClassId) {
+            fetchClassDetails(selectedClassId, newDate);
+        }
     };
 
-    // --- 4. LOCAL DATE FILTER ---
-    // Filter students by the selected date based on their timeIn field
+    // --- 4. LOCAL SEARCH FILTER (date filtering is now backend-side) ---
     const getFilteredStudents = () => {
         const query = searchTerm.toLowerCase();
         return studentList.filter(s => {
-            const nameMatch =
+            return (
                 (s.lastName?.toLowerCase() || '').includes(query) ||
-                (s.firstName?.toLowerCase() || '').includes(query);
-            if (!nameMatch) return false;
-
-            // If student has a timeIn, filter by date; otherwise show as absent for any date
-            if (s.timeIn && s.timeIn !== 'N/A' && s.timeIn !== '--') {
-                const logDate = new Date(s.timeIn).toISOString().split('T')[0];
-                return logDate === filterDate;
-            }
-            // Absent students always show (no time in recorded)
-            return true;
+                (s.firstName?.toLowerCase() || '').includes(query)
+            );
         });
+    };
+
+    // --- EDIT MODAL HANDLERS ---
+    const openEditModal = (student) => {
+        setEditingStudent(student);
+        // Convert "08:15 AM" to "08:15" for the time input
+        if (student.timeIn && student.timeIn !== '---') {
+            try {
+                const [timePart, ampm] = student.timeIn.split(' ');
+                let [hours, minutes] = timePart.split(':').map(Number);
+                if (ampm === 'PM' && hours !== 12) hours += 12;
+                if (ampm === 'AM' && hours === 12) hours = 0;
+                setEditTime(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+            } catch {
+                setEditTime('');
+            }
+        } else {
+            setEditTime('');
+        }
+        setEditRemarks(student.remarks || '');
+        setEditModalOpen(true);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingStudent?.entry_log_id) {
+            toast.error('No attendance entry to edit. Student may be absent.');
+            return;
+        }
+        if (!editTime) {
+            toast.error('Please enter a valid time.');
+            return;
+        }
+        if (saving) return;
+        setSaving(true);
+        try {
+            await api.put(`/api/faculty/attendance/${editingStudent.entry_log_id}`, {
+                new_time: editTime,
+                remarks: editRemarks || null,
+            });
+            toast.success('Attendance updated successfully.');
+            setEditModalOpen(false);
+            // Refresh data
+            await fetchClassDetails(selectedClassId, filterDate);
+        } catch (error) {
+            toast.error('Failed to update: ' + (error.response?.data?.detail?.error?.message || error.message));
+        } finally {
+            setSaving(false);
+        }
     };
 
     // --- 5. EXPORT PDF ---
@@ -128,6 +182,7 @@ const FacultyAttendancePage = () => {
             'Student Name': `${s.lastName}, ${s.firstName}`,
             'ID Number': s.tupm_id,
             'Time In': s.timeIn || '--',
+            'Time Out': s.timeOut || '--',
             'Status': s.status || 'Absent',
             'Remarks': s.remarks || '',
         }));
@@ -139,7 +194,8 @@ const FacultyAttendancePage = () => {
     const summaryCounts = () => {
         const filtered = getFilteredStudents();
         return {
-            present: filtered.filter(s => s.status === 'Present').length,
+            present: filtered.filter(s => s.status === 'Present' || s.status === 'Left').length,
+            late: filtered.filter(s => s.status === 'Late').length,
             onBreak: filtered.filter(s => s.status === 'On Break').length,
             absent: filtered.filter(s => s.status === 'Absent' || !s.status || s.status === 'No Record').length,
             total: studentList.length,
@@ -219,6 +275,9 @@ const FacultyAttendancePage = () => {
                     <div style={statChip('#E6F4EA', '#2E7D32')}>
                         <strong>{counts.present}</strong> <span>Present</span>
                     </div>
+                    <div style={statChip('#FFF3E0', '#E65100')}>
+                        <strong>{counts.late}</strong> <span>Late</span>
+                    </div>
                     <div style={statChip('#FFF8E1', '#F9A825')}>
                         <strong>{counts.onBreak}</strong> <span>On Break</span>
                     </div>
@@ -253,8 +312,10 @@ const FacultyAttendancePage = () => {
                                         <th>Student Name</th>
                                         <th>ID Number</th>
                                         <th>Time In</th>
+                                        <th>Time Out</th>
                                         <th>Status</th>
                                         <th>Remarks</th>
+                                        <th style={{ width: '60px', textAlign: 'center' }}>Edit</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -265,17 +326,34 @@ const FacultyAttendancePage = () => {
                                             </td>
                                             <td style={{ color: '#666' }}>{student.tupm_id}</td>
                                             <td>{student.timeIn || '--'}</td>
+                                            <td>{student.timeOut || '--'}</td>
                                             <td>
                                                 <StatusBadge status={student.status || 'Absent'} />
                                             </td>
                                             <td style={{ color: student.remarks === 'Late' ? 'orange' : '#555' }}>
                                                 {student.remarks || '-'}
                                             </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {student.entry_log_id ? (
+                                                    <button
+                                                        onClick={() => openEditModal(student)}
+                                                        style={{
+                                                            background: 'none', border: 'none', cursor: 'pointer',
+                                                            color: '#163269', fontSize: '0.9rem', padding: '4px 8px',
+                                                        }}
+                                                        title="Edit time-in"
+                                                    >
+                                                        <i className="fas fa-pen" />
+                                                    </button>
+                                                ) : (
+                                                    <span style={{ color: '#ccc' }}>—</span>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                     {displayStudents.length === 0 && (
                                         <tr>
-                                            <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
                                                 No attendance records found for this date.
                                             </td>
                                         </tr>
@@ -298,6 +376,81 @@ const FacultyAttendancePage = () => {
                 <div style={{ textAlign: 'center', padding: '50px', color: '#888' }}>
                     <i className="fas fa-calendar-plus" style={{ fontSize: '3rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }} />
                     <p>No classes assigned yet. Contact your department head.</p>
+                </div>
+            )}
+
+            {/* ── EDIT ATTENDANCE MODAL ── */}
+            {editModalOpen && editingStudent && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                }}>
+                    <div style={{
+                        background: '#fff', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '90%',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                    }}>
+                        <h3 style={{ margin: '0 0 18px', color: '#163269', fontSize: '1.05rem' }}>
+                            <i className="fas fa-pen" style={{ marginRight: 8 }} />Edit Attendance
+                        </h3>
+
+                        {/* Non-editable fields */}
+                        <div style={{ marginBottom: 14, padding: '10px 14px', background: '#f8f9fb', borderRadius: 8, fontSize: '0.9em' }}>
+                            <div><strong>Student:</strong> {editingStudent.lastName}, {editingStudent.firstName}</div>
+                            <div><strong>ID:</strong> {editingStudent.tupm_id}</div>
+                        </div>
+
+                        {/* Editable: Time In */}
+                        <div style={{ marginBottom: 14 }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: '0.88em', color: '#333' }}>
+                                Time In (override)
+                            </label>
+                            <input
+                                type="time"
+                                value={editTime}
+                                onChange={e => setEditTime(e.target.value)}
+                                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: '0.95em' }}
+                            />
+                            <p style={{ fontSize: '0.78em', color: '#888', marginTop: 4 }}>
+                                Status will auto-update based on class start time.
+                            </p>
+                        </div>
+
+                        {/* Editable: Remarks */}
+                        <div style={{ marginBottom: 18 }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4, fontSize: '0.88em', color: '#333' }}>
+                                Remarks
+                            </label>
+                            <input
+                                type="text"
+                                value={editRemarks}
+                                onChange={e => setEditRemarks(e.target.value)}
+                                placeholder="Optional remark..."
+                                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: '0.95em' }}
+                            />
+                        </div>
+
+                        {/* Buttons */}
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setEditModalOpen(false)}
+                                style={{
+                                    padding: '8px 18px', border: '1px solid #ddd', borderRadius: 8,
+                                    background: '#fff', cursor: 'pointer', fontSize: '0.9em',
+                                }}
+                            >Cancel</button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={saving}
+                                style={{
+                                    padding: '8px 18px', border: 'none', borderRadius: 8,
+                                    background: '#163269', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+                                    fontSize: '0.9em', opacity: saving ? 0.6 : 1,
+                                }}
+                            >
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

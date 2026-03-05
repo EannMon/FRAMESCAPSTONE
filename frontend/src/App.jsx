@@ -9,6 +9,7 @@ import RegistrationPage from './components/LandingPage/RegistrationPage';
 
 // Face Enrollment (mandatory before dashboard access)
 import FaceEnrollmentPage from './components/FaceEnrollment/FaceEnrollmentPage';
+import ResetPasswordPage from './components/Auth/ResetPasswordPage';
 
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout';
@@ -68,13 +69,15 @@ function App() {
 
                             {/* Face Enrollment - Mandatory for all users */}
                             <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
+                            {/* Password Reset - Public route from email link */}
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                             {/* --- Admin Routes (using AdminLayout + ProtectedRoute) --- */}
                             <Route element={<ProtectedRoute allowedRoles={['admin']}><ErrorBoundary><AdminLayout /></ErrorBoundary></ProtectedRoute>}>
                                 <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
                                 <Route path="/admin-application" element={<ApplicationPage />} />
                                 <Route path="/admin-user-management" element={<UserManagementPage />} />
-                                <Route path="/admin-reports" element={<ReportsPage />} />
+                                {/* Reports removed from admin — report generation is for student, faculty, and dept head only */}
                                 <Route path="/admin-logs" element={<SystemLogsPage />} />
                             </Route>
 
@@ -122,8 +125,8 @@ function App() {
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/notifications" element={<NotificationsPage />} />
 
-                            {/* Template Sandbox */}
-                            <Route path="/test-pdf" element={<TestPDFPage />} />
+                            {/* Template Sandbox — removed from production, was admin-only testing tool */}
+                            {/* <Route path="/test-pdf" element={<TestPDFPage />} /> */}
 
                             {/* Kiosk Dashboard - This is a standalone page that doesn't use any layout */}
                             <Route path="/kiosk" element={<KioskDashboardPage />} />

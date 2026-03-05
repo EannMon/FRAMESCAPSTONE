@@ -17,8 +17,8 @@ const Footer = () => {
                         <a href="https://www.facebook.com/dencmiks/" target="_blank" rel="noopener noreferrer" className="social-icon fb" aria-label="Facebook">
                             <i className="fab fa-facebook-f"></i>
                         </a>
-                        <a href="https://x.com/" target="_blank" rel="noopener noreferrer" className="social-icon tw" aria-label="X (formerly Twitter)">
-                            <i className="fa-brands fa-x-twitter"></i>
+                        <a href="https://www.threads.com/@lenayanaaa?igshid=NTc4MTIwNjQ2YQ==" target="_blank" rel="noopener noreferrer" className="social-icon tw" aria-label="Threads">
+                            <i className="fa-brands fa-threads"></i>
                         </a>
                         <a href="https://www.instagram.com/_moneann/" target="_blank" rel="noopener noreferrer" className="social-icon ig" aria-label="Instagram">
                             <i className="fab fa-instagram"></i>

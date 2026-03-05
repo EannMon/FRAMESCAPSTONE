@@ -164,18 +164,20 @@ const DeptHeadManagePage = () => {
     // Camera/Device management
     const [devices, setDevices] = useState([]);
     const [showDeviceModal, setShowDeviceModal] = useState(false);
+    const [editingDevice, setEditingDevice] = useState(null); // null = add mode, object = edit mode
     const [deviceForm, setDeviceForm] = useState({ device_name: '', room: '', ip_address: '', room_capacity: 40 });
 
     // --- ACADEMIC YEAR SETTINGS (from DB via API) ---
     const defaultAY = {
-        academicYear: '2025-2026',
-        semester: '2nd Semester',
-        startMonth: 'August',
-        endMonth: 'May',
+        academicYear: '',
+        semester: '',
+        startMonth: '',
+        endMonth: '',
     };
     const [ayConfig, setAyConfig] = useState(defaultAY);
     const [editingAY, setEditingAY] = useState(false);
     const [ayForm, setAyForm] = useState(defaultAY);
+    const ayNotConfigured = !ayConfig.academicYear || !ayConfig.semester;
 
     useEffect(() => {
         const controller = new AbortController();
@@ -185,26 +187,14 @@ const DeptHeadManagePage = () => {
         if (deptId) {
             api.get(`/api/dept/academic-year?dept_id=${deptId}`, { signal: controller.signal })
                 .then(res => {
-                    const needsSave = !res.data.academic_year || !res.data.semester;
                     const data = {
-                        ...defaultAY,
-                        academicYear: res.data.academic_year || defaultAY.academicYear,
-                        semester: res.data.semester || defaultAY.semester,
+                        academicYear: res.data.academic_year || '',
+                        semester: res.data.semester || '',
+                        startMonth: res.data.semester_start_date || '',
+                        endMonth: res.data.semester_end_date || '',
                     };
                     setAyConfig(data);
                     setAyForm(data);
-                    // Auto-save defaults to DB if not set yet
-                    if (needsSave && storedUser.id) {
-                        api.put('/api/dept/academic-year', {
-                            user_id: storedUser.id,
-                            academic_year: data.academicYear,
-                            semester: data.semester,
-                        }, { signal: controller.signal }).catch(err => {
-                            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-                                console.error('Failed to auto-save academic year:', err);
-                            }
-                        });
-                    }
                 })
                 .catch(err => {
                     if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
@@ -216,12 +206,18 @@ const DeptHeadManagePage = () => {
     }, []);
 
     const handleSaveAY = async () => {
+        if (!ayForm.academicYear || !ayForm.semester) {
+            toast.error('Academic Year and Semester are required.');
+            return;
+        }
         const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         try {
             await api.put('/api/dept/academic-year', {
                 user_id: storedUser.id,
                 academic_year: ayForm.academicYear,
                 semester: ayForm.semester,
+                semester_start_date: ayForm.startMonth || null,
+                semester_end_date: ayForm.endMonth || null,
             });
             setAyConfig(ayForm);
             setEditingAY(false);
@@ -326,10 +322,27 @@ const DeptHeadManagePage = () => {
         const currentRoom = course.room_name || '';
         const isExisting = currentRoom === '' || availableRooms.includes(currentRoom);
         setIsCustomRoom(!isExisting && currentRoom !== '');
-        setRoomForm(prev => ({
-            ...prev,
-            roomName: currentRoom || (availableRooms[0] || '')
-        }));
+
+        // Parse existing schedule to pre-fill day, start time, end time
+        // Schedule format: "Monday 09:00 AM - 12:00 PM" or "TBA"
+        let parsedDay = 'Monday';
+        let parsedStart = '';
+        let parsedEnd = '';
+        if (course.schedule && course.schedule !== 'TBA') {
+            const schedMatch = course.schedule.match(/^(\w+)\s+(.+?)\s*-\s*(.+)$/);
+            if (schedMatch) {
+                parsedDay = schedMatch[1];
+                parsedStart = schedMatch[2].trim();
+                parsedEnd = schedMatch[3].trim();
+            }
+        }
+
+        setRoomForm({
+            roomName: currentRoom || (availableRooms[0] || ''),
+            day: parsedDay,
+            startTime: parsedStart,
+            endTime: parsedEnd
+        });
         setShowRoomModal(true);
     };
 
@@ -376,30 +389,61 @@ const DeptHeadManagePage = () => {
             setDevices(res.data || []);
         } catch (err) { console.error('Device fetch error:', err); }
     };
+    const openAddDevice = () => {
+        setEditingDevice(null);
+        setDeviceForm({ device_name: '', room: '', ip_address: '', room_capacity: 40 });
+        setShowDeviceModal(true);
+    };
+    const openEditDevice = (device) => {
+        setEditingDevice(device);
+        setDeviceForm({
+            device_name: device.device_name || '',
+            room: device.room || '',
+            ip_address: device.ip_address || '',
+            room_capacity: device.room_capacity || 40,
+        });
+        setShowDeviceModal(true);
+    };
     const handleAddDevice = async (e) => {
         e.preventDefault();
         try {
             await api.post('/api/dept/devices', deviceForm);
-            toast.success('Camera device registered');
+            toast.success('Camera device registered successfully.');
             addLog(`Registered device "${deviceForm.device_name}" in ${deviceForm.room}`);
             setShowDeviceModal(false);
             setDeviceForm({ device_name: '', room: '', ip_address: '', room_capacity: 40 });
+            setEditingDevice(null);
             fetchDevices();
             fetchManagementData(); // Refresh rooms list
         } catch (err) {
             console.error('Add device failed:', err);
-            toast.error('Failed to register device');
+            toast.error('Failed to register device. Please try again.');
+        }
+    };
+    const handleUpdateDevice = async (e) => {
+        e.preventDefault();
+        if (!editingDevice) return;
+        try {
+            await api.put(`/api/dept/devices/${editingDevice.id}`, deviceForm);
+            toast.success('Device updated successfully.');
+            addLog(`Updated device "${deviceForm.device_name}"`);
+            setShowDeviceModal(false);
+            setEditingDevice(null);
+            fetchDevices();
+        } catch (err) {
+            console.error('Update device failed:', err);
+            toast.error('Failed to update device.');
         }
     };
     const handleDeleteDevice = async (device) => {
-        if (!window.confirm(`Remove device "${device.device_name}"?`)) return;
+        if (!window.confirm(`Are you sure you want to remove "${device.device_name}"? This action cannot be undone.`)) return;
         try {
             await api.delete(`/api/dept/devices/${device.id}`);
-            toast.success('Device removed');
+            toast.success('Device removed successfully.');
             addLog(`Removed device "${device.device_name}"`);
             fetchDevices();
         } catch (err) {
-            toast.error('Failed to remove device');
+            toast.error('Failed to remove device.');
         }
     };
 
@@ -427,6 +471,14 @@ const DeptHeadManagePage = () => {
         <div className="dept-mgmt-container">
             {/* ── ACADEMIC YEAR SETTINGS CARD ── */}
             <div className="ay-settings-card card">
+                {ayNotConfigured && (
+                    <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 6, padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <i className="fas fa-exclamation-triangle" style={{ color: '#856404' }} />
+                        <span style={{ fontSize: '0.88em', color: '#856404' }}>
+                            Academic year is not configured yet. Please set it up to enable reports and attendance tracking.
+                        </span>
+                    </div>
+                )}
                 <div className="ay-settings-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <i className="fas fa-calendar-alt" style={{ color: '#163269', fontSize: '1.1rem' }} />
@@ -453,19 +505,19 @@ const DeptHeadManagePage = () => {
                     <div className="ay-info-row">
                         <div className="ay-stat">
                             <span className="ay-stat-label">Academic Year</span>
-                            <span className="ay-stat-value">{ayConfig.academicYear}</span>
+                            <span className="ay-stat-value">{ayConfig.academicYear || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">Semester</span>
-                            <span className="ay-stat-value">{ayConfig.semester}</span>
+                            <span className="ay-stat-value">{ayConfig.semester || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">Start Date</span>
-                            <span className="ay-stat-value">{ayConfig.startMonth}</span>
+                            <span className="ay-stat-value">{ayConfig.startMonth || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">End Date</span>
-                            <span className="ay-stat-value">{ayConfig.endMonth}</span>
+                            <span className="ay-stat-value">{ayConfig.endMonth || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
                         </div>
                     </div>
                 ) : (
@@ -532,7 +584,7 @@ const DeptHeadManagePage = () => {
                             <p style={{ margin: 0, fontSize: '0.82em', color: '#666' }}>Manage camera devices assigned to rooms for face recognition.</p>
                         </div>
                     </div>
-                    <button className="mgmt-btn primary" style={{ fontSize: '0.85rem', padding: '6px 14px' }} onClick={() => setShowDeviceModal(true)}>
+                    <button className="mgmt-btn primary" style={{ fontSize: '0.85rem', padding: '6px 14px' }} onClick={openAddDevice}>
                         <i className="fas fa-plus"></i> Add Camera
                     </button>
                 </div>
@@ -546,30 +598,56 @@ const DeptHeadManagePage = () => {
                                     <th>Device Name</th>
                                     <th>Room</th>
                                     <th>IP Address</th>
+                                    <th>Capacity</th>
                                     <th>Status</th>
                                     <th>Last Heartbeat</th>
-                                    <th style={{ width: 60 }}></th>
+                                    <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {devices.map(d => (
-                                    <tr key={d.id}>
-                                        <td>{d.device_name}</td>
-                                        <td>{d.room || '—'}</td>
-                                        <td>{d.ip_address || '—'}</td>
-                                        <td>
-                                            <span className={`status-badge ${d.status === 'ACTIVE' ? 'active' : d.status === 'INACTIVE' ? 'inactive' : 'maintenance'}`}>
-                                                {d.status}
-                                            </span>
-                                        </td>
-                                        <td>{d.last_heartbeat ? new Date(d.last_heartbeat).toLocaleString() : 'Never'}</td>
-                                        <td>
-                                            <button className="icon-action delete" title="Remove" onClick={() => handleDeleteDevice(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c' }}>
-                                                <i className="fas fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {devices.map(d => {
+                                    // Compute heartbeat display with tooltip
+                                    const heartbeatText = d.last_heartbeat
+                                        ? new Date(d.last_heartbeat).toLocaleString()
+                                        : 'Never';
+                                    const heartbeatAgo = d.last_heartbeat
+                                        ? (() => {
+                                            const diffMs = Date.now() - new Date(d.last_heartbeat).getTime();
+                                            const diffMin = Math.floor(diffMs / 60000);
+                                            if (diffMin < 1) return 'Just now';
+                                            if (diffMin < 60) return `${diffMin}m ago`;
+                                            const diffHr = Math.floor(diffMin / 60);
+                                            if (diffHr < 24) return `${diffHr}h ago`;
+                                            return `${Math.floor(diffHr / 24)}d ago`;
+                                        })()
+                                        : 'No data';
+
+                                    return (
+                                        <tr key={d.id}>
+                                            <td>{d.device_name}</td>
+                                            <td>{d.room || '—'}</td>
+                                            <td>{d.ip_address || '—'}</td>
+                                            <td>{d.room_capacity || '—'}</td>
+                                            <td>
+                                                <span className={`status-badge ${d.status === 'ACTIVE' ? 'active' : d.status === 'INACTIVE' ? 'inactive' : 'maintenance'}`}>
+                                                    {d.status}
+                                                </span>
+                                            </td>
+                                            <td title={`Last ping: ${heartbeatText}`} style={{ cursor: 'help' }}>
+                                                <span>{heartbeatAgo}</span>
+                                                <span style={{ fontSize: '0.75em', color: '#999', display: 'block' }}>{heartbeatText !== 'Never' ? heartbeatText : ''}</span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button title="Edit device" onClick={() => openEditDevice(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#163269', marginRight: 6, fontSize: '0.9rem' }}>
+                                                    <i className="fas fa-pen"></i>
+                                                </button>
+                                                <button title="Remove device" onClick={() => handleDeleteDevice(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontSize: '0.9rem' }}>
+                                                    <i className="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -743,6 +821,12 @@ const DeptHeadManagePage = () => {
                     <div className="modal-content-box">
                         <div className="modal-header">
                             <h3>Change Instructor</h3>
+                            {selectedCourse && (
+                                <p style={{ margin: '4px 0 0', fontSize: '0.88em', color: '#555' }}>
+                                    {selectedCourse.subject_code} — {selectedCourse.name}
+                                    {selectedCourse.section ? ` (Section ${selectedCourse.section})` : ''}
+                                </p>
+                            )}
                             <button className="close-btn" onClick={() => setShowAssignModal(false)}>&times;</button>
                         </div>
                         <div className="faculty-select-list">
@@ -764,6 +848,12 @@ const DeptHeadManagePage = () => {
                     <div className="modal-content-box">
                         <div className="modal-header">
                             <h3>Assign Room &amp; Schedule</h3>
+                            {selectedCourse && (
+                                <p style={{ margin: '4px 0 0', fontSize: '0.88em', color: '#555' }}>
+                                    {selectedCourse.subject_code} — {selectedCourse.name}
+                                    {selectedCourse.section ? ` (Section ${selectedCourse.section})` : ''}
+                                </p>
+                            )}
                             <button className="close-btn" onClick={() => { setShowRoomModal(false); setIsCustomRoom(false); }}>&times;</button>
                         </div>
                         <form onSubmit={handleAssignRoom}>
@@ -836,15 +926,15 @@ const DeptHeadManagePage = () => {
                 </div>
             )}
 
-            {/* ── ADD CAMERA MODAL ── */}
+            {/* ── ADD/EDIT CAMERA MODAL ── */}
             {showDeviceModal && (
-                <div className="modal-overlay" onClick={() => setShowDeviceModal(false)}>
+                <div className="modal-overlay" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <div className="modal-header">
-                            <h3>Register Camera Device</h3>
-                            <button className="modal-close" onClick={() => setShowDeviceModal(false)}>&times;</button>
+                            <h3>{editingDevice ? 'Edit Camera Device' : 'Register Camera Device'}</h3>
+                            <button className="modal-close" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>&times;</button>
                         </div>
-                        <form onSubmit={handleAddDevice}>
+                        <form onSubmit={editingDevice ? handleUpdateDevice : handleAddDevice}>
                             <div className="form-group">
                                 <label>Device Name *</label>
                                 <input className="modal-input" required placeholder="e.g. RPi-CL1"
@@ -877,7 +967,9 @@ const DeptHeadManagePage = () => {
                                     value={deviceForm.room_capacity}
                                     onChange={e => setDeviceForm({ ...deviceForm, room_capacity: parseInt(e.target.value) || 40 })} />
                             </div>
-                            <button type="submit" className="submit-btn full">Register Device</button>
+                            <button type="submit" className="submit-btn full">
+                                {editingDevice ? 'Save Changes' : 'Register Device'}
+                            </button>
                         </form>
                     </div>
                 </div>
