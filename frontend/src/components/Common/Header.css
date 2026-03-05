@@ -561,4 +561,58 @@
     .icon-button {
         margin-right: 10px;
     }
+
+    /* Fix notification dropdown overflow on narrow screens */
+    .notification-dropdown-menu {
+        width: calc(100vw - 30px);
+        right: -60px;
+        max-width: 380px;
+    }
+
+    .notification-item {
+        padding: 12px 16px;
+    }
+
+    .notification-trigger {
+        margin-right: 15px;
+    }
+
+    /* Ensure minimum touch targets */
+    .header-login-btn,
+    .header-signup-btn {
+        padding: 10px 16px;
+        min-height: 44px;
+    }
+
+    .header-sidebar-toggle {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Small Phone) */
+/* =========================================== */
+@media (max-width: 375px) {
+    .universal-header {
+        padding: 0 10px;
+    }
+
+    .notification-dropdown-menu {
+        width: calc(100vw - 20px);
+        right: -50px;
+    }
+
+    .header-dropdown-menu {
+        width: 200px;
+    }
+
+    .header-page-title {
+        font-size: 1rem;
+    }
+
+    .notification-trigger {
+        margin-right: 10px;
+        padding: 6px;
+    }
 }

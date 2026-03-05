@@ -41,10 +41,12 @@
     padding: 8px 12px;
     border-radius: 6px;
 }
+
 .logs-search-bar i {
     color: #999;
     margin-right: 8px;
 }
+
 .logs-search-bar input {
     border: none;
     background: none;
@@ -54,7 +56,8 @@
 
 /* NEW: This class is for the card that just wraps the table */
 .logs-table-card {
-    padding: 0; /* Remove base card padding */
+    padding: 0;
+    /* Remove base card padding */
 }
 
 .logs-table-container {
@@ -68,7 +71,8 @@
     min-width: 800px;
 }
 
-.logs-table th, .logs-table td {
+.logs-table th,
+.logs-table td {
     padding: 15px 25px;
     text-align: left;
     border-bottom: 1px solid #eee;
@@ -111,10 +115,26 @@
     font-weight: 500;
     text-transform: uppercase;
 }
-.log-status-tag.red { background-color: #fde8e8; color: #dc3545; }
-.log-status-tag.yellow { background-color: #fff8e6; color: #e6a800; }
-.log-status-tag.green { background-color: #e6f7ec; color: #28a745; }
-.log-status-tag.grey { background-color: #f0f2f5; color: #6c757d; }
+
+.log-status-tag.red {
+    background-color: #fde8e8;
+    color: #dc3545;
+}
+
+.log-status-tag.yellow {
+    background-color: #fff8e6;
+    color: #e6a800;
+}
+
+.log-status-tag.green {
+    background-color: #e6f7ec;
+    color: #28a745;
+}
+
+.log-status-tag.grey {
+    background-color: #f0f2f5;
+    color: #6c757d;
+}
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -122,11 +142,27 @@
         flex-direction: column;
         align-items: stretch;
     }
+
     .logs-filters {
         flex-direction: column;
     }
-    .logs-filter-select, .logs-search-bar {
+
+    .logs-filter-select,
+    .logs-search-bar {
         width: 100%;
         box-sizing: border-box;
+    }
+}
+
+@media (max-width: 480px) {
+    .system-logs-container {
+        padding-left: 0;
+        gap: 12px;
+    }
+
+    .logs-table th,
+    .logs-table td {
+        padding: 10px 12px;
+        font-size: 0.85em;
     }
 }

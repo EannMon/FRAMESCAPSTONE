@@ -323,6 +323,14 @@
         gap: 15px;
     }
 
+    .profile-summary-info {
+        align-items: center;
+    }
+
+    .profile-status-tag {
+        align-self: center;
+    }
+
     .profile-action-buttons {
         flex-direction: column;
         width: 100%;

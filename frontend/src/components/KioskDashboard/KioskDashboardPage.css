@@ -270,3 +270,131 @@
     font-size: 36px;
   }
 }
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — RPi 7" Display      */
+/* Typical: 800x480 landscape or 600x1024 port */
+/* =========================================== */
+@media (min-width: 577px) and (max-width: 800px) {
+  .kiosk-container {
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .kiosk-video-section {
+    flex: 1.2;
+    padding: 12px;
+  }
+
+  .kiosk-video-header h1 {
+    font-size: 20px;
+  }
+
+  .kiosk-video-id {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+
+  .kiosk-sidebar {
+    flex: 1;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .kiosk-panel {
+    padding: 12px;
+  }
+
+  .kiosk-panel h3 {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .kiosk-time-value {
+    font-size: 32px;
+  }
+
+  .kiosk-date-value {
+    font-size: 14px;
+  }
+
+  .kiosk-subject-title {
+    font-size: 18px;
+  }
+
+  .kiosk-room-name {
+    font-size: 13px;
+  }
+
+  .kiosk-gesture-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+
+  .kiosk-gesture-card {
+    padding: 15px 8px;
+    min-width: 70px;
+  }
+
+  .kiosk-gesture-label {
+    font-size: 11px;
+  }
+
+  .kiosk-checkins-list {
+    max-height: 150px;
+  }
+
+  .kiosk-checkin-item {
+    padding: 8px;
+  }
+
+  .kiosk-checkin-name {
+    font-size: 13px;
+  }
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Phone)       */
+/* =========================================== */
+@media (max-width: 375px) {
+  .kiosk-video-section {
+    height: 40vh;
+    padding: 8px;
+  }
+
+  .kiosk-video-header h1 {
+    font-size: 18px;
+  }
+
+  .kiosk-sidebar {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .kiosk-panel {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .kiosk-time-value {
+    font-size: 28px;
+  }
+
+  .kiosk-gesture-icon {
+    font-size: 30px;
+    margin-bottom: 6px;
+  }
+
+  .kiosk-gesture-card {
+    padding: 12px 6px;
+  }
+
+  .kiosk-gesture-label {
+    font-size: 10px;
+  }
+
+  .kiosk-gestures-grid {
+    gap: 8px;
+  }
+}

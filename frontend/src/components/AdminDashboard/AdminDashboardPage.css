@@ -433,3 +433,38 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
+/* =========================================== */
+@media (max-width: 375px) {
+    .admin-dashboard-content-grid {
+        gap: 15px;
+        padding-left: 0;
+    }
+
+    .admin-summary-card {
+        padding: 14px;
+    }
+
+    .admin-summary-value {
+        font-size: 1.3em;
+    }
+
+    .admin-room-box-container {
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .admin-room-box-main-status {
+        padding: 25px 15px;
+    }
+
+    .admin-room-box-main-status i {
+        font-size: 2.5em;
+    }
+
+    .admin-room-box-main-status span {
+        font-size: 1.2em;
+    }
+}

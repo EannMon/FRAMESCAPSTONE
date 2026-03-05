@@ -49,6 +49,8 @@
     display: flex;
     gap: 5px;
     border: 1px solid #e2e8f0;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .faculty-my-classes-container .toggle-btn {
@@ -64,6 +66,8 @@
     gap: 8px;
     transition: all 0.2s;
     font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .faculty-my-classes-container .toggle-btn:hover {
@@ -1028,7 +1032,8 @@
     }
 
     .toggle-buttons {
-        flex-direction: column;
+        flex-direction: row;
+        overflow-x: auto;
     }
 }
 

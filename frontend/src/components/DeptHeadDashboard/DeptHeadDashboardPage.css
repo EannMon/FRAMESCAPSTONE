@@ -403,6 +403,45 @@
     }
 }
 
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
+/* =========================================== */
+@media (max-width: 375px) {
+    .verification-row {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .v-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .v-btn-review {
+        padding: 5px 12px;
+        font-size: 0.75rem;
+    }
+
+    .quick-action-item {
+        padding: 8px 10px;
+    }
+
+    .v-modal-body {
+        padding: 16px;
+    }
+
+    .v-modal-footer {
+        padding: 12px 16px;
+    }
+
+    .dh-room-selector select {
+        font-size: 0.82rem;
+        padding: 6px 28px 6px 10px;
+        height: 38px;
+    }
+}
+
 /* ============================================
    New CSS Classes for Dark Mode Support
    ============================================ */

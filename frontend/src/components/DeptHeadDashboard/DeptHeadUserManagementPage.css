@@ -511,6 +511,11 @@
 }
 
 @media (max-width: 768px) {
+    .user-management-container {
+        padding-left: 15px;
+        padding-right: 15px;
+        gap: 15px;
+    }
 
     .app-filter-bar,
     .app-filter-left {
@@ -521,6 +526,79 @@
     .app-filter-select,
     .app-search-bar {
         width: 100%;
+    }
+
+    .user-list-header,
+    .app-list-header {
+        padding: 15px;
+    }
+
+    .user-table th,
+    .app-table th,
+    .user-table td,
+    .app-table td {
+        padding: 12px 10px !important;
+        white-space: nowrap !important;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+
+    .user-summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .user-summary-card {
+        align-items: center;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-management-container {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        gap: 8px;
+        min-width: 0 !important;
+    }
+
+    .user-table th,
+    .app-table th,
+    .user-table td,
+    .app-table td {
+        padding: 8px !important;
+        font-size: 0.8rem !important;
+        white-space: nowrap !important;
+    }
+
+    .user-list-card,
+    .app-list-card {
+        padding: 0 !important;
+        overflow: hidden;
+        min-width: 0 !important;
+    }
+
+    .user-list-header,
+    .app-list-header {
+        padding: 12px 8px !important;
+        gap: 8px;
+    }
+
+    .user-summary-card {
+        padding: 16px;
+    }
+
+    .user-summary-value {
+        font-size: 1.8rem;
+    }
+
+    .tab-button {
+        padding: 10px 12px;
+        font-size: 0.85rem;
     }
 }
 
@@ -979,6 +1057,12 @@
 @media (max-width: 900px) {
     .panel-body {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .panel-body {
+        padding: 16px;
     }
 }
 
