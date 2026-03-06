@@ -1,7 +1,7 @@
 {
   "device_id": 1,
   "device_room": "Room 328",
-  "synced_at": "2026-03-05T11:12:11.000988",
+  "synced_at": "2026-03-06T15:36:35.734467",
   "schedule": [
     {
       "class_id": 1,
@@ -10,9 +10,9 @@
       "faculty_id": 2,
       "faculty_name": "JERICHO  DEL SOCORRO",
       "section": "BSIT-2B-M",
-      "day_of_week": "Thursday",
-      "start_time": "11:00:00",
-      "end_time": "13:00:00",
+      "day_of_week": "Friday",
+      "start_time": "01:00:00",
+      "end_time": "22:00:00",
       "room": "Room 328",
       "semester": "2nd Semester",
       "academic_year": "2025-2026"

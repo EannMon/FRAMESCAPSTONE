@@ -6,6 +6,17 @@ Logging configured per FRAMES_OBSERVABILITY_RULES before any router import.
 import sys
 import os
 import logging
+from pathlib import Path
+
+# Load .env using utf-8-sig to handle BOM-encoded files (python-dotenv silently fails on BOM)
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    with open(_env_path, encoding="utf-8-sig") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _key, _, _val = _line.partition("=")
+                os.environ.setdefault(_key.strip(), _val.strip())
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from core.limiter import limiter
