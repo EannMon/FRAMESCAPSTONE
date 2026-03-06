@@ -5,14 +5,24 @@ Pool settings per FRAMES_DEPLOYMENT_CONSTRAINTS §1.5.
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from pathlib import Path
 import os
 import logging
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# Load .env from the backend root using utf-8-sig to handle UTF-8 BOM files.
+# python-dotenv does NOT strip BOMs, which causes the first key to be stored
+# as '\ufeffDATABASE_URL' instead of 'DATABASE_URL'. We read manually to fix this.
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    with open(_env_path, encoding="utf-8-sig") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _key, _, _val = _line.partition("=")
+                os.environ.setdefault(_key.strip(), _val.strip())
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 

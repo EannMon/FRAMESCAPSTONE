@@ -289,7 +289,11 @@ class StreamingAttendanceKiosk:
             pending_allowed = []
             last_recognition_ts = 0.0
 
+            logger.info("RECOGNITION | thread started ✅")
+
             while self.running:
+              try:
+
                 # Get latest frame snapshot
                 with self._frame_lock:
                     frame = None if self._latest_frame is None else self._latest_frame.copy()
@@ -648,6 +652,10 @@ class StreamingAttendanceKiosk:
                     gesture_timeout_end = (
                         time.time() + self.config.GESTURE_TIMEOUT_SECONDS
                     )
+
+              except Exception as _rec_err:
+                  logger.exception("RECOGNITION | frame error (thread continues): %s", _rec_err)
+                  time.sleep(1.0)
 
         # Start threads
         self._camera_thread = threading.Thread(target=camera_loop, daemon=True)
