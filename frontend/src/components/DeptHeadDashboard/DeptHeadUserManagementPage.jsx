@@ -245,7 +245,8 @@ const DeptHeadUserManagementPage = () => {
     };
 
     const deleteApplication = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this user permanently?")) return;
+        const confirmed = await toast.confirm("Are you sure you want to delete this user permanently?");
+        if (!confirmed) return;
         try {
             await api.delete(`/api/admin/user/${id}`);
             setVerificationUsers(prev => prev.filter(app => app.id !== id));

@@ -130,6 +130,7 @@ const WeeklyCalendarView = ({ courses }) => {
 };
 
 const DeptHeadManagePage = () => {
+    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);
@@ -370,7 +371,8 @@ const DeptHeadManagePage = () => {
 
     // Delete course handler
     const handleDeleteCourse = async (course) => {
-        if (!window.confirm(`Delete subject "${course.subject_code} - ${course.name}"? This cannot be undone.`)) return;
+        const confirmed = await toast.confirm(`Delete subject "${course.subject_code} - ${course.name}"? This cannot be undone.`);
+        if (!confirmed) return;
         try {
             await api.delete(`/api/dept/subjects/${course.subject_id || course.id}`);
             addLog(`Deleted subject ${course.subject_code}`);
@@ -436,7 +438,8 @@ const DeptHeadManagePage = () => {
         }
     };
     const handleDeleteDevice = async (device) => {
-        if (!window.confirm(`Are you sure you want to remove "${device.device_name}"? This action cannot be undone.`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to remove "${device.device_name}"? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await api.delete(`/api/dept/devices/${device.id}`);
             toast.success('Device removed successfully.');
