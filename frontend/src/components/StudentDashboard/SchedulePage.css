@@ -300,3 +300,78 @@
         padding-top: 5px; 
     }
 }
+
+/* No classes message */
+.no-classes-message {
+    color: var(--text-muted, #777);
+    font-style: italic;
+}
+
+/* Schedule Loading */
+.schedule-loading {
+    padding: 30px;
+    color: var(--text-secondary, #666);
+    text-align: center;
+}
+
+/* Class Item Details */
+.class-item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.class-title-main {
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.class-meta-text {
+    font-size: 0.82em;
+    color: var(--text-muted, #64748b);
+    font-weight: 500;
+}
+
+.class-section {
+    color: var(--text-secondary, #475569);
+}
+
+.class-professor {
+    color: var(--text-muted, #64748b);
+}
+
+.class-room {
+    color: var(--text-muted, #888);
+}
+
+.class-meta-icon {
+    margin-right: 4px;
+    font-size: 0.75em;
+}
+
+/* Auto-Sync Banner */
+.auto-sync-banner {
+    margin-bottom: 20px;
+    border-left: 5px solid #2E7D32;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: #F1FDF4;
+}
+
+.sync-icon {
+    font-size: 1.4rem;
+    color: #2E7D32;
+}
+
+.sync-title {
+    font-weight: 700;
+    color: var(--text-success-dark, #1a5c2a);
+    margin-bottom: 2px;
+}
+
+.sync-description {
+    font-size: 0.875em;
+    color: var(--text-success, #388E3C);
+}

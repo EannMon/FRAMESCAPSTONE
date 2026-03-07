@@ -472,29 +472,29 @@ const DeptHeadManagePage = () => {
             {/* ── ACADEMIC YEAR SETTINGS CARD ── */}
             <div className="ay-settings-card card">
                 {ayNotConfigured && (
-                    <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 6, padding: '10px 14px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <i className="fas fa-exclamation-triangle" style={{ color: '#856404' }} />
-                        <span style={{ fontSize: '0.88em', color: '#856404' }}>
+                    <div className="ay-warning-banner">
+                        <i className="fas fa-exclamation-triangle ay-warning-icon" />
+                        <span className="ay-warning-text">
                             Academic year is not configured yet. Please set it up to enable reports and attendance tracking.
                         </span>
                     </div>
                 )}
                 <div className="ay-settings-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <i className="fas fa-calendar-alt" style={{ color: '#163269', fontSize: '1.1rem' }} />
+                    <div className="ay-header-flex">
+                        <i className="fas fa-calendar-alt ay-header-icon" />
                         <div>
-                            <h3 style={{ margin: 0, fontSize: '1rem', color: '#163269' }}>Academic Year Settings</h3>
-                            <p style={{ margin: 0, fontSize: '0.82em', color: '#666' }}>Controls the active academic period for reports and calendar limits.</p>
+                            <h3 className="ay-header-title">Academic Year Settings</h3>
+                            <p className="ay-header-subtitle">Controls the active academic period for reports and calendar limits.</p>
                         </div>
                     </div>
                     {!editingAY ? (
-                        <button className="mgmt-btn outline" style={{ padding: '6px 14px' }} onClick={() => setEditingAY(true)}>
+                        <button className="mgmt-btn outline mgmt-btn-sm" onClick={() => setEditingAY(true)}>
                             <i className="fas fa-pen" /> Edit
                         </button>
                     ) : (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="mgmt-btn outline" style={{ padding: '6px 14px' }} onClick={() => setEditingAY(false)}>Cancel</button>
-                            <button className="mgmt-btn primary" style={{ padding: '6px 14px' }} onClick={handleSaveAY}>
+                        <div className="button-flex-group">
+                            <button className="mgmt-btn outline mgmt-btn-sm" onClick={() => setEditingAY(false)}>Cancel</button>
+                            <button className="mgmt-btn primary mgmt-btn-sm" onClick={handleSaveAY}>
                                 <i className="fas fa-save" /> Save
                             </button>
                         </div>
@@ -505,19 +505,19 @@ const DeptHeadManagePage = () => {
                     <div className="ay-info-row">
                         <div className="ay-stat">
                             <span className="ay-stat-label">Academic Year</span>
-                            <span className="ay-stat-value">{ayConfig.academicYear || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
+                            <span className="ay-stat-value">{ayConfig.academicYear || <span className="ay-not-set">Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">Semester</span>
-                            <span className="ay-stat-value">{ayConfig.semester || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
+                            <span className="ay-stat-value">{ayConfig.semester || <span className="ay-not-set">Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">Start Date</span>
-                            <span className="ay-stat-value">{ayConfig.startMonth || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
+                            <span className="ay-stat-value">{ayConfig.startMonth || <span className="ay-not-set">Not set</span>}</span>
                         </div>
                         <div className="ay-stat">
                             <span className="ay-stat-label">End Date</span>
-                            <span className="ay-stat-value">{ayConfig.endMonth || <span style={{ color: '#aaa', fontStyle: 'italic' }}>Not set</span>}</span>
+                            <span className="ay-stat-value">{ayConfig.endMonth || <span className="ay-not-set">Not set</span>}</span>
                         </div>
                     </div>
                 ) : (
@@ -557,7 +557,7 @@ const DeptHeadManagePage = () => {
                                 />
                             </div>
                             <div className="form-group half">
-                                <label>End Date <span style={{ fontSize: '0.75em', color: '#888' }}>(okay to update later)</span></label>
+                                <label>End Date <span className="ay-label-hint">(okay to update later)</span></label>
                                 <input
                                     type="date"
                                     className="modal-input"
@@ -566,8 +566,8 @@ const DeptHeadManagePage = () => {
                                 />
                             </div>
                         </div>
-                        <p style={{ fontSize: '0.78em', color: '#666', margin: '4px 0 0' }}>
-                            <i className="fas fa-info-circle" style={{ marginRight: 4 }}></i>
+                        <p className="ay-help-text">
+                            <i className="fas fa-info-circle"></i>
                             If you are unsure of the end date, enter an initial estimate. You can update it anytime.
                         </p>
                     </div>
@@ -575,24 +575,24 @@ const DeptHeadManagePage = () => {
             </div>
 
             {/* ── CAMERA MANAGEMENT CARD ── */}
-            <div className="ay-settings-card card" style={{ marginTop: 16 }}>
+            <div className="ay-settings-card card card-margin-top">
                 <div className="ay-settings-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <i className="fas fa-video" style={{ color: '#163269', fontSize: '1.1rem' }} />
+                    <div className="ay-header-flex">
+                        <i className="fas fa-video ay-header-icon" />
                         <div>
-                            <h3 style={{ margin: 0, fontSize: '1rem', color: '#163269' }}>Camera Management</h3>
-                            <p style={{ margin: 0, fontSize: '0.82em', color: '#666' }}>Manage camera devices assigned to rooms for face recognition.</p>
+                            <h3 className="ay-header-title">Camera Management</h3>
+                            <p className="ay-header-subtitle">Manage camera devices assigned to rooms for face recognition.</p>
                         </div>
                     </div>
-                    <button className="mgmt-btn primary" style={{ fontSize: '0.85rem', padding: '6px 14px' }} onClick={openAddDevice}>
+                    <button className="mgmt-btn primary mgmt-btn-sm" onClick={openAddDevice}>
                         <i className="fas fa-plus"></i> Add Camera
                     </button>
                 </div>
                 {devices.length === 0 ? (
-                    <p style={{ color: '#888', fontSize: '0.9em', padding: '10px 0' }}>No camera devices registered yet. Click "Add Camera" to set one up.</p>
+                    <p className="camera-empty-msg">No camera devices registered yet. Click "Add Camera" to set one up.</p>
                 ) : (
-                    <div className="table-responsive" style={{ marginTop: 10 }}>
-                        <table className="mgmt-table" style={{ fontSize: '0.88em' }}>
+                    <div className="table-responsive table-margin-top">
+                        <table className="mgmt-table table-small">
                             <thead>
                                 <tr>
                                     <th>Device Name</th>
@@ -601,7 +601,7 @@ const DeptHeadManagePage = () => {
                                     <th>Capacity</th>
                                     <th>Status</th>
                                     <th>Last Heartbeat</th>
-                                    <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                                    <th className="th-actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -633,15 +633,15 @@ const DeptHeadManagePage = () => {
                                                     {d.status}
                                                 </span>
                                             </td>
-                                            <td title={`Last ping: ${heartbeatText}`} style={{ cursor: 'help' }}>
+                                            <td title={`Last ping: ${heartbeatText}`} className="td-cursor-help">
                                                 <span>{heartbeatAgo}</span>
-                                                <span style={{ fontSize: '0.75em', color: '#999', display: 'block' }}>{heartbeatText !== 'Never' ? heartbeatText : ''}</span>
+                                                <span className="heartbeat-subtext">{heartbeatText !== 'Never' ? heartbeatText : ''}</span>
                                             </td>
-                                            <td style={{ textAlign: 'center' }}>
-                                                <button title="Edit device" onClick={() => openEditDevice(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#163269', marginRight: 6, fontSize: '0.9rem' }}>
+                                            <td className="td-actions-center">
+                                                <button title="Edit device" onClick={() => openEditDevice(d)} className="action-btn-icon edit">
                                                     <i className="fas fa-pen"></i>
                                                 </button>
-                                                <button title="Remove device" onClick={() => handleDeleteDevice(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontSize: '0.9rem' }}>
+                                                <button title="Remove device" onClick={() => handleDeleteDevice(d)} className="action-btn-icon delete">
                                                     <i className="fas fa-trash"></i>
                                                 </button>
                                             </td>
@@ -685,7 +685,7 @@ const DeptHeadManagePage = () => {
                 <div className="mgmt-layout">
                     {/* TABLE */}
                     <div className="course-list-section card">
-                        <h3>Course Loads & Room Assignments {loading && <span style={{ fontSize: '0.8em', color: '#888' }}>(Refreshing...)</span>}</h3>
+                        <h3>Course Loads & Room Assignments {loading && <span className="loading-text">(Refreshing...)</span>}</h3>
                         <div className="table-responsive">
                             <table className="mgmt-table">
                                 <thead>
@@ -736,7 +736,7 @@ const DeptHeadManagePage = () => {
                                                     <button className="icon-action room" title="Assign Room" onClick={(e) => { e.stopPropagation(); openRoomModal(course); }}>
                                                         <i className="fas fa-door-open"></i>
                                                     </button>
-                                                    <button className="icon-action" title="Delete Subject" style={{ color: '#dc2626' }} onClick={(e) => { e.stopPropagation(); handleDeleteCourse(course); }}>
+                                                    <button className="icon-action delete" title="Delete Subject" onClick={(e) => { e.stopPropagation(); handleDeleteCourse(course); }}>
                                                         <i className="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -744,7 +744,7 @@ const DeptHeadManagePage = () => {
                                         </tr>
                                     ))}
                                     {courses.length === 0 && !loading && (
-                                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No subjects found. Create one!</td></tr>
+                                        <tr><td colSpan="4" className="td-empty-state">No subjects found. Create one!</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -764,7 +764,7 @@ const DeptHeadManagePage = () => {
                                     </div>
                                 </div>
                             ))}
-                            {logs.length === 0 && <div style={{ color: '#999', fontSize: '0.9em' }}>No recent activities.</div>}
+                            {logs.length === 0 && <div className="log-empty">No recent activities.</div>}
                         </div>
                     </div>
                 </div>
@@ -822,7 +822,7 @@ const DeptHeadManagePage = () => {
                         <div className="modal-header">
                             <h3>Change Instructor</h3>
                             {selectedCourse && (
-                                <p style={{ margin: '4px 0 0', fontSize: '0.88em', color: '#555' }}>
+                                <p className="modal-subtitle">
                                     {selectedCourse.subject_code} — {selectedCourse.name}
                                     {selectedCourse.section ? ` (Section ${selectedCourse.section})` : ''}
                                 </p>
@@ -849,7 +849,7 @@ const DeptHeadManagePage = () => {
                         <div className="modal-header">
                             <h3>Assign Room &amp; Schedule</h3>
                             {selectedCourse && (
-                                <p style={{ margin: '4px 0 0', fontSize: '0.88em', color: '#555' }}>
+                                <p className="modal-subtitle">
                                     {selectedCourse.subject_code} — {selectedCourse.name}
                                     {selectedCourse.section ? ` (Section ${selectedCourse.section})` : ''}
                                 </p>
@@ -929,10 +929,10 @@ const DeptHeadManagePage = () => {
             {/* ── ADD/EDIT CAMERA MODAL ── */}
             {showDeviceModal && (
                 <div className="modal-overlay" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <div className="modal-header">
                             <h3>{editingDevice ? 'Edit Camera Device' : 'Register Camera Device'}</h3>
-                            <button className="modal-close" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>&times;</button>
+                            <button className="close-btn" onClick={() => { setShowDeviceModal(false); setEditingDevice(null); }}>&times;</button>
                         </div>
                         <form onSubmit={editingDevice ? handleUpdateDevice : handleAddDevice}>
                             <div className="form-group">
@@ -951,7 +951,7 @@ const DeptHeadManagePage = () => {
                                         <option key={i} value={r}>{r}</option>
                                     ))}
                                 </select>
-                                <p style={{ fontSize: '0.78em', color: '#888', margin: '4px 0 0' }}>
+                                <p className="form-help-text">
                                     Rooms are populated from class schedules. Upload schedules first to see rooms here.
                                 </p>
                             </div>
@@ -978,10 +978,10 @@ const DeptHeadManagePage = () => {
             {/* ── COURSE DETAIL MODAL ── */}
             {selectedCourse && !showAssignModal && !showRoomModal && (
                 <div className="modal-overlay" onClick={() => setSelectedCourse(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <div className="modal-header">
                             <h3 style={{ margin: 0 }}>{selectedCourse.subject_code} — {selectedCourse.name}</h3>
-                            <button className="modal-close" onClick={() => setSelectedCourse(null)}>&times;</button>
+                            <button className="close-btn" onClick={() => setSelectedCourse(null)}>&times;</button>
                         </div>
                         <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div><strong>Instructor:</strong> {selectedCourse.assigned_faculty || 'Unassigned'}</div>
@@ -990,16 +990,16 @@ const DeptHeadManagePage = () => {
                             <div><strong>Section:</strong> {selectedCourse.section || '—'}</div>
                             <div><strong>Enrolled Students:</strong> {selectedCourse.enrolled_count ?? '—'}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button className="submit-btn" style={{ background: '#163269' }}
+                        <div className="modal-actions-row">
+                            <button className="mgmt-btn primary" style={{ background: '#163269', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); openAssignModal(c); }}>
                                 <i className="fas fa-user-edit" /> Change Instructor
                             </button>
-                            <button className="submit-btn" style={{ background: '#1a5632' }}
+                            <button className="mgmt-btn primary" style={{ background: '#1a5632', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); openRoomModal(c); }}>
                                 <i className="fas fa-door-open" /> Assign Room
                             </button>
-                            <button className="submit-btn" style={{ background: '#b91c1c' }}
+                            <button className="mgmt-btn primary" style={{ background: '#b91c1c', flex: 1, justifyContent: 'center' }}
                                 onClick={() => { const c = selectedCourse; setSelectedCourse(null); handleDeleteCourse(c); }}>
                                 <i className="fas fa-trash" /> Delete
                             </button>

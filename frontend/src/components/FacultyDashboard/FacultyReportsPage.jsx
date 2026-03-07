@@ -290,7 +290,7 @@ const FacultyReportsPage = () => {
                                     </div>
                                 ) : error ? (
                                     <div className="report-no-data">
-                                        <i className="fas fa-exclamation-triangle" style={{ color: '#b91c1c' }}></i>
+                                        <i className="fas fa-exclamation-triangle error-icon"></i>
                                         <h4>Error</h4>
                                         <p>{error}</p>
                                     </div>

@@ -309,3 +309,23 @@
         /* Ensure padding doesn't break layout */
     }
 }
+
+@media (max-width: 480px) {
+    .user-management-container {
+        padding-left: 0;
+        gap: 15px;
+    }
+
+    .user-table th,
+    .user-table td {
+        padding: 10px 12px;
+    }
+
+    .user-summary-card {
+        padding: 14px;
+    }
+
+    .user-summary-value {
+        font-size: 2em;
+    }
+}

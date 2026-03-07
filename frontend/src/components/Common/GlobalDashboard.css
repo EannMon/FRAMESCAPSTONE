@@ -316,10 +316,31 @@
 
     .frames-sidebar,
     .frames-sidebar.collapsed {
-        width: 270px;
+        width: 85vw;
+        max-width: 270px;
     }
 
     .dashboard-body .main-content-area {
         padding: 15px !important;
+    }
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px               */
+/* =========================================== */
+@media (max-width: 375px) {
+    .dashboard-body .main-content-area {
+        padding: 10px !important;
+    }
+
+    .frames-role-tag {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        margin: 0 12px 8px 12px;
+    }
+
+    .frames-sidebar-link {
+        padding: 10px 18px;
+        font-size: 0.9rem;
     }
 }

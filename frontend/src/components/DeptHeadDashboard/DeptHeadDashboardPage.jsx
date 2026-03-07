@@ -271,29 +271,29 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
 
         return (
             <div className="personal-live-status-body">
-                <div className="live-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <div className="live-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="live-header live-header-flex">
+                    <div className="live-indicator live-indicator-flex">
                         <span className="blink-dot" style={{ 
                             width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block',
                             backgroundColor: statusColor, animation: status !== 'IDLE' && status !== 'EXITED' ? 'blink 1.5s infinite' : 'none' 
                         }}></span>
-                        <span style={{ color: statusColor, fontWeight: 'bold', fontSize: '1.1rem' }}>{status}</span>
+                        <span className="live-status-label" style={{ '--status-color': statusColor }}>{status}</span>
                     </div>
                 </div>
-                <div className="room-display" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: status === 'PRESENT' ? 'rgba(46,125,50,0.06)' : status === 'BREAK' ? 'rgba(249,168,37,0.06)' : '#f9f9f9', borderRadius: '12px' }}>
-                    <i className="fas fa-chalkboard-teacher" style={{ fontSize: '2.2rem', color: status === 'PRESENT' ? statusColor : '#ccc' }}></i>
-                    <div>
-                        <h4 style={{ margin: 0, fontSize: '1.3rem', color: '#333' }}>{roomName}</h4>
-                        <p style={{ margin: '4px 0 0', color: '#666', fontSize: '0.95rem' }}>{statusText}</p>
+                <div className={`room-display room-display-${status.toLowerCase()}`}>
+                    <i className={`fas fa-chalkboard-teacher room-icon-large ${status === 'PRESENT' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
+                    <div className="room-details">
+                        <h4 className="room-name">{roomName}</h4>
+                        <p className="room-status-text">{statusText}</p>
                         {ps.subject_code && (
-                            <p style={{ margin: '4px 0 0', color: '#888', fontSize: '0.85rem' }}>
-                                <i className="fas fa-book" style={{ marginRight: '6px' }}></i>
+                            <p className="room-subject-info">
+                                <i className="fas fa-book"></i>
                                 {ps.subject_code}{ps.subject_title ? ` — ${ps.subject_title}` : ''}
                             </p>
                         )}
                         {ps.last_timestamp && (
-                            <p style={{ margin: '4px 0 0', color: '#aaa', fontSize: '0.8rem' }}>
-                                <i className="fas fa-clock" style={{ marginRight: '6px' }}></i>
+                            <p className="room-timestamp">
+                                <i className="fas fa-clock"></i>
                                 Last: {new Date(ps.last_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                         )}
@@ -470,8 +470,8 @@ const ReviewModal = ({ user, onClose, onAction }) => {
                         <span className="v-detail-label">Registered:</span>
                         <span className="v-detail-value">{new Date(user.created_at).toLocaleString()}</span>
                     </div>
-                    <div style={{ background: '#fef9c3', padding: '12px', borderRadius: '8px', fontSize: '0.85rem', color: '#854d0e', border: '1px solid #fde68a' }}>
-                        <i className="fas fa-info-circle" style={{ marginRight: '8px' }}></i>
+                    <div className="info-banner warning">
+                        <i className="fas fa-info-circle"></i>
                         Please verify the TUPM ID and role before approving this account.
                     </div>
                 </div>
@@ -635,21 +635,13 @@ const DeptHeadDashboardPage = () => {
 
             {/* Face Registration Required Gate */}
             {!faceRegistered && (
-                <div className="card" style={{
-                    borderLeft: '5px solid #dc2626',
-                    background: '#fef2f2',
-                    padding: '24px 28px',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                }}>
-                    <i className="fas fa-exclamation-triangle" style={{ fontSize: '2rem', color: '#dc2626' }}></i>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: '#991b1b', fontSize: '1.05rem', marginBottom: '4px' }}>
+                <div className="card face-registration-warning">
+                    <i className="fas fa-exclamation-triangle warning-icon"></i>
+                    <div className="warning-content">
+                        <div className="warning-title">
                             Face Registration Required
                         </div>
-                        <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                        <p className="warning-message">
                             FRAMES requires facial recognition enrollment before you can fully access the system.
                             Please visit a registration kiosk or use the face enrollment feature in <strong>Settings</strong> to register your face.
                             Dashboard features are limited until registration is complete.
@@ -657,17 +649,7 @@ const DeptHeadDashboardPage = () => {
                     </div>
                     <button
                         onClick={() => navigate('/head-settings')}
-                        style={{
-                            background: '#dc2626',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '10px 20px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            fontSize: '0.9rem',
-                        }}
+                        className="warning-action-btn"
                     >
                         Go to Settings
                     </button>
@@ -727,15 +709,15 @@ const DeptHeadDashboardPage = () => {
                 <div className="card quick-actions-card">
                     <h3><i className="fas fa-bolt"></i> Quick Actions</h3>
                     <div className="quick-action-item" onClick={() => navigate('/dept-head-reports')}>
-                        <div className="quick-action-icon" style={{ background: 'rgba(0,168,89,0.1)', color: '#00A859' }}><i className="fas fa-file-alt"></i></div>
+                        <div className="quick-action-icon quick-action-green"><i className="fas fa-file-alt"></i></div>
                         <div className="quick-action-text">Generate Reports</div>
                     </div>
                     <div className="quick-action-item" onClick={() => navigate('/dept-head-management')}>
-                        <div className="quick-action-icon" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}><i className="fas fa-tasks"></i></div>
+                        <div className="quick-action-icon quick-action-blue"><i className="fas fa-tasks"></i></div>
                         <div className="quick-action-text">Manage Department</div>
                     </div>
                     <div className="quick-action-item" onClick={() => navigate('/dept-head-logs')}>
-                        <div className="quick-action-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#8b5cf6' }}><i className="fas fa-clipboard-list"></i></div>
+                        <div className="quick-action-icon quick-action-purple"><i className="fas fa-clipboard-list"></i></div>
                         <div className="quick-action-text">View System Logs</div>
                     </div>
                 </div>
@@ -743,9 +725,9 @@ const DeptHeadDashboardPage = () => {
 
             {/* Pending Verifications Table */}
             {pendingUsers.length > 0 && (
-                <div className="card" style={{ marginTop: '20px', padding: '20px' }}>
-                    <h3 style={{ margin: '0 0 16px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fas fa-user-check" style={{ color: '#f97316' }}></i> Pending User Verifications
+                <div className="card pending-verifications-card">
+                    <h3 className="pending-verifications-title">
+                        <i className="fas fa-user-check pending-icon"></i> Pending User Verifications
                     </h3>
                     <div className="pending-verifications-list">
                         {pendingUsers.map(u => (

@@ -475,9 +475,11 @@
     border-color: #dc2626;
     background: #fef2f2;
 }
+
 .dh-room-overcrowded:hover {
     box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
+
 .overcrowding-badge {
     display: inline-flex;
     align-items: center;
@@ -491,14 +493,24 @@
     margin-left: 8px;
     animation: overcrowdPulse 1.5s infinite;
 }
+
 @keyframes overcrowdPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
 }
+
 .live-count-capacity {
     font-size: 0.78rem;
     color: #64748b;
 }
+
 .live-count-capacity.overcrowded {
     color: #dc2626;
     font-weight: 700;
@@ -760,12 +772,37 @@
 
     .welcome-status {
         margin-left: 0;
+        align-self: center;
+    }
+
+    .chart-card,
+    .dh-live-status-card,
+    .recent-activity-card {
+        max-width: 100vw !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
     }
 }
 
 @media (max-width: 576px) {
     .summary-cards-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .summary-icon-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    .summary-value {
+        font-size: 1.3rem;
+    }
+
+    .summary-title {
+        font-size: 0.7rem;
     }
 
     .chart-header {
@@ -783,5 +820,193 @@
     .dh-live-controls {
         width: 100%;
         justify-content: space-between;
+    }
+}
+
+/* ============================================
+   New CSS Classes for Dark Mode Support
+   ============================================ */
+
+/* Summary Sub Value */
+.summary-sub {
+    color: var(--sub-color, var(--text-muted, #888));
+}
+
+/* Live Status Label */
+.live-status-label {
+    color: var(--status-color, var(--text-muted));
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Room Display Variants */
+.room-display {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--bg-muted, #f9f9f9);
+    border-radius: 12px;
+}
+
+.room-display-present {
+    background: rgba(46, 125, 50, 0.06);
+}
+
+.room-display-break {
+    background: rgba(249, 168, 37, 0.06);
+}
+
+.room-display-idle,
+.room-display-exited {
+    background: var(--bg-muted, #f9f9f9);
+}
+
+/* Room Icon */
+.room-icon-large {
+    font-size: 2.2rem;
+}
+
+.room-icon-large.active {
+    color: var(--active-color, #2E7D32);
+}
+
+.room-icon-large.inactive {
+    color: var(--text-light, #ccc);
+}
+
+/* Room Details */
+.room-details {
+    flex: 1;
+}
+
+.room-name {
+    margin: 0;
+    font-size: 1.3rem;
+    color: var(--text-primary, #333);
+}
+
+.room-status-text {
+    margin: 4px 0 0;
+    color: var(--text-secondary, #666);
+    font-size: 0.95rem;
+}
+
+.room-subject-info {
+    margin: 4px 0 0;
+    color: var(--text-muted, #888);
+    font-size: 0.85rem;
+}
+
+.room-subject-info i {
+    margin-right: 6px;
+}
+
+.room-timestamp {
+    margin: 4px 0 0;
+    color: var(--text-light, #aaa);
+    font-size: 0.8rem;
+}
+
+.room-timestamp i {
+    margin-right: 6px;
+}
+
+/* No Records Message */
+.no-records-message {
+    color: var(--text-muted, #888);
+    padding: 10px;
+}
+
+/* Quick Action Icon Colors */
+.quick-action-icon.quick-action-green {
+    background: rgba(0, 168, 89, 0.1);
+    color: #00A859;
+}
+
+.quick-action-icon.quick-action-blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.quick-action-icon.quick-action-purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
+/* =========================================== */
+@media (max-width: 375px) {
+    .welcome-banner {
+        padding: 12px 14px;
+        gap: 8px;
+        border-radius: 10px;
+    }
+
+    .welcome-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .welcome-info h3 {
+        font-size: 0.95rem;
+    }
+
+    .welcome-info p {
+        font-size: 0.8rem;
+    }
+
+    .welcome-status {
+        align-self: center;
+    }
+
+    .summary-cards-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .summary-card.premium {
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .summary-value {
+        font-size: 1.2rem;
+    }
+
+    .summary-title {
+        font-size: 0.65rem;
+    }
+
+    .summary-icon-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .chart-card {
+        padding: 12px;
+        border-radius: 10px;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .recent-activity-card {
+        padding: 12px;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .activity-item {
+        padding: 6px 8px;
+    }
+
+    .dh-room-box {
+        padding: 12px;
     }
 }

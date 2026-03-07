@@ -370,7 +370,7 @@ const DeptHeadUserManagementPage = () => {
                                                 </td>
                                             </tr>
                                         ))}
-                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" style={{ textAlign: "center", padding: 20, color: "#888" }}>No results found.</td></tr>}
+                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" className="td-empty-state">No results found.</td></tr>}
                                     </tbody>
                                 </table>
                             </div>
@@ -390,12 +390,11 @@ const DeptHeadUserManagementPage = () => {
                                     <p><strong>Department:</strong> {verificationModalUser.department}</p>
                                     <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>
                                 </div>
-                                <div className="modal-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+                                <div className="modal-actions modal-actions-flex">
                                     {/* Approve — only shown if not already verified */}
                                     {verificationModalUser.status !== 'Verified' && verificationModalUser.status !== 'Approved' && (
                                         <button
-                                            className="add-user-submit"
-                                            style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            className="action-btn-approve"
                                             onClick={() => {
                                                 handleStatusUpdate(verificationModalUser.id, 'Approved');
                                                 setVerificationModalUser(null);
@@ -407,7 +406,7 @@ const DeptHeadUserManagementPage = () => {
                                     {/* Reject — only shown if not already rejected */}
                                     {verificationModalUser.status !== 'Rejected' && (
                                         <button
-                                            style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            className="action-btn-reject"
                                             onClick={() => {
                                                 handleStatusUpdate(verificationModalUser.id, 'Rejected');
                                                 setVerificationModalUser(null);
@@ -417,9 +416,8 @@ const DeptHeadUserManagementPage = () => {
                                         </button>
                                     )}
                                     <button
-                                        className="modal-close-button"
+                                        className="modal-close-button modal-close-auto"
                                         onClick={() => setVerificationModalUser(null)}
-                                        style={{ marginLeft: 'auto' }}
                                     >
                                         Close
                                     </button>
@@ -468,46 +466,48 @@ const DeptHeadUserManagementPage = () => {
                             </div>
                         </div>
 
-                        <table className="user-table">
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Role</th>
-                                    <th>Department</th>
-                                    <th>Face Status</th>
-                                    <th>Last Active</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredUsers.length > 0 ? (
-                                    filteredUsers.map((user, index) => (
-                                        <tr key={index} className="user-row" style={{ cursor: 'pointer' }} onClick={() => setSelectedDirectoryUser(user)}>
-                                            <td>
-                                                <div className="user-info-cell">
-                                                    <div className="user-table-avatar">{(user.role && user.role[0]) ? user.role[0].toUpperCase() : '?'}</div>
-                                                    <div>
-                                                        <span className="user-table-name">{user.name}</span>
-                                                        <span className="user-table-email">{user.email || 'No email'}</span>
+                        <div className="table-responsive">
+                            <table className="user-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Face Status</th>
+                                        <th>Last Active</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredUsers.length > 0 ? (
+                                        filteredUsers.map((user, index) => (
+                                            <tr key={index} className="user-row" style={{ cursor: 'pointer' }} onClick={() => setSelectedDirectoryUser(user)}>
+                                                <td>
+                                                    <div className="user-info-cell">
+                                                        <div className="user-table-avatar">{(user.role && user.role[0]) ? user.role[0].toUpperCase() : '?'}</div>
+                                                        <div>
+                                                            <span className="user-table-name">{user.name}</span>
+                                                            <span className="user-table-email">{user.email || 'No email'}</span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td><span className={`role-tag ${user.roleColor}`}>{user.role}</span></td>
-                                            <td>{user.department}</td>
-                                            <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
-                                            <td>{user.lastActive}</td>
-                                            <td>
-                                                <button className="action-button" onClick={(e) => { e.stopPropagation(); setSelectedDirectoryUser(user); }}>
-                                                    <i className="fas fa-eye"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                                                </td>
+                                                <td><span className={`role-tag ${user.roleColor}`}>{user.role}</span></td>
+                                                <td>{user.department}</td>
+                                                <td><span className={`status-tag ${user.statusColor}`}>{user.faceStatus}</span></td>
+                                                <td>{user.lastActive}</td>
+                                                <td>
+                                                    <button className="action-button" onClick={(e) => { e.stopPropagation(); setSelectedDirectoryUser(user); }}>
+                                                        <i className="fas fa-eye"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* DIRECTORY USER DETAIL MODAL */}

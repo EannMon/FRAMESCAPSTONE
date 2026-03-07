@@ -311,3 +311,27 @@
         align-items: flex-start;
     }
 }
+
+@media (max-width: 480px) {
+    .reports-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-type-card {
+        padding: 14px;
+    }
+
+    .reports-header-section {
+        padding: 15px;
+    }
+
+    .recent-reports-table th,
+    .recent-reports-table td {
+        padding: 10px 12px;
+        font-size: 0.85em;
+    }
+
+    .recent-reports-header {
+        padding: 15px;
+    }
+}

@@ -434,3 +434,62 @@
         opacity: 1;
     }
 }
+
+/* =========================================== */
+/* RESPONSIVE AUDIT FIXES — 480px (Mobile)    */
+/* =========================================== */
+@media (max-width: 480px) {
+    .registration-container {
+        padding: 0 12px;
+        margin: 20px auto;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .form-card {
+        padding: 20px 15px;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .page-title {
+        font-size: 1.4rem;
+    }
+
+    .signup-step-indicators {
+        gap: 20px;
+    }
+
+    .signup-step-indicators::before {
+        left: 0;
+        right: 0;
+    }
+
+    .step-circle {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+    }
+
+    .step-title {
+        font-size: 1rem;
+    }
+
+    .summary-section {
+        padding: 15px;
+    }
+
+    .reg-submit-button {
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    /* Fix form inputs from overflowing */
+    .form-card input,
+    .form-card select,
+    .form-card textarea {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
