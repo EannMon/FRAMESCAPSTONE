@@ -15,6 +15,19 @@ echo "=== FRAMES Kiosk Startup ==="
 echo "    Platform:  Raspberry Pi (USB webcam)"
 echo "    Repo root: $REPO_ROOT"
 
+# ── 0. Kill any leftover processes from a previous run ───────
+# This releases the camera (/dev/video0) and frees port 3000/8000
+# before we try to start fresh.  Always safe to run.
+echo "[cleanup] Stopping any previous kiosk processes..."
+pkill -f "rpi.kiosk_server" 2>/dev/null || true
+pkill -f "kiosk_server"     2>/dev/null || true
+pkill -f "SPAHandler"       2>/dev/null || true
+pkill -f "http.server"      2>/dev/null || true
+pkill -9 chromium-browser   2>/dev/null || true
+pkill -9 chromium           2>/dev/null || true
+sleep 2   # Give kernel time to release /dev/video0 and TCP sockets
+echo "[cleanup] Done."
+
 # ── 1. Load environment variables ────────────────────────────
 ENV_FILE="$SCRIPT_DIR/.env.rpi"
 if [ -f "$ENV_FILE" ]; then
