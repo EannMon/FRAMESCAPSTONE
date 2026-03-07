@@ -105,7 +105,7 @@ class StreamingAttendanceKiosk:
             device_id=self.config.DEVICE_ID,
             cache_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), self.config.SCHEDULE_CACHE_PATH),
             api_timeout=self.config.API_TIMEOUT_SECONDS,
-            failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 300),
+            failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 60),
             use_api=getattr(self.config, "USE_ACTIVE_CLASS_API", True),
         )
 
