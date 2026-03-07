@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# =============================================================
+# FRAMES Kiosk Startup Script — Raspberry Pi + USB Webcam
+# =============================================================
+# Usage (from repo root on the RPi):
+#   chmod +x backend/rpi/start_kiosk_rpi.sh
+#   bash backend/rpi/start_kiosk_rpi.sh
+# =============================================================
+
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+echo "=== FRAMES Kiosk Startup ==="
+echo "    Platform:  Raspberry Pi (USB webcam)"
+echo "    Repo root: $REPO_ROOT"
+
+# ── 1. Load environment variables ────────────────────────────
+ENV_FILE="$SCRIPT_DIR/.env.rpi"
+if [ -f "$ENV_FILE" ]; then
+    echo "[env] Loading $ENV_FILE"
+    # Export each non-comment line
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+else
+    echo "[env] WARNING: $ENV_FILE not found — using defaults."
+    echo "             Copy backend/rpi/.env.rpi and fill in BACKEND_URL / DEVICE_ID."
+fi
+
+# Explicitly force USB webcam mode (override any picamera2 attempt)
+export USE_PICAMERA2=0
+export FRAMES_PLATFORM="${FRAMES_PLATFORM:-rpi}"
+
+echo "[env] USE_PICAMERA2    = $USE_PICAMERA2"
+echo "[env] FRAMES_PLATFORM  = $FRAMES_PLATFORM"
+echo "[env] BACKEND_URL      = ${BACKEND_URL:-NOT SET}"
+echo "[env] DEVICE_ID        = ${DEVICE_ID:-NOT SET}"
+echo "[env] DEVICE_ROOM      = ${DEVICE_ROOM:-NOT SET}"
+
+# ── 2. Activate Python venv ───────────────────────────────────
+VENV_PATH="$REPO_ROOT/backend/.venv"
+if [ -d "$VENV_PATH" ]; then
+    echo "[venv] Activating $VENV_PATH"
+    # shellcheck disable=SC1091
+    source "$VENV_PATH/bin/activate"
+else
+    echo "[venv] WARNING: No .venv at $VENV_PATH"
+    echo "       Run: python3 -m venv backend/.venv --system-site-packages"
+    echo "       Then: pip install -r backend/rpi/requirements-rpi.txt"
+fi
+
+# ── 3. Export embeddings from DB before starting ─────────────
+echo "[cache] Exporting face embeddings from backend..."
+python "$REPO_ROOT/scripts/export_embeddings.py" \
+    --output "$REPO_ROOT/backend/rpi/data/embeddings_cache.json" \
+    --backend-url "${BACKEND_URL:-http://localhost:5000}" 2>/dev/null \
+    || echo "[cache] WARNING: Export failed — using existing cache"
+
+# ── 4. Serve the pre-built React frontend on port 3000 ───────
+# Build on your laptop first:  cd frontend && npm run build
+# Then copy the dist/ folder to the RPi (scp or git pull).
+FRONTEND_DIST="$REPO_ROOT/frontend/dist"
+if [ -d "$FRONTEND_DIST" ]; then
+    echo "[frontend] Serving pre-built frontend from $FRONTEND_DIST on port 3000..."
+    cd "$FRONTEND_DIST"
+    python3 -m http.server 3000 --bind 0.0.0.0 &
+    FRONTEND_PID=$!
+    echo "[frontend] PID: $FRONTEND_PID"
+    cd "$REPO_ROOT"
+else
+    echo "[frontend] WARNING: $FRONTEND_DIST not found."
+    echo "           Build first on your laptop:  cd frontend && npm run build"
+    echo "           Then sync to RPi:            rsync -av frontend/dist/ pi@<pi-ip>:~/frames/frontend/dist/"
+    FRONTEND_PID=""
+fi
+
+# ── 5. Launch Kiosk Server (background) ──────────────────────
+echo "[kiosk] Starting kiosk_server.py on port 8000..."
+cd "$REPO_ROOT/backend"
+python -m rpi.kiosk_server &
+KIOSK_PID=$!
+echo "[kiosk] PID: $KIOSK_PID"
+
+# Give the server 4 seconds to start before opening browser
+sleep 4
+
+# ── 5. Launch Chromium in kiosk mode on the Pi's display ─────
+# DISPLAY=:0 sends the window to the HDMI screen even when invoked over SSH.
+# --kiosk removes the browser chrome (URL bar, tabs) for a full-screen look.
+# --no-sandbox is needed on RPi OS for Chromium to run as a non-root user.
+# --noerrdialogs and --disable-infobars suppress crash/update popups.
+KIOSK_URL="http://localhost:3000/kiosk"
+
+echo "[browser] Launching Chromium kiosk → $KIOSK_URL"
+DISPLAY=:0 chromium-browser \
+    --kiosk \
+    --no-sandbox \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --check-for-update-interval=604800 \
+    "$KIOSK_URL" &
+BROWSER_PID=$!
+echo "[browser] PID: $BROWSER_PID"
+
+echo ""
+echo "=== Kiosk running ==="
+echo "    Kiosk server:  http://localhost:8000"
+echo "    Frontend URL:  $KIOSK_URL"
+echo "    Video stream:  http://localhost:8000/video_feed"
+echo "    WebSocket:     ws://localhost:8000/ws/status"
+echo ""
+echo "    Press Ctrl+C to stop everything."
+echo ""
+
+# ── 7. Wait and clean up on exit ─────────────────────────────
+trap "echo 'Stopping...'; kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} 2>/dev/null; exit 0" INT TERM
+wait $KIOSK_PID
