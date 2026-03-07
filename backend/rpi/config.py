@@ -56,7 +56,8 @@ class KioskConfig:
     CAMERA_FPS: int = 30
     # On RPi Bookworm, the Pi Camera V2 requires picamera2 (libcamera stack).
     # OpenCV's cv2.VideoCapture cannot read from the CSI camera on Bookworm.
-    USE_PICAMERA2: bool = field(default=None)  # Auto-set in __post_init__
+    # Set USE_PICAMERA2=0 in .env.rpi to force USB webcam via OpenCV.
+    USE_PICAMERA2: bool = field(default_factory=lambda: None if os.getenv("USE_PICAMERA2") is None else os.getenv("USE_PICAMERA2") not in ("0", "false", "False", "no"))
     
     # ===========================================
     # Face Detection (MediaPipe BlazeFace)

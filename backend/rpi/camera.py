@@ -98,19 +98,27 @@ class Camera:
                 logger.warning(f"picamera2 failed ({e}), falling back to OpenCV")
                 self._cap = None
 
-        # Fallback to OpenCV
+        # Fallback to OpenCV — retry up to 5 times (camera may still be releasing from a previous process)
         if self._cap is None:
-            self._cap = cv2.VideoCapture(index)
-            if self._cap.isOpened():
-                self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-                self._cap.set(cv2.CAP_PROP_FPS, fps)
-                self._backend = 'opencv'
-                self._opened = True
-                logger.info(f"Camera opened via OpenCV ({width}x{height} @ {fps}fps)")
-            else:
-                logger.error("Failed to open camera via OpenCV")
-                self._opened = False
+            for attempt in range(5):
+                self._cap = cv2.VideoCapture(index)
+                if self._cap.isOpened():
+                    self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                    self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                    self._cap.set(cv2.CAP_PROP_FPS, fps)
+                    self._backend = 'opencv'
+                    self._opened = True
+                    logger.info(f"Camera opened via OpenCV ({width}x{height} @ {fps}fps)")
+                    break
+                else:
+                    self._cap.release()
+                    self._cap = None
+                    if attempt < 4:
+                        logger.warning(f"OpenCV failed to open camera (attempt {attempt + 1}/5), retrying in 2s...")
+                        time.sleep(2)
+                    else:
+                        logger.error("Failed to open camera via OpenCV after 5 attempts")
+                        self._opened = False
 
     def isOpened(self) -> bool:
         """Check if camera is opened successfully."""
