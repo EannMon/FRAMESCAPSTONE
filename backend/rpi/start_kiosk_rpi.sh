@@ -64,8 +64,21 @@ python "$REPO_ROOT/scripts/export_embeddings.py" \
 FRONTEND_DIST="$REPO_ROOT/frontend/dist"
 if [ -d "$FRONTEND_DIST" ]; then
     echo "[frontend] Serving pre-built frontend from $FRONTEND_DIST on port 3000..."
-    cd "$FRONTEND_DIST"
-    python3 -m http.server 3000 --bind 0.0.0.0 &
+    # Use a SPA-aware server: unknown paths fall back to index.html (required for React Router)
+    python3 -c "
+import http.server, os, sys
+os.chdir('$FRONTEND_DIST')
+class SPAHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        path = self.translate_path(self.path)
+        if not os.path.exists(path) or os.path.isdir(path):
+            self.path = '/index.html'
+        super().do_GET()
+    def log_message(self, fmt, *args):
+        pass  # Silence per-request logs
+server = http.server.HTTPServer(('0.0.0.0', 3000), SPAHandler)
+server.serve_forever()
+" &
     FRONTEND_PID=$!
     echo "[frontend] PID: $FRONTEND_PID"
     cd "$REPO_ROOT"
