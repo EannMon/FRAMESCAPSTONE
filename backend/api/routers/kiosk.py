@@ -97,7 +97,7 @@ class EnrolledUserInfo(BaseModel):
     """Info about a user enrolled in a class."""
     user_id: int
     name: str
-    email: str
+    email: Optional[str] = None
     tupm_id: str
     role: str
     section: Optional[str] = None
