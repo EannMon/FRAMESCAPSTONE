@@ -564,3 +564,78 @@ def delete_device(device_id: int, db: Session = Depends(get_db)):
     db.commit()
     logger.info("DEVICE | deleted device %d", device_id)
     return {"message": "Device deleted"}
+
+
+@router.get("/system-logs")
+def get_dept_system_logs(
+    level: Optional[str] = Query(None, description="Filter by log level (INFO, WARN, ERROR)"),
+    room: Optional[str] = Query(None, description="Filter by room name (best-effort)"),
+    search: Optional[str] = Query(None, description="Full-text search across message, service, user"),
+    date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve audit logs for the Department Head System Logs page.
+    Reads from the audit_logs table and returns a flat list of formatted log entries.
+    Supports filtering by level, date range, and keyword search.
+    """
+    from models.audit_log import AuditLog
+    from api.routers.admin import _action_to_service, _action_to_level, _build_log_message
+    from datetime import datetime
+
+    query = db.query(AuditLog).options(joinedload(AuditLog.user))
+
+    # Date range filters
+    if date_from:
+        try:
+            df = datetime.fromisoformat(date_from)
+            query = query.filter(AuditLog.timestamp >= df)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            dt = datetime.fromisoformat(date_to)
+            dt = dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(AuditLog.timestamp <= dt)
+        except ValueError:
+            pass
+
+    logs = query.order_by(AuditLog.timestamp.desc()).limit(300).all()
+
+    result = []
+    for log in logs:
+        service = _action_to_service(log.action_type)
+        log_level = _action_to_level(log.action_type)
+
+        user_name = ""
+        if log.user:
+            user_name = f"{log.user.first_name} {log.user.last_name}"
+
+        message = _build_log_message(log, user_name)
+
+        # Apply level filter (done in Python after building the level)
+        if level and log_level != level:
+            continue
+
+        # Apply keyword search across message, service, action type, and user name
+        if search:
+            search_lower = search.lower()
+            haystack = f"{message} {service} {log.action_type or ''} {user_name}".lower()
+            if search_lower not in haystack:
+                continue
+
+        result.append({
+            "id": log.id,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "level": log_level,
+            "service": service,
+            "action_type": log.action_type,
+            "message": message,
+            "user_name": user_name,
+            "room": None,
+            "source": log.ip_address or "",
+        })
+
+    return result
