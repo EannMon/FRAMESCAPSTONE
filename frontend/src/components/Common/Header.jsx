@@ -4,7 +4,7 @@ import api from '../../services/api';
 import './Header.css';
 import Logo from './Logo';
 
-const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSidebarCollapsed }) => {
+const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSidebar, isSidebarCollapsed }) => {
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -203,8 +203,8 @@ const Header = ({ user, setPanel, theme, showLogo = true, toggleSidebar, isSideb
                     </>
                 ) : (
                     <nav className="guest-nav">
-                        <button onClick={() => setPanel('login')} className="header-login-btn">Login</button>
-                        <button onClick={() => setPanel('signup')} className="header-signup-btn">Get Started</button>
+                        <button onClick={() => { /* Watch Demo functionality here soon */ }} className="header-login-btn">Watch Demo</button>
+                        <button onClick={() => onAboutClick && onAboutClick()} className="header-signup-btn">About Us</button>
                     </nav>
                 )}
             </div>

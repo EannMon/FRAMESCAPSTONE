@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "exported_at": "2026-03-06T15:36:21.808854",
+  "exported_at": "2026-03-07T14:52:49.211531",
   "model": "insightface_buffalo_l_v1",
   "embedding_dim": 512,
   "embeddings": [

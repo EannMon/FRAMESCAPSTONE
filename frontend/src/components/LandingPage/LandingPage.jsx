@@ -4,20 +4,19 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import './LandingPage.css';
-import landingBg from '../../assets/images/landing_bg.jpg';
+import landingBg from '../../assets/images/landing_bg.png';
 import Header from '../Common/Header';
 import Footer from '../Common/Footer';
 
 // LandingPage.jsx
 
-// === LOGIN COMPONENT (Task #6, #23: Role-based login credentials) ===
-const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
+// === FACULTY LOGIN MODAL ===
+const FacultyLoginModal = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const toast = useToast();
     const { login, logout } = useAuth();
 
-    const [loginMode, setLoginMode] = useState(initialMode || 'faculty'); // 'student' or 'faculty'
-    const [credential, setCredential] = useState('');     // email (faculty) or TUP-M ID (student)
+    const [credential, setCredential] = useState('');     // email
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -26,24 +25,6 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
     const [forgotEmail, setForgotEmail] = useState('');
     const [forgotMessage, setForgotMessage] = useState('');
 
-    // Sync loginMode when initialMode changes (e.g., hero button clicked)
-    useEffect(() => {
-        if (initialMode) {
-            setLoginMode(initialMode);
-            setCredential('');
-            setPassword('');
-            setErrorMessage('');
-        }
-    }, [initialMode]);
-
-    // Reset form when mode changes
-    const handleModeChange = (mode) => {
-        setLoginMode(mode);
-        setCredential('');
-        setPassword('');
-        setErrorMessage('');
-    };
-
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
         if (isSubmitting) return;
@@ -51,17 +32,19 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
         try {
             setErrorMessage('');
             const userData = await login(credential, password);
-
             const userRole = userData.role.toUpperCase();
             const verificationStatus = userData.verification_status?.toUpperCase();
 
             if (verificationStatus === 'VERIFIED') {
-                toast.success(`Welcome back, ${userData.first_name}!`);
-
-                if (userRole === 'ADMIN') navigate('/admin-dashboard');
-                else if (userRole === 'STUDENT') navigate('/student-dashboard');
-                else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
-                else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
+                if (userRole === 'ADMIN' || userRole === 'FACULTY' || userRole === 'HEAD' || userRole === 'DEPT_HEAD') {
+                    toast.success(`Welcome back, ${userData.first_name}!`);
+                    if (userRole === 'ADMIN') navigate('/admin-dashboard');
+                    else if (userRole === 'FACULTY') navigate('/faculty-dashboard');
+                    else if (userRole === 'HEAD' || userRole === 'DEPT_HEAD') navigate('/dept-head-dashboard');
+                } else {
+                    logout();
+                    setErrorMessage("This portal is for Faculty and Department Heads only. Students should use the Student Login portal.");
+                }
             } else {
                 logout();
                 if (verificationStatus === 'PENDING') {
@@ -73,18 +56,7 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
                 }
             }
         } catch (error) {
-            const detail = error.response?.data?.detail;
-            if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-                setErrorMessage("Server is taking longer than expected. Please try again in a moment.");
-            } else if (!error.response) {
-                setErrorMessage("Cannot connect to server. Please check your connection and try again.");
-            } else if (detail?.error?.message) {
-                setErrorMessage(detail.error.message);
-            } else if (typeof detail === 'string') {
-                setErrorMessage(detail);
-            } else {
-                setErrorMessage("Invalid credentials. Please try again.");
-            }
+            setErrorMessage(error.response?.data?.detail || "Invalid credentials. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -112,14 +84,12 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
             <div className="role-modal-overlay" onClick={onClose}>
                 <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
                     <h3>Forgot Password</h3>
-                    <p className="role-modal-subtitle">Enter the email address associated with your account</p>
-
+                    <p className="role-modal-subtitle">Enter the email address associated with your faculty account</p>
                     {forgotMessage && (
                         <div className="login-error-msg" style={{ background: forgotMessage.includes('sent') ? '#d1fae5' : '#fee2e2', color: forgotMessage.includes('sent') ? '#065f46' : '#b91c1c' }}>
                             <i className={`fas ${forgotMessage.includes('sent') ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i> {forgotMessage}
                         </div>
                     )}
-
                     <form onSubmit={handleForgotPassword}>
                         <div className="login-form-group">
                             <label>Email Address</label>
@@ -129,13 +99,11 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
                                 value={forgotEmail}
                                 onChange={(e) => setForgotEmail(e.target.value)}
                                 autoComplete="email"
+                                required
                             />
                         </div>
-                        <button type="submit" className="login-submit-btn">
-                            Send Reset Link
-                        </button>
+                        <button type="submit" className="login-submit-btn">Send Reset Link</button>
                     </form>
-
                     <p className="login-switch-prompt">
                         <span onClick={() => { setShowForgotPassword(false); setForgotMessage(''); }}>
                             <i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i>Back to Login
@@ -149,42 +117,9 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
     return (
         <div className="role-modal-overlay" onClick={onClose}>
             <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="login-modal-type-badge faculty">FACULTY / HEAD</div>
                 <h3>Welcome Back</h3>
-                <p className="role-modal-subtitle">Sign in to your account</p>
-
-                {/* Login Mode Toggle */}
-                <div className="login-mode-toggle" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    <button
-                        type="button"
-                        className={`login-mode-btn ${loginMode === 'faculty' ? 'active' : ''}`}
-                        onClick={() => handleModeChange('faculty')}
-                        style={{
-                            flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid',
-                            borderColor: loginMode === 'faculty' ? '#3b82f6' : '#e2e8f0',
-                            background: loginMode === 'faculty' ? '#eff6ff' : '#fff',
-                            color: loginMode === 'faculty' ? '#1d4ed8' : '#64748b',
-                            fontWeight: 600, fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
-                        }}
-                    >
-                        <i className="fas fa-chalkboard-teacher" style={{ marginRight: '6px' }}></i>
-                        Faculty / Head
-                    </button>
-                    <button
-                        type="button"
-                        className={`login-mode-btn ${loginMode === 'student' ? 'active' : ''}`}
-                        onClick={() => handleModeChange('student')}
-                        style={{
-                            flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid',
-                            borderColor: loginMode === 'student' ? '#3b82f6' : '#e2e8f0',
-                            background: loginMode === 'student' ? '#eff6ff' : '#fff',
-                            color: loginMode === 'student' ? '#1d4ed8' : '#64748b',
-                            fontWeight: 600, fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s'
-                        }}
-                    >
-                        <i className="fas fa-user-graduate" style={{ marginRight: '6px' }}></i>
-                        Student
-                    </button>
-                </div>
+                <p className="role-modal-subtitle">Sign in to your faculty account</p>
 
                 {errorMessage && (
                     <div className="login-error-msg">
@@ -194,16 +129,16 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
 
                 <form onSubmit={handleLogin}>
                     <div className="login-form-group">
-                        <label>{loginMode === 'student' ? 'TUP-M ID' : 'Email'}</label>
+                        <label>Email Address</label>
                         <input
-                            type={loginMode === 'student' ? 'text' : 'email'}
-                            placeholder={loginMode === 'student' ? 'TUPM-XX-XXXX' : 'example@tup.edu.ph'}
+                            type="email"
+                            placeholder="example@tup.edu.ph"
                             value={credential}
-                            onChange={(e) => setCredential(loginMode === 'student' ? e.target.value.toUpperCase() : e.target.value)}
-                            autoComplete={loginMode === 'student' ? 'username' : 'email'}
+                            onChange={(e) => setCredential(e.target.value)}
+                            autoComplete="email"
+                            required
                         />
                     </div>
-
                     <div className="login-form-group">
                         <label>Password</label>
                         <div className="login-password-wrapper">
@@ -213,22 +148,168 @@ const LoginPanel = ({ isOpen, onClose, onSwitchToSignup, initialMode }) => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
+                                required
                             />
-                            <i
-                                className={`login-password-icon fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}
-                                onClick={() => setShowPassword(!showPassword)}
-                            ></i>
+                            <i className={`login-password-icon fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} onClick={() => setShowPassword(!showPassword)}></i>
                         </div>
                     </div>
-
                     <button type="submit" className="login-submit-btn" disabled={isSubmitting}>
                         {isSubmitting ? 'Logging in...' : 'Log In'}
                     </button>
                 </form>
-
                 <p className="login-switch-prompt">
                     Forgot password? <span onClick={() => setShowForgotPassword(true)}>Click here</span>
                 </p>
+            </div>
+        </div>
+    );
+};
+
+// === STUDENT LOGIN MODAL ===
+const StudentLoginModal = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
+    const toast = useToast();
+    const { login, logout } = useAuth();
+
+    const [credential, setCredential] = useState('');     // TUP-M ID
+    const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotId, setForgotId] = useState('');
+    const [forgotMessage, setForgotMessage] = useState('');
+
+    const handleLogin = async (e) => {
+        if (e) e.preventDefault();
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            setErrorMessage('');
+            const userData = await login(credential, password);
+            const userRole = userData.role.toUpperCase();
+            
+            if (userRole === 'STUDENT') {
+                toast.success(`Welcome back, ${userData.first_name}!`);
+                navigate('/student-dashboard');
+            } else {
+                logout();
+                setErrorMessage("This portal is for Students only. Faculty and Department Heads should use the Faculty/Head Login portal.");
+            }
+        } catch (error) {
+            setErrorMessage(error.response?.data?.detail || "Invalid credentials. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleForgotPassword = async (e) => {
+        if (e) e.preventDefault();
+        if (!forgotId.trim()) {
+            setForgotMessage('Please enter your TUP-M ID.');
+            return;
+        }
+        try {
+            setForgotMessage('Verifying account...');
+            // Need to specify this is a student forgot password request
+            await api.post('/api/auth/forgot-password', { tup_id: forgotId.trim(), type: 'student' });
+            setForgotMessage('If your account is set up with an email, a password reset link has been sent. Check your inbox.');
+        } catch (error) {
+            setForgotMessage(error.response?.data?.detail || 'An error occurred. Please try again later.');
+        }
+    };
+
+    if (!isOpen) return null;
+
+    if (showForgotPassword) {
+        return (
+            <div className="role-modal-overlay" onClick={onClose}>
+                <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+                    <div className="login-modal-type-badge student">STUDENT PORTAL</div>
+                    <h3>Forgot Password</h3>
+                    <p className="role-modal-subtitle">Enter your TUP-M ID to reset your password</p>
+
+                    {forgotMessage && (
+                        <div className="login-error-msg" style={{ background: forgotMessage.includes('sent') ? '#ecfdf5' : '#fee2e2', color: forgotMessage.includes('sent') ? '#065f46' : '#b91c1c' }}>
+                            <i className={`fas ${forgotMessage.includes('sent') ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i> {forgotMessage}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleForgotPassword}>
+                        <div className="login-form-group">
+                            <label>TUP-M ID</label>
+                            <input
+                                type="text"
+                                placeholder="TUPM-XX-XXXX"
+                                value={forgotId}
+                                onChange={(e) => setForgotId(e.target.value.toUpperCase())}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="login-submit-btn">
+                            Send Reset Link
+                        </button>
+                    </form>
+
+                    <p className="login-switch-prompt">
+                        <span onClick={() => { setShowForgotPassword(false); setForgotId(''); setForgotMessage(''); }}>
+                            <i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i>Back to Login
+                        </span>
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="role-modal-overlay" onClick={onClose}>
+            <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="login-modal-type-badge student">STUDENT PORTAL</div>
+                <h3>Student Login</h3>
+                <p className="role-modal-subtitle">Enter your TUP-M ID and password</p>
+
+                {errorMessage && (
+                    <div className="login-error-msg">
+                        <i className="fas fa-exclamation-circle"></i> {errorMessage}
+                    </div>
+                )}
+
+                <form onSubmit={handleLogin}>
+                    <div className="login-form-group">
+                        <label>TUP-M ID</label>
+                        <input
+                            type="text"
+                            placeholder="TUPM-XX-XXXX"
+                            value={credential}
+                            onChange={(e) => setCredential(e.target.value.toUpperCase())}
+                            autoComplete="username"
+                            required
+                        />
+                    </div>
+                    <div className="login-form-group">
+                        <label>Password</label>
+                        <div className="login-password-wrapper">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
+                                required
+                            />
+                            <i className={`login-password-icon fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} onClick={() => setShowPassword(!showPassword)}></i>
+                        </div>
+                    </div>
+                    <button type="submit" className="login-submit-btn" disabled={isSubmitting}>
+                        {isSubmitting ? 'Logging in...' : 'Log In'}
+                    </button>
+                </form>
+                <p className="login-switch-prompt">
+                    Forgot password? <span onClick={() => setShowForgotPassword(true)}>Click here</span>
+                </p>
+                <div className="login-footer-info" style={{ marginTop: '20px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                    <i className="fas fa-info-circle"></i> Student accounts are automatically created. Default password is your Last Name if not yet changed.
+                </div>
             </div>
         </div>
     );
@@ -271,10 +352,8 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
     );
 };
 
-// ==========================================
-// 3. HERO SECTION (UPDATED: Access Portal now opens Login)
-// ==========================================
-const HeroSection = ({ setPanel, setLoginMode }) => (
+// === HERO SECTION ===
+const HeroSection = ({ setPanel }) => (
     <section className="hero-section" style={{ backgroundImage: `url(${landingBg})` }}>
         <div className="hero-content">
             <h1 className="hero-title">FRA<span className="hero-title-accent">MES</span></h1>
@@ -290,11 +369,11 @@ const HeroSection = ({ setPanel, setLoginMode }) => (
             </p>
 
             <div className="cta-buttons">
-                <button onClick={() => { setLoginMode('faculty'); setPanel('login'); }} className="cta-primary">
+                <button onClick={() => setPanel('faculty-login')} className="cta-primary">
                     <i className="fas fa-chalkboard-teacher"></i> Faculty / Head Login
                 </button>
 
-                <button onClick={() => { setLoginMode('student'); setPanel('login'); }} className="cta-secondary" style={{ background: '#1e3a5f', color: '#fff', border: 'none' }}>
+                <button onClick={() => setPanel('student-login')} className="cta-secondary" style={{ background: '#1e3a5f', color: '#fff', border: 'none' }}>
                     <i className="fas fa-user-graduate"></i> Student Login
                 </button>
             </div>
@@ -315,10 +394,13 @@ const FeatureCard = ({ iconClass, title, description }) => (
     </div>
 );
 
-const FeaturesSection = () => (
-    <section className="features-section">
-        <h2>Advanced Features for Campus Security</h2>
+const FeaturesSection = ({ aboutRef }) => (
+    <section className="features-section" ref={aboutRef}>
+        <h2>About FRAMES</h2>
         <p className="features-subtitle">
+            Advanced Features for Campus Security
+        </p>
+        <p className="features-description" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto 40px', color: '#64748b' }}>
             Our comprehensive system combines cutting-edge AI technology with reliable hardware to deliver unparalleled campus monitoring and access control capabilities.
         </p>
         <div className="features-grid">
@@ -350,8 +432,12 @@ const FeaturesSection = () => (
 // MAIN COMPONENT
 // ==========================================
 const LandingPage = () => {
-    const [panel, setPanel] = useState(null); // 'login' or 'signup'
-    const [initialLoginMode, setInitialLoginMode] = useState('faculty');
+    const [panel, setPanel] = useState(null); // 'faculty-login', 'student-login', or 'signup'
+    const aboutRef = React.useRef(null);
+
+    const scrollToAbout = () => {
+        aboutRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     // Safety net: always remove dark mode on landing page
     useEffect(() => {
@@ -361,18 +447,21 @@ const LandingPage = () => {
     return (
         <>
             <div className="landing-page">
-                <Header setPanel={setPanel} />
+                <Header setPanel={setPanel} onAboutClick={scrollToAbout} />
                 <main>
-                    <HeroSection setPanel={setPanel} setLoginMode={setInitialLoginMode} />
-                    <FeaturesSection />
+                    <HeroSection setPanel={setPanel} />
+                    <FeaturesSection aboutRef={aboutRef} />
                 </main>
 
                 {/* MODALS */}
-                <LoginPanel
-                    isOpen={panel === 'login'}
+                <FacultyLoginModal
+                    isOpen={panel === 'faculty-login'}
                     onClose={() => setPanel(null)}
-                    onSwitchToSignup={() => setPanel('signup')}
-                    initialMode={initialLoginMode}
+                />
+
+                <StudentLoginModal
+                    isOpen={panel === 'student-login'}
+                    onClose={() => setPanel(null)}
                 />
 
                 {/* Kept this for 'Get Started' button so new users can choose their role */}
