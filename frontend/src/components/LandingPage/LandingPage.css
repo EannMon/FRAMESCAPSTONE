@@ -1649,6 +1649,30 @@
     padding-right: 42px;
 }
 
+/* Modal Type Badge */
+.login-modal-type-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+.login-modal-type-badge.faculty {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.login-modal-type-badge.student {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+
 .login-password-icon {
     position: absolute;
     top: 50%;
