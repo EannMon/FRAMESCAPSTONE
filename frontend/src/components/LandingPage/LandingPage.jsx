@@ -315,10 +315,13 @@ const FeatureCard = ({ iconClass, title, description }) => (
     </div>
 );
 
-const FeaturesSection = () => (
-    <section className="features-section">
-        <h2>Advanced Features for Campus Security</h2>
+const FeaturesSection = ({ aboutRef }) => (
+    <section className="features-section" ref={aboutRef}>
+        <h2>About FRAMES</h2>
         <p className="features-subtitle">
+            Advanced Features for Campus Security
+        </p>
+        <p className="features-description" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto 40px', color: '#64748b' }}>
             Our comprehensive system combines cutting-edge AI technology with reliable hardware to deliver unparalleled campus monitoring and access control capabilities.
         </p>
         <div className="features-grid">
@@ -352,6 +355,11 @@ const FeaturesSection = () => (
 const LandingPage = () => {
     const [panel, setPanel] = useState(null); // 'login' or 'signup'
     const [initialLoginMode, setInitialLoginMode] = useState('faculty');
+    const aboutRef = React.useRef(null);
+
+    const scrollToAbout = () => {
+        aboutRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     // Safety net: always remove dark mode on landing page
     useEffect(() => {
@@ -361,10 +369,10 @@ const LandingPage = () => {
     return (
         <>
             <div className="landing-page">
-                <Header setPanel={setPanel} />
+                <Header setPanel={setPanel} onAboutClick={scrollToAbout} />
                 <main>
                     <HeroSection setPanel={setPanel} setLoginMode={setInitialLoginMode} />
-                    <FeaturesSection />
+                    <FeaturesSection aboutRef={aboutRef} />
                 </main>
 
                 {/* MODALS */}

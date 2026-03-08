@@ -328,7 +328,8 @@ const DeptHeadMyClassesPage = () => {
 
     const handleRemoveStudentFromClass = async (studentId) => {
         if (!selectedClass) return;
-        if (!window.confirm('Are you sure you want to remove this student from the class?')) return;
+        const confirmed = await toast.confirm('Are you sure you want to remove this student from the class?');
+        if (!confirmed) return;
         try {
             await api.delete(`/api/faculty/class/${selectedClass.id}/remove-student/${studentId}`);
             toast.success('Student removed successfully!');
@@ -378,11 +379,11 @@ const DeptHeadMyClassesPage = () => {
                 return s;
             }));
 
-            alert("✅ Student updated successfully!");
+            toast.success("Student updated successfully!");
             setEditingStudent(null);
         } catch (error) {
             console.error("Error updating student:", error);
-            alert("❌ Failed to update student: " + (error.response?.data?.error || error.message));
+            toast.error("Failed to update student: " + (error.response?.data?.error || error.message));
         }
     };
 
