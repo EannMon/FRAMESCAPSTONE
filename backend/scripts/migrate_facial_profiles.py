@@ -58,7 +58,7 @@ def migrate():
         print("\n🔄 Updating model_version default...")
         conn.execute(text("""
             ALTER TABLE facial_profiles 
-            ALTER COLUMN model_version SET DEFAULT 'insightface_buffalo_l_v1'
+            ALTER COLUMN model_version SET DEFAULT 'insightface_buffalo_sc_v1'
         """))
         print("   ✅ Updated model_version default")
         

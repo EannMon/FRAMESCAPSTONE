@@ -1,13 +1,16 @@
 """
-InsightFace buffalo_l model setup and verification.
+InsightFace buffalo_sc model setup and verification.
 Run this ONCE before starting the kiosk:
     python setup_insightface.py
 
 This script:
 1. Shows what model files are present
 2. Deletes any incomplete model folder  
-3. Downloads buffalo_l fresh
+3. Downloads buffalo_sc fresh
 4. Verifies the model loads correctly
+
+buffalo_sc uses MobileNet backbone — ~7-10x faster than buffalo_l on RPi CPU.
+All enrolled faces must use the SAME model for compatible embeddings.
 """
 import os
 import sys
@@ -16,12 +19,12 @@ import glob
 from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-MODEL_NAME = "buffalo_l"
+MODEL_NAME = "buffalo_sc"
 INSIGHTFACE_ROOT = Path.home() / ".insightface"
 MODEL_DIR = INSIGHTFACE_ROOT / "models" / MODEL_NAME
 
 print("\n" + "=" * 60)
-print("  InsightFace buffalo_l Setup & Verification")
+print("  InsightFace buffalo_sc Setup & Verification")
 print("=" * 60)
 
 # ── Show what's currently installed ──────────────────────────────────────────
@@ -33,7 +36,7 @@ if MODEL_DIR.exists():
         size_mb = f.stat().st_size / (1024 * 1024)
         print(f"     • {f.name}  ({size_mb:.1f} MB)")
     if len(onnx_files) < 2:
-        print("\n   ⚠️  INCOMPLETE — buffalo_l needs at least 3 .onnx files")
+        print("\n   ⚠️  INCOMPLETE — buffalo_sc needs at least 2 .onnx files")
         print("   Deleting incomplete folder for fresh download...")
         shutil.rmtree(str(MODEL_DIR))
         print("   ✅ Deleted.")
@@ -52,7 +55,7 @@ except Exception:
     print("   (could not determine version)")
 
 # ── Force download ────────────────────────────────────────────────────────────
-print(f"\n⬇️  Downloading/verifying buffalo_l model...")
+print(f"\n⬇️  Downloading/verifying buffalo_sc model...")
 print("   This may take 1-3 minutes on first run...\n")
 
 try:
@@ -75,8 +78,8 @@ try:
         )
         print(f"   Models after filter: {list(app2.models.keys())}")
         if 'detection' not in app2.models:
-            print("\n   ❌ CRITICAL: buffalo_l has no detection model at all.")
-            print("   Check the ONNX files — det_10g.onnx may be missing.")
+            print("\n   ❌ CRITICAL: buffalo_sc has no detection model at all.")
+            print("   Check the ONNX files — detection model may be missing.")
             sys.exit(1)
     
     # Prepare for CPU inference
@@ -94,7 +97,7 @@ try:
     print(f"   ✅ Inference test passed (detected {len(faces)} faces in blank frame — expected 0)")
 
     print("\n" + "=" * 60)
-    print("  ✅ buffalo_l model is ready! You can now run:")
+    print("  \u2705 buffalo_sc model is ready! You can now run:")
     print("     $env:DEVICE_ID='1'")
     print("     $env:BACKEND_URL='http://localhost:5000'")
     print("     .\\venv\\Scripts\\python.exe run_kiosk.py")
@@ -110,9 +113,9 @@ except AssertionError as e:
             print(f"     • {f.name}  ({size_mb:.1f} MB)")
     else:
         print("   (empty)")
-    print("\n   ❌ Please manually download buffalo_l:")
+    print("\n   \u274c Please manually download buffalo_sc:")
     print("   1. Go to: https://github.com/deepinsight/insightface/releases")
-    print(f"   2. Download buffalo_l.zip")
+    print(f"   2. Download buffalo_sc.zip")
     print(f"   3. Extract to: {MODEL_DIR}")
     sys.exit(1)
 

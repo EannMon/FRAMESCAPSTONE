@@ -53,7 +53,10 @@ except Exception as e:
 print("🔄 [2/4] Testing GestureDetector (MediaPipe Hands)...")
 try:
     from rpi.gesture_detector import GestureDetector
-    gd = GestureDetector(min_confidence=0.5, consecutive_frames=3)
+    from rpi.config import KioskConfig
+    _cfg = KioskConfig()
+    gd = GestureDetector(min_confidence=_cfg.GESTURE_CONFIDENCE,
+                         consecutive_frames=_cfg.GESTURE_CONSECUTIVE_FRAMES)
     gd.close()
     print("   ✅ GestureDetector OK")
 except Exception as e:
@@ -96,11 +99,11 @@ except Exception as e:
 # before kiosk_server.py initializes it with the correct laptop det_size (640x640).
 # InsightFace will be initialized on first frame in the recognition thread instead.
 print("\n✅ Pre-flight checks passed!")
-print("   InsightFace/buffalo_l will be loaded fresh on first recognition frame.")
+print("   InsightFace/buffalo_sc will be loaded fresh on first recognition frame.")
 print("\n   📺 Video feed : http://localhost:8000/video_feed")
 print("   🔌 WebSocket  : ws://localhost:8000/ws/status")
 print("   🖥️  Kiosk UI   : http://localhost:3000/kiosk")
-print("\n   ⚠️  First recognition attempt will take 5-15s while buffalo_l loads.")
+print("\n   ⚠️  First recognition attempt will take 2-5s while buffalo_sc loads.")
 print("   Unknown faces → RED box on video feed")
 print("   Known faces   → GREEN box + 'Welcome!' greeting")
 print("\n   Press Ctrl+C to stop.\n")
