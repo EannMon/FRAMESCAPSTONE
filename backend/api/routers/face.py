@@ -115,7 +115,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 'embedding': embedding_bytes,
                 'num_samples': num_samples,
                 'quality': avg_quality,
-                'model_version': 'insightface_buffalo_l_v1',
+                'model_version': 'insightface_buffalo_sc_v1',
                 'user_id': body.user_id
             })
             logger.info("Updated existing facial profile for user %d", body.user_id)
@@ -126,7 +126,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 embedding=embedding_bytes,
                 num_samples=num_samples,
                 enrollment_quality=avg_quality,
-                model_version="insightface_buffalo_l_v1"
+                model_version="insightface_buffalo_sc_v1"
             )
             db.add(new_profile)
             logger.info("Created new facial profile for user %d", body.user_id)

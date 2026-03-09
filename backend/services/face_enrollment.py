@@ -20,7 +20,8 @@ _face_analyzer = None
 def get_face_analyzer():
     """
     Lazy-load InsightFace model.
-    Uses buffalo_l model for high accuracy.
+    Uses buffalo_sc model (MobileNet backbone) for fast, efficient enrollment.
+    MUST match the recognition model on RPi kiosk.
     """
     global _face_analyzer
     
@@ -28,10 +29,10 @@ def get_face_analyzer():
         try:
             from insightface.app import FaceAnalysis
             
-            logger.info("Loading InsightFace model (buffalo_l)...")
+            logger.info("Loading InsightFace model (buffalo_sc)...")
             start = time.perf_counter()
             _face_analyzer = FaceAnalysis(
-                name='buffalo_l',
+                name='buffalo_sc',
                 providers=['CPUExecutionProvider']  # Use CPU for compatibility
             )
             _face_analyzer.prepare(ctx_id=0, det_size=(640, 640))

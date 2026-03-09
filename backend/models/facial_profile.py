@@ -18,9 +18,9 @@ class FacialProfile(Base):
     embedding = Column(LargeBinary)
     
     # Model version for future upgrades
-    # Enrollment: "insightface_buffalo_l_v1"
-    # Edge: "facenet_tflite_int8_v1"
-    model_version = Column(String(50), default="insightface_buffalo_l_v1")
+    # Enrollment: "insightface_buffalo_sc_v1"
+    # Edge: "facenet_tflite_int8_v1" (for future Coral TPU path)
+    model_version = Column(String(50), default="insightface_buffalo_sc_v1")
     
     # Enrollment metadata
     num_samples = Column(Integer, default=0)  # How many frames used for enrollment

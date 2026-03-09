@@ -49,7 +49,7 @@ def export_embeddings(output_path: str, verbose: bool = True) -> bool:
         export_data = {
             "version": "1.0",
             "exported_at": datetime.now().isoformat(),
-            "model": "insightface_buffalo_l_v1",
+            "model": "insightface_buffalo_sc_v1",
             "embedding_dim": 512,
             "embeddings": []
         }

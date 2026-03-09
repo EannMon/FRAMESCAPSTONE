@@ -554,12 +554,16 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
             last_action = last_action.value
 
     # State machine: determine allowed actions
-    # After EXIT, user can ENTRY again (new cycle within same session)
+    # After EXIT, the session is CLOSED — no re-entry allowed.
+    # If a user accidentally exits, an admin/faculty must manually adjust the record.
+    # This prevents confusing data with multiple ENTRY/EXIT cycles per class session.
     allowed_actions = []
-    if not has_entered or has_exited:
+    if not has_entered:
         allowed_actions.append("ENTRY")
     elif has_exited:
-        pass  # Should not reach here due to above condition
+        # Session is done — no more actions allowed for this class today.
+        # Re-entry after exit is intentionally blocked.
+        pass
     elif is_on_break:
         allowed_actions.append("BREAK_IN")
     else:
