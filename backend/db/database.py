@@ -69,7 +69,7 @@ def init_db():
     Call this once to initialize the schema.
     """
     # Import all models here to register them with Base
-    from models import user, department, program, facial_profile, subject, class_, enrollment, device, attendance_log
+    from models import user, department, program, facial_profile, subject, class_, enrollment, device, attendance_log, user_invite
     
     logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)

@@ -406,6 +406,17 @@ async def upload_schedule(
             ).first()
             
             if existing_class:
+                # ── Ownership Check ──
+                # If the class already exists but belongs to a DIFFERENT faculty member, block the update.
+                if faculty_id and existing_class.faculty_id and existing_class.faculty_id != faculty_id:
+                    other_faculty = db.query(User).filter(User.id == existing_class.faculty_id).first()
+                    faculty_name = f"{other_faculty.first_name} {other_faculty.last_name}" if other_faculty else "another faculty"
+                    raise api_error(
+                        409, "CLASS_ALREADY_CLAIMED",
+                        f"Class '{subject.code} - {course_data['section']}' is already uploaded by {faculty_name}. "
+                        "You cannot upload or modify a schedule owned by another faculty member."
+                    )
+
                 # Update existing class
                 existing_class.start_time = start_time
                 existing_class.end_time = end_time
@@ -651,6 +662,15 @@ def confirm_schedule(
             ).first()
             
             if existing_class:
+                # ── Ownership Check ──
+                if data.faculty_id and existing_class.faculty_id and existing_class.faculty_id != data.faculty_id:
+                    other_faculty = db.query(User).filter(User.id == existing_class.faculty_id).first()
+                    faculty_name = f"{other_faculty.first_name} {other_faculty.last_name}" if other_faculty else "another faculty"
+                    raise api_error(
+                        409, "CLASS_ALREADY_CLAIMED",
+                        f"Class '{subject.code} - {course_data.section}' is already owned by {faculty_name}."
+                    )
+
                 existing_class.start_time = start_time
                 existing_class.end_time = end_time
                 existing_class.room = course_data.venue
