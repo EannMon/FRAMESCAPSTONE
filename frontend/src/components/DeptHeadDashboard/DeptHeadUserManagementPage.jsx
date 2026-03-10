@@ -104,25 +104,35 @@ const DeptHeadUserManagementPage = () => {
                 })
             ]);
 
-            // Map standard users for Verification Tab
-            const mappedVerificationData = (usersResponse.data || []).map(user => ({
-                id: user.id || user.user_id,
-                name: `${user.first_name || ''} ${user.last_name || ''}`,
-                email: user.email,
-                role: user.role || 'N/A',
-                roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
-                department: user.department_name || user.program_name || 'N/A',
-                status: user.verification_status || 'Pending',
-                statusColor: getStatusColor(user.verification_status),
-                date: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A',
-                tupm_id: user.tupm_id || 'N/A',
-                method: 'Manual Add',
-                isInvite: false,
-                ...user
-            }));
+            // Extract emails of all invited users to check against standard users
+            const allInvites = invitesResponse.data || [];
+            const invitedEmails = new Set(allInvites.map(i => i.email ? i.email.toLowerCase() : ''));
 
-            // Map invites for Verification Tab
-            const mappedInvitesData = (invitesResponse.data || []).map(invite => ({
+            // Map standard users for Verification Tab
+            const mappedVerificationData = (usersResponse.data || []).map(user => {
+                const userEmail = typeof user.email === 'string' ? user.email.toLowerCase() : '';
+                const isInvited = invitedEmails.has(userEmail);
+
+                return {
+                    id: user.id || user.user_id,
+                    name: `${user.first_name || ''} ${user.last_name || ''}`,
+                    email: user.email,
+                    role: user.role || 'N/A',
+                    roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
+                    department: user.department_name || user.program_name || 'N/A',
+                    status: user.verification_status || 'Pending',
+                    statusColor: getStatusColor(user.verification_status),
+                    date: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A',
+                    tupm_id: user.tupm_id || 'N/A',
+                    method: isInvited ? 'Email Invite' : 'Manual Add',
+                    isInvite: false,
+                    ...user
+                };
+            });
+
+            // Map invites for Verification Tab - filter out 'Registered' so they don't duplicate
+            const activeInvites = allInvites.filter(invite => invite.status !== 'Registered');
+            const mappedInvitesData = activeInvites.map(invite => ({
                 id: `invite-${invite.id}`,
                 name: 'Invited User', // Placeholder name until they register
                 email: invite.email,
@@ -130,7 +140,7 @@ const DeptHeadUserManagementPage = () => {
                 roleColor: 'green',
                 department: 'N/A',
                 status: invite.status,
-                statusColor: invite.status === 'Registered' ? 'green' : (invite.status === 'Expired' ? 'red' : 'yellow'),
+                statusColor: invite.status === 'Expired' ? 'red' : 'yellow', // 'Registered' is filtered out
                 date: invite.created_at ? new Date(invite.created_at).toLocaleString() : 'N/A',
                 tupm_id: 'N/A',
                 method: 'Email Invite',
@@ -470,7 +480,9 @@ const DeptHeadUserManagementPage = () => {
                     </div>
 
                     {verificationLoading ? (
-                        <div className="loading-spinner">Loading Applications...</div>
+                        <div className="loading-state" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                            <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Loading Applications...
+                        </div>
                     ) : verificationError ? (
                         <div className="error-message">{verificationError}</div>
                     ) : (
@@ -536,9 +548,9 @@ const DeptHeadUserManagementPage = () => {
                                                         </button>
                                                         {verificationOpenMenuId === app.id && (
                                                             <div className="action-dropdown">
-                                                                {app.status !== 'Verified' && app.status !== 'Approved' && <button onClick={() => handleStatusUpdate(app.id, "Approved")}><i className="fas fa-check"></i> Approve</button>}
-                                                                {app.status !== 'Rejected' && <button onClick={() => handleStatusUpdate(app.id, "Rejected")}><i className="fas fa-times"></i> Reject</button>}
-                                                                <button onClick={() => deleteApplication(app.id)} className="delete"><i className="fas fa-trash"></i> Delete</button>
+                                                                {app.status !== 'Verified' && app.status !== 'Approved' && <button onClick={(e) => { e.stopPropagation(); handleStatusUpdate(app.id, "Approved"); }}><i className="fas fa-check"></i> Approve</button>}
+                                                                {app.status !== 'Rejected' && <button onClick={(e) => { e.stopPropagation(); handleStatusUpdate(app.id, "Rejected"); }}><i className="fas fa-times"></i> Reject</button>}
+                                                                <button onClick={(e) => { e.stopPropagation(); deleteApplication(app.id); }} className="delete"><i className="fas fa-trash"></i> Delete</button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -567,30 +579,6 @@ const DeptHeadUserManagementPage = () => {
                                     {!verificationModalUser.isInvite && <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>}
                                 </div>
                                 <div className="modal-actions modal-actions-flex">
-                                    {/* Approve — only shown if not already verified and not an invite */}
-                                    {!verificationModalUser.isInvite && verificationModalUser.status !== 'Verified' && verificationModalUser.status !== 'Approved' && (
-                                        <button
-                                            className="action-btn-approve"
-                                            onClick={() => {
-                                                handleStatusUpdate(verificationModalUser.id, 'Approved');
-                                                setVerificationModalUser(null);
-                                            }}
-                                        >
-                                            <i className="fas fa-check"></i> Approve
-                                        </button>
-                                    )}
-                                    {/* Reject — only shown if not already rejected */}
-                                    {verificationModalUser.status !== 'Rejected' && (
-                                        <button
-                                            className="action-btn-reject"
-                                            onClick={() => {
-                                                handleStatusUpdate(verificationModalUser.id, 'Rejected');
-                                                setVerificationModalUser(null);
-                                            }}
-                                        >
-                                            <i className="fas fa-times"></i> Reject
-                                        </button>
-                                    )}
                                     <button
                                         className="modal-close-button modal-close-auto"
                                         onClick={() => setVerificationModalUser(null)}
@@ -846,10 +834,10 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
 
                     {step === 2 && (
                         <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                            {programs.length > 0 && (
+                            {programs.length > 0 && newUser.role === 'STUDENT' && (
                                 <>
-                                    <label>Program</label>
-                                    <select name="program_id" value={newUser.program_id} onChange={handleInputChange}>
+                                    <label>Program <span style={{ color: '#163269' }}>*</span></label>
+                                    <select name="program_id" value={newUser.program_id} onChange={handleInputChange} required>
                                         <option value="">-- Select Program --</option>
                                         {programs.map(p => (
                                             <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
