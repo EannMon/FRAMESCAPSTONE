@@ -50,6 +50,7 @@ async def create_support_ticket(
 
     # Validate files
     saved_paths = []
+    ticket_dir = None
     if files and len(files) > 0 and files[0].filename:
         # Determine file type category
         has_pdf = any(f.content_type in ALLOWED_PDF_TYPES for f in files if f.filename)
@@ -105,11 +106,32 @@ async def create_support_ticket(
 
     logger.info("Support ticket created: id=%d user_id=%d subject='%s' files=%d", ticket.id, user_id, subject, len(saved_paths))
 
+    # --- EMAIL NOTIFICATION & CLEANUP (per Plan §3) ---
+    from services.email_service import send_support_ticket_email
+    import shutil
+
+    # Send notification email
+    email_sent = send_support_ticket_email(
+        user_name=user.full_name,
+        user_email=user.email,
+        subject=ticket.subject,
+        message=ticket.message,
+        file_paths=saved_paths
+    )
+
+    # Cleanup resources if successfully emailed (keep workspace clean)
+    if email_sent and ticket_dir and os.path.exists(ticket_dir):
+        try:
+            shutil.rmtree(ticket_dir)
+            logger.info("Cleaned up evidence files for ticket %d", ticket.id)
+        except Exception as e:
+            logger.error("Failed to clean up evidence files: %s", str(e))
+    
     return {
         "success": True,
         "ticket_id": ticket.id,
         "status": ticket.status.value if ticket.status else "OPEN",
-        "message": "Support ticket submitted successfully",
+        "message": "Support ticket submitted successfully" + (" and sent to support team" if email_sent else ""),
     }
 
 

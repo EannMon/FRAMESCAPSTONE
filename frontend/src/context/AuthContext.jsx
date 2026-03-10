@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
      * Returns the user object on success, throws on failure.
      */
     const login = async (email, password) => {
-        const response = await api.post('/api/auth/login', { email, password });
+        const response = await api.post('/api/auth/login', { email, password }, { skipAuthRedirect: true });
         const data = response.data;
 
         // Store JWT tokens

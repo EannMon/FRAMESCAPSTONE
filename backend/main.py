@@ -71,7 +71,10 @@ app.add_middleware(
 )
 
 # Import routers after app and limiter are ready to avoid circular imports
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept, reports, support
+from api.routers import (
+    auth, users, admin, faculty, student, face, kiosk, 
+    invites, dept, reports, support
+)
 
 # Include routers with prefixes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -79,6 +82,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
+app.include_router(invites.router)
 app.include_router(face.router)  # Already has /api/face prefix
 app.include_router(kiosk.router)  # Already has /api/kiosk prefix
 app.include_router(dept.router, prefix="/api/dept", tags=["Department"])

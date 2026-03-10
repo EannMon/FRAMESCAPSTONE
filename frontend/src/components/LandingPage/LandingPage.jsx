@@ -56,7 +56,13 @@ const FacultyLoginModal = ({ isOpen, onClose }) => {
                 }
             }
         } catch (error) {
-            setErrorMessage(error.response?.data?.detail || "Invalid credentials. Please try again.");
+            if (!error.response) {
+                setErrorMessage("Cannot connect to the server. Please check your internet connection and try again.");
+            } else if (error.response.status === 401 || error.response.status === 404) {
+                setErrorMessage("Invalid email or password. Please try again.");
+            } else {
+                setErrorMessage(error.response?.data?.detail || "An unexpected error occurred during login.");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -188,7 +194,7 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
             setErrorMessage('');
             const userData = await login(credential, password);
             const userRole = userData.role.toUpperCase();
-            
+
             if (userRole === 'STUDENT') {
                 toast.success(`Welcome back, ${userData.first_name}!`);
                 navigate('/student-dashboard');
@@ -197,7 +203,13 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
                 setErrorMessage("This portal is for Students only. Faculty and Department Heads should use the Faculty/Head Login portal.");
             }
         } catch (error) {
-            setErrorMessage(error.response?.data?.detail || "Invalid credentials. Please try again.");
+            if (!error.response) {
+                setErrorMessage("Cannot connect to the server. Please check your internet connection and try again.");
+            } else if (error.response.status === 401 || error.response.status === 404) {
+                setErrorMessage("Invalid TUP-M ID or password. Please try again.");
+            } else {
+                setErrorMessage(error.response?.data?.detail || "An unexpected error occurred during login.");
+            }
         } finally {
             setIsSubmitting(false);
         }

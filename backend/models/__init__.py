@@ -4,6 +4,7 @@ from models.college import College
 from models.department import Department
 from models.program import Program
 from models.user import User, UserRole, VerificationStatus
+from models.user_invite import UserInvite
 from models.facial_profile import FacialProfile
 from models.subject import Subject
 from models.class_ import Class
@@ -25,6 +26,7 @@ __all__ = [
     "User",
     "UserRole",
     "VerificationStatus",
+    "UserInvite",
     "FacialProfile",
     "Subject",
     "Class",
