@@ -39,7 +39,7 @@ def create_access_token(user) -> str:
     sub (user_id), role, dept, iat, exp, type.
     """
     payload = {
-        "sub": user.id,
+        "sub": str(user.id),
         "role": user.role.value,
         "dept": user.department_id,
         "iat": datetime.now(timezone.utc),
@@ -52,7 +52,7 @@ def create_access_token(user) -> str:
 def create_refresh_token(user) -> str:
     """Create a JWT refresh token for token renewal."""
     payload = {
-        "sub": user.id,
+        "sub": str(user.id),
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         "type": "refresh",
@@ -67,13 +67,36 @@ def create_password_reset_token(user_id: int, user_email: str) -> str:
     Expires in RESET_TOKEN_EXPIRE_HOURS (1 hour).
     """
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "email": user_email,
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS),
         "type": "password_reset",
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_faculty_invite_token(email: str, department_id: int) -> str:
+    """
+    Create a JWT for faculty invitation.
+    Expires in 48 hours.
+    """
+    payload = {
+        "email": email,
+        "dept": department_id,
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=48),
+        "type": "faculty_invite",
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_faculty_invite_token(token: str) -> dict:
+    """
+    Verify a faculty invite token.
+    Raises HTTPException if invalid or expired.
+    """
+    return verify_token(token, expected_type="faculty_invite")
 
 
 def verify_password_reset_token(token: str) -> dict:

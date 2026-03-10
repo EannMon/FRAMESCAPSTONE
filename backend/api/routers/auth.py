@@ -12,8 +12,9 @@ from db.database import get_db
 from core.errors import api_error
 from core.limiter import limiter
 from core.auth import create_access_token, create_refresh_token, verify_token
-from core.auth import create_password_reset_token, verify_password_reset_token
+from core.auth import create_password_reset_token, verify_password_reset_token, verify_faculty_invite_token
 from models.user import User, UserRole, VerificationStatus
+from models.user_invite import UserInvite
 from models.facial_profile import FacialProfile
 from schemas.user import (
     UserLogin, 
@@ -179,6 +180,74 @@ def register(request: Request, user_data: UserRegister, db: Session = Depends(ge
     logger.info("AUTH | registered user=%d role=%s", new_user.id, new_user.role.value)
 
     return MessageResponse(message=f"Registration Successful! User ID: {new_user.id}")
+
+
+@router.post("/register-invited", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
+def register_invited(request: Request, user_data: UserRegister, token: str, db: Session = Depends(get_db)):
+    """
+    Register a new user using an invite token.
+    Invited users are immediately verified.
+    """
+    # Verify token
+    try:
+        payload = verify_faculty_invite_token(token)
+        invite_email = payload.get("email")
+        invite_dept = payload.get("dept")
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite token")
+
+    # Ensure email matches invite
+    if user_data.email.lower() != invite_email.lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email does not match invitation")
+
+    # Check if invite is valid in DB
+    invite = db.query(UserInvite).filter(
+        UserInvite.token == token,
+        UserInvite.used == False
+    ).first()
+    
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite link is invalid or already used")
+
+    # Check if user already exists (safety)
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise api_error(
+            status_code=status.HTTP_409_CONFLICT,
+            code="EMAIL_EXISTS",
+            message="User with this email already exists"
+        )
+
+    # Hash password
+    hashed_pw = hash_password(user_data.password)
+
+    # Create user (auto-verified)
+    new_user = User(
+        email=user_data.email,
+        password_hash=hashed_pw,
+        employee_id=user_data.employee_id,
+        role=UserRole.FACULTY,
+        first_name=user_data.first_name.upper(),
+        last_name=user_data.last_name.upper(),
+        middle_name=user_data.middle_name.upper() if user_data.middle_name else None,
+        department_id=invite_dept,
+        verification_status=VerificationStatus.VERIFIED,
+        face_registered=False
+    )
+
+    # Mark invite as used
+    invite.used = True
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    logger.info("AUTH | registered invited user=%d email=%s", new_user.id, new_user.email)
+
+    return MessageResponse(message="Registration successful! Your account is verified.")
 
 
 @router.post("/validate-face")
@@ -389,7 +458,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     Request a password reset email.
     Always returns success message to prevent email enumeration.
     """
-    from services.email_service import send_password_reset_email, is_email_configured
+    from services.email_service import send_password_reset_email, is_email_service_configured
 
     email = body.email.strip().lower()
 
@@ -399,8 +468,8 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
         "message": "If this email is registered, a password reset link has been sent. Please check your inbox."
     }
 
-    if not is_email_configured():
-        logger.warning("AUTH | forgot-password requested but SMTP is not configured")
+    if not is_email_service_configured():
+        logger.warning("AUTH | forgot-password requested but no email service (SMTP/SendGrid) is configured")
         # Still return success message to not leak configuration details
         return success_msg
 
@@ -449,8 +518,9 @@ def reset_password(request: Request, body: ResetPasswordRequest, db: Session = D
     if user.email != payload.get("email"):
         raise api_error(400, "TOKEN_MISMATCH", "Reset token does not match this account")
 
-    # Hash new password and update
-    user.hashed_password = hash_password(body.new_password)
+    # Hash new password and update properly
+    new_hashed_password = hash_password(body.new_password)
+    db.query(User).filter(User.id == user.id).update({"password_hash": new_hashed_password})
     db.commit()
 
     logger.info("AUTH | password reset completed for user=%d", user.id)
