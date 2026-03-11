@@ -60,11 +60,14 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — lock down to FRONTEND_URL per FRAMES_DEPLOYMENT_CONSTRAINTS §5.1
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# CORS — reads FRONTEND_URL from environment (comma-separated for multiple origins)
+# On Render: set FRONTEND_URL=https://frames-smartattendance.vercel.app
+# For local dev the default covers localhost Vite server
+_raw_origins = os.getenv("FRONTEND_URL", "http://localhost:3000,http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Authorization", "Content-Type", "X-Device-Key"],
