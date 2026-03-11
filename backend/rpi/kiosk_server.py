@@ -722,24 +722,38 @@ async def startup_event():
     loop = asyncio.get_event_loop()
     state_queue = asyncio.Queue()
     
-    # Auto-export embeddings from database before starting kiosk
-    # This ensures the cache is always in sync with the DB (no stale recognitions)
+    # Auto-export embeddings from database before starting kiosk.
+    # On the backend server (laptop/dev): uses sqlalchemy directly (fast).
+    # On RPi: sqlalchemy isn't installed — passes backend_url so the function
+    # downloads from /api/kiosk/embeddings instead.
     try:
         backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         cache_output = os.path.join(backend_dir, "rpi", "data", "embeddings_cache.json")
-        
-        # Import here to avoid circular imports at module level
+
         sys.path.insert(0, backend_dir)
         from scripts.export_embeddings import export_embeddings
-        
-        logger.info("CACHE | Auto-exporting embeddings from database before kiosk start...")
-        success = export_embeddings(cache_output, verbose=False)
+
+        backend_url = os.getenv("BACKEND_URL", "")
+        use_api_mode = bool(backend_url) and "localhost" not in backend_url
+
+        if use_api_mode:
+            # RPi path: download from deployed backend API
+            logger.info("CACHE | Auto-fetching embeddings from backend API (%s)...", backend_url)
+        else:
+            # Laptop/dev path: export directly from DB
+            logger.info("CACHE | Auto-exporting embeddings from database before kiosk start...")
+
+        success = export_embeddings(
+            cache_output,
+            verbose=False,
+            backend_url=backend_url if use_api_mode else None,
+        )
         if success:
             logger.info("CACHE | Embeddings export completed successfully")
         else:
             logger.warning("CACHE | Embeddings export returned failure — kiosk will use existing cache if available")
     except Exception as e:
-        logger.warning("CACHE | Auto-export failed (DB may be unreachable): %s — using existing cache file", str(e))
+        logger.warning("CACHE | Auto-export failed (%s) — using existing cache file", str(e))
     
     # Initialize kiosk logic
     config = KioskConfig()

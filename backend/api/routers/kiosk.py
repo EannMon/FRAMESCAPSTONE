@@ -631,6 +631,54 @@ def get_device_info(device_id: int, db: Session = Depends(get_db), x_device_key:
     }
 
 
+@router.get("/embeddings")
+def download_embeddings(db: Session = Depends(get_db)):
+    """
+    Download all enrolled face embeddings as JSON.
+    Used by RPi kiosk on startup to populate its local embeddings_cache.json
+    without requiring direct database access on the device.
+    """
+    from models.facial_profile import FacialProfile
+    import numpy as np
+
+    profiles = (
+        db.query(FacialProfile, User)
+        .join(User, FacialProfile.user_id == User.id)
+        .filter(FacialProfile.embedding.isnot(None))
+        .all()
+    )
+
+    embeddings = []
+    for profile, user in profiles:
+        try:
+            emb_array = np.frombuffer(profile.embedding, dtype=np.float32)
+            if len(emb_array) != 512:
+                continue
+            embeddings.append({
+                "user_id": user.id,
+                "name": f"{user.first_name} {user.last_name}",
+                "email": user.email,
+                "tupm_id": user.tupm_id or "",
+                "role": user.role.value if user.role else "",
+                "section": user.section or "",
+                "embedding": emb_array.tolist(),
+                "quality": profile.enrollment_quality or 0.0,
+                "model_version": profile.model_version or "",
+                "enrolled_at": profile.created_at.isoformat() if profile.created_at else None,
+            })
+        except Exception:
+            continue
+
+    return {
+        "version": "1.0",
+        "exported_at": datetime.now().isoformat(),
+        "model": "insightface_buffalo_sc_v1",
+        "embedding_dim": 512,
+        "count": len(embeddings),
+        "embeddings": embeddings,
+    }
+
+
 @router.post("/device/{device_id}/heartbeat")
 def device_heartbeat(device_id: int, db: Session = Depends(get_db), x_device_key: Optional[str] = Header(None)):
     """
