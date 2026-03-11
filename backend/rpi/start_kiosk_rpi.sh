@@ -133,7 +133,31 @@ echo "[kiosk] PID: $KIOSK_PID"
 # Give the server 4 seconds to start before opening browser
 sleep 4
 
-# ── 5. Launch Chromium in kiosk mode on the Pi's display ─────
+# ── 6. Disable screen blanking and DPMS (display power saving) ───────
+# Without this the RPi will blank/power-off the screen after ~10 min of
+# inactivity (no mouse/keyboard) — killing the kiosk display between scans.
+#   xset s off      → disables the X screensaver timer entirely
+#   xset s noblank  → tells the screensaver NOT to blank the video output
+#   xset -dpms      → disables DPMS (Energy Star) monitor power-off
+echo "[display] Disabling screensaver and DPMS..."
+DISPLAY=:0 xset s off         2>/dev/null || true
+DISPLAY=:0 xset s noblank     2>/dev/null || true
+DISPLAY=:0 xset -dpms         2>/dev/null || true
+echo "[display] Screen will stay on indefinitely."
+
+# ── 6b. Background keepalive — belt-and-suspenders ───────────────────
+# Some LXDE power managers or Wayfire compositors ignore xset and implement
+# their own idle timer. This loop nudges the X pointer by 0px every 4 minutes
+# so the session never becomes "idle" to any component.
+# xdotool is already installed (see setup guide apt dependencies).
+(while true; do
+    sleep 240
+    DISPLAY=:0 xdotool mousemove_relative -- 0 0 2>/dev/null || true
+done) &
+KEEPALIVE_PID=$!
+echo "[display] Keepalive loop PID: $KEEPALIVE_PID"
+
+# ── 7. Launch Chromium in kiosk mode on the Pi's display ─────
 # DISPLAY=:0 sends the window to the HDMI screen even when invoked over SSH.
 # --kiosk removes the browser chrome (URL bar, tabs) for a full-screen look.
 # --no-sandbox is needed on RPi OS for Chromium to run as a non-root user.
@@ -148,6 +172,7 @@ DISPLAY=:0 chromium-browser \
     --disable-infobars \
     --disable-session-crashed-bubble \
     --check-for-update-interval=604800 \
+    --disable-features=Translate \
     "$KIOSK_URL" &
 BROWSER_PID=$!
 echo "[browser] PID: $BROWSER_PID"
@@ -163,5 +188,5 @@ echo "    Press Ctrl+C to stop everything."
 echo ""
 
 # ── 7. Wait and clean up on exit ─────────────────────────────
-trap "echo 'Stopping...'; kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} 2>/dev/null; exit 0" INT TERM
+trap "echo 'Stopping...'; kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} ${KEEPALIVE_PID:-} 2>/dev/null; exit 0" INT TERM
 wait $KIOSK_PID
