@@ -803,6 +803,24 @@ async def video_generator():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         await asyncio.sleep(0.03) # ~30fps max
 
+@app.get("/health")
+async def health_check():
+    """Simple liveness check for the kiosk server."""
+    cam_alive = (
+        kiosk_instance._camera_thread is not None
+        and kiosk_instance._camera_thread.is_alive()
+    ) if kiosk_instance else False
+    rec_alive = (
+        kiosk_instance._recognition_thread is not None
+        and kiosk_instance._recognition_thread.is_alive()
+    ) if kiosk_instance else False
+    return {
+        "status": "ok",
+        "camera": cam_alive,
+        "recognition": rec_alive,
+    }
+
+
 @app.get("/video_feed")
 async def video_feed():
     return StreamingResponse(video_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
