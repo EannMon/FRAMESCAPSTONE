@@ -1,7 +1,7 @@
 {
   "device_id": 1,
   "device_room": "Room 328",
-  "synced_at": "2026-03-09T15:40:17.648378",
+  "synced_at": "2026-03-11T13:36:39.273512",
   "schedule": [
     {
       "class_id": 3,
@@ -24,8 +24,8 @@
       "faculty_id": 1,
       "faculty_name": "EMMANUEL LUNGAY",
       "section": "BSIT-2B-M",
-      "day_of_week": "Monday",
-      "start_time": "13:55:00",
+      "day_of_week": "Wednesday",
+      "start_time": "13:30:00",
       "end_time": "16:00:00",
       "room": "Room 328",
       "semester": "2nd Semester",

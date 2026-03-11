@@ -64,14 +64,35 @@ else
     echo "       Then: pip install -r backend/rpi/requirements-rpi.txt"
 fi
 
-# ── 3. Export embeddings from DB before starting ─────────────
-echo "[cache] Exporting face embeddings from backend..."
-python "$REPO_ROOT/scripts/export_embeddings.py" \
+# ── 3. Wake up the backend (Render free tier cold starts in 30-60s) ──
+# The kiosk cannot sync its schedule or embeddings until the backend responds.
+# We wait up to 90 seconds, pinging /api/health every 10s.
+echo "[api] Waking up backend: ${BACKEND_URL:-NOT SET}"
+BACKEND_AWAKE=false
+for attempt in 1 2 3 4 5 6 7 8 9; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+        --max-time 10 \
+        "${BACKEND_URL:-http://localhost:5000}/api/health" 2>/dev/null || echo "000")
+    if [ "$HTTP_STATUS" = "200" ]; then
+        echo "[api] Backend is responding ✅ (attempt $attempt)"
+        BACKEND_AWAKE=true
+        break
+    fi
+    echo "[api] Attempt $attempt: HTTP $HTTP_STATUS — waiting 10s..."
+    sleep 10
+done
+if [ "$BACKEND_AWAKE" = "false" ]; then
+    echo "[api] WARNING: Backend did not respond after 90s — kiosk will use cached schedule/embeddings."
+fi
+
+# ── 4. Export face embeddings from backend ───────────────────
+echo "[cache] Downloading face embeddings from backend API..."
+python "$REPO_ROOT/backend/scripts/export_embeddings.py" \
     --output "$REPO_ROOT/backend/rpi/data/embeddings_cache.json" \
-    --backend-url "${BACKEND_URL:-http://localhost:5000}" 2>/dev/null \
+    --backend-url "${BACKEND_URL:-http://localhost:5000}" \
     || echo "[cache] WARNING: Export failed — using existing cache"
 
-# ── 4. Serve the pre-built React frontend on port 3000 ───────
+# ── 5. Serve the pre-built React frontend on port 3000 ───────
 # Build on your laptop first:  cd frontend && npm run build
 # Then copy the dist/ folder to the RPi (scp or git pull).
 FRONTEND_DIST="$REPO_ROOT/frontend/dist"
