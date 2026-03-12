@@ -38,6 +38,7 @@ const AttendanceHistoryPage = () => {
     const reportTypes = [
         { id: 'DAILY_REPORT', label: 'Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
         { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
+        { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Groups attendance by month to identify patterns and trends over time.' },
         { id: 'SEM_REPORT', label: 'Semestral Report (Per Subject)', desc: 'Provides cumulative data per subject for academic reference.' },
         { id: 'OVERALL_SEM', label: 'Overall Semestral Summary', desc: 'Consolidates all subjects for holistic engagement assessment.' },
         { id: 'HISTORY_30D', label: 'Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
@@ -215,6 +216,16 @@ const AttendanceHistoryPage = () => {
                     return d >= semStart && d <= semEnd;
                 });
                 break;
+            case 'MONTHLY_TRENDS':
+                // Filter by selected month using filterDate (year-month from month picker)
+                const mtDate = new Date(filterDate);
+                const mtMonthStart = new Date(mtDate.getFullYear(), mtDate.getMonth(), 1);
+                const mtMonthEnd = new Date(mtDate.getFullYear(), mtDate.getMonth() + 1, 0, 23, 59, 59, 999);
+                filtered = filtered.filter(l => {
+                    const d = new Date(l.timestamp);
+                    return d >= mtMonthStart && d <= mtMonthEnd;
+                });
+                break;
             case 'OVERALL_SEM':
                 // Whole Academic Year (Aug 1 to Jul 31 next year)
                 const acYear = parseInt(academicYear);
@@ -266,6 +277,9 @@ const AttendanceHistoryPage = () => {
                 last30.setDate(last30.getDate() - 30);
                 return `${last30.toLocaleDateString('en-US', options)} - ${d.toLocaleDateString('en-US', options)}`;
 
+            case 'MONTHLY_TRENDS':
+                return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+
             case 'SEM_REPORT':
                 return `${selectedSemester === '1ST' ? '1st' : (selectedSemester === '2ND' ? '2nd' : 'Summer')} Semester ${academicYear}-${parseInt(academicYear) + 1}`;
             case 'OVERALL_SEM':
@@ -305,8 +319,15 @@ const AttendanceHistoryPage = () => {
              );
         }
 
-        // B. Month Picker
-
+        // B. Month Picker (Monthly Trends)
+        if (selectedReportType === 'MONTHLY_TRENDS') {
+            return (
+                <div className="filter-item">
+                    <label>Select Month:</label>
+                    <input type="month" style={style} value={filterDate.substring(0, 7)} onChange={(e) => setFilterDate(e.target.value + '-01')} />
+                </div>
+            );
+        }
 
         // C. Academic Year Only (Overall Sem)
         if (selectedReportType === 'OVERALL_SEM') {
