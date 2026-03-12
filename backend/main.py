@@ -63,7 +63,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS — reads FRONTEND_URL from environment (comma-separated for multiple origins)
 # On Render: set FRONTEND_URL=https://frames-smartattendance.vercel.app
 # For local dev the default covers localhost Vite server
-_raw_origins = os.getenv("FRONTEND_URL", "http://localhost:3000,http://localhost:5173")
+_raw_origins = os.getenv("FRONTEND_URL", "https://frames-smartattendance.vercel.app,http://localhost:3000,http://localhost:5173")
 ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,

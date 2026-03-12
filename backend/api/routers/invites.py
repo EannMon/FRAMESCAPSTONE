@@ -12,7 +12,7 @@ import os
 
 router = APIRouter(prefix="/api/invites", tags=["invites"])
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://frames-smartattendance.vercel.app")
 
 @router.post("/send", response_model=dict)
 def send_invites(
