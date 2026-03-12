@@ -1,13 +1,20 @@
 """
 FRAMES Attendance Seed — Report Demo Data
 ==========================================
-Generates ~2,500+ realistic attendance_logs across ~8 weeks (Jan 19 — Mar 12, 2026)
+Generates realistic attendance_logs across ~3 months (Jan 19 — Apr 19, 2026)
 for ALL users in the database:
-  - HEAD (user_id=1): teaches both classes, always present
-  - FACULTY (user_id=2): no classes, but has misc room visits
-  - 93 enrolled students across 2 classes
+  - HEAD (user_id=1): teaches Class 4 (Wed), plus extra visits on Mon/Tue/Thu/Fri
+  - FACULTY (user_id=96): teaches Class 3 (Sat), attendance auto-generated
+  - FACULTY (user_id=2): non-teaching, 3-4 weekday visits with breaks
+  - 93 enrolled students across 2 classes (IDs 3-51, 52-95)
 
-Uses 5 behavior profiles for students to create varied patterns.
+Uses 5 behavior profiles for students to create varied patterns:
+  - Excellent (25%): nearly perfect, rarely late
+  - Good (30%): occasional late, few breaks
+  - Average (25%): regular lateness, moderate breaks
+  - At Risk (15%): frequent absences, long breaks, early exits
+  - Chronic (5%): mostly absent, very late when present
+
 Deterministic (random.seed(42)) for reproducibility.
 
 HOW TO RUN (from backend/ directory):
@@ -36,7 +43,7 @@ from sqlalchemy import func
 SEED_TAG = "[SEED-REPORTS]"
 DEVICE_ID = 1
 SEMESTER_START = date(2026, 1, 19)
-SEED_END = date(2026, 3, 12)
+SEED_END = date(2026, 4, 19)  # ~3 full months
 
 random.seed(42)  # Deterministic for reproducibility
 
@@ -48,7 +55,7 @@ CLASSES = [
         "start_time": dt_time(18, 50),
         "end_time": dt_time(22, 0),
         "students": list(range(52, 96)),  # IDs 52-95 (44 students)
-        "faculty_id": 1,
+        "faculty_id": 96,                # Angelica Terana teaches this class
     },
     {
         "class_id": 4,
@@ -56,9 +63,16 @@ CLASSES = [
         "start_time": dt_time(13, 30),
         "end_time": dt_time(16, 0),
         "students": list(range(3, 52)),   # IDs 3-51 (49 students)
-        "faculty_id": 1,
+        "faculty_id": 1,                 # Dept Head teaches this class
     },
 ]
+
+# Faculty/Head users NOT teaching but should have attendance
+# ID=2 (Jericho Del Socorro - FACULTY), ID=97 (Angelica Terana - FACULTY)
+# Note: ID=97 teaches Class 3, so only ID=2 needs misc visits
+# ID=1 (HEAD) teaches Class 4 but also visits on non-class days
+NON_TEACHING_FACULTY = [2]
+HEAD_USER_ID = 1
 
 # ─────────────────────────────────────────────
 # BEHAVIOR PROFILES
@@ -348,52 +362,98 @@ def generate_faculty_session(faculty_id, class_id, class_start_dt, class_end_dt)
     return logs
 
 
-def generate_faculty2_visits(start_date, end_date):
+def generate_non_teaching_visits(user_id, start_date, end_date):
     """
-    Generate misc room visits for Faculty user_id=2 (not teaching).
-    ~2-3 visits per week on random weekdays during work hours.
-    This ensures dept head reports show data for both faculty members.
+    Generate varied attendance for a non-teaching faculty/head.
+    3-4 visits per week on weekdays during work hours.
+    Includes late arrivals, breaks, early exits, and normal exits.
     """
     logs = []
     current_week_start = start_date
-    weekdays = [0, 1, 3, 4]  # Mon, Tue, Thu, Fri (avoid Wed/Sat — class days)
+    weekdays = [0, 1, 2, 3, 4]  # Mon-Fri
 
     while current_week_start <= end_date:
-        num_visits = random.randint(1, 3)
-        for _ in range(num_visits):
-            day_offset = random.choice(weekdays)
+        # Pick 3-4 random weekdays this week
+        num_visits = random.randint(3, 4)
+        visit_days = random.sample(weekdays, min(num_visits, len(weekdays)))
+
+        for day_offset in visit_days:
             visit_date = current_week_start
-            # Find the target weekday in this week
             while visit_date.weekday() != day_offset:
                 visit_date += timedelta(days=1)
             if visit_date > end_date:
                 continue
 
-            visit_hour = random.randint(8, 15)
-            visit_minute = random.randint(0, 59)
-            visit_time = datetime.combine(visit_date, dt_time(visit_hour, visit_minute))
+            # Determine arrival time (8:00 AM expected, some are late)
+            expected_hour = 8
+            if random.random() < 0.18:  # 18% late
+                late_min = random.randint(5, 25)
+                arrival_minute = late_min
+                is_late = True
+                entry_remarks = f"{SEED_TAG} [LATE by {late_min} min]"
+            else:
+                arrival_minute = random.randint(-10, 5)  # early or on time
+                is_late = False
+                entry_remarks = SEED_TAG
 
-            is_late = random.random() < 0.10
-            # Assign to a random class for room association
-            class_id = random.choice([3, 4])
+            entry_time = datetime.combine(visit_date, dt_time(expected_hour, 0)) + timedelta(minutes=arrival_minute)
+            class_id = random.choice([3, 4])  # Room association
 
             logs.append(AttendanceLog(
-                user_id=2,
+                user_id=user_id,
                 class_id=class_id,
                 device_id=DEVICE_ID,
                 action=AttendanceAction.ENTRY,
                 verified_by=VerifiedBy.FACE,
-                confidence_score=round(random.uniform(0.65, 0.90), 3),
+                confidence_score=round(random.uniform(0.65, 0.92), 3),
                 gesture_detected=None,
-                timestamp=visit_time,
-                remarks=SEED_TAG,
+                timestamp=entry_time,
+                remarks=entry_remarks,
                 is_late=is_late,
             ))
 
-            # EXIT 1-3 hours later
-            exit_time = visit_time + timedelta(hours=random.randint(1, 3))
+            # 40% chance of taking a break
+            if random.random() < 0.40:
+                break_out_time = entry_time + timedelta(minutes=random.randint(60, 120))
+                logs.append(AttendanceLog(
+                    user_id=user_id,
+                    class_id=class_id,
+                    device_id=DEVICE_ID,
+                    action=AttendanceAction.BREAK_OUT,
+                    verified_by=VerifiedBy.FACE_GESTURE,
+                    confidence_score=round(random.uniform(0.65, 0.90), 3),
+                    gesture_detected="PEACE_SIGN",
+                    timestamp=break_out_time,
+                    remarks=None,
+                    is_late=False,
+                ))
+                break_duration = random.randint(5, 15)
+                break_in_time = break_out_time + timedelta(minutes=break_duration)
+                logs.append(AttendanceLog(
+                    user_id=user_id,
+                    class_id=class_id,
+                    device_id=DEVICE_ID,
+                    action=AttendanceAction.BREAK_IN,
+                    verified_by=VerifiedBy.FACE_GESTURE,
+                    confidence_score=round(random.uniform(0.65, 0.90), 3),
+                    gesture_detected="THUMBS_UP",
+                    timestamp=break_in_time,
+                    remarks=None,
+                    is_late=False,
+                ))
+
+            # EXIT: 12% early exit, 88% normal
+            stay_hours = random.randint(2, 4)
+            planned_exit = entry_time + timedelta(hours=stay_hours)
+            if random.random() < 0.12:
+                exit_time = planned_exit - timedelta(minutes=random.randint(15, 40))
+                exit_remarks = "Early exit"
+            else:
+                exit_time = planned_exit + timedelta(minutes=random.randint(0, 10))
+                exit_remarks = None
+
             logs.append(AttendanceLog(
-                user_id=2,
+                user_id=user_id,
                 class_id=class_id,
                 device_id=DEVICE_ID,
                 action=AttendanceAction.EXIT,
@@ -401,14 +461,89 @@ def generate_faculty2_visits(start_date, end_date):
                 confidence_score=round(random.uniform(0.65, 0.90), 3),
                 gesture_detected="OPEN_PALM",
                 timestamp=exit_time,
-                remarks=None,
+                remarks=exit_remarks,
                 is_late=False,
             ))
 
-        # Move to next Monday
-        current_week_start += timedelta(days=7 - current_week_start.weekday())
-        if current_week_start.weekday() != 0:
-            current_week_start += timedelta(days=(7 - current_week_start.weekday()) % 7)
+        # Advance to next Monday
+        days_until_monday = (7 - current_week_start.weekday()) % 7
+        if days_until_monday == 0:
+            days_until_monday = 7
+        current_week_start += timedelta(days=days_until_monday)
+
+    return logs
+
+
+def generate_head_extra_visits(head_id, start_date, end_date, class_days):
+    """
+    Generate extra visits for the Dept Head on NON-class days.
+    Head teaches on Wednesday (Class 4), so generate visits on Mon/Tue/Thu/Fri.
+    """
+    logs = []
+    non_class_weekdays = [0, 1, 3, 4]  # Mon, Tue, Thu, Fri
+    current = start_date
+
+    while current <= end_date:
+        if current.weekday() in non_class_weekdays:
+            # 70% chance of showing up on a non-class day
+            if random.random() < 0.70:
+                # Arrival: 8-9 AM window
+                arrive_hour = 8
+                arrive_offset = random.randint(-5, 15)
+                is_late = arrive_offset > 10
+                entry_time = datetime.combine(current, dt_time(arrive_hour, 0)) + timedelta(minutes=arrive_offset)
+                class_id = random.choice([3, 4])
+
+                entry_remarks = SEED_TAG
+                if is_late:
+                    entry_remarks = f"{SEED_TAG} [LATE by {arrive_offset} min]"
+
+                logs.append(AttendanceLog(
+                    user_id=head_id,
+                    class_id=class_id,
+                    device_id=DEVICE_ID,
+                    action=AttendanceAction.ENTRY,
+                    verified_by=VerifiedBy.FACE,
+                    confidence_score=round(random.uniform(0.72, 0.95), 3),
+                    gesture_detected=None,
+                    timestamp=entry_time,
+                    remarks=entry_remarks,
+                    is_late=is_late,
+                ))
+
+                # 30% break
+                if random.random() < 0.30:
+                    bo_time = entry_time + timedelta(minutes=random.randint(60, 90))
+                    logs.append(AttendanceLog(
+                        user_id=head_id, class_id=class_id, device_id=DEVICE_ID,
+                        action=AttendanceAction.BREAK_OUT,
+                        verified_by=VerifiedBy.FACE_GESTURE,
+                        confidence_score=round(random.uniform(0.70, 0.92), 3),
+                        gesture_detected="PEACE_SIGN",
+                        timestamp=bo_time, remarks=None, is_late=False,
+                    ))
+                    bi_time = bo_time + timedelta(minutes=random.randint(5, 12))
+                    logs.append(AttendanceLog(
+                        user_id=head_id, class_id=class_id, device_id=DEVICE_ID,
+                        action=AttendanceAction.BREAK_IN,
+                        verified_by=VerifiedBy.FACE_GESTURE,
+                        confidence_score=round(random.uniform(0.70, 0.92), 3),
+                        gesture_detected="THUMBS_UP",
+                        timestamp=bi_time, remarks=None, is_late=False,
+                    ))
+
+                # Exit 3-5 hours later
+                exit_time = entry_time + timedelta(hours=random.randint(3, 5))
+                logs.append(AttendanceLog(
+                    user_id=head_id, class_id=class_id, device_id=DEVICE_ID,
+                    action=AttendanceAction.EXIT,
+                    verified_by=VerifiedBy.FACE_GESTURE,
+                    confidence_score=round(random.uniform(0.70, 0.92), 3),
+                    gesture_detected="OPEN_PALM",
+                    timestamp=exit_time, remarks=None, is_late=False,
+                ))
+
+        current += timedelta(days=1)
 
     return logs
 
@@ -467,11 +602,18 @@ def seed():
                     )
                     all_logs.extend(student_logs)
 
-        # Faculty (user_id=2) misc visits
-        print(f"\n  Generating Faculty (ID=2) misc room visits...")
-        faculty2_logs = generate_faculty2_visits(SEMESTER_START, SEED_END)
-        all_logs.extend(faculty2_logs)
-        print(f"    Generated {len(faculty2_logs)} visit logs")
+        # Non-teaching faculty visits (ID=2: Jericho Del Socorro)
+        for fid in NON_TEACHING_FACULTY:
+            print(f"\n  Generating Faculty (ID={fid}) visits...")
+            faculty_visit_logs = generate_non_teaching_visits(fid, SEMESTER_START, SEED_END)
+            all_logs.extend(faculty_visit_logs)
+            print(f"    Generated {len(faculty_visit_logs)} logs (ENTRY/BREAK/EXIT)")
+
+        # Dept Head extra visits on non-class days
+        print(f"\n  Generating Head (ID={HEAD_USER_ID}) non-class-day visits...")
+        head_extra = generate_head_extra_visits(HEAD_USER_ID, SEMESTER_START, SEED_END, class_days=[2])  # Wed=2
+        all_logs.extend(head_extra)
+        print(f"    Generated {len(head_extra)} extra logs")
 
         # Bulk insert
         print(f"\n  Inserting {len(all_logs)} attendance logs...")
