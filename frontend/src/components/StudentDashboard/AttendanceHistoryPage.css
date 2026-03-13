@@ -335,3 +335,226 @@
         padding: 15px;
     }
 }
+
+/* ─────────────────────────────────────────────
+   INSIGHT PANEL
+───────────────────────────────────────────── */
+.insight-panel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 22px 24px;
+    margin-bottom: 20px;
+    animation: fadeInPanel 0.35s ease;
+}
+
+@keyframes fadeInPanel {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Verdict banner ── */
+.insight-verdict {
+    font-size: 0.95em;
+    padding: 10px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    color: #344;
+}
+
+/* ── Stat cards ── */
+.insight-stats-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.insight-stat-card {
+    flex: 1 1 140px;
+    background: #f7f9fb;
+    border-radius: 10px;
+    padding: 14px 16px 12px;
+    text-align: center;
+    min-width: 120px;
+}
+
+.insight-stat-icon {
+    font-size: 1.5em;
+    margin-bottom: 4px;
+}
+
+.insight-stat-value {
+    font-size: 1.6em;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.insight-stat-label {
+    font-size: 0.78em;
+    color: #666;
+    margin-top: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.insight-stat-sub {
+    font-size: 0.73em;
+    color: #888;
+    margin-top: 3px;
+}
+
+/* ── Donut rings ── */
+.insight-rings-row {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    align-items: center;
+}
+
+.insight-donut-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.insight-donut-lbl {
+    font-size: 0.78em;
+    color: #555;
+    font-weight: 600;
+}
+
+/* ── Section blocks ── */
+.insight-section {
+    margin-top: 18px;
+    border-top: 1px solid #eee;
+    padding-top: 14px;
+}
+
+.insight-section-title {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: #163269;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+/* ── Subject breakdown table ── */
+.insight-subject-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87em;
+}
+
+.insight-subject-table th {
+    background: #f0f3f8;
+    color: #163269;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.insight-subject-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+}
+
+.insight-subject-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Mini late-rate bar */
+.insight-mini-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 14px;
+}
+
+.insight-mini-bar {
+    height: 8px;
+    border-radius: 4px;
+    max-width: 80px;
+    min-width: 2px;
+    transition: width 0.4s ease;
+}
+
+.insight-mini-bar-wrap span {
+    font-size: 0.8em;
+    color: #555;
+    white-space: nowrap;
+}
+
+/* ── Bar chart ── */
+.insight-barchart {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 4px 0 8px;
+}
+
+.insight-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 32px;
+}
+
+.insight-bar-track {
+    width: 100%;
+    background: #f0f3f8;
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+    max-width: 56px;
+}
+
+.insight-bar-fill {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+    min-height: 2px;
+}
+
+.insight-bar-val {
+    font-size: 0.78em;
+    font-weight: 700;
+    color: #333;
+    margin-top: 4px;
+}
+
+.insight-bar-lbl {
+    font-size: 0.72em;
+    color: #777;
+    text-align: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .insight-stats-row {
+        gap: 10px;
+    }
+    .insight-stat-card {
+        flex: 1 1 100px;
+        padding: 10px 10px 8px;
+    }
+    .insight-stat-value {
+        font-size: 1.3em;
+    }
+    .insight-rings-row {
+        gap: 16px;
+    }
+    .insight-subject-table {
+        font-size: 0.8em;
+    }
+}

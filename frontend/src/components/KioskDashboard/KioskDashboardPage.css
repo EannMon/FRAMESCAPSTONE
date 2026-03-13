@@ -1,40 +1,44 @@
 .kiosk-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   background-color: #0b1154;
   /* Dark blue background */
   color: white;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Segoe UI', 'Roboto', 'Noto Sans', sans-serif;
   overflow: hidden;
 }
 
 /* Left side: Video Feed */
 .kiosk-video-section {
   flex: 2;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .kiosk-video-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  gap: 10px;
 }
 
 .kiosk-video-header h1 {
-  font-size: 28px;
+  font-size: clamp(20px, 2.1vw, 28px);
   font-weight: 600;
   margin: 0;
 }
 
 .kiosk-video-id {
   background: rgba(255, 255, 255, 0.2);
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-weight: bold;
+  font-size: 0.9rem;
 }
 
 .kiosk-video-wrapper {
@@ -69,33 +73,44 @@
   z-index: 10;
 }
 
+.kiosk-info-banner {
+  background: rgba(0, 150, 255, 0.8);
+}
+
 /* Right side: Panels */
 .kiosk-sidebar {
   flex: 1;
   background: #f4f7fe;
   color: #1b2559;
-  padding: 24px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   border-left: 2px solid rgba(255, 255, 255, 0.1);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .kiosk-panel {
   background: white;
   border-radius: 16px;
-  padding: 20px;
+  padding: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
+.kiosk-panel-checkins {
+  flex: 1;
+  min-height: 0;
+}
+
 .kiosk-panel h3 {
-  font-size: 14px;
+  font-size: 12px;
   color: #4b5563;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 8px;
 }
 
 /* Time & Date */
@@ -106,28 +121,28 @@
 }
 
 .kiosk-time-value {
-  font-size: 48px;
+  font-size: clamp(26px, 3.3vw, 44px);
   font-weight: 700;
   color: #1b2559;
   line-height: 1;
 }
 
 .kiosk-date-value {
-  font-size: 18px;
+  font-size: clamp(13px, 1.2vw, 18px);
   font-weight: 600;
   color: #2b3674;
 }
 
 /* Subject Room */
 .kiosk-subject-title {
-  font-size: 24px;
+  font-size: clamp(18px, 1.8vw, 24px);
   font-weight: bold;
   color: #1b2559;
   margin: 0 0 5px 0;
 }
 
 .kiosk-room-name {
-  font-size: 16px;
+  font-size: clamp(12px, 1.1vw, 16px);
   color: #4b5563;
   font-weight: 600;
 }
@@ -141,7 +156,7 @@
 
 .kiosk-gestures-grid {
   display: flex;
-  gap: 15px;
+  gap: 8px;
 }
 
 .kiosk-gesture-card {
@@ -149,7 +164,7 @@
   background: linear-gradient(135deg, #1b2559 0%, #2b3674 100%);
   color: white;
   border-radius: 12px;
-  padding: 25px 15px;
+  padding: 12px 8px;
   text-align: center;
   transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
   display: flex;
@@ -171,12 +186,33 @@
 }
 
 .kiosk-gesture-icon {
-  font-size: 50px;
-  margin-bottom: 15px;
+  font-size: 36px;
+  margin-bottom: 8px;
+  line-height: 1;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+}
+
+.kiosk-gesture-emoji {
+  display: block;
+}
+
+.kiosk-gesture-fallback {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+  opacity: 0.85;
+  font-family: 'Segoe UI', 'Roboto', 'Noto Sans', sans-serif;
 }
 
 .kiosk-gesture-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: bold;
   text-transform: uppercase;
 }
@@ -186,7 +222,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 300px;
+  max-height: 220px;
   overflow-y: auto;
 }
 
@@ -236,7 +272,7 @@
 
   .kiosk-video-section {
     flex: none;
-    height: 60vh;
+    height: 52vh;
   }
 
   .kiosk-sidebar {
@@ -284,11 +320,11 @@
 
   .kiosk-video-section {
     flex: 1.2;
-    padding: 12px;
+    padding: 10px;
   }
 
   .kiosk-video-header h1 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .kiosk-video-id {
@@ -298,8 +334,8 @@
 
   .kiosk-sidebar {
     flex: 1;
-    padding: 12px;
-    gap: 10px;
+    padding: 10px;
+    gap: 8px;
   }
 
   .kiosk-panel {
@@ -312,7 +348,7 @@
   }
 
   .kiosk-time-value {
-    font-size: 32px;
+    font-size: 26px;
   }
 
   .kiosk-date-value {
@@ -320,7 +356,7 @@
   }
 
   .kiosk-subject-title {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .kiosk-room-name {
@@ -328,13 +364,13 @@
   }
 
   .kiosk-gesture-icon {
-    font-size: 36px;
-    margin-bottom: 8px;
+    font-size: 30px;
+    margin-bottom: 6px;
   }
 
   .kiosk-gesture-card {
-    padding: 15px 8px;
-    min-width: 70px;
+    padding: 10px 6px;
+    min-width: 60px;
   }
 
   .kiosk-gesture-label {
@@ -342,7 +378,7 @@
   }
 
   .kiosk-checkins-list {
-    max-height: 150px;
+    max-height: 120px;
   }
 
   .kiosk-checkin-item {
@@ -396,5 +432,56 @@
 
   .kiosk-gestures-grid {
     gap: 8px;
+  }
+}
+
+@media (max-height: 520px) and (min-width: 700px) {
+  .kiosk-container {
+    overflow: hidden;
+  }
+
+  .kiosk-video-section {
+    padding: 8px;
+  }
+
+  .kiosk-video-header h1 {
+    font-size: 17px;
+  }
+
+  .kiosk-sidebar {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .kiosk-panel {
+    padding: 9px;
+  }
+
+  .kiosk-time-value {
+    font-size: 22px;
+  }
+
+  .kiosk-date-value {
+    font-size: 12px;
+  }
+
+  .kiosk-gesture-icon {
+    font-size: 24px;
+  }
+
+  .kiosk-gesture-label {
+    font-size: 10px;
+  }
+
+  .kiosk-checkins-list {
+    max-height: 98px;
+  }
+
+  .kiosk-checkin-item {
+    padding: 6px;
+  }
+
+  .kiosk-checkin-name {
+    font-size: 12px;
   }
 }

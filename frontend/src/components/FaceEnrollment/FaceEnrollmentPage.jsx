@@ -6,7 +6,7 @@ import './FaceEnrollmentPage.css';
 
 const FaceEnrollmentPage = () => {
     const navigate = useNavigate();
-    const { updateUser } = useAuth();
+    const { user, updateUser } = useAuth();
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
@@ -17,12 +17,10 @@ const FaceEnrollmentPage = () => {
     const [error, setError] = useState('');
     const [status, setStatus] = useState('Initializing camera...');
     const [cameraReady, setCameraReady] = useState(false);
+    const [lastAttemptFailed, setLastAttemptFailed] = useState(false);
 
     const REQUIRED_FRAMES = 15;
     const CAPTURE_INTERVAL = 500; // ms between captures
-
-    // Get user from localStorage - use 'currentUser' to match other layouts
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
     // Start webcam
     useEffect(() => {
@@ -44,7 +42,8 @@ const FaceEnrollmentPage = () => {
                 }
             } catch (err) {
                 console.error('Camera error:', err);
-                setError('Failed to access camera. Please allow camera permissions.');
+                setError('Camera access failed. Please allow camera permission and reload this page.');
+                setStatus('Camera unavailable. Enrollment cannot continue until camera permission is granted.');
             }
         };
 
@@ -88,6 +87,7 @@ const FaceEnrollmentPage = () => {
         setIsCapturing(true);
         setCapturedFrames([]);
         setError('');
+        setLastAttemptFailed(false);
         setStatus(`Capturing frames... (0/${REQUIRED_FRAMES})`);
 
         let frameCount = 0;
@@ -113,7 +113,72 @@ const FaceEnrollmentPage = () => {
 
     // Enrollment progress percentage (0-100)
     const [enrollProgress, setEnrollProgress] = useState(0);
-    const MIN_QUALITY = 0.80; // 80% minimum enrollment quality
+    const getFriendlyEnrollmentError = (err) => {
+        if (err.code === 'ECONNABORTED') {
+            return {
+                message: 'Enrollment timed out while waiting for the server. Please retake and try again.',
+                status: 'Server timeout. Check network stability and retry enrollment.',
+            };
+        }
+
+        if (!err.response) {
+            return {
+                message: 'No internet connection or server is unreachable. Please check your network and try again.',
+                status: 'Offline or backend unreachable.',
+            };
+        }
+
+        const detail = err.response?.data?.detail;
+        const errorPayload = detail?.error || detail;
+        const errorCode = errorPayload?.code;
+        const errorMessage = errorPayload?.message;
+        const errorDetails = errorPayload?.details || {};
+
+        if (errorCode === 'QUALITY_TOO_LOW') {
+            const qualityPct = typeof errorDetails.quality_score === 'number'
+                ? Math.round(errorDetails.quality_score * 100)
+                : null;
+            return {
+                message: qualityPct !== null
+                    ? `Face not registered: quality is ${qualityPct}%, below the required 80%.`
+                    : 'Face not registered: captured quality is below the required 80%.',
+                status: 'Improve lighting, keep your whole face centered, and avoid blur before retaking.',
+            };
+        }
+
+        if (errorCode === 'INSUFFICIENT_QUALITY_FRAMES') {
+            return {
+                message: 'Face not registered: not enough high-quality frames were captured.',
+                status: 'Hold still, keep your face visible, and retake in brighter lighting.',
+            };
+        }
+
+        if (errorCode === 'NO_FACE_DETECTED') {
+            return {
+                message: 'Face not registered: no clear face detected in the captured frames.',
+                status: 'Face the camera directly, remove obstructions, and retake.',
+            };
+        }
+
+        if (errorCode === 'DUPLICATE_FACE') {
+            return {
+                message: 'Possible facial duplication detected. This face appears to be already registered.',
+                status: 'Contact your administrator if you believe this is a mistake.',
+            };
+        }
+
+        if (err.response?.status >= 500) {
+            return {
+                message: 'Server error while processing enrollment.',
+                status: 'The backend is down or unstable. Please try again in a few minutes.',
+            };
+        }
+
+        return {
+            message: errorMessage || 'Enrollment failed. Please retake and try again.',
+            status: 'Enrollment did not complete. Please retake your capture.',
+        };
+    };
 
     // Submit enrollment with progress percentage
     const enrollFace = async () => {
@@ -123,7 +188,7 @@ const FaceEnrollmentPage = () => {
         }
 
         // Check if user is logged in
-        const userId = user.id || user.user_id;
+        const userId = user?.id || user?.user_id;
         if (!userId) {
             setError('User not found. Please log in again.');
             navigate('/');
@@ -132,6 +197,7 @@ const FaceEnrollmentPage = () => {
 
         setIsEnrolling(true);
         setError('');
+        setLastAttemptFailed(false);
         setEnrollProgress(0);
 
         // Simulated progress phases while backend processes
@@ -173,29 +239,17 @@ const FaceEnrollmentPage = () => {
             if (response.data.success) {
                 const qualityPct = (response.data.quality_score * 100).toFixed(0);
 
-                // Check if quality meets minimum threshold (80%)
-                if (response.data.quality_score < MIN_QUALITY) {
-                    setEnrollProgress(0);
-                    setError(
-                        `Enrollment quality is ${qualityPct}%, which is below the required 80% threshold. ` +
-                        'Please retake your photo with better lighting, face the camera directly, ' +
-                        'and ensure your face is clearly visible.'
-                    );
-                    setStatus('Quality check failed. Please retake.');
-                    return;
-                }
-
                 setEnrollProgress(100);
                 setStatus(`Face enrolled successfully. Enrollment quality: ${qualityPct}%`);
 
                 // Update user in localStorage AND AuthContext
-                const updatedUser = { ...user, face_registered: true };
+                const updatedUser = { ...(user || {}), face_registered: true };
                 localStorage.setItem('currentUser', JSON.stringify(updatedUser));
                 updateUser({ face_registered: true });
 
                 // Redirect to dashboard based on role
                 setTimeout(() => {
-                    const userRole = user.role?.toLowerCase();
+                    const userRole = user?.role?.toLowerCase();
                     if (userRole === 'student') {
                         navigate('/student-dashboard');
                     } else if (userRole === 'head' || userRole === 'dept_head') {
@@ -210,27 +264,17 @@ const FaceEnrollmentPage = () => {
                 }, 2000);
             } else {
                 setEnrollProgress(0);
-                setError(response.data.message || 'Enrollment failed. Please try again.');
+                setLastAttemptFailed(true);
+                setError(response.data.message || 'Enrollment failed. Please retake and try again.');
+                setStatus('Enrollment did not complete. Retake is required.');
             }
         } catch (err) {
             clearTimeout(phaseTimeout);
             setEnrollProgress(0);
-
-            let errorMessage = 'Enrollment failed. Please try again.';
-
-            if (err.code === 'ECONNABORTED') {
-                errorMessage = 'The request timed out, but enrollment may have completed in the background. Please refresh the page or log out and back in to check if your face was registered.';
-            } else if (err.response?.data?.detail) {
-                const detail = err.response.data.detail;
-                if (typeof detail === 'string') {
-                    errorMessage = detail;
-                } else if (Array.isArray(detail)) {
-                    errorMessage = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
-                } else if (typeof detail === 'object') {
-                    errorMessage = detail.msg || detail.message || JSON.stringify(detail);
-                }
-            }
-            setError(errorMessage);
+            setLastAttemptFailed(true);
+            const feedback = getFriendlyEnrollmentError(err);
+            setError(feedback.message);
+            setStatus(feedback.status);
         } finally {
             setIsEnrolling(false);
         }
@@ -240,6 +284,7 @@ const FaceEnrollmentPage = () => {
     const resetCapture = () => {
         setCapturedFrames([]);
         setError('');
+        setLastAttemptFailed(false);
         setStatus('Camera ready. Click "Start Capture" to begin.');
     };
 
@@ -306,7 +351,7 @@ const FaceEnrollmentPage = () => {
                         </button>
                     )}
 
-                    {capturedFrames.length >= REQUIRED_FRAMES && !isEnrolling && (
+                    {capturedFrames.length >= REQUIRED_FRAMES && !isEnrolling && !lastAttemptFailed && (
                         <>
                             <button className="btn-primary" onClick={enrollFace}>
                                 <i className="fas fa-check-circle" style={{ marginRight: '8px' }}></i> Enroll Face
@@ -315,6 +360,12 @@ const FaceEnrollmentPage = () => {
                                 <i className="fas fa-redo" style={{ marginRight: '8px' }}></i> Retake
                             </button>
                         </>
+                    )}
+
+                    {capturedFrames.length >= REQUIRED_FRAMES && !isEnrolling && lastAttemptFailed && (
+                        <button className="btn-secondary" onClick={resetCapture}>
+                            <i className="fas fa-redo" style={{ marginRight: '8px' }}></i> Retake
+                        </button>
                     )}
 
                     {isEnrolling && (
