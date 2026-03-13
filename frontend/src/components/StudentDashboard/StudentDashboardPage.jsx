@@ -128,7 +128,7 @@ const LiveClassStatus = ({ recentLog }) => {
 const StudentMetricsPanel = ({ metrics }) => {
     if (!metrics) return null;
 
-    const renderMeter = (rate, color, label) => {
+    const renderMeter = (rate, color, label, explanation) => {
         const pct = Math.min(Math.max(rate, 0), 100);
         return (
             <div className="metrics-meter">
@@ -139,6 +139,7 @@ const StudentMetricsPanel = ({ metrics }) => {
                 <div className="metrics-bar-bg">
                     <div className="metrics-bar-fill" style={{ width: `${pct}%`, '--bar-color': color }} />
                 </div>
+                {explanation && <p className="metrics-explanation">{explanation}</p>}
             </div>
         );
     };
@@ -156,7 +157,12 @@ const StudentMetricsPanel = ({ metrics }) => {
                 Performance Metrics
             </h3>
 
-            {renderMeter(metrics.attendance_rate, metrics.attendance_tier_color, 'Attendance Rate')}
+            {renderMeter(
+                metrics.attendance_rate,
+                metrics.attendance_tier_color,
+                'Attendance Rate',
+                "Shows your record of حضور (presence) across all enrolled courses."
+            )}
             <div className="metrics-detail-row">
                 <span className="metrics-detail-text">
                     {metrics.sessions_attended} / {metrics.total_sessions} sessions
@@ -164,7 +170,12 @@ const StudentMetricsPanel = ({ metrics }) => {
                 {renderTierBadge(metrics.attendance_tier, metrics.attendance_tier_color)}
             </div>
 
-            {renderMeter(metrics.punctuality_rate, metrics.punctuality_tier_color, 'Punctuality Rate')}
+            {renderMeter(
+                metrics.punctuality_rate,
+                metrics.punctuality_tier_color,
+                'Punctuality Rate',
+                "Measures how consistently you arrive on time for your classes."
+            )}
             <div className="metrics-detail-row metrics-detail-last">
                 <span className="metrics-detail-text">
                     {metrics.on_time_arrivals} on-time / {metrics.late_arrivals} late
@@ -567,19 +578,12 @@ const StudentDashboardPage = () => {
                 metrics={metrics}
             />
 
-            {/* NEW 2-COLUMN LAYOUT */}
+            {/* REORGANIZED 2-ROW, 2-COLUMN LAYOUT */}
             <div className="dashboard-main-layout">
-                {/* LEFT: 70% Chart */}
-                <div className="dashboard-left-column">
-                    <AttendanceTrendChart logs={allLogs} />
-                </div>
-
-                {/* RIGHT: 30% Status & History */}
-                <div className="dashboard-right-column">
-                    <LiveClassStatus recentLog={latestLog} />
-                    <StudentMetricsPanel metrics={metrics} />
-                    <StudentRecentAttendance logs={dashboardData.recent_attendance} />
-                </div>
+                <StudentMetricsPanel metrics={metrics} />
+                <LiveClassStatus recentLog={latestLog} />
+                <AttendanceTrendChart logs={allLogs} />
+                <StudentRecentAttendance logs={dashboardData.recent_attendance} />
             </div>
         </div>
     );
