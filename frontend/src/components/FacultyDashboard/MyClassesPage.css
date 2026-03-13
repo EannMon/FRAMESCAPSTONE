@@ -225,10 +225,13 @@
 /* Action Buttons */
 .action-area {
     margin-top: auto;
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
 }
 
 .faculty-take-attendance-btn {
-    width: 100%;
+    flex: 1;
     background: #163269;
     color: white;
     border: none;
@@ -247,6 +250,27 @@
     background: #0F2448;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(22, 50, 105, 0.3);
+}
+
+.faculty-delete-class-btn {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(220, 38, 38, 0.2);
+}
+
+.faculty-delete-class-btn:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
 }
 
 /* --- REAL CALENDAR STYLES --- */

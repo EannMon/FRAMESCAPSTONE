@@ -97,7 +97,7 @@ async def create_support_ticket(
         user_id=user_id,
         subject=subject.strip(),
         message=message.strip(),
-        status=TicketStatus.OPEN,
+        status=TicketStatus.SUBMITTED,
         evidence_files=",".join(saved_paths) if saved_paths else None,
     )
     db.add(ticket)
@@ -130,7 +130,7 @@ async def create_support_ticket(
     return {
         "success": True,
         "ticket_id": ticket.id,
-        "status": ticket.status.value if ticket.status else "OPEN",
+        "status": ticket.status.value if ticket.status else "SUBMITTED",
         "message": "Support ticket submitted successfully" + (" and sent to support team" if email_sent else ""),
     }
 
@@ -162,7 +162,7 @@ def get_user_tickets(
                 "id": t.id,
                 "subject": t.subject,
                 "message": t.message,
-                "status": t.status.value if t.status else "OPEN",
+                "status": t.status.value if t.status else "SUBMITTED",
                 "evidence_files": t.evidence_files.split(",") if t.evidence_files else [],
                 "created_at": t.created_at.isoformat() if t.created_at else None,
             }
@@ -171,4 +171,52 @@ def get_user_tickets(
         "total": total,
         "skip": skip,
         "limit": limit,
+    }
+
+
+@router.post("/support-tickets/{ticket_id}/mark-replied")
+def mark_ticket_replied(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Mark a support ticket as replied and send email notification to user.
+    Called by support team after they've replied via email.
+    """
+    ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+    if not ticket:
+        raise api_error(404, "TICKET_NOT_FOUND", "Support ticket not found")
+    
+    # Get user email
+    user = db.query(User).filter(User.id == ticket.user_id).first()
+    if not user or not user.email:
+        raise api_error(404, "USER_NOT_FOUND", "User or user email not found")
+    
+    # Mark ticket as replied
+    ticket.status = TicketStatus.REPLIED
+    db.commit()
+    
+    # Send email notification to user
+    from services.email_service import send_email
+    try:
+        send_email(
+            recipient_email=user.email,
+            subject=f"Re: {ticket.subject} - Support Reply",
+            html_content=f"""
+            <p>Hi {user.full_name},</p>
+            <p>Your support ticket has received a reply:</p>
+            <p><strong>Ticket:</strong> #{ticket.id} - {ticket.subject}</p>
+            <p>Please check your email for the support team's response. They will respond directly to this email.</p>
+            <p>Best regards,<br/>FRAMES Support System</p>
+            """
+        )
+        logger.info("Reply notification sent for ticket %d to %s", ticket_id, user.email)
+    except Exception as e:
+        logger.error("Failed to send reply notification for ticket %d: %s", ticket_id, str(e))
+    
+    return {
+        "success": True,
+        "ticket_id": ticket_id,
+        "status": ticket.status.value,
+        "message": "Ticket marked as replied and user notified via email"
     }
