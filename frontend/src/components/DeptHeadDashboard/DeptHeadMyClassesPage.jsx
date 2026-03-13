@@ -133,6 +133,56 @@ const DeptHeadMyClassesPage = () => {
         }
     };
 
+    // --- HELPER: Calculate class status based on schedule ---
+    const getClassStatus = (classData) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Days of week mapping
+        const dayOfWeekMap = {
+            'Sunday': 0,
+            'Monday': 1,
+            'Tuesday': 2,
+            'Wednesday': 3,
+            'Thursday': 4,
+            'Friday': 5,
+            'Saturday': 6
+        };
+
+        const classDay = dayOfWeekMap[classData.day_of_week];
+        if (classDay === undefined) return 'no-bar'; // Invalid day
+
+        // Find the next occurrence of this class day
+        let nextClassDate = new Date(today);
+        let daysUntilClass = (classDay - nextClassDate.getDay() + 7) % 7;
+
+        if (daysUntilClass === 0) {
+            // Class is today, check if it's ongoing
+            const now = new Date();
+            const [hour, min] = classData.start_time.split(':').map(Number);
+            const classStartTime = new Date(today);
+            classStartTime.setHours(hour, min, 0);
+
+            // Assume 1 hour class duration
+            const classEndTime = new Date(classStartTime);
+            classEndTime.setHours(classEndTime.getHours() + 1);
+
+            if (now >= classStartTime && now < classEndTime) {
+                return 'ongoing';
+            } else if (now < classStartTime) {
+                return 'upcoming'; // Class is today but hasn't started yet
+            } else {
+                return 'no-bar'; // Class already finished
+            }
+        } else if (daysUntilClass > 0 && daysUntilClass <= 2) {
+            // Class is within next 2 days
+            return 'upcoming';
+        } else {
+            // Class is more than 2 days away or in the past
+            return 'no-bar';
+        }
+    };
+
     // --- 3. CALENDAR GENERATOR (DB Schedule -> Calendar Dates) ---
     const generateCalendarEvents = (classes, targetDate) => {
         const events = [];
@@ -581,35 +631,42 @@ const DeptHeadMyClassesPage = () => {
     const renderClassCards = () => (
         <div className="faculty-classes-grid fade-in">
             {myClasses.length > 0 ? (
-                myClasses.map((cls) => (
-                    <div key={cls.id} className={`card faculty-class-card ${cls.status === 'ongoing' ? 'today-active' : ''}`}>
-                        <div className="card-status-badge">
-                            {cls.status === 'ongoing' ? <span className="badge-today">Ongoing</span> : <span className="badge-upcoming">Upcoming</span>}
-                        </div>
-                        <div className="faculty-class-header">
-                            <h3>{cls.subject_title}</h3>
-                            <span className="faculty-class-code">{cls.subject_code}</span>
-                        </div>
-                        <div className="faculty-class-details">
-                            <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {formatTo12Hr(cls.start_time)}</div>
-                            <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
-                            <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
-                        </div>
+                myClasses.map((cls) => {
+                    const classStatus = getClassStatus(cls);
+                    const shouldShowBadge = classStatus !== 'no-bar';
+                    
+                    return (
+                        <div key={cls.id} className={`card faculty-class-card ${classStatus === 'ongoing' ? 'today-active' : ''}`}>
+                            {shouldShowBadge && (
+                                <div className="card-status-badge">
+                                    {classStatus === 'ongoing' ? <span className="badge-today">Ongoing</span> : <span className="badge-upcoming">Upcoming</span>}
+                                </div>
+                            )}
+                            <div className="faculty-class-header">
+                                <h3>{cls.subject_title}</h3>
+                                <span className="faculty-class-code">{cls.subject_code}</span>
+                            </div>
+                            <div className="faculty-class-details">
+                                <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {formatTo12Hr(cls.start_time)}</div>
+                                <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
+                                <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
+                            </div>
 
-                        <div className="attendance-preview-bar">
-                            <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
-                            <div className="progress-track">
-                                <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
+                            <div className="attendance-preview-bar">
+                                <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
+                                <div className="progress-track">
+                                    <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
+                                </div>
+                            </div>
+
+                            <div className="action-area">
+                                <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
+                                    <i className="fas fa-user-check"></i> View Attendance
+                                </button>
                             </div>
                         </div>
-
-                        <div className="action-area">
-                            <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
-                                <i className="fas fa-user-check"></i> View Attendance
-                            </button>
-                        </div>
-                    </div>
-                ))
+                    );
+                })
             ) : (
                 <div className="no-classes-message">
                     {loading ? "Loading classes..." : "No classes assigned."}
