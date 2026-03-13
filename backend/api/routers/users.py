@@ -58,9 +58,11 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
     Self-contained hashing to avoid circular imports.
     """
     try:
+        logger.info("AUTH | change_password requested for user_id=%d", data.user_id)
         user = db.query(User).filter(User.id == data.user_id).first()
         
         if not user:
+            logger.warning("AUTH | change_password failed: user_id=%d not found", data.user_id)
             raise api_error(
                 status_code=status.HTTP_404_NOT_FOUND,
                 code="USER_NOT_FOUND",
@@ -69,6 +71,7 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
         
         # Validation
         if len(data.new_password) < 8:
+            logger.warning("AUTH | change_password failed: weak password for user_id=%d", data.user_id)
             raise api_error(400, "WEAK_PASSWORD", "Password must be at least 8 characters")
 
         # Direct bcrypt hashing
@@ -77,6 +80,7 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
         
         user.password_hash = new_hash
         db.commit()
+        db.refresh(user)
         
         logger.info("AUTH | Password updated successfully for user_id=%d", data.user_id)
         return MessageResponse(message="Password updated successfully")
@@ -87,10 +91,8 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db)):
         db.rollback()
         import traceback
         error_trace = traceback.format_exc()
-        logger.error("AUTH | Critical failure in change_password: %s\n%s", str(e), error_trace)
-        # Direct print to ensure visibility in console
-        print(f"\n[CRITICAL ERROR] change_password: {str(e)}\n{error_trace}")
-        raise api_error(500, "INTERNAL_ERROR", f"Interal server error: {str(e)}")
+        logger.error("AUTH | Critical failure in change_password for user_id=%d: %s\n%s", data.user_id, str(e), error_trace)
+        raise api_error(500, "INTERNAL_ERROR", f"Internal server error: {str(e)}")
 
 
 @router.get("/{user_id}", response_model=UserResponse)
