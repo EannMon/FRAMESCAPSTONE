@@ -134,30 +134,17 @@
 .dashboard-main-layout {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 2.5fr 1fr;
-    /* 70% - 30% roughly */
+    grid-template-columns: 1.7fr 1fr;
+    grid-template-rows: auto auto;
     gap: 20px;
-    /* Reduced from 25px */
-    align-items: start;
-}
-
-.dashboard-left-column {
-    display: flex;
-    flex-direction: column;
-}
-
-.dashboard-right-column {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
+    align-items: stretch;
 }
 
 /* --- LIVE STATUS CARD (Right Panel) --- */
 .live-status-card {
     background: white;
     border-radius: 12px;
-    padding: 16px;
-    /* Reduced from 20px */
+    padding: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
@@ -239,8 +226,7 @@
 .student-recent-attendance {
     background: white;
     border-radius: 12px;
-    padding: 16px;
-    /* Reduced from 20px */
+    padding: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
@@ -300,7 +286,7 @@
 .attendance-trend-chart-card {
     background: white;
     border-radius: 12px;
-    padding: 25px;
+    padding: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
@@ -401,6 +387,7 @@
 .svg-chart-container {
     width: 100%;
     margin-bottom: 15px;
+    height: 350px !important;
 }
 
 .trend-svg {
@@ -460,24 +447,8 @@
     .dashboard-main-layout {
         grid-template-columns: 1fr;
     }
-
-    /* Stack layout on tablet/mobile */
-    .dashboard-right-column {
-        flex-direction: row;
-        gap: 20px;
-    }
-
-    .live-status-card,
-    .student-recent-attendance {
-        flex: 1;
-    }
 }
 
-@media (max-width: 900px) {
-    .dashboard-right-column {
-        flex-direction: column;
-    }
-}
 
 @media (max-width: 768px) {
     .student-summary-cards-container {
@@ -616,9 +587,17 @@
     color: var(--text-muted, #ccc);
 }
 
+.metrics-explanation {
+    font-size: 0.75rem;
+    color: var(--text-muted, #777);
+    margin-top: 6px;
+    line-height: 1.4;
+    font-style: italic;
+}
+
 /* Metrics Panel */
 .metrics-panel {
-    padding: 16px 18px;
+    padding: 20px;
 }
 
 .metrics-panel-title {

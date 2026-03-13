@@ -352,9 +352,17 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
     
-    if user.verification_status != VerificationStatus.VERIFIED:
+    # Relaxed verification check: check if value or string matches "Verified"
+    is_verified = False
+    if hasattr(user.verification_status, 'value'):
+        is_verified = user.verification_status.value == "Verified"
+    else:
+        is_verified = str(user.verification_status) == "Verified"
+
+    if not is_verified:
+        logger.warning("DASHBOARD | student=%d not verified (status=%s)", user_id, user.verification_status)
         return StudentDashboard(
-            attendance_rate="N/A",
+            attendance_rate="0%",
             enrolled_courses=0,
             notifications=[{"message": "Account pending admin approval", "icon": "fa-user-lock"}],
             recent_attendance=[]
@@ -410,8 +418,10 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
 
         rate = round(sessions_attended / total_sessions * 100, 1) if total_sessions > 0 else 0.0
         attendance_rate = f"{rate}%"
+        logger.info("DASHBOARD | student=%d sessions=%d/%d rate=%s", user_id, sessions_attended, total_sessions, attendance_rate)
     else:
         attendance_rate = "0%"
+        logger.info("DASHBOARD | student=%d NOT_ENROLLED", user_id)
     
     # Get recent attendance — eager load Class + Subject in one query (no N+1)
     recent_logs = (
