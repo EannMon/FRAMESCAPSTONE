@@ -247,8 +247,7 @@
     text-transform: uppercase;
     /* Match reference image */
     letter-spacing: 0.5px;
-    color: #0F172A;
-    /* Ensure Dark Navy */
+    color: var(--header-text);
 }
 
 .dropdown-icon {

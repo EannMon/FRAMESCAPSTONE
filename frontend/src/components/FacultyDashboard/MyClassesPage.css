@@ -1496,3 +1496,249 @@
 .schedule-filter-btn-warning:hover {
     background-color: #F57F17 !important;
 }
+
+/* ============================================
+   DARK MODE OVERRIDES - MyClassesPage
+   ============================================ */
+
+body.dark-mode .view-toggle-header h2 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-buttons {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-btn {
+    color: #94A3B8;
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-btn:hover {
+    color: #F8FAFC;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .faculty-my-classes-container .toggle-btn.active {
+    background: #163269;
+    color: white;
+}
+
+/* Calendar Container */
+body.dark-mode .real-calendar-container {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .cal-title-group h3 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .cal-instruction {
+    color: #64748B;
+}
+
+body.dark-mode .calendar-grid-wrapper {
+    border-color: #334155;
+}
+
+body.dark-mode .cal-header-row {
+    background: #0F172A;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .cal-header-row div {
+    color: #94A3B8;
+}
+
+body.dark-mode .cal-cell {
+    background: #1E293B;
+    border-right-color: #334155;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .cal-cell.empty {
+    background: #1a2332;
+}
+
+body.dark-mode .cal-cell.past-day {
+    background: #151c27;
+}
+
+body.dark-mode .cal-cell.past-clickable:hover {
+    background: #334155;
+}
+
+body.dark-mode .cal-day-number {
+    color: #F8FAFC;
+}
+
+body.dark-mode .past-summary-badge {
+    background: rgba(34, 197, 94, 0.1);
+    color: #4ADE80;
+}
+
+/* Event Pills */
+body.dark-mode .cal-event-pill {
+    background: #334155;
+    color: #CBD5E1;
+}
+
+body.dark-mode .cal-event-green {
+    background: rgba(34, 197, 94, 0.1);
+    color: #4ADE80;
+    border-left-color: #22C55E;
+}
+
+body.dark-mode .cal-event-blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60A5FA;
+    border-left-color: #3B82F6;
+}
+
+body.dark-mode .cal-event-purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #A78BFA;
+    border-left-color: #8B5CF6;
+}
+
+body.dark-mode .cal-event-red {
+    background: rgba(239, 68, 68, 0.1);
+    color: #F87171;
+    border-left-color: #EF4444;
+}
+
+body.dark-mode .pill-check {
+    color: #60A5FA;
+}
+
+/* Upload Section */
+body.dark-mode .upload-section,
+body.dark-mode .history-section {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .upload-section h3,
+body.dark-mode .history-section h3 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .history-item {
+    background: #151c27;
+    border-color: #334155;
+}
+
+body.dark-mode .history-item:hover {
+    border-color: #163269;
+    background: #1e293b;
+}
+
+body.dark-mode .file-icon-box {
+    background: #334155;
+    color: #94A3B8;
+}
+
+body.dark-mode .file-name {
+    color: #F8FAFC;
+}
+
+body.dark-mode .file-meta {
+    color: #64748B;
+}
+
+body.dark-mode .status-pill.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #4ADE80;
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Sheet View Header */
+body.dark-mode .class-info-header h2 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .highlight-code {
+    color: #60A5FA;
+}
+
+body.dark-mode .class-info-header p {
+    color: #94A3B8;
+}
+
+/* Preview & Tables */
+body.dark-mode .students-list-wrapper {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .preview-header h3 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .preview-meta {
+    color: #94A3B8;
+}
+
+body.dark-mode .preview-course-card {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .preview-course-header h4 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .preview-detail-row {
+    color: #94A3B8;
+}
+
+body.dark-mode .preview-student-count {
+    color: #94A3B8;
+}
+
+body.dark-mode .preview-add-student-row {
+    border-top-color: #334155;
+}
+
+body.dark-mode .preview-add-student-row input {
+    background: #0F172A;
+    border-color: #334155;
+    color: #E2E8F0;
+}
+
+body.dark-mode .preview-action-bar {
+    border-top-color: #334155;
+}
+
+body.dark-mode .cancel-btn {
+    background: #1E293B;
+    border-color: #334155;
+    color: #94A3B8;
+}
+
+body.dark-mode .cancel-btn:hover {
+    background: #334155;
+    color: #F8FAFC;
+}
+
+/* Modals */
+body.dark-mode .manage-modal {
+    background: #1E293B;
+}
+
+body.dark-mode .modal-header h3 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .info-banner {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60A5FA;
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+body.dark-mode .locked-field {
+    background: #0F172A;
+    border-color: #334155;
+    color: #E2E8F0;
+}
