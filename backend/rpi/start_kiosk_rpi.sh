@@ -171,6 +171,9 @@ DISPLAY=:0 chromium-browser \
     --noerrdialogs \
     --disable-infobars \
     --disable-session-crashed-bubble \
+    --window-size=800,480 \
+    --force-device-scale-factor=1 \
+    --high-dpi-support=1 \
     --check-for-update-interval=604800 \
     --disable-features=Translate \
     "$KIOSK_URL" &

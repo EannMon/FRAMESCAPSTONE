@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 import base64
 import time
+import os
 from io import BytesIO
 from typing import List, Tuple, Optional
 import logging
@@ -189,8 +190,8 @@ def compare_embeddings(embedding1: bytes, embedding2: bytes) -> float:
 
 
 # Threshold for considering two embeddings as belonging to the same person.
-# This matches the recognition threshold used in enrollment/kiosk.
-DUPLICATE_FACE_THRESHOLD = 0.6
+# buffalo_sc tends to need a slightly stricter duplicate gate during enrollment.
+DUPLICATE_FACE_THRESHOLD = float(os.getenv("DUPLICATE_FACE_THRESHOLD", "0.55"))
 
 
 def check_embedding_uniqueness(
