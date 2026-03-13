@@ -175,6 +175,21 @@ def create_subject(req: SubjectCreate, db: Session = Depends(get_db)):
     db.add(new_sub)
     db.commit()
     db.refresh(new_sub)
+
+    # Log Audit Entry (Task: Full Activity Tracking)
+    from models.audit_log import AuditLog, AuditActions
+    from datetime import datetime, timezone
+    audit_entry = AuditLog(
+        user_id=req.user_id,
+        action_type=AuditActions.SUBJECT_CREATE,
+        target_table="subjects",
+        target_id=new_sub.id,
+        new_value={"code": new_sub.code, "title": new_sub.title},
+        timestamp=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
+    db.commit()
+
     return {"message": "Subject created", "id": new_sub.id}
 
 
@@ -189,6 +204,21 @@ def delete_subject(subject_id: int, db: Session = Depends(get_db)):
     db.query(Class).filter(Class.subject_id == subject_id).delete()
     db.delete(subject)
     db.commit()
+
+    # Log Audit Entry (Task: Full Activity Tracking)
+    from models.audit_log import AuditLog, AuditActions
+    from datetime import datetime, timezone
+    audit_entry = AuditLog(
+        user_id=None, # System-level delete
+        action_type=AuditActions.SUBJECT_DELETE,
+        target_table="subjects",
+        target_id=subject_id,
+        new_value={"code": subject.code},
+        timestamp=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
+    db.commit()
+
     logger.info("Deleted subject %d (%s)", subject_id, subject.code)
     return {"message": f"Subject {subject.code} deleted"}
 
@@ -216,6 +246,21 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
         if cls:
             cls.faculty_id = faculty.id
             db.commit()
+
+            # Log Audit Entry (Task: Full Activity Tracking)
+            from models.audit_log import AuditLog, AuditActions
+            from datetime import datetime, timezone
+            audit_entry = AuditLog(
+                user_id=None,
+                action_type=AuditActions.FACULTY_ASSIGN,
+                target_table="classes",
+                target_id=cls.id,
+                new_value={"faculty_id": faculty.id, "subject_code": subject.code},
+                timestamp=datetime.now(timezone.utc)
+            )
+            db.add(audit_entry)
+            db.commit()
+
             return {"message": "Faculty assigned to existing class"}
     
     # Create new class if no ID or ID n/a
@@ -350,6 +395,20 @@ def update_academic_year(req: AcademicYearUpdate, db: Session = Depends(get_db))
         except ValueError:
             logger.warning("Invalid semester_end_date format: %s", req.semester_end_date)
     
+    db.commit()
+    
+    # Log Audit Entry (Task: Full Activity Tracking)
+    from models.audit_log import AuditLog, AuditActions
+    from datetime import datetime, timezone
+    audit_entry = AuditLog(
+        user_id=req.user_id,
+        action_type=AuditActions.ACADEMIC_YEAR_UPDATE,
+        target_table="departments",
+        target_id=dept.id,
+        new_value={"academic_year": req.academic_year, "semester": req.semester},
+        timestamp=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
     db.commit()
     
     logger.info("Academic year updated to %s %s for department %s", req.academic_year, req.semester, dept.name)
