@@ -1,7 +1,7 @@
 {
   "device_id": 1,
   "device_room": "Room 328",
-  "synced_at": "2026-03-07T14:53:23.380756",
+  "synced_at": "2026-03-11T13:36:39.273512",
   "schedule": [
     {
       "class_id": 3,
@@ -11,8 +11,22 @@
       "faculty_name": "EMMANUEL LUNGAY",
       "section": "BSIT-3A-M",
       "day_of_week": "Saturday",
-      "start_time": "01:00:00",
+      "start_time": "18:50:00",
       "end_time": "22:00:00",
+      "room": "Room 328",
+      "semester": "2nd Semester",
+      "academic_year": "2025-2026"
+    },
+    {
+      "class_id": 4,
+      "subject_code": "IT232-M",
+      "subject_title": "Computer Architecture and Organization, Lec",
+      "faculty_id": 1,
+      "faculty_name": "EMMANUEL LUNGAY",
+      "section": "BSIT-2B-M",
+      "day_of_week": "Wednesday",
+      "start_time": "13:30:00",
+      "end_time": "16:00:00",
       "room": "Room 328",
       "semester": "2nd Semester",
       "academic_year": "2025-2026"

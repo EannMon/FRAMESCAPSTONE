@@ -16,6 +16,9 @@ from models.facial_profile import FacialProfile
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/face", tags=["Face"])
 
+MINIMUM_ENROLLMENT_QUALITY = 0.80
+MINIMUM_VALID_SAMPLES = 5
+
 
 # ============================================
 # Schemas
@@ -41,6 +44,31 @@ class FaceStatusResponse(BaseModel):
     model_version: str = ""
 
 
+def _map_enrollment_value_error(error: ValueError) -> tuple:
+    """Map internal enrollment ValueError text to a stable API error contract."""
+    normalized = str(error).lower()
+
+    if "no valid faces" in normalized or "no face" in normalized:
+        return (
+            400,
+            "NO_FACE_DETECTED",
+            "No clear face was detected in the captured frames. Please face the camera directly and improve lighting.",
+        )
+
+    if "decode image" in normalized:
+        return (
+            400,
+            "INVALID_IMAGE_DATA",
+            "Captured image data is invalid. Please retake your photos and try again.",
+        )
+
+    return (
+        400,
+        "ENROLLMENT_VALIDATION_FAILED",
+        "Face enrollment validation failed. Please retake with better lighting and keep your face centered.",
+    )
+
+
 # ============================================
 # Endpoints
 # ============================================
@@ -53,7 +81,11 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
     Extracts embeddings using InsightFace, checks for duplicate faces
     across all existing profiles, and stores the averaged result.
     """
-    from services.face_enrollment import process_enrollment_frames, check_embedding_uniqueness
+    from services.face_enrollment import (
+        process_enrollment_frames,
+        check_embedding_uniqueness,
+        DUPLICATE_FACE_THRESHOLD,
+    )
     from sqlalchemy import text
     
     # Validate user exists
@@ -74,6 +106,40 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
         # Process frames and extract embeddings
         embedding_bytes, num_samples, avg_quality = process_enrollment_frames(body.frames)
         
+        if num_samples < MINIMUM_VALID_SAMPLES:
+            logger.warning(
+                "Enrollment rejected for user %d: only %d valid frames (min=%d)",
+                body.user_id,
+                num_samples,
+                MINIMUM_VALID_SAMPLES,
+            )
+            raise api_error(
+                400,
+                "INSUFFICIENT_QUALITY_FRAMES",
+                "Not enough high-quality frames were captured. Please retake with better lighting and keep your face centered.",
+                {"valid_frames": num_samples, "minimum_required": MINIMUM_VALID_SAMPLES},
+            )
+
+        # Reject enrollment if average quality is below threshold.
+        # Backend enforcement ensures no low-quality embedding can be stored
+        # even if frontend checks are bypassed.
+        if avg_quality < MINIMUM_ENROLLMENT_QUALITY:
+            logger.warning(
+                "Enrollment rejected for user %d: quality=%.4f below threshold=%.2f",
+                body.user_id, avg_quality, MINIMUM_ENROLLMENT_QUALITY,
+            )
+            raise api_error(
+                400,
+                "QUALITY_TOO_LOW",
+                f"Enrollment quality ({avg_quality * 100:.1f}%) is below the required 80%. "
+                "Please retry in better lighting with your face clearly visible.",
+                {
+                    "quality_score": round(avg_quality, 4),
+                    "minimum_required": MINIMUM_ENROLLMENT_QUALITY,
+                    "hint": "Use brighter lighting, keep your full face visible, and avoid motion blur.",
+                },
+            )
+
         # ── Duplicate face check ──────────────────────────────────
         # Compare the new embedding against ALL existing profiles
         # (excluding this user's own) to prevent the same person
@@ -93,8 +159,11 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 "DUPLICATE_FACE",
                 "This face is already registered under another account. "
                 "Please contact administration if you believe this is an error.",
+                {
+                    "similarity": round(similarity, 4),
+                    "threshold": DUPLICATE_FACE_THRESHOLD,
+                },
             )
-        # ──────────────────────────────────────────────────────────
         
         # Check if user already has a facial profile
         existing_profile = db.query(FacialProfile).filter(
@@ -115,7 +184,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 'embedding': embedding_bytes,
                 'num_samples': num_samples,
                 'quality': avg_quality,
-                'model_version': 'insightface_buffalo_l_v1',
+                'model_version': 'insightface_buffalo_sc_v1',
                 'user_id': body.user_id
             })
             logger.info("Updated existing facial profile for user %d", body.user_id)
@@ -126,7 +195,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
                 embedding=embedding_bytes,
                 num_samples=num_samples,
                 enrollment_quality=avg_quality,
-                model_version="insightface_buffalo_l_v1"
+                model_version="insightface_buffalo_sc_v1"
             )
             db.add(new_profile)
             logger.info("Created new facial profile for user %d", body.user_id)
@@ -151,10 +220,18 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
         
     except HTTPException:
         # Re-raise HTTP errors (including our DUPLICATE_FACE error) as-is
+        db.rollback()
         raise
     except ValueError as e:
-        logger.error("Enrollment failed for user %d: %s", body.user_id, str(e))
-        raise api_error(400, "ENROLLMENT_FAILED", str(e))
+        db.rollback()
+        status_code, error_code, message = _map_enrollment_value_error(e)
+        logger.warning(
+            "Enrollment validation failed for user %d: code=%s reason=%s",
+            body.user_id,
+            error_code,
+            str(e),
+        )
+        raise api_error(status_code, error_code, message)
     except Exception as e:
         logger.exception("Unexpected enrollment error for user %d", body.user_id)
         db.rollback()

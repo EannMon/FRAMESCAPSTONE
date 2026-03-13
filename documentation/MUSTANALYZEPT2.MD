@@ -193,3 +193,4 @@ ErrorBoundary.jsx:23 [FRAMES ErrorBoundary] RangeError: Invalid time value
 27. Analyze and fix if needed also the `backendlogs.txt`
 
 
+28. do not let other faculty upload a schedule that has the same subject code with the same semester and academic year the already uploaded. 

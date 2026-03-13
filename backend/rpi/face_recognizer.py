@@ -3,11 +3,13 @@ Face Recognizer using InsightFace
 Extracts 512-d embeddings for face matching.
 
 CRITICAL: The recognition model MUST match the enrollment model!
-- Enrollment uses: buffalo_l (server-side)
-- Recognition MUST use: buffalo_l (same model)
+- Enrollment uses: buffalo_sc (server-side)
+- Recognition MUST use: buffalo_sc (same model)
 
 buffalo_l and buffalo_sc produce DIFFERENT embedding spaces despite
 both outputting 512-d vectors. Cross-model similarity will be near-random.
+
+buffalo_sc uses MobileNet backbone — ~7-10x faster than buffalo_l on RPi CPU.
 """
 import numpy as np
 import cv2
@@ -23,11 +25,11 @@ _loaded_model_name = None
 _loaded_det_size = None
 
 
-def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] = (640, 640)):
+def get_face_analyzer(model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (640, 640)):
     """
     Lazy-load InsightFace model.
     
-    IMPORTANT: Use the SAME model as enrollment (buffalo_l) for compatible embeddings.
+    IMPORTANT: Use the SAME model as enrollment (buffalo_sc) for compatible embeddings.
     """
     global _face_analyzer, _loaded_model_name, _loaded_det_size
     
@@ -68,12 +70,12 @@ def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] =
 class FaceRecognizer:
     """Face embedding extraction using InsightFace."""
     
-    def __init__(self, model_name: str = "buffalo_l", det_size: Tuple[int, int] = (320, 320)):
+    def __init__(self, model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (320, 320)):
         """
         Initialize recognizer with InsightFace model.
         
         Args:
-            model_name: InsightFace model name (buffalo_sc for RPi, buffalo_l for server)
+            model_name: InsightFace model name (buffalo_sc for both RPi and server)
             det_size: Detection input size (smaller = faster)
         """
         self.model_name = model_name

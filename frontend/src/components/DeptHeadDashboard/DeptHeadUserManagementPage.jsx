@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import './DeptHeadUserManagementPage.css';
 
@@ -24,6 +25,7 @@ const DeptHeadUserManagementPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const toast = useToast();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('directory'); // 'directory' or 'verification'
 
     console.log("Details: Active Tab:", activeTab);
@@ -35,6 +37,13 @@ const DeptHeadUserManagementPage = () => {
     const [searchValue, setSearchValue] = useState("");
     const [roleFilter, setRoleFilter] = useState("FACULTY"); // Default to Faculty per Task 40
     const [showAddUserModal, setShowAddUserModal] = useState(false);
+
+    // Inline Invite State
+    const [inviteEmails, setInviteEmails] = useState('');
+    const [isSendingInvite, setIsSendingInvite] = useState(false);
+    const [inviteResult, setInviteResult] = useState(null);
+    const [inviteError, setInviteError] = useState('');
+
     const [selectedDirectoryUser, setSelectedDirectoryUser] = useState(null); // Row click detail
 
     // ==========================================
@@ -85,25 +94,61 @@ const DeptHeadUserManagementPage = () => {
                 return;
             }
             const reqConfig = signal ? { signal } : {};
-            const response = await api.get(`/api/dept/users?dept_id=${deptId}`, reqConfig);
 
-            // Map for Verification Tab
-            const mappedVerificationData = (response.data || []).map(user => ({
-                id: user.id || user.user_id,
-                name: `${user.first_name || ''} ${user.last_name || ''}`,
-                email: user.email,
-                role: user.role || 'N/A',
-                roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
-                department: user.department_name || user.program_name || 'N/A',
-                status: user.verification_status || 'Pending',
-                statusColor: getStatusColor(user.verification_status),
-                date: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A',
-                tupm_id: user.tupm_id || 'N/A',
-                ...user
+            // Fetch users and invites concurrently
+            const [usersResponse, invitesResponse] = await Promise.all([
+                api.get(`/api/dept/users?dept_id=${deptId}`, reqConfig),
+                api.get(`/api/invites?department_id=${deptId}`, reqConfig).catch(err => {
+                    console.error("Failed to fetch invites:", err);
+                    return { data: [] }; // Fallback to empty array if invites endpoint fails
+                })
+            ]);
+
+            // Extract emails of all invited users to check against standard users
+            const allInvites = invitesResponse.data || [];
+            const invitedEmails = new Set(allInvites.map(i => i.email ? i.email.toLowerCase() : ''));
+
+            // Map standard users for Verification Tab
+            const mappedVerificationData = (usersResponse.data || []).map(user => {
+                const userEmail = typeof user.email === 'string' ? user.email.toLowerCase() : '';
+                const isInvited = invitedEmails.has(userEmail);
+
+                return {
+                    id: user.id || user.user_id,
+                    name: `${user.first_name || ''} ${user.last_name || ''}`,
+                    email: user.email,
+                    role: user.role || 'N/A',
+                    roleColor: user.role === 'ADMIN' ? 'red' : (user.role === 'FACULTY' || user.role === 'HEAD') ? 'green' : 'blue',
+                    department: user.department_name || user.program_name || 'N/A',
+                    status: user.verification_status || 'Pending',
+                    statusColor: getStatusColor(user.verification_status),
+                    date: user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A',
+                    tupm_id: user.tupm_id || 'N/A',
+                    method: isInvited ? 'Email Invite' : 'Manual Add',
+                    isInvite: false,
+                    ...user
+                };
+            });
+
+            // Map invites for Verification Tab - filter out 'Registered' so they don't duplicate
+            const activeInvites = allInvites.filter(invite => invite.status !== 'Registered');
+            const mappedInvitesData = activeInvites.map(invite => ({
+                id: `invite-${invite.id}`,
+                name: 'Invited User', // Placeholder name until they register
+                email: invite.email,
+                role: invite.role || 'FACULTY',
+                roleColor: 'green',
+                department: 'N/A',
+                status: invite.status,
+                statusColor: invite.status === 'Expired' ? 'red' : 'yellow', // 'Registered' is filtered out
+                date: invite.created_at ? new Date(invite.created_at).toLocaleString() : 'N/A',
+                tupm_id: 'N/A',
+                method: 'Email Invite',
+                isInvite: true,
+                ...invite
             }));
-
-            // Map for Directory Tab (Normalizing fields)
-            const mappedDirectoryData = (response.data || []).map(user => ({
+            // Map for Directory Tab (Normalizing fields) - Only standard users
+            const mappedDirectoryData = (usersResponse.data || []).map(user => ({
                 name: `${user.first_name || ''} ${user.last_name || ''}`,
                 email: user.email,
                 role: user.role || 'N/A',
@@ -115,7 +160,14 @@ const DeptHeadUserManagementPage = () => {
                 ...user
             }));
 
-            setVerificationUsers(mappedVerificationData);
+            // Combine users and invites, sort by date descending
+            const combinedVerificationData = [...mappedVerificationData, ...mappedInvitesData].sort((a, b) => {
+                const dateA = new Date(a.created_at || new Date(0));
+                const dateB = new Date(b.created_at || new Date(0));
+                return dateB - dateA;
+            });
+
+            setVerificationUsers(combinedVerificationData);
             setUsers(mappedDirectoryData);
 
         } catch (err) {
@@ -131,9 +183,55 @@ const DeptHeadUserManagementPage = () => {
     };
 
     // ==========================================
-    // DIRECTORY HANDLERS
+    // UTILITIES & DERIVED DATA
     // ==========================================
     const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    // ==========================================
+    // INLINE INVITE HANDLER
+    // ==========================================
+    const handleSendInvites = async (e) => {
+        e.preventDefault();
+        setInviteError('');
+        setInviteResult(null);
+
+        const emailList = inviteEmails
+            .split(/[\n,]+/)
+            .map(email => email.trim())
+            .filter(email => email !== '');
+
+        if (emailList.length === 0) {
+            setInviteError('Please enter at least one email address.');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const invalidEmails = emailList.filter(email => !emailRegex.test(email));
+        if (invalidEmails.length > 0) {
+            setInviteError(`Invalid email format: ${invalidEmails.join(', ')}`);
+            return;
+        }
+
+        setIsSendingInvite(true);
+        try {
+            const response = await api.post('/api/invites/send', {
+                emails: emailList,
+                department_id: storedUser.department_id
+            });
+            setInviteResult(response.data.results);
+            if (response.data.results.failed.length === 0) {
+                setInviteEmails('');
+            }
+        } catch (err) {
+            setInviteError(err.response?.data?.detail || 'Failed to send invitations. Please try again.');
+        } finally {
+            setIsSendingInvite(false);
+        }
+    };
+
+    // ==========================================
+    // DIRECTORY HANDLERS
+    // ==========================================
 
     const [newUser, setNewUser] = useState({
         first_name: "", middle_name: "", last_name: "", email: "",
@@ -285,14 +383,68 @@ const DeptHeadUserManagementPage = () => {
                     className={`tab-button ${activeTab === 'verification' ? 'active' : ''}`}
                     onClick={() => setActiveTab('verification')}
                 >
-                    <i className="fas fa-user-check" style={{ marginRight: '8px' }}></i>
-                    User Verification
+                    <i className="fas fa-envelope-open-text" style={{ marginRight: '8px' }}></i>
+                    Invitations & Requests
                 </button>
             </div>
 
             {/* TAB CONTENT */}
             {activeTab === 'verification' ? (
                 <div className="tab-content-verification">
+
+                    {/* INLINE INVITE SECTION */}
+                    <div className="card invite-section-card" style={{ marginBottom: '24px', padding: '24px 28px', backgroundColor: '#f4f9ff', border: '1px solid #bfdbfe', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '30px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1 1 500px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', gap: '10px' }}>
+                                    <div style={{ backgroundColor: '#eff6ff', color: '#163269', width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', border: '1px solid #bfdbfe' }}>
+                                        <i className="fas fa-envelope"></i>
+                                    </div>
+                                    <h3 style={{ fontSize: '1.4rem', color: '#163269', margin: 0, fontWeight: '700', letterSpacing: '0.01em' }}>Invite Faculty Members</h3>
+                                </div>
+                                <p style={{ color: '#475569', fontSize: '0.95rem', marginBottom: '16px', lineHeight: '1.6' }}>
+                                    Send out unique registration links to faculty members via email to fast-track their onboarding process. Enter email addresses separated by commas or new lines.
+                                </p>
+                                <textarea
+                                    value={inviteEmails}
+                                    onChange={(e) => setInviteEmails(e.target.value)}
+                                    placeholder="e.g., faculty1@tup.edu.ph, faculty2@tup.edu.ph"
+                                    rows={3}
+                                    style={{ width: '100%', padding: '14px', border: '1px solid #93c5fd', borderRadius: '8px', resize: 'vertical', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', backgroundColor: '#ffffff', color: '#334155' }}
+                                    disabled={isSendingInvite}
+                                    onFocus={(e) => e.target.style.borderColor = '#163269'}
+                                    onBlur={(e) => e.target.style.borderColor = '#93c5fd'}
+                                />
+                                {inviteError && <div style={{ color: '#dc2626', marginTop: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#fee2e2', padding: '8px 12px', borderRadius: '6px' }}><i className="fas fa-exclamation-circle"></i>{inviteError}</div>}
+                                {inviteResult && (
+                                    <div style={{ marginTop: '16px', fontSize: '0.95rem', padding: '16px', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                        {inviteResult.sent.length > 0 && <div style={{ color: '#059669', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><i className="fas fa-check-circle"></i><strong>Successfully Sent To:</strong> <span style={{ color: '#334155' }}>{inviteResult.sent.join(', ')}</span></div>}
+                                        {inviteResult.failed.length > 0 && (
+                                            <div style={{ color: '#dc2626' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><i className="fas fa-times-circle"></i><strong>Failed:</strong></div>
+                                                <ul style={{ margin: '8px 0 0 24px', padding: 0, color: '#475569' }}>
+                                                    {inviteResult.failed.map((f, i) => <li key={i}><strong>{f.email}</strong> <span style={{ color: '#64748b' }}>- {f.reason}</span></li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '180px', marginTop: '10px' }}>
+                                <button
+                                    onClick={handleSendInvites}
+                                    disabled={isSendingInvite || inviteEmails.trim() === ''}
+                                    style={{ padding: '12px 20px', background: '#163269', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '500', transition: 'background-color 0.2s, opacity 0.2s', opacity: (isSendingInvite || inviteEmails.trim() === '') ? 0.6 : 1, boxShadow: '0 4px 6px -1px rgba(22, 50, 105, 0.1)' }}
+                                    onMouseEnter={(e) => { if (!isSendingInvite && inviteEmails.trim() !== '') e.target.style.background = '#1e3a8a' }}
+                                    onMouseLeave={(e) => { if (!isSendingInvite && inviteEmails.trim() !== '') e.target.style.background = '#163269' }}
+                                >
+                                    <i className={isSendingInvite ? "fas fa-circle-notch fa-spin" : "fas fa-paper-plane"}></i>
+                                    {isSendingInvite ? 'Sending...' : 'Send Invites'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* VERIFICATION CONTENT */}
                     <div className="app-filter-bar">
                         <div className="app-filter-left">
@@ -311,67 +463,100 @@ const DeptHeadUserManagementPage = () => {
                                 <input type="text" placeholder="Search..." value={verificationSearch} onChange={(e) => setVerificationSearch(e.target.value)} />
                             </div>
                         </div>
-                        <button className="refresh-button" onClick={() => fetchUsers()} title="Refresh List">
-                            <i className="fas fa-sync-alt"></i> Refresh
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => setShowAddUserModal(true)}
+                                style={{ padding: '8px 16px', background: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', fontWeight: '500', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                                onMouseEnter={(e) => { e.target.style.background = '#f8fafc'; e.target.style.borderColor = '#94a3b8'; }}
+                                onMouseLeave={(e) => { e.target.style.background = '#ffffff'; e.target.style.borderColor = '#cbd5e1'; }}
+                            >
+                                <i className="fas fa-user-plus"></i> Manual Add
+                            </button>
+                            <button className="refresh-button" onClick={() => fetchUsers()} title="Refresh List" style={{ padding: '8px 16px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <i className="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
                     </div>
 
                     {verificationLoading ? (
-                        <div className="loading-spinner">Loading Applications...</div>
+                        <div className="loading-state" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                            <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Loading Applications...
+                        </div>
                     ) : verificationError ? (
                         <div className="error-message">{verificationError}</div>
                     ) : (
                         <div className="card app-list-card">
                             <div className="app-list-header">
-                                <h2>User Verification List ({filteredVerificationUsers.length})</h2>
-                                <p>Pending review: {verificationUsers.filter(a => a.status === 'Pending').length}</p>
+                                <h2>Pending Requests & Invited Faculty ({filteredVerificationUsers.length})</h2>
+                                <p>Action required: {verificationUsers.filter(a => a.status === 'Pending').length}</p>
                             </div>
 
-                            <div className="app-table-container">
-                                <table className="app-table">
+                            <div className="table-responsive">
+                                <table className="user-table">
                                     <thead>
                                         <tr>
-                                            <th>User ID / Name</th>
+                                            <th>Email / Name</th>
+                                            <th>Method</th>
                                             <th>Role</th>
-                                            <th>Department</th>
-                                            <th>Verification Status</th>
-                                            <th>Date Registered</th>
+                                            <th>Status</th>
+                                            <th>Date Registered / Invited</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredVerificationUsers.map((app) => (
-                                            <tr key={app.id} className="user-row" onClick={() => setVerificationModalUser(app)}>
-                                                <td className="user-cell">
+                                            <tr key={app.id || app.email} className="user-row" onClick={() => setVerificationModalUser(app)}>
+                                                <td>
                                                     <div className="user-info-cell">
                                                         <div className="user-table-avatar">{(app.role && app.role[0]) ? app.role[0].toUpperCase() : '?'}</div>
                                                         <div>
-                                                            <span className="user-table-name">{app.name}</span>
-                                                            <span className="user-table-email">{app.role === 'STUDENT' ? `TUP-M ID: ${app.tupm_id || 'N/A'}` : `Employee ID: ${app.employee_id || 'N/A'}`}</span>
+                                                            <span className="user-table-name" style={{ fontWeight: app.isInvite ? 'normal' : '500', fontStyle: app.isInvite ? 'italic' : 'normal', color: app.name === 'Invited User' ? '#64748b' : 'inherit' }}>{app.name}</span>
+                                                            <span className="user-table-email">{app.email}</span>
                                                         </div>
                                                     </div>
                                                 </td>
+                                                <td>
+                                                    <span style={{
+                                                        backgroundColor: app.isInvite ? '#f0f9ff' : '#f8fafc',
+                                                        color: app.isInvite ? '#0284c7' : '#64748b',
+                                                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '500', border: `1px solid ${app.isInvite ? '#bae6fd' : '#cbd5e1'}`,
+                                                        display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                    }}>
+                                                        <i className={app.isInvite ? "fas fa-envelope" : "fas fa-user-plus"}></i>
+                                                        {app.method}
+                                                    </span>
+                                                </td>
                                                 <td><span className={`role-tag ${app.roleColor}`}>{app.role}</span></td>
-                                                <td>{app.department}</td>
                                                 <td><span className={`status-tag ${app.statusColor}`}>{app.status}</span></td>
                                                 <td>{app.date}</td>
                                                 <td className="actions-cell">
                                                     <div className="dropdown-container">
-                                                        <button className="action-button" onClick={(e) => { e.stopPropagation(); setVerificationOpenMenuId(verificationOpenMenuId === app.id ? null : app.id); }}>
-                                                            <i className="fas fa-ellipsis-h"></i>
+                                                        <button
+                                                            className="action-button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                // Don't show dropdown for invites, only full users
+                                                                if (!app.isInvite) {
+                                                                    setVerificationOpenMenuId(verificationOpenMenuId === app.id ? null : app.id);
+                                                                }
+                                                            }}
+                                                            disabled={app.isInvite}
+                                                            style={{ opacity: app.isInvite ? 0.3 : 1, cursor: app.isInvite ? 'default' : 'pointer' }}
+                                                        >
+                                                            <i className={app.isInvite ? "fas fa-clock" : "fas fa-ellipsis-h"}></i>
                                                         </button>
                                                         {verificationOpenMenuId === app.id && (
                                                             <div className="action-dropdown">
-                                                                {app.status !== 'Verified' && app.status !== 'Approved' && <button onClick={() => handleStatusUpdate(app.id, "Approved")}><i className="fas fa-check"></i> Approve</button>}
-                                                                {app.status !== 'Rejected' && <button onClick={() => handleStatusUpdate(app.id, "Rejected")}><i className="fas fa-times"></i> Reject</button>}
-                                                                <button onClick={() => deleteApplication(app.id)} className="delete"><i className="fas fa-trash"></i> Delete</button>
+                                                                {app.status !== 'Verified' && app.status !== 'Approved' && <button onClick={(e) => { e.stopPropagation(); handleStatusUpdate(app.id, "Approved"); }}><i className="fas fa-check"></i> Approve</button>}
+                                                                {app.status !== 'Rejected' && <button onClick={(e) => { e.stopPropagation(); handleStatusUpdate(app.id, "Rejected"); }}><i className="fas fa-times"></i> Reject</button>}
+                                                                <button onClick={(e) => { e.stopPropagation(); deleteApplication(app.id); }} className="delete"><i className="fas fa-trash"></i> Delete</button>
                                                             </div>
                                                         )}
                                                     </div>
                                                 </td>
                                             </tr>
                                         ))}
-                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" className="td-empty-state">No results found.</td></tr>}
+                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" className="td-empty-state" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No requests or invitations found.</td></tr>}
                                     </tbody>
                                 </table>
                             </div>
@@ -382,40 +567,17 @@ const DeptHeadUserManagementPage = () => {
                     {verificationModalUser && (
                         <div className="modal-backdrop" onClick={() => setVerificationModalUser(null)}>
                             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                                <h3>User Details: {verificationModalUser.name}</h3>
+                                <h3>{verificationModalUser.isInvite ? 'Invitation Details' : `User Details: ${verificationModalUser.name}`}</h3>
                                 <div className="modal-body">
                                     <p><strong>Status:</strong> <span className={`status-tag ${verificationModalUser.statusColor}`}>{verificationModalUser.status}</span></p>
                                     <p><strong>Email:</strong> {verificationModalUser.email}</p>
-                                    <p><strong>TUPM ID:</strong> {verificationModalUser.tupm_id}</p>
+                                    {!verificationModalUser.isInvite && <p><strong>TUPM ID / Employee ID:</strong> {verificationModalUser.tupm_id || verificationModalUser.employee_id || 'N/A'}</p>}
                                     <p><strong>Role:</strong> {verificationModalUser.role}</p>
-                                    <p><strong>Department:</strong> {verificationModalUser.department}</p>
-                                    <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>
+                                    <p><strong>Method:</strong> {verificationModalUser.method}</p>
+                                    {verificationModalUser.isInvite && <p><strong>Expiration:</strong> {verificationModalUser.date}</p>}
+                                    {!verificationModalUser.isInvite && <p><strong>Date Registered:</strong> {verificationModalUser.date}</p>}
                                 </div>
                                 <div className="modal-actions modal-actions-flex">
-                                    {/* Approve — only shown if not already verified */}
-                                    {verificationModalUser.status !== 'Verified' && verificationModalUser.status !== 'Approved' && (
-                                        <button
-                                            className="action-btn-approve"
-                                            onClick={() => {
-                                                handleStatusUpdate(verificationModalUser.id, 'Approved');
-                                                setVerificationModalUser(null);
-                                            }}
-                                        >
-                                            <i className="fas fa-check"></i> Approve
-                                        </button>
-                                    )}
-                                    {/* Reject — only shown if not already rejected */}
-                                    {verificationModalUser.status !== 'Rejected' && (
-                                        <button
-                                            className="action-btn-reject"
-                                            onClick={() => {
-                                                handleStatusUpdate(verificationModalUser.id, 'Rejected');
-                                                setVerificationModalUser(null);
-                                            }}
-                                        >
-                                            <i className="fas fa-times"></i> Reject
-                                        </button>
-                                    )}
                                     <button
                                         className="modal-close-button modal-close-auto"
                                         onClick={() => setVerificationModalUser(null)}
@@ -426,7 +588,7 @@ const DeptHeadUserManagementPage = () => {
                             </div>
                         </div>
                     )}
-                </div>
+                </div >
             ) : (
                 <>
                     {/* USER DIRECTORY CONTENT */}
@@ -447,7 +609,7 @@ const DeptHeadUserManagementPage = () => {
 
                     <div className="card user-list-card">
                         <div className="user-list-header">
-                            <h2>Dept. User Directory</h2>
+                            <h2>User Directory</h2>
                             <div className="user-list-actions">
                                 <div className="user-search-bar">
                                     <i className="fas fa-search"></i>
@@ -459,11 +621,6 @@ const DeptHeadUserManagementPage = () => {
                                     <option value="HEAD">Dept Head</option>
                                     <option value="STUDENT">Student</option>
                                 </select>
-                                <div className="add-user-dropdown-wrapper">
-                                    <button className="user-list-button add-user-button" onClick={() => setShowAddUserModal(true)}>
-                                        <i className="fas fa-plus"></i> Manual Add
-                                    </button>
-                                </div>
                             </div>
                         </div>
 
@@ -532,18 +689,21 @@ const DeptHeadUserManagementPage = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* REGISTER MODAL */}
-                    {showAddUserModal && <AddUserModal
-                        newUser={newUser}
-                        handleInputChange={handleInputChange}
-                        handleAddUser={handleAddUser}
-                        onClose={() => setShowAddUserModal(false)}
-                        departmentId={storedUser.department_id}
-                    />}
                 </>
             )}
-        </div>
+
+            {/* REGISTER MODAL - Placed outside the tab condition so it works anywhere */}
+            {
+                showAddUserModal && <AddUserModal
+                    newUser={newUser}
+                    handleInputChange={handleInputChange}
+                    handleAddUser={handleAddUser}
+                    onClose={() => setShowAddUserModal(false)}
+                    departmentId={storedUser.department_id}
+                    toast={toast}
+                />
+            }
+        </div >
     );
 };
 
@@ -551,8 +711,9 @@ const DeptHeadUserManagementPage = () => {
  * Add User Modal — separated for clarity.
  * Fetches programs from API for the department, provides role-specific fields.
  */
-const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, departmentId }) => {
+const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, departmentId, toast }) => {
     const [programs, setPrograms] = useState([]);
+    const [step, setStep] = useState(1); // Manage 2-step process
 
     useEffect(() => {
         const controller = new AbortController();
@@ -568,63 +729,136 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
         return () => controller.abort();
     }, [departmentId]);
 
+    const handleNext = (e) => {
+        e.preventDefault();
+        // Check basic required fields for step 1
+        if (!newUser.first_name || !newUser.last_name ||
+            (newUser.role === 'STUDENT' ? !newUser.tupm_id : !newUser.employee_id)) {
+            if (toast && typeof toast.error === 'function') {
+                toast.error("Please fill in all required fields to continue.");
+            } else {
+                alert("Please fill in all required fields to continue.");
+            }
+            return;
+        }
+        setStep(2);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        // Final validation before submit
+        if (!newUser.password || !newUser.confirmPassword) {
+            if (toast && typeof toast.error === 'function') toast.error("Please fill in the password fields.");
+            else alert("Please fill in the password fields.");
+            return;
+        }
+
+        if (newUser.password.length < 6) {
+            if (toast && typeof toast.error === 'function') toast.error("Password must be at least 6 characters.");
+            else alert("Password must be at least 6 characters.");
+            return;
+        }
+
+        if (newUser.password !== newUser.confirmPassword) {
+            if (toast && typeof toast.error === 'function') toast.error("Passwords do not match.");
+            else alert("Passwords do not match.");
+            return;
+        }
+
+        handleAddUser(e);
+    };
+
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-                <h3>Register New User</h3>
-                <form onSubmit={handleAddUser} className="add-user-form">
-                    <label>Role <span style={{ color: 'red' }}>*</span></label>
-                    <select name="role" value={newUser.role} onChange={handleInputChange}>
-                        <option value="FACULTY">Faculty</option>
-                        <option value="STUDENT">Student</option>
-                    </select>
-
-                    <label>First Name <span style={{ color: 'red' }}>*</span></label>
-                    <input type="text" name="first_name" placeholder="First Name" value={newUser.first_name} onChange={handleInputChange} required />
-
-                    <label>Middle Name</label>
-                    <input type="text" name="middle_name" placeholder="Middle Name" value={newUser.middle_name} onChange={handleInputChange} />
-
-                    <label>Last Name <span style={{ color: 'red' }}>*</span></label>
-                    <input type="text" name="last_name" placeholder="Last Name" value={newUser.last_name} onChange={handleInputChange} required />
-
-                    {newUser.role === 'STUDENT' ? (
-                        <>
-                            <label>TUP-M ID <span style={{ color: 'red' }}>*</span></label>
-                            <input type="text" name="tupm_id" placeholder="e.g. TUPM-21-1234" value={newUser.tupm_id} onChange={handleInputChange} required />
-                        </>
-                    ) : (
-                        <>
-                            <label>Employee ID <span style={{ color: 'red' }}>*</span></label>
-                            <input type="text" name="employee_id" placeholder="Employee ID" value={newUser.employee_id} onChange={handleInputChange} required />
-                        </>
-                    )}
-
-                    <label>Email</label>
-                    <input type="email" name="email" placeholder="user@tup.edu.ph" value={newUser.email} onChange={handleInputChange} />
-
-                    {programs.length > 0 && (
-                        <>
-                            <label>Program</label>
-                            <select name="program_id" value={newUser.program_id} onChange={handleInputChange}>
-                                <option value="">-- Select Program --</option>
-                                {programs.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                                ))}
-                            </select>
-                        </>
-                    )}
-
-                    <label>Password <span style={{ color: 'red' }}>*</span></label>
-                    <input type="password" name="password" placeholder="Min. 6 characters" value={newUser.password} onChange={handleInputChange} required />
-
-                    <label>Confirm Password <span style={{ color: 'red' }}>*</span></label>
-                    <input type="password" name="confirmPassword" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={handleInputChange} required />
-
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button type="submit" className="add-user-submit">Register</button>
-                        <button type="button" className="add-user-cancel" onClick={onClose}>Cancel</button>
+        <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1050 }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+                {/* HEADER ROW */}
+                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', boxSizing: 'border-box' }}>
+                    <h3 style={{ margin: 0, paddingBottom: 0, borderBottom: 'none', color: '#1e293b', flex: 1, whiteSpace: 'nowrap' }}>Register New User</h3>
+                    <div style={{ padding: '0', margin: '0', display: 'flex', alignItems: 'flex-start' }}>
+                        <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', outline: 'none', padding: '0', margin: '0' }} title="Close">
+                            <i className="fas fa-times"></i>
+                        </button>
                     </div>
+                </div>
+
+                {/* Step Indicator */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '8px' }}>
+                    <div style={{ flex: 1, height: '4px', backgroundColor: '#163269', borderRadius: '4px' }}></div>
+                    <div style={{ flex: 1, height: '4px', backgroundColor: step === 2 ? '#163269' : '#e2e8f0', borderRadius: '4px', transition: 'background-color 0.3s' }}></div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="add-user-form">
+
+                    {step === 1 && (
+                        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                            <label>Role <span style={{ color: '#163269' }}>*</span></label>
+                            <select name="role" value={newUser.role} onChange={handleInputChange}>
+                                <option value="FACULTY">Faculty</option>
+                                <option value="STUDENT">Student</option>
+                            </select>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div>
+                                    <label>First Name <span style={{ color: '#163269' }}>*</span></label>
+                                    <input type="text" name="first_name" placeholder="First Name" value={newUser.first_name} onChange={handleInputChange} required />
+                                </div>
+                                <div>
+                                    <label>Middle Name</label>
+                                    <input type="text" name="middle_name" placeholder="Middle Name" value={newUser.middle_name} onChange={handleInputChange} />
+                                </div>
+                            </div>
+
+                            <label>Last Name <span style={{ color: '#163269' }}>*</span></label>
+                            <input type="text" name="last_name" placeholder="Last Name" value={newUser.last_name} onChange={handleInputChange} required />
+
+                            {newUser.role === 'STUDENT' ? (
+                                <>
+                                    <label>TUP-M ID <span style={{ color: '#163269' }}>*</span></label>
+                                    <input type="text" name="tupm_id" placeholder="e.g. TUPM-21-1234" value={newUser.tupm_id} onChange={handleInputChange} required />
+                                </>
+                            ) : (
+                                <>
+                                    <label>Employee ID <span style={{ color: '#163269' }}>*</span></label>
+                                    <input type="text" name="employee_id" placeholder="Employee ID" value={newUser.employee_id} onChange={handleInputChange} required />
+                                </>
+                            )}
+
+                            <label>Email ID</label>
+                            <input type="email" name="email" placeholder="user@tup.edu.ph" value={newUser.email} onChange={handleInputChange} />
+
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                                <button type="button" onClick={handleNext} style={{ flex: 1, padding: '12px', background: '#163269', color: 'white', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#1e3a8a'} onMouseLeave={(e) => e.target.style.background = '#163269'}>Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '6px' }}></i></button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                            {programs.length > 0 && newUser.role === 'STUDENT' && (
+                                <>
+                                    <label>Program <span style={{ color: '#163269' }}>*</span></label>
+                                    <select name="program_id" value={newUser.program_id} onChange={handleInputChange} required>
+                                        <option value="">-- Select Program --</option>
+                                        {programs.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                                        ))}
+                                    </select>
+                                </>
+                            )}
+
+                            <label>Password <span style={{ color: '#163269' }}>*</span></label>
+                            <input type="password" name="password" placeholder="Min. 6 characters" value={newUser.password} onChange={handleInputChange} required />
+
+                            <label>Confirm Password <span style={{ color: '#163269' }}>*</span></label>
+                            <input type="password" name="confirmPassword" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={handleInputChange} required />
+
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                                <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '12px', background: 'transparent', color: '#163269', border: '1px solid #163269', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = 'rgba(22, 50, 105, 0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}><i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i> Back</button>
+                                <button type="submit" style={{ flex: 1, padding: '12px', background: '#163269', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#1e3a8a'} onMouseLeave={(e) => e.target.style.background = '#163269'}>Confirm <i className="fas fa-check" style={{ marginLeft: '6px' }}></i></button>
+                            </div>
+                        </div>
+                    )}
                 </form>
             </div>
         </div>

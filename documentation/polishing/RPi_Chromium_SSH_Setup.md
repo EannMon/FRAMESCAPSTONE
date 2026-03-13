@@ -280,8 +280,8 @@ After the script starts, check these from your SSH session:
 
 ```bash
 # Is kiosk_server.py responding?
-curl http://localhost:8000/api/kiosk/health
-# Should return: {"status":"ok"} or similar
+curl http://localhost:8000/health
+# Should return: {"status":"ok","camera":true,"recognition":true}
 
 # Is the frontend being served?
 curl -I http://localhost:3000

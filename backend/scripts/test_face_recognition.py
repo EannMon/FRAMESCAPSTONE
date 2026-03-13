@@ -92,7 +92,7 @@ def main():
             from insightface.app import FaceAnalysis
             
             face_analyzer = FaceAnalysis(
-                name='buffalo_l',
+                name='buffalo_sc',
                 providers=['CPUExecutionProvider']
             )
             face_analyzer.prepare(ctx_id=0, det_size=(640, 640))

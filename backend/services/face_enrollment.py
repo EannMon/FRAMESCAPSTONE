@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 import base64
 import time
+import os
 from io import BytesIO
 from typing import List, Tuple, Optional
 import logging
@@ -20,7 +21,8 @@ _face_analyzer = None
 def get_face_analyzer():
     """
     Lazy-load InsightFace model.
-    Uses buffalo_l model for high accuracy.
+    Uses buffalo_sc model (MobileNet backbone) for fast, efficient enrollment.
+    MUST match the recognition model on RPi kiosk.
     """
     global _face_analyzer
     
@@ -28,10 +30,10 @@ def get_face_analyzer():
         try:
             from insightface.app import FaceAnalysis
             
-            logger.info("Loading InsightFace model (buffalo_l)...")
+            logger.info("Loading InsightFace model (buffalo_sc)...")
             start = time.perf_counter()
             _face_analyzer = FaceAnalysis(
-                name='buffalo_l',
+                name='buffalo_sc',
                 providers=['CPUExecutionProvider']  # Use CPU for compatibility
             )
             _face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
@@ -188,8 +190,8 @@ def compare_embeddings(embedding1: bytes, embedding2: bytes) -> float:
 
 
 # Threshold for considering two embeddings as belonging to the same person.
-# This matches the recognition threshold used in enrollment/kiosk.
-DUPLICATE_FACE_THRESHOLD = 0.6
+# buffalo_sc tends to need a slightly stricter duplicate gate during enrollment.
+DUPLICATE_FACE_THRESHOLD = float(os.getenv("DUPLICATE_FACE_THRESHOLD", "0.55"))
 
 
 def check_embedding_uniqueness(
