@@ -5,6 +5,8 @@ tabular data in the shape { id, col1, col2, status, col3, remarks }
 that the frontend report pages expect.
 """
 import logging
+import threading
+from copy import deepcopy
 from datetime import datetime, date, time, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case, and_, extract
@@ -15,8 +17,78 @@ from models.user import User, UserRole
 from models.enrollment import Enrollment
 from models.subject import Subject
 from models.device import Device
+from services.report_metric_service import (
+    build_student_summary_metrics,
+    compute_student_session_count_reference,
+    compute_student_core_metrics,
+    resolve_student_scoped_class_ids,
+)
+from services.report_insight_service import generate_student_insights
 
 logger = logging.getLogger(__name__)
+
+
+# Short-lived in-memory cache for repeated student report requests.
+_STUDENT_REPORT_CACHE_TTL_SECONDS = 15
+_STUDENT_REPORT_CACHE_MAX_ENTRIES = 256
+_student_report_cache = {}
+_student_report_cache_lock = threading.Lock()
+
+
+def _make_student_report_cache_key(
+    user_id: int,
+    report_code: str,
+    date_from: datetime,
+    date_to: datetime,
+    class_id: int,
+    skip: int,
+    limit: int,
+) -> str:
+    return "|".join(
+        [
+            str(user_id),
+            report_code,
+            date_from.isoformat() if date_from else "",
+            date_to.isoformat() if date_to else "",
+            str(class_id) if class_id else "ALL",
+            str(skip),
+            str(limit),
+        ]
+    )
+
+
+def _get_cached_student_report(cache_key: str):
+    now_ts = datetime.now(timezone.utc).timestamp()
+    with _student_report_cache_lock:
+        item = _student_report_cache.get(cache_key)
+        if not item:
+            return None
+        if now_ts - item["ts"] > _STUDENT_REPORT_CACHE_TTL_SECONDS:
+            _student_report_cache.pop(cache_key, None)
+            return None
+        return deepcopy(item["value"])
+
+
+def _set_cached_student_report(cache_key: str, value: dict):
+    now_ts = datetime.now(timezone.utc).timestamp()
+    with _student_report_cache_lock:
+        # Opportunistic cleanup of expired items.
+        expired_keys = [
+            key
+            for key, item in _student_report_cache.items()
+            if now_ts - item["ts"] > _STUDENT_REPORT_CACHE_TTL_SECONDS
+        ]
+        for key in expired_keys:
+            _student_report_cache.pop(key, None)
+
+        if len(_student_report_cache) >= _STUDENT_REPORT_CACHE_MAX_ENTRIES:
+            oldest_key = min(_student_report_cache, key=lambda key: _student_report_cache[key]["ts"])
+            _student_report_cache.pop(oldest_key, None)
+
+        _student_report_cache[cache_key] = {
+            "ts": now_ts,
+            "value": deepcopy(value),
+        }
 
 
 # ──────────────────────────────────────────────
@@ -1273,3 +1345,438 @@ def get_dept_report(db: Session, dept_id: int, report_type: str,
         logger.warning("Unknown dept report type: %s", report_type)
         return []
     return handler(db, dept_id, date_from or "2020-01-01", date_to or "2099-12-31", room)
+
+
+def _build_summary_metrics_from_rows(rows, report_code: str, window_from: str, window_to: str):
+    total_records = len(rows)
+    late_records = 0
+    risk_records = 0
+    active_records = 0
+
+    for row in rows:
+        status = (row.get("status") or "").strip().lower()
+        if "late" in status:
+            late_records += 1
+        if any(token in status for token in ["risk", "warning", "overcrowd", "inconsistent", "no return", "error"]):
+            risk_records += 1
+        if any(token in status for token in ["present", "good", "excellent", "active", "on time", "peak"]):
+            active_records += 1
+
+    safe_total = max(total_records, 1)
+    late_rate = round((late_records / safe_total) * 100, 1)
+    risk_rate = round((risk_records / safe_total) * 100, 1)
+
+    return [
+        {
+            "metric_name": "total_records",
+            "value": total_records,
+            "formula": "count(rows)",
+            "numerator": total_records,
+            "denominator": total_records,
+            "data_window": f"{window_from}..{window_to}",
+            "confidence": "HIGH" if total_records >= 20 else ("MEDIUM" if total_records >= 8 else "LOW"),
+            "explanation": "Total number of report rows returned for the selected filters.",
+        },
+        {
+            "metric_name": "late_rate",
+            "value": late_rate,
+            "formula": "late_records / total_records * 100",
+            "numerator": late_records,
+            "denominator": total_records,
+            "data_window": f"{window_from}..{window_to}",
+            "confidence": "HIGH" if total_records >= 20 else ("MEDIUM" if total_records >= 8 else "LOW"),
+            "explanation": "Share of rows with late-related status labels.",
+        },
+        {
+            "metric_name": "risk_rate",
+            "value": risk_rate,
+            "formula": "risk_records / total_records * 100",
+            "numerator": risk_records,
+            "denominator": total_records,
+            "data_window": f"{window_from}..{window_to}",
+            "confidence": "HIGH" if total_records >= 20 else ("MEDIUM" if total_records >= 8 else "LOW"),
+            "explanation": "Share of rows flagged as warning/risk/anomaly statuses.",
+        },
+        {
+            "metric_name": "active_or_good_rate",
+            "value": round((active_records / safe_total) * 100, 1),
+            "formula": "active_records / total_records * 100",
+            "numerator": active_records,
+            "denominator": total_records,
+            "data_window": f"{window_from}..{window_to}",
+            "confidence": "HIGH" if total_records >= 20 else ("MEDIUM" if total_records >= 8 else "LOW"),
+            "explanation": "Share of rows with positive status labels.",
+        },
+    ]
+
+
+def _build_insights_from_rows(rows, report_code: str):
+    total_records = len(rows)
+    if total_records == 0:
+        return [
+            {
+                "insight_code": "NO_DATA_IN_WINDOW",
+                "title": "No data in selected window",
+                "narrative": "No report records were found for the selected filters and date range.",
+                "trigger_conditions": ["total_records == 0"],
+                "supporting_metrics": ["total_records"],
+                "thresholds_used": {"minimum_records": 1},
+                "confidence": "HIGH",
+                "recommended_action": "Expand date range or adjust class/room filters.",
+            }
+        ]
+
+    late_records = 0
+    risk_records = 0
+    for row in rows:
+        status = (row.get("status") or "").strip().lower()
+        if "late" in status:
+            late_records += 1
+        if any(token in status for token in ["risk", "warning", "overcrowd", "inconsistent", "no return", "error"]):
+            risk_records += 1
+
+    insights = []
+    late_rate = (late_records / total_records) * 100
+    risk_rate = (risk_records / total_records) * 100
+    confidence = "HIGH" if total_records >= 20 else ("MEDIUM" if total_records >= 8 else "LOW")
+
+    if late_rate >= 30:
+        insights.append(
+            {
+                "insight_code": "HIGH_LATE_RATE",
+                "title": "High late-pattern frequency",
+                "narrative": f"Late-related records are {late_rate:.1f}% of this report output.",
+                "trigger_conditions": ["late_rate >= 30"],
+                "supporting_metrics": ["late_rate", "total_records"],
+                "thresholds_used": {"late_rate_pct": 30},
+                "confidence": confidence,
+                "recommended_action": "Prioritize punctuality interventions for impacted users/sessions.",
+            }
+        )
+
+    if risk_rate >= 20:
+        insights.append(
+            {
+                "insight_code": "RISK_STATUS_CLUSTER",
+                "title": "Risk/anomaly cluster detected",
+                "narrative": f"{risk_rate:.1f}% of records are marked with warning or anomaly statuses.",
+                "trigger_conditions": ["risk_rate >= 20"],
+                "supporting_metrics": ["risk_rate", "total_records"],
+                "thresholds_used": {"risk_rate_pct": 20},
+                "confidence": confidence,
+                "recommended_action": "Review flagged rows and apply targeted corrective actions.",
+            }
+        )
+
+    if not insights:
+        insights.append(
+            {
+                "insight_code": "STABLE_REPORT_PATTERN",
+                "title": "Stable report pattern",
+                "narrative": "No major late-pattern or risk-status cluster was detected in this report window.",
+                "trigger_conditions": ["late_rate < 30", "risk_rate < 20"],
+                "supporting_metrics": ["late_rate", "risk_rate", "total_records"],
+                "thresholds_used": {"late_rate_pct": 30, "risk_rate_pct": 20},
+                "confidence": confidence,
+                "recommended_action": "Continue monitoring with regular reporting cadence.",
+            }
+        )
+
+    return insights
+
+
+def get_faculty_report_envelope(
+    db: Session,
+    user_id: int,
+    report_type: str,
+    class_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    skip: int = 0,
+    limit: int = 100,
+):
+    started = datetime.now(timezone.utc)
+    window_from = date_from or "2020-01-01"
+    window_to = date_to or "2099-12-31"
+
+    all_rows = get_faculty_report(
+        db,
+        user_id,
+        report_type,
+        class_id=class_id,
+        date_from=window_from,
+        date_to=window_to,
+    )
+    total = len(all_rows)
+    rows = all_rows[max(skip, 0): max(skip, 0) + min(limit, 200)]
+
+    elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000, 1)
+
+    return {
+        "success": True,
+        "meta": {
+            "report_code": (report_type or "UNKNOWN").upper(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "window": {"from": window_from, "to": window_to},
+            "scope": {"module": "FACULTY", "user_id": user_id, "class_id": class_id},
+            "pagination": {"skip": max(skip, 0), "limit": min(limit, 200), "total": total},
+            "query_metrics": {"execution_ms": elapsed_ms},
+        },
+        "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+        "insights": _build_insights_from_rows(all_rows, report_type),
+        "rows": rows,
+    }
+
+
+def get_dept_report_envelope(
+    db: Session,
+    dept_id: int,
+    report_type: str,
+    date_from: str = None,
+    date_to: str = None,
+    room: str = None,
+    skip: int = 0,
+    limit: int = 100,
+):
+    started = datetime.now(timezone.utc)
+    window_from = date_from or "2020-01-01"
+    window_to = date_to or "2099-12-31"
+
+    all_rows = get_dept_report(
+        db,
+        dept_id,
+        report_type,
+        date_from=window_from,
+        date_to=window_to,
+        room=room,
+    )
+    total = len(all_rows)
+    rows = all_rows[max(skip, 0): max(skip, 0) + min(limit, 200)]
+
+    elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000, 1)
+
+    return {
+        "success": True,
+        "meta": {
+            "report_code": (report_type or "UNKNOWN").upper(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "window": {"from": window_from, "to": window_to},
+            "scope": {"module": "DEPARTMENT", "dept_id": dept_id, "room": room},
+            "pagination": {"skip": max(skip, 0), "limit": min(limit, 200), "total": total},
+            "query_metrics": {"execution_ms": elapsed_ms},
+        },
+        "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+        "insights": _build_insights_from_rows(all_rows, report_type),
+        "rows": rows,
+    }
+
+
+# ──────────────────────────────────────────────
+# Student Reports (Phase 1 Envelope)
+# ──────────────────────────────────────────────
+
+def _build_student_rows(logs):
+    rows = []
+    for idx, log in enumerate(logs, 1):
+        cls = log.class_
+        subject = cls.subject if cls else None
+        faculty = cls.faculty if cls else None
+
+        status = log.action.value if log.action else "UNKNOWN"
+        if log.action == AttendanceAction.ENTRY and log.is_late:
+            status = "LATE"
+
+        if log.remarks:
+            remark_text = log.remarks
+        elif log.action == AttendanceAction.ENTRY:
+            remark_text = "Late" if log.is_late else "On Time"
+        elif log.action == AttendanceAction.BREAK_OUT:
+            remark_text = "On Break"
+        elif log.action == AttendanceAction.BREAK_IN:
+            remark_text = "Returned From Break"
+        elif log.action == AttendanceAction.EXIT:
+            remark_text = "Session Exit"
+        else:
+            remark_text = "—"
+
+        rows.append(
+            {
+                "id": idx,
+                "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
+                "col2": f"{subject.code} - {subject.title}" if subject else (cls.room if cls else "—"),
+                "status": status,
+                "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+                "remarks": remark_text,
+                # Raw fields for frontend charting/visualization.
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "action": log.action.value if log.action else None,
+                "is_late": bool(log.is_late),
+                "room": cls.room if cls else None,
+                "subject_code": subject.code if subject else None,
+                "subject_title": subject.title if subject else None,
+                "faculty_name": (
+                    f"{faculty.first_name} {faculty.last_name}".strip()
+                    if faculty and (faculty.first_name or faculty.last_name)
+                    else "—"
+                ),
+                "class_id": log.class_id,
+            }
+        )
+    return rows
+
+
+def get_student_report_envelope(
+    db: Session,
+    user_id: int,
+    report_type: str,
+    date_from: datetime,
+    date_to: datetime,
+    class_id: int = None,
+    skip: int = 0,
+    limit: int = 50,
+):
+    """
+    Returns Phase 1 student report envelope:
+    {
+      success, meta, summary_metrics, insights, rows
+    }
+    """
+    start_perf = datetime.now(timezone.utc)
+    report_code = (report_type or "DAILY_REPORT").upper()
+    cache_key = _make_student_report_cache_key(
+        user_id=user_id,
+        report_code=report_code,
+        date_from=date_from,
+        date_to=date_to,
+        class_id=class_id,
+        skip=max(skip, 0),
+        limit=min(limit, 100),
+    )
+    cached_envelope = _get_cached_student_report(cache_key)
+    if cached_envelope:
+        return cached_envelope
+
+    scoped_class_ids = resolve_student_scoped_class_ids(db, user_id, class_id)
+    scoped_classes = (
+        db.query(Class)
+        .filter(Class.id.in_(scoped_class_ids))
+        .all()
+        if scoped_class_ids
+        else []
+    )
+
+    base_query = (
+        db.query(AttendanceLog)
+        .options(
+            joinedload(AttendanceLog.class_).joinedload(Class.subject),
+            joinedload(AttendanceLog.class_).joinedload(Class.faculty),
+        )
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp <= date_to,
+        )
+    )
+
+    if class_id:
+        base_query = base_query.filter(AttendanceLog.class_id == class_id)
+
+    if report_code == "LATE_REPORT":
+        base_query = base_query.filter(
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.is_late == True,
+        )
+    elif report_code == "BREAK_LOG":
+        base_query = base_query.filter(
+            AttendanceLog.action.in_([AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN])
+        )
+
+    total_rows = base_query.count()
+    logs = (
+        base_query
+        .order_by(AttendanceLog.timestamp.desc())
+        .offset(skip)
+        .limit(min(limit, 100))
+        .all()
+    )
+
+    rows = _build_student_rows(logs)
+
+    core_metrics = compute_student_core_metrics(
+        db=db,
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        class_id=class_id,
+        scoped_class_ids=scoped_class_ids,
+        classes=scoped_classes,
+    )
+
+    # Previous window for trend comparison insights.
+    window_seconds = max(int((date_to - date_from).total_seconds()), 1)
+    prev_to = date_from - timedelta(seconds=1)
+    prev_from = prev_to - timedelta(seconds=window_seconds)
+
+    prev_metrics = {}
+    if report_code in {"WEEKLY_SUMMARY", "MONTHLY_TRENDS", "SEM_REPORT", "HISTORY_30D", "CONSISTENCY"}:
+        prev_metrics = compute_student_core_metrics(
+            db=db,
+            user_id=user_id,
+            date_from=prev_from,
+            date_to=prev_to,
+            class_id=class_id,
+            scoped_class_ids=scoped_class_ids,
+            classes=scoped_classes,
+        )
+
+    summary_metrics = build_student_summary_metrics(core_metrics, date_from, date_to)
+    insights = generate_student_insights(core_metrics, prev_metrics)
+    session_count_reference = compute_student_session_count_reference(
+        db=db,
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        class_id=class_id,
+        scoped_class_ids=scoped_class_ids,
+        precomputed_window_counts={
+            "attended": int(core_metrics.get("sessions_attended", 0)),
+            "conducted": int(core_metrics.get("sessions_conducted", 0)),
+            "expected": int(core_metrics.get("expected_sessions", 0)),
+        },
+        classes=scoped_classes,
+    )
+
+    elapsed_ms = round((datetime.now(timezone.utc) - start_perf).total_seconds() * 1000, 1)
+
+    envelope = {
+        "success": True,
+        "meta": {
+            "report_code": report_code,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "window": {
+                "from": date_from.date().isoformat(),
+                "to": date_to.date().isoformat(),
+            },
+            "scope": {
+                "module": "STUDENT",
+                "user_id": user_id,
+                "class_id": class_id,
+            },
+            "pagination": {
+                "skip": skip,
+                "limit": min(limit, 100),
+                "total": total_rows,
+            },
+            "query_metrics": {
+                "execution_ms": elapsed_ms,
+                "db_round_trips_estimate": 5,
+            },
+        },
+        "summary_metrics": summary_metrics,
+        "insights": insights,
+        "session_count_reference": session_count_reference,
+        "rows": rows,
+    }
+
+    _set_cached_student_report(cache_key, envelope)
+    return envelope

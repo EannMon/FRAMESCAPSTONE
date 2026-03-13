@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 
 import './AttendanceHistoryPage.css';
@@ -23,8 +23,14 @@ const AttendanceHistoryPage = () => {
     const [rawLogs, setRawLogs] = useState([]);
     const [schedule, setSchedule] = useState([]);
     const [uniqueSubjects, setUniqueSubjects] = useState([]);
+    const [subjectClassMap, setSubjectClassMap] = useState({});
     const [userProfile, setUserProfile] = useState({});
     const [loading, setLoading] = useState(true);
+    const [isFetchingReport, setIsFetchingReport] = useState(false);
+    const [summaryMetrics, setSummaryMetrics] = useState([]);
+    const [insights, setInsights] = useState([]);
+    const [sessionCountReference, setSessionCountReference] = useState(null);
+    const reportCacheRef = useRef(new Map());
 
     // 2. FILTER STATE
     const [selectedReportType, setSelectedReportType] = useState('DAILY_REPORT'); // Default to first valid item
@@ -39,8 +45,7 @@ const AttendanceHistoryPage = () => {
         { id: 'DAILY_REPORT', label: 'Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
         { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
         { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Groups attendance by month to identify patterns and trends over time.' },
-        { id: 'SEM_REPORT', label: 'Semestral Report (Per Subject)', desc: 'Provides cumulative data per subject for academic reference.' },
-        { id: 'OVERALL_SEM', label: 'Overall Semestral Summary', desc: 'Consolidates all subjects for holistic engagement assessment.' },
+        { id: 'SEM_REPORT', label: 'Semestral Report', desc: 'Provides cumulative data and can be filtered per subject or all enrolled subjects.' },
         { id: 'HISTORY_30D', label: 'Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
         { id: 'LATE_REPORT', label: 'Personal Late Arrival Report', desc: 'Monitors frequency and duration of lateness for punctuality.' },
         { id: 'BREAK_LOG', label: 'Break Duration Log', desc: 'Shows total break time to encourage responsible behavior.' },
@@ -91,49 +96,19 @@ const AttendanceHistoryPage = () => {
                 // Extract Subjects for Filter
                 const subjects = [];
                 const seen = new Set();
+                const subjectToClass = {};
                 processedSchedule.forEach(item => {
                     if (item.subject_title && !seen.has(item.subject_title)) {
                         seen.add(item.subject_title);
                         subjects.push(item.subject_title);
                     }
+                    if (item.subject_title && item.class_id && !subjectToClass[item.subject_title]) {
+                        subjectToClass[item.subject_title] = item.class_id;
+                    }
                 });
                 setUniqueSubjects(subjects);
+                setSubjectClassMap(subjectToClass);
 
-                // B. Get Logs & SMART MAPPING
-                const historyRes = await api.get(`/api/student/history/${userId}`, { signal: controller.signal });
-                const rawLogData = historyRes.data || [];
-
-                const mappedLogs = rawLogData.map(log => {
-                    // 1. Create Date object manually to avoid Timezone Shift
-                    const t = log.timestamp.split(/[- :]/);
-                    const logDate = new Date(t[0], t[1] - 1, t[2], t[3], t[4], t[5]);
-
-                    const logDay = logDate.toLocaleDateString('en-US', { weekday: 'long' });
-                    const logTimeMins = logDate.getHours() * 60 + logDate.getMinutes();
-
-                    // 2. Find Class Match (Using Pre-processed Schedule)
-                    const foundClass = processedSchedule.find(cls => {
-                        // Check Day first (Fast fail)
-                        if (cls.day_of_week !== logDay) return false;
-
-                        // Check Room (If room data exists in log)
-                        if (log.room && cls.room && log.room !== cls.room) return false;
-
-                        // Check Time (Buffer: 60 mins before, 60 mins after class starts/ends)
-                        return (
-                            logTimeMins >= (cls.startMins - 60) &&
-                            logTimeMins <= (cls.endMins + 60)
-                        );
-                    });
-
-                    return {
-                        ...log,
-                        mapped_subject: foundClass ? foundClass.subject_title : (log.class_name || 'Unscheduled'),
-                        mapped_room: log.room || '—'
-                    };
-                });
-
-                setRawLogs(mappedLogs);
                 setLoading(false);
 
             } catch (error) {
@@ -148,6 +123,200 @@ const AttendanceHistoryPage = () => {
         return () => controller.abort();
     }, []);
 
+    const resolveDateWindow = () => {
+        const selectedDate = new Date(filterDate);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        const toIso = (d, end = false) => {
+            const copy = new Date(d);
+            if (end) copy.setHours(23, 59, 59, 999);
+            else copy.setHours(0, 0, 0, 0);
+            return copy.toISOString().split('T')[0];
+        };
+
+        if (selectedReportType === 'DAILY_REPORT') {
+            return { dateFrom: toIso(selectedDate), dateTo: toIso(selectedDate, true) };
+        }
+
+        if (selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG') {
+            return { dateFrom: '2020-01-01', dateTo: toIso(new Date(), true) };
+        }
+
+        if (selectedReportType === 'WEEKLY_SUMMARY') {
+            const weekEnd = new Date(selectedDate);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            return { dateFrom: toIso(selectedDate), dateTo: toIso(weekEnd, true) };
+        }
+
+        if (selectedReportType === 'HISTORY_30D' || selectedReportType === 'CONSISTENCY') {
+            const last30 = new Date(selectedDate);
+            last30.setDate(last30.getDate() - 29);
+            return { dateFrom: toIso(last30), dateTo: toIso(selectedDate, true) };
+        }
+
+        if (selectedReportType === 'MONTHLY_TRENDS') {
+            const mtDate = new Date(filterDate);
+            const start = new Date(mtDate.getFullYear(), mtDate.getMonth(), 1);
+            const end = new Date(mtDate.getFullYear(), mtDate.getMonth() + 1, 0);
+            return { dateFrom: toIso(start), dateTo: toIso(end, true) };
+        }
+
+        if (selectedReportType === 'SEM_REPORT') {
+            const year = parseInt(academicYear, 10);
+            if (selectedSemester === '1ST') {
+                return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
+            }
+            if (selectedSemester === '2ND') {
+                return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
+            }
+            return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
+        }
+
+        return { dateFrom: `${academicYear}-08-01`, dateTo: `${parseInt(academicYear, 10) + 1}-07-31` };
+    };
+
+    const metricDictionary = {
+        real_time_attendance_rate: {
+            label: 'Real-Time Attendance Rate',
+            explanation: 'How many conducted sessions you attended in this window.',
+            formula: 'sessions_attended / sessions_conducted * 100',
+        },
+        semester_progress_attendance_rate: {
+            label: 'Semester Progress Attendance Rate',
+            explanation: 'How much of expected sessions you have already attended.',
+            formula: 'sessions_attended / expected_sessions * 100',
+        },
+        punctuality_rate: {
+            label: 'Punctuality Rate',
+            explanation: 'Share of attended ENTRY events that were on time.',
+            formula: 'on_time_entries / total_entries * 100',
+        },
+        consistency_index: {
+            label: 'Consistency Index',
+            explanation: 'Weighted behavior stability from attendance and punctuality.',
+            formula: 'real_time_attendance_rate * 0.7 + punctuality_rate * 0.3',
+        },
+    };
+
+    const confidenceMeaning = {
+        HIGH: 'High reliability: enough sessions and complete data.',
+        MEDIUM: 'Moderate reliability: acceptable samples but limited depth.',
+        LOW: 'Low reliability: small sample size and/or limited data in this window.',
+    };
+
+    const statusDistribution = useMemo(() => {
+        const buckets = { PRESENT: 0, LATE: 0, ON_BREAK: 0, EXITED: 0 };
+        rawLogs.forEach((log) => {
+            const action = (log.action || '').toUpperCase();
+            if (action === 'ENTRY' || action === 'BREAK_IN') {
+                if (log.is_late) buckets.LATE += 1;
+                else buckets.PRESENT += 1;
+            } else if (action === 'BREAK_OUT') {
+                buckets.ON_BREAK += 1;
+            } else if (action === 'EXIT') {
+                buckets.EXITED += 1;
+            }
+        });
+        return buckets;
+    }, [rawLogs]);
+
+    const dailyTrend = useMemo(() => {
+        const grouped = {};
+        rawLogs.forEach((log) => {
+            if (!log.timestamp) return;
+            const key = new Date(log.timestamp).toISOString().split('T')[0];
+            grouped[key] = (grouped[key] || 0) + 1;
+        });
+        return Object.entries(grouped)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([day, count]) => ({ day, count }));
+    }, [rawLogs]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const fetchServerReport = async () => {
+            const userId = userProfile?.id || userProfile?.user_id;
+            if (!userId) return;
+            if (selectedSubject !== 'ALL' && !subjectClassMap[selectedSubject]) return;
+
+            const { dateFrom, dateTo } = resolveDateWindow();
+            const scopedClassId = selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : 'ALL';
+            const cacheKey = [
+                userId,
+                selectedReportType,
+                scopedClassId,
+                dateFrom,
+                dateTo,
+                selectedSemester,
+                academicYear,
+            ].join('|');
+
+            const cached = reportCacheRef.current.get(cacheKey);
+            const nowMs = Date.now();
+            if (cached && nowMs - cached.ts < 90000) {
+                setRawLogs(cached.logs);
+                setSummaryMetrics(cached.summaryMetrics);
+                setInsights(cached.insights);
+                setSessionCountReference(cached.sessionCountReference);
+                setIsFetchingReport(false);
+                return;
+            }
+
+            setIsFetchingReport(true);
+            setRawLogs([]);
+            setSummaryMetrics([]);
+            setInsights([]);
+            setSessionCountReference(null);
+            try {
+                const res = await api.get(`/api/student/reports/data/${userId}`, {
+                    signal: controller.signal,
+                    params: {
+                        report_type: selectedReportType,
+                        date_from: dateFrom,
+                        date_to: dateTo,
+                        class_id: selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : undefined,
+                        limit: 250,
+                    },
+                });
+
+                const payload = res.data || {};
+                const rows = payload.rows || [];
+
+                const mapped = rows.map((row) => ({
+                    timestamp: row.timestamp,
+                    action: row.action,
+                    is_late: row.is_late,
+                    mapped_subject: row.subject_title || row.col2 || 'Unscheduled',
+                    mapped_room: row.room || '—',
+                    faculty_name: row.faculty_name || '—',
+                    remarks: row.remarks || '—',
+                }));
+
+                setRawLogs(mapped);
+                setSummaryMetrics(payload.summary_metrics || []);
+                setInsights(payload.insights || []);
+                setSessionCountReference(payload.session_count_reference || null);
+                reportCacheRef.current.set(cacheKey, {
+                    ts: nowMs,
+                    logs: mapped,
+                    summaryMetrics: payload.summary_metrics || [],
+                    insights: payload.insights || [],
+                    sessionCountReference: payload.session_count_reference || null,
+                });
+            } catch (error) {
+                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+                    console.error('Student report fetch error:', error);
+                }
+            } finally {
+                setIsFetchingReport(false);
+            }
+        };
+
+        fetchServerReport();
+        return () => controller.abort();
+    }, [selectedReportType, selectedSubject, filterDate, selectedSemester, academicYear, userProfile, subjectClassMap]);
+
     // --- FILTER LOGIC ---
     const getFilteredData = () => {
         let filtered = [...rawLogs];
@@ -157,325 +326,148 @@ const AttendanceHistoryPage = () => {
             filtered = filtered.filter(l => l.mapped_subject === selectedSubject);
         }
 
-        // 2. Report Type Logic
-        const selectedDate = new Date(filterDate);
-        // Helper: Reset hours for accurate date comparison
-        selectedDate.setHours(0, 0, 0, 0);
-
-        switch (selectedReportType) {
-            case 'DAILY_REPORT':
-            case 'LATE_REPORT':
-            case 'BREAK_LOG':
-                filtered = filtered.filter(l => {
-                    const logDate = new Date(l.timestamp);
-                    return logDate.toDateString() === selectedDate.toDateString();
-                });
-                break;
-            case 'WEEKLY_SUMMARY':
-                // Match week (Start date -> +7 days)
-                const weekEnd = new Date(selectedDate);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                filtered = filtered.filter(l => {
-                    const d = new Date(l.timestamp);
-                    return d >= selectedDate && d <= weekEnd;
-                });
-                break;
-            case 'HISTORY_30D':
-                // History: filterDate is END DATE. Limit to prev 30 days.
-                const last30 = new Date(selectedDate);
-                last30.setHours(0,0,0,0);
-                last30.setDate(last30.getDate() - 30);
-                // selectedDate (End) should include end of day
-                const rangeEnd = new Date(selectedDate);
-                rangeEnd.setHours(23, 59, 59, 999);
-
-                filtered = filtered.filter(l => {
-                    const d = new Date(l.timestamp);
-                    return d >= last30 && d <= rangeEnd;
-                });
-                break;
-
-            case 'SEM_REPORT':
-                // Specific Semester (Year + Sem)
-                const year = parseInt(academicYear);
-                let semStart, semEnd;
-                
-                if (selectedSemester === '1ST') {
-                    semStart = new Date(year, 7, 1); // Aug 1
-                    semEnd = new Date(year, 11, 31); // Dec 31
-                } else if (selectedSemester === '2ND') {
-                    semStart = new Date(year + 1, 0, 1); // Jan 1 (Next Year)
-                    semEnd = new Date(year + 1, 4, 31); // May 31
-                } else { // SUMMER
-                    semStart = new Date(year + 1, 5, 1); // Jun 1
-                    semEnd = new Date(year + 1, 6, 31); // Jul 31
-                }
-
-                filtered = filtered.filter(l => {
-                    const d = new Date(l.timestamp);
-                    return d >= semStart && d <= semEnd;
-                });
-                break;
-            case 'MONTHLY_TRENDS':
-                // Filter by selected month using filterDate (year-month from month picker)
-                const mtDate = new Date(filterDate);
-                const mtMonthStart = new Date(mtDate.getFullYear(), mtDate.getMonth(), 1);
-                const mtMonthEnd = new Date(mtDate.getFullYear(), mtDate.getMonth() + 1, 0, 23, 59, 59, 999);
-                filtered = filtered.filter(l => {
-                    const d = new Date(l.timestamp);
-                    return d >= mtMonthStart && d <= mtMonthEnd;
-                });
-                break;
-            case 'OVERALL_SEM':
-                // Whole Academic Year (Aug 1 to Jul 31 next year)
-                const acYear = parseInt(academicYear);
-                const acStart = new Date(acYear, 7, 1);
-                const acEnd = new Date(acYear + 1, 6, 31);
-                
-                filtered = filtered.filter(l => {
-                     const d = new Date(l.timestamp);
-                     return d >= acStart && d <= acEnd;
-                });
-                break;
-            default:
-                break;
-        }
-
-        // Sort ascending (oldest first — chronological reading order)
+        // Server already scopes report windows, so client only sorts for display.
         return filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     };
 
-    // ─── INSIGHT COMPUTATIONS ────────────────────────────────────────────
-    // Computes summary stats from filtered data for the insight panel.
-    const getInsights = (data) => {
-        if (!data.length) return null;
-
-        const entries   = data.filter(l => l.action?.toUpperCase() === 'ENTRY');
-        const exits     = data.filter(l => l.action?.toUpperCase() === 'EXIT');
-        const breakOuts = data.filter(l => l.action?.toUpperCase() === 'BREAK_OUT');
-        const lates     = entries.filter(l => l.is_late);
-        const onTime    = entries.filter(l => !l.is_late);
-        const earlyExit = exits.filter(l => l.remarks === 'Early exit');
-
-        // Unique session days
-        const sessionDays = [...new Set(entries.map(l => new Date(l.timestamp).toDateString()))];
-
-        // Attendance rate across unique days with entries
-        const allDays = [...new Set(data.map(l => new Date(l.timestamp).toDateString()))];
-        const attendanceRate = allDays.length ? Math.round((sessionDays.length / allDays.length) * 100) : 0;
-
-        // Punctuality rate
-        const punctualityRate = entries.length ? Math.round((onTime.length / entries.length) * 100) : 0;
-
-        // Per-subject breakdown
-        const bySubject = {};
-        entries.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (!bySubject[subj]) bySubject[subj] = { present: 0, late: 0, earlyExit: 0, breaks: 0 };
-            bySubject[subj].present++;
-            if (l.is_late) bySubject[subj].late++;
-        });
-        earlyExit.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (bySubject[subj]) bySubject[subj].earlyExit++;
-        });
-        breakOuts.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (bySubject[subj]) bySubject[subj].breaks++;
-        });
-
-        // Weekly breakdown (for weekly/monthly views)
-        const byWeek = {};
-        entries.forEach(l => {
-            const d = new Date(l.timestamp);
-            const weekKey = `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-            if (!byWeek[weekKey]) byWeek[weekKey] = { present: 0, late: 0 };
-            byWeek[weekKey].present++;
-            if (l.is_late) byWeek[weekKey].late++;
-        });
-
-        // Daily breakdown for weekly view
-        const byDay = {};
-        const dayOrder = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-        entries.forEach(l => {
-            const d = new Date(l.timestamp);
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-            if (!byDay[dayName]) byDay[dayName] = { present: 0, late: 0 };
-            byDay[dayName].present++;
-            if (l.is_late) byDay[dayName].late++;
-        });
-
-        return {
-            totalSessions: sessionDays.length,
-            totalEntries: entries.length,
-            lateCount: lates.length,
-            onTimeCount: onTime.length,
-            earlyExitCount: earlyExit.length,
-            breakCount: breakOuts.length,
-            attendanceRate,
-            punctualityRate,
-            bySubject,
-            byWeek,
-            byDay: dayOrder.filter(d => byDay[d]).map(d => ({ day: d.slice(0, 3), ...byDay[d] })),
-        };
-    };
-
-    // ─── INSIGHT PANEL RENDERER ─────────────────────────────────────────
-    const renderInsightPanel = (data) => {
-        const ins = getInsights(data);
-        if (!ins) return null;
-
-        // ── Stat Card helper ──
-        const StatCard = ({ label, value, sub, color, icon }) => (
-            <div className="insight-stat-card" style={{ borderTop: `3px solid ${color}` }}>
-                <div className="insight-stat-icon" style={{ color }}>{icon}</div>
-                <div className="insight-stat-value" style={{ color }}>{value}</div>
-                <div className="insight-stat-label">{label}</div>
-                {sub && <div className="insight-stat-sub">{sub}</div>}
-            </div>
-        );
-
-        // ── Bar-chart helper (pure CSS, no library) ──
-        const BarChart = ({ items, maxVal, colorFn, labelKey, valueKey, height = 80 }) => {
-            if (!items.length) return null;
-            const max = maxVal || Math.max(...items.map(i => i[valueKey]), 1);
-            return (
-                <div className="insight-barchart">
-                    {items.map((item, i) => (
-                        <div key={i} className="insight-bar-col">
-                            <div className="insight-bar-track" style={{ height }}>
-                                <div
-                                    className="insight-bar-fill"
-                                    style={{
-                                        height: `${Math.round((item[valueKey] / max) * 100)}%`,
-                                        background: colorFn ? colorFn(item) : '#163269'
-                                    }}
-                                />
-                            </div>
-                            <div className="insight-bar-val">{item[valueKey]}</div>
-                            <div className="insight-bar-lbl">{item[labelKey]}</div>
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-
-        // ── Donut / ring helper ──
-        const DonutRing = ({ pct, color, label }) => {
-            const r = 32, cx = 40, cy = 40;
-            const circ = 2 * Math.PI * r;
-            const dash = (pct / 100) * circ;
-            return (
-                <div className="insight-donut-wrap">
-                    <svg width="80" height="80" viewBox="0 0 80 80">
-                        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#eee" strokeWidth="9" />
-                        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="9"
-                            strokeDasharray={`${dash} ${circ}`}
-                            strokeLinecap="round"
-                            transform={`rotate(-90 ${cx} ${cy})`} />
-                        <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fontWeight="700" fill={color}>{pct}%</text>
-                    </svg>
-                    <div className="insight-donut-lbl">{label}</div>
-                </div>
-            );
-        };
-
-        // Subject rows
-        const subjectRows = Object.entries(ins.bySubject).map(([subj, d]) => ({
-            subj,
-            present: d.present,
-            late: d.late,
-            onTime: d.present - d.late,
-            earlyExit: d.earlyExit,
-            breaks: d.breaks,
-            pctLate: d.present ? Math.round((d.late / d.present) * 100) : 0
-        }));
-
-        // ── Contextual insight text ──
-        const getVerdict = () => {
-            if (ins.attendanceRate >= 90 && ins.punctualityRate >= 85) return { text: 'Excellent standing — keep it up!', color: '#2e7d32' };
-            if (ins.attendanceRate >= 75 && ins.punctualityRate >= 70) return { text: 'Good standing — minor improvements needed.', color: '#1565c0' };
-            if (ins.attendanceRate >= 60) return { text: 'Fair — attendance needs attention.', color: '#e65100' };
-            return { text: 'At risk — consider speaking with your instructor.', color: '#c62828' };
-        };
-
-        const verdict = getVerdict();
+    const renderServerInsightPanel = () => {
+        if (!summaryMetrics.length && !insights.length) return null;
 
         return (
             <div className="insight-panel">
-                {/* ── Verdict banner ── */}
-                <div className="insight-verdict" style={{ borderLeft: `4px solid ${verdict.color}`, color: verdict.color }}>
-                    <i className="fas fa-chart-line" style={{ marginRight: 8 }} />
-                    <strong>Summary: </strong>{verdict.text}
-                </div>
-
-                {/* ── Stat cards row ── */}
-                <div className="insight-stats-row">
-                    <StatCard label="Sessions Attended" value={ins.totalSessions} color="#163269" icon="📅" />
-                    <StatCard label="On Time" value={ins.onTimeCount} sub={`${ins.punctualityRate}% punctual`} color="#2e7d32" icon="✅" />
-                    <StatCard label="Late Arrivals" value={ins.lateCount} sub={ins.totalEntries ? `${Math.round((ins.lateCount/ins.totalEntries)*100)}% of entries` : ''} color="#e65100" icon="⏰" />
-                    <StatCard label="Early Exits" value={ins.earlyExitCount} color="#7b1fa2" icon="🚪" />
-                    <StatCard label="Breaks Taken" value={ins.breakCount} color="#0277bd" icon="☕" />
-                </div>
-
-                {/* ── Donut rings ── */}
-                <div className="insight-rings-row">
-                    <DonutRing pct={ins.attendanceRate} color="#163269" label="Attendance Rate" />
-                    <DonutRing pct={ins.punctualityRate} color="#2e7d32" label="Punctuality Rate" />
-                    <DonutRing pct={ins.earlyExitCount && ins.totalSessions ? Math.round((ins.earlyExitCount / ins.totalSessions) * 100) : 0} color="#7b1fa2" label="Early Exit Rate" />
-                </div>
-
-                {/* ── Per-subject breakdown (only if multiple subjects) ── */}
-                {subjectRows.length > 0 && (
-                    <div className="insight-section">
-                        <div className="insight-section-title">Per-Subject Breakdown</div>
-                        <table className="insight-subject-table">
-                            <thead>
-                                <tr>
-                                    <th>Subject</th>
-                                    <th>Sessions Present</th>
-                                    <th>On Time</th>
-                                    <th>Late</th>
-                                    <th>Early Exits</th>
-                                    <th>Breaks</th>
-                                    <th>Late Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {subjectRows.map((row, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 600 }}>{row.subj}</td>
-                                        <td>{row.present}</td>
-                                        <td style={{ color: '#2e7d32', fontWeight: 600 }}>{row.onTime}</td>
-                                        <td style={{ color: row.late > 0 ? '#e65100' : '#aaa' }}>{row.late}</td>
-                                        <td style={{ color: row.earlyExit > 0 ? '#7b1fa2' : '#aaa' }}>{row.earlyExit}</td>
-                                        <td>{row.breaks}</td>
-                                        <td>
-                                            <div className="insight-mini-bar-wrap">
-                                                <div className="insight-mini-bar" style={{ width: `${row.pctLate}%`, background: row.pctLate > 30 ? '#c62828' : '#e65100' }} />
-                                                <span>{row.pctLate}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                {summaryMetrics.length > 0 && (
+                    <div className="insight-stats-row">
+                        {summaryMetrics.map((metric) => (
+                            <div key={metric.metric_name} className="insight-stat-card">
+                                <div className="insight-stat-label">{metric.metric_name.replaceAll('_', ' ')}</div>
+                                <div className="insight-stat-value">{metric.value}</div>
+                                <div className="insight-stat-sub">Confidence: {metric.confidence}</div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
-                {/* ── Day-of-week bar chart (for weekly/monthly/semester views) ── */}
-                {ins.byDay.length > 0 && !['DAILY_REPORT', 'LATE_REPORT', 'BREAK_LOG'].includes(selectedReportType) && (
-                    <div className="insight-section">
-                        <div className="insight-section-title">Attendance by Day of Week</div>
-                        <BarChart
-                            items={ins.byDay}
-                            labelKey="day"
-                            valueKey="present"
-                            colorFn={(item) => item.late > 0 ? '#e65100' : '#163269'}
-                            height={70}
-                        />
+                {insights.length > 0 && (
+                    <div className="insight-section" style={{ marginTop: '14px' }}>
+                        <div className="insight-section-title">Explainable Insights</div>
+                        <ul style={{ margin: '10px 0 0 0', paddingLeft: '18px' }}>
+                            {insights.map((insight) => (
+                                <li key={insight.insight_code} style={{ marginBottom: '8px' }}>
+                                    <strong>{insight.title}:</strong> {insight.narrative} (Confidence: {insight.confidence})
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
+            </div>
+        );
+    };
+
+    const renderMetricDictionary = () => {
+        if (!summaryMetrics.length) return null;
+        return (
+            <div className="insight-panel">
+                <div className="insight-section-title">Metric Legend and Formula Guide</div>
+                <div className="metric-dictionary-grid">
+                    {summaryMetrics.map((metric) => {
+                        const dict = metricDictionary[metric.metric_name] || {
+                            label: metric.metric_name.replaceAll('_', ' '),
+                            explanation: metric.explanation || 'Derived from report window records.',
+                            formula: metric.formula || 'N/A',
+                        };
+                        return (
+                            <div key={metric.metric_name} className="metric-dictionary-card">
+                                <div className="metric-dictionary-title">{dict.label}</div>
+                                <div className="metric-dictionary-value">Current: {metric.value}</div>
+                                <div className="metric-dictionary-line"><strong>Formula:</strong> {dict.formula}</div>
+                                <div className="metric-dictionary-line"><strong>Meaning:</strong> {dict.explanation}</div>
+                                <div className="metric-dictionary-line"><strong>Confidence:</strong> {metric.confidence} - {confidenceMeaning[metric.confidence] || 'Data confidence from sample quality.'}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const renderVisualSummary = () => {
+        if (!rawLogs.length) return null;
+
+        const statusItems = [
+            { label: 'Present', value: statusDistribution.PRESENT, color: '#2e7d32' },
+            { label: 'Late', value: statusDistribution.LATE, color: '#e65100' },
+            { label: 'On Break', value: statusDistribution.ON_BREAK, color: '#1565c0' },
+            { label: 'Exited', value: statusDistribution.EXITED, color: '#6c757d' },
+        ];
+        const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
+        const maxTrend = Math.max(...dailyTrend.map((item) => item.count), 1);
+
+        return (
+            <div className="insight-panel">
+                <div className="insight-section-title">Visual Summary</div>
+                <div className="visual-grid">
+                    <div className="visual-card">
+                        <div className="visual-title">Status Distribution</div>
+                        {statusItems.map((item) => (
+                            <div key={item.label} className="visual-bar-row">
+                                <span className="visual-label">{item.label}</span>
+                                <div className="visual-bar-track">
+                                    <div
+                                        className="visual-bar-fill"
+                                        style={{ width: `${(item.value / maxStatus) * 100}%`, backgroundColor: item.color }}
+                                    />
+                                </div>
+                                <span className="visual-value">{item.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="visual-card">
+                        <div className="visual-title">Daily Activity Trend</div>
+                        <div className="mini-column-chart">
+                            {dailyTrend.slice(-10).map((item) => (
+                                <div key={item.day} className="mini-column-item">
+                                    <div className="mini-column-track">
+                                        <div
+                                            className="mini-column-fill"
+                                            style={{ height: `${(item.count / maxTrend) * 100}%` }}
+                                        />
+                                    </div>
+                                    <div className="mini-column-value">{item.count}</div>
+                                    <div className="mini-column-label">{new Date(item.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderSessionCountReference = () => {
+        if (!sessionCountReference) return null;
+        const reportWindow = sessionCountReference.report_window || {};
+        const wholeSemester = sessionCountReference.whole_semester || {};
+
+        return (
+            <div className="insight-panel">
+                <div className="insight-section-title">Session Count Reference</div>
+                <div className="session-reference-grid">
+                    <div className="session-reference-card">
+                        <div className="session-reference-title">Report Window</div>
+                        <div className="session-reference-line">Attended: {reportWindow.attended ?? 0}</div>
+                        <div className="session-reference-line">Conducted: {reportWindow.conducted ?? 0}</div>
+                        <div className="session-reference-line">Expected: {reportWindow.expected ?? 0}</div>
+                    </div>
+                    <div className="session-reference-card">
+                        <div className="session-reference-title">Whole Semester (Department Dates)</div>
+                        <div className="session-reference-sub">
+                            {wholeSemester.semester_start_date || 'N/A'} to {wholeSemester.semester_end_date || 'N/A'}
+                        </div>
+                        <div className="session-reference-line">Attended: {wholeSemester.attended ?? 0}</div>
+                        <div className="session-reference-line">Conducted: {wholeSemester.conducted ?? 0}</div>
+                        <div className="session-reference-line">Expected: {wholeSemester.expected ?? 0}</div>
+                    </div>
+                </div>
             </div>
         );
     };
@@ -500,9 +492,10 @@ const AttendanceHistoryPage = () => {
 
         switch (selectedReportType) {
             case 'DAILY_REPORT':
+                return d.toLocaleDateString('en-US', options);
             case 'LATE_REPORT':
             case 'BREAK_LOG':
-                return d.toLocaleDateString('en-US', options);
+                return `All available records up to ${new Date().toLocaleDateString('en-US', options)}`;
             case 'WEEKLY_SUMMARY':
                 const weekEnd = new Date(d);
                 weekEnd.setDate(weekEnd.getDate() + 6);
@@ -517,8 +510,6 @@ const AttendanceHistoryPage = () => {
 
             case 'SEM_REPORT':
                 return `${selectedSemester === '1ST' ? '1st' : (selectedSemester === '2ND' ? '2nd' : 'Summer')} Semester ${academicYear}-${parseInt(academicYear) + 1}`;
-            case 'OVERALL_SEM':
-                return `Academic Year ${academicYear}-${parseInt(academicYear) + 1}`;
             default:
                 return d.toLocaleDateString('en-US', options);
         }
@@ -529,13 +520,16 @@ const AttendanceHistoryPage = () => {
         const style = { padding: '8px', borderRadius: '4px', border: '1px solid #ccc', minWidth: '160px' };
         
         // A. Single Date Input (Used for Daily, Weekly Start, History End)
-        if (['DAILY_REPORT', 'LATE_REPORT', 'BREAK_LOG'].includes(selectedReportType)) {
+        if (selectedReportType === 'DAILY_REPORT') {
              return (
                  <div className="filter-item">
                      <label>Select Date:</label>
                      <input type="date" style={style} value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
                  </div>
              );
+        }
+        if (selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG') {
+            return null;
         }
         if (selectedReportType === 'WEEKLY_SUMMARY') {
              return (
@@ -564,21 +558,7 @@ const AttendanceHistoryPage = () => {
             );
         }
 
-        // C. Academic Year Only (Overall Sem)
-        if (selectedReportType === 'OVERALL_SEM') {
-             return (
-                 <div className="filter-item">
-                     <label>School Year:</label>
-                     <select style={style} value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
-                         {[2023, 2024, 2025, 2026].map(y => (
-                             <option key={y} value={y}>{y} - {y+1}</option>
-                         ))}
-                     </select>
-                 </div>
-             );
-        }
-
-        // D. Semester Selector (Sem Report)
+        // Semester Selector (Sem Report)
         if (selectedReportType === 'SEM_REPORT') {
              return (
                  <div style={{ display: 'flex', gap: '15px' }}>
@@ -616,8 +596,10 @@ const AttendanceHistoryPage = () => {
                 "Date": new Date(log.timestamp).toLocaleDateString(),
                 "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 "Subject": log.mapped_subject,
+                "Professor": log.faculty_name || 'N/A',
                 "Room": log.mapped_room || 'N/A',
-                "Status": status.text
+                "Status": status.text,
+                "Remarks": log.remarks || '-'
             };
         });
 
@@ -688,10 +670,19 @@ const AttendanceHistoryPage = () => {
                     <i className="fas fa-info-circle"></i>
                     <span>{currentDesc}</span>
                 </div>
+                {isFetchingReport && <div className="report-refreshing-note">Updating report data...</div>}
             </div>
 
-            {/* INSIGHT PANEL */}
-            {!loading && displayData.length > 0 && renderInsightPanel(displayData)}
+            {!loading && displayData.length > 0 && renderServerInsightPanel()}
+            {!loading && displayData.length > 0 && renderSessionCountReference()}
+            {!loading && displayData.length > 0 && renderMetricDictionary()}
+            {!loading && displayData.length > 0 && renderVisualSummary()}
+            {!loading && isFetchingReport && (
+                <div className="insight-panel">
+                    <div className="insight-section-title">Loading Selected Report</div>
+                    <div className="report-loading-skeleton">Fetching updated metrics and records...</div>
+                </div>
+            )}
 
             {/* TABLE CARD */}
             <div className="card recent-reports-card">
@@ -723,8 +714,10 @@ const AttendanceHistoryPage = () => {
                             <tr>
                                 <th>Date & Time</th>
                                 <th>Subject</th>
+                                <th>Professor</th>
                                 <th>Room</th>
                                 <th>Status</th>
+                                <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -738,6 +731,7 @@ const AttendanceHistoryPage = () => {
                                         <td style={{ fontWeight: '600', color: '#333' }}>
                                             {log.mapped_subject}
                                         </td>
+                                        <td>{log.faculty_name || '—'}</td>
                                         <td>{log.mapped_room}</td>
                                         <td>
                                             {(() => {
@@ -751,11 +745,14 @@ const AttendanceHistoryPage = () => {
                                                 );
                                             })()}
                                         </td>
+                                        <td style={{ fontSize: '0.9em', color: log.remarks === 'Late' ? 'orange' : '#555' }}>
+                                            {log.remarks || '-'}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                                    <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
                                         No records found for this view.
                                     </td>
                                 </tr>
