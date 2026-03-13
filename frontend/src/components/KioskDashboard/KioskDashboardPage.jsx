@@ -16,7 +16,7 @@ const KioskDashboardPage = () => {
     const [offline, setOffline] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     const WS_URL = BACKEND_URL.replace(/^http/, 'ws') + '/ws/status';
     const VIDEO_STREAM_URL = `${BACKEND_URL}/video_feed`;
 
@@ -81,6 +81,12 @@ const KioskDashboardPage = () => {
         return kioskState.required_gestures && kioskState.required_gestures.includes(gestureName);
     };
 
+    const gestureCards = [
+        { key: 'BREAK_OUT', emoji: '✌️', fallback: 'V', label: 'BREAK OUT', title: 'Peace sign' },
+        { key: 'BREAK_IN', emoji: '👍', fallback: 'UP', label: 'BREAK IN', title: 'Thumbs up' },
+        { key: 'EXIT', emoji: '✋', fallback: 'PALM', label: 'EXIT', title: 'Open palm' },
+    ];
+
     return (
         <div className="kiosk-container">
             {/* LEFT: Video Stream */}
@@ -108,7 +114,7 @@ const KioskDashboardPage = () => {
                         </div>
                     )}
                     {kioskState.message && !offline && (
-                        <div className="kiosk-offline-banner" style={{ background: 'rgba(0, 150, 255, 0.8)' }}>
+                        <div className="kiosk-offline-banner kiosk-info-banner">
                             {kioskState.message}
                         </div>
                     )}
@@ -148,23 +154,24 @@ const KioskDashboardPage = () => {
                     <h3>Gesture</h3>
                     <p className="kiosk-gesture-entry-note">No gesture needed for entry.</p>
                     <div className="kiosk-gestures-grid">
-                        <div className={`kiosk-gesture-card ${isGestureActive('BREAK_OUT') ? 'active' : ''} ${!kioskState.required_gestures?.length ? 'disabled' : ''}`} title="Peace sign">
-                            <div className="kiosk-gesture-icon">✌️</div>
-                            <div className="kiosk-gesture-label">BREAK OUT</div>
-                        </div>
-                        <div className={`kiosk-gesture-card ${isGestureActive('BREAK_IN') ? 'active' : ''} ${!kioskState.required_gestures?.length ? 'disabled' : ''}`} title="Thumbs up">
-                            <div className="kiosk-gesture-icon">👍</div>
-                            <div className="kiosk-gesture-label">BREAK IN</div>
-                        </div>
-                        <div className={`kiosk-gesture-card ${isGestureActive('EXIT') ? 'active' : ''} ${!kioskState.required_gestures?.length ? 'disabled' : ''}`} title="Open palm">
-                            <div className="kiosk-gesture-icon">✋</div>
-                            <div className="kiosk-gesture-label">EXIT</div>
-                        </div>
+                        {gestureCards.map((gesture) => (
+                            <div
+                                key={gesture.key}
+                                className={`kiosk-gesture-card ${isGestureActive(gesture.key) ? 'active' : ''} ${!kioskState.required_gestures?.length ? 'disabled' : ''}`}
+                                title={gesture.title}
+                            >
+                                <div className="kiosk-gesture-icon" aria-label={gesture.label}>
+                                    <span className="kiosk-gesture-emoji" aria-hidden="true">{gesture.emoji}</span>
+                                    <span className="kiosk-gesture-fallback" aria-hidden="true">{gesture.fallback}</span>
+                                </div>
+                                <div className="kiosk-gesture-label">{gesture.label}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 {/* Recent Check-ins Panel */}
-                <div className="kiosk-panel" style={{ flexGrow: 1 }}>
+                <div className="kiosk-panel kiosk-panel-checkins">
                     <h3>Recent Check-ins</h3>
                     <div className="kiosk-checkins-list">
                         {kioskState.recent_checkins && kioskState.recent_checkins.length > 0 ? (
