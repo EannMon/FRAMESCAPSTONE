@@ -407,6 +407,21 @@ const FacultyMyClassesPage = () => {
         fetchClassDetails(cls);
     };
 
+    const handleDeleteClass = async (classId, className) => {
+        if (!window.confirm(`Are you sure you want to delete the class "${className}"? All enrolled students will be preserved.`)) {
+            return;
+        }
+
+        try {
+            await api.delete(`/api/faculty/class/${classId}`);
+            setMyClasses(prev => prev.filter(c => c.id !== classId));
+            toast.success(`Class "${className}" deleted successfully`);
+        } catch (error) {
+            console.error("Error deleting class:", error);
+            toast.error(error.response?.data?.message || 'Failed to delete class');
+        }
+    };
+
     const handleViewStudent = (student) => {
         if (editingStudent === student.user_id) return; // Prevent viewing when editing
         setSelectedStudent(student);
@@ -661,6 +676,16 @@ const FacultyMyClassesPage = () => {
                             <div className="action-area">
                                 <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
                                     <i className="fas fa-user-check"></i> View Attendance
+                                </button>
+                                <button 
+                                    className="faculty-delete-class-btn" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteClass(cls.id, `${cls.subject_code} - ${cls.section}`);
+                                    }}
+                                    title="Delete Class"
+                                >
+                                    <i className="fas fa-trash-alt"></i>
                                 </button>
                             </div>
                         </div>
