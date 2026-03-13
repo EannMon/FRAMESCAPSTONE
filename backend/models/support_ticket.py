@@ -10,10 +10,8 @@ import enum
 
 
 class TicketStatus(enum.Enum):
-    OPEN = "OPEN"
-    IN_PROGRESS = "IN_PROGRESS"
-    RESOLVED = "RESOLVED"
-    CLOSED = "CLOSED"
+    SUBMITTED = "SUBMITTED"
+    REPLIED = "REPLIED"
 
 
 class SupportTicket(Base):
@@ -25,7 +23,7 @@ class SupportTicket(Base):
     message = Column(Text, nullable=False)
     status = Column(
         Enum(TicketStatus, values_callable=lambda x: [e.value for e in x]),
-        default=TicketStatus.OPEN,
+        default=TicketStatus.SUBMITTED,
         nullable=True,
     )
 

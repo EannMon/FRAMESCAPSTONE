@@ -103,6 +103,7 @@ class AddStudentRequest(BaseModel):
 def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
     """
     Get all classes taught by a faculty member.
+    Only returns classes where the user is the faculty member (by faculty_id).
     Includes attendance stats for each class.
     """
     # Check user exists and is verified
@@ -113,9 +114,12 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
     if user.verification_status != VerificationStatus.VERIFIED:
         raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
-    # Get classes taught by this faculty (Eager load Subject to avoid N+1)
+    # Get ONLY classes where this user is the faculty_id
+    # This ensures Dept Heads only see classes they actually teach, not department classes
     from sqlalchemy.orm import joinedload
-    classes = db.query(Class).options(joinedload(Class.subject)).filter(Class.faculty_id == user_id).all()
+    classes = db.query(Class).options(joinedload(Class.subject)).filter(
+        Class.faculty_id == user_id  # CRITICAL: Only return classes where user is the faculty member
+    ).all()
     
     if not classes:
         return []
@@ -1016,6 +1020,51 @@ def remove_student_from_class(
     db.commit()
     
     return {"message": "Student removed from class successfully"}
+
+
+@router.delete("/class/{class_id}")
+def delete_class(
+    class_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a class completely.
+    This removes the class and all enrollments, but preserves student accounts.
+    """
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if not cls:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+    
+    # Get class info for response
+    subject_code = cls.subject.code if cls.subject else "Unknown"
+    section = cls.section
+    
+    # Delete all enrollments for this class (this breaks the relationship but keeps students)
+    enrollments_count = db.query(Enrollment).filter(Enrollment.class_id == class_id).delete()
+    
+    # Delete all attendance logs for this class
+    attendance_count = db.query(AttendanceLog).filter(AttendanceLog.class_id == class_id).delete()
+    
+    # Delete all session exceptions for this class
+    exceptions_count = db.query(SessionException).filter(SessionException.class_id == class_id).delete()
+    
+    # Delete the class itself
+    db.delete(cls)
+    db.commit()
+    
+    logger.info(
+        "CLASS | deleted class_id=%d subject=%s section=%s enrollments=%d logs=%d exceptions=%d",
+        class_id, subject_code, section, enrollments_count, attendance_count, exceptions_count
+    )
+    
+    return {
+        "message": f"Class '{subject_code} - {section}' deleted successfully",
+        "class_id": class_id,
+        "enrollments_removed": enrollments_count,
+        "attendance_records_removed": attendance_count,
+        "session_exceptions_removed": exceptions_count,
+        "students_preserved": True
+    }
 
 
 @router.get("/class-details/{schedule_id}")
