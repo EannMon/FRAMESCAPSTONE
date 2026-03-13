@@ -481,6 +481,13 @@ async def upload_schedule(
                 e.student_id for e in db.query(Enrollment).filter(Enrollment.class_id == current_class.id).all()
             }
             
+            # Get faculty's department to assign to students
+            faculty_dept_id = None
+            if faculty_id:
+                faculty_user = db.query(User).filter(User.id == faculty_id).first()
+                if faculty_user:
+                    faculty_dept_id = faculty_user.department_id
+            
             for student_data in course_data.get('enrolled_students', []):
                 tupm_id = student_data['tupm_id']
                 
@@ -506,7 +513,8 @@ async def upload_schedule(
                         last_name=last_name,
                         section=course_data['section'],
                         verification_status=VerificationStatus.VERIFIED,
-                        face_registered=False
+                        face_registered=False,
+                        department_id=faculty_dept_id
                     )
                     db.add(student_user)
                     db.commit()
@@ -804,6 +812,13 @@ def confirm_schedule(
                 e.student_id for e in db.query(Enrollment).filter(Enrollment.class_id == current_class.id).all()
             }
             
+            # Get faculty's department to assign to students
+            faculty_dept_id = None
+            if data.faculty_id:
+                faculty_user = db.query(User).filter(User.id == data.faculty_id).first()
+                if faculty_user:
+                    faculty_dept_id = faculty_user.department_id
+            
             for student_data in course_data.enrolled_students:
                 tupm_id = student_data.tupm_id
                 student_user = db.query(User).filter(User.tupm_id == tupm_id).first()
@@ -825,7 +840,8 @@ def confirm_schedule(
                         last_name=last_name,
                         section=course_data.section,
                         verification_status=VerificationStatus.VERIFIED,
-                        face_registered=False
+                        face_registered=False,
+                        department_id=faculty_dept_id
                     )
                     db.add(student_user)
                     db.commit()

@@ -203,7 +203,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                     </>
                 ) : (
                     <nav className="guest-nav">
-                        <button onClick={() => { /* Watch Demo functionality here soon */ }} className="header-login-btn">Watch Demo</button>
+                        <button onClick={() => setPanel && setPanel('watch-demo')} className="header-login-btn"><i className="fas fa-play-circle" style={{ marginRight: '8px' }}></i>Watch Demo</button>
                         <button onClick={() => onAboutClick && onAboutClick()} className="header-signup-btn">About Us</button>
                     </nav>
                 )}

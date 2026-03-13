@@ -78,6 +78,8 @@ const DeptHeadReportsPage = () => {
     const [classes, setClasses] = useState([]);
     const [selectedClass, setSelectedClass] = useState('');
     const [error, setError] = useState(null);
+    const [summaryMetrics, setSummaryMetrics] = useState([]);
+    const [insights, setInsights] = useState([]);
 
     const [academicYear, setAcademicYear] = useState('');
 
@@ -152,9 +154,14 @@ const DeptHeadReportsPage = () => {
                 if (selectedClass) params.class_id = selectedClass;
                 if (dateFrom) params.date_from = dateFrom;
                 if (dateTo) params.date_to = dateTo;
+                params.limit = 200;
 
                 const res = await api.get(`/api/faculty/reports/data/${user.id}`, { params });
-                setReportData(res.data || []);
+                const payload = res.data || {};
+                const rows = Array.isArray(payload) ? payload : (payload.rows || []);
+                setReportData(rows);
+                setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
+                setInsights(Array.isArray(payload.insights) ? payload.insights : []);
             } else {
                 // Use the dept reports endpoint for department-wide reports
                 const params = { report_type: reportId };
@@ -162,14 +169,21 @@ const DeptHeadReportsPage = () => {
                 if (dateTo) params.date_to = dateTo;
                 if (room) params.room = room;
                 if (user?.department_id) params.dept_id = user.department_id;
+                params.limit = 200;
 
                 const res = await api.get('/api/dept/reports/data', { params });
-                setReportData(res.data || []);
+                const payload = res.data || {};
+                const rows = Array.isArray(payload) ? payload : (payload.rows || []);
+                setReportData(rows);
+                setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
+                setInsights(Array.isArray(payload.insights) ? payload.insights : []);
             }
         } catch (err) {
             if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                 setError('Failed to load report data. Please try again.');
                 setReportData([]);
+                setSummaryMetrics([]);
+                setInsights([]);
             }
         } finally {
             setLoading(false);
@@ -186,6 +200,39 @@ const DeptHeadReportsPage = () => {
     };
 
     const config = selectedReport ? getColumnConfig(selectedReport.id) : getColumnConfig(null);
+
+    const renderInsightPanel = () => {
+        if (!summaryMetrics.length && !insights.length) return null;
+
+        return (
+            <div className="insight-panel" style={{ marginBottom: '14px' }}>
+                {summaryMetrics.length > 0 && (
+                    <div className="insight-stats-row">
+                        {summaryMetrics.map((metric) => (
+                            <div key={metric.metric_name} className="insight-stat-card">
+                                <div className="insight-stat-label">{metric.metric_name.replaceAll('_', ' ')}</div>
+                                <div className="insight-stat-value">{metric.value}</div>
+                                <div className="insight-stat-sub">Confidence: {metric.confidence}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {insights.length > 0 && (
+                    <div className="insight-section" style={{ marginTop: '12px' }}>
+                        <div className="insight-section-title">Explainable Insights</div>
+                        <ul style={{ margin: '10px 0 0 0', paddingLeft: '18px' }}>
+                            {insights.map((insight) => (
+                                <li key={insight.insight_code} style={{ marginBottom: '8px' }}>
+                                    <strong>{insight.title}:</strong> {insight.narrative} (Confidence: {insight.confidence})
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const handleDownloadPDF = async () => {
         if (!selectedReport || reportData.length === 0) return;
@@ -337,6 +384,7 @@ const DeptHeadReportsPage = () => {
                             </div>
 
                             <div className="report-table-container">
+                                {!loading && reportData.length > 0 && renderInsightPanel()}
                                 {loading ? (
                                     <div className="report-loading"><i className="fas fa-spinner fa-spin"></i><p>Loading report data...</p></div>
                                 ) : error ? (

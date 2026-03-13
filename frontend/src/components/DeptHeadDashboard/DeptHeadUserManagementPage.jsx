@@ -35,7 +35,7 @@ const DeptHeadUserManagementPage = () => {
     // ==========================================
     const [users, setUsers] = useState([]);
     const [searchValue, setSearchValue] = useState("");
-    const [roleFilter, setRoleFilter] = useState("FACULTY"); // Default to Faculty per Task 40
+    const [roleFilter, setRoleFilter] = useState("All Roles"); // Show all users by default
     const [showAddUserModal, setShowAddUserModal] = useState(false);
 
     // Inline Invite State
