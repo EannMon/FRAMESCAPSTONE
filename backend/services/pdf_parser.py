@@ -156,6 +156,28 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
             venue = venue_match.group(1).strip() if venue_match else "Room 324"
             logger.debug("SCHEDULE | Venue: %s", venue)
             
+            # Extract Semester and Academic Year from PDF (Task 45/48 improvements)
+            # Example patterns: "Semester : 1st Semester", "School Year : 2025-2026"
+            pdf_semester = "1st Semester"
+            pdf_ay = "2025-2026"
+            
+            # Robust extraction from header area
+            # Sometimes labels are "SY" or "School Year" or "Academic Year"
+            # Support: "Semester : 1st Semester" or "1st Semester" alone in header
+            sem_match = re.search(r'(?:Semester\s*:\s*)?((?:1st|2nd|Summer)\s*Semester)', page1_text, re.IGNORECASE)
+            if sem_match:
+                pdf_semester = sem_match.group(1).strip().title()
+                
+            ay_match = re.search(r'(?:School Year|Academic Year|SY)\s*:\s*([\d-]{8,10})', page1_text, re.IGNORECASE)
+            if not ay_match:
+                # Try just the year pattern like 2025-2026
+                ay_match = re.search(r'(\d{4}-\d{4})', page1_text)
+                
+            if ay_match:
+                pdf_ay = ay_match.group(1).strip()
+            
+            logger.info("SCHEDULE | PDF Metadata Found: Sem=%s, AY=%s", pdf_semester, pdf_ay)
+
             # Find TOTAL students count
             all_text = ""
             for page in pdf.pages:
@@ -270,8 +292,8 @@ def parse_schedule_pdf(file_content: bytes, faculty_id: int) -> Optional[Dict[st
                 logger.info("SCHEDULE | PDF parsed in %.1fms, %d slots", elapsed_ms, len(course_slots))
             
             return {
-                'semester': "1st Semester",
-                'academic_year': "2025-2026",
+                'semester': pdf_semester,
+                'academic_year': pdf_ay,
                 'courses': course_slots
             }
 
