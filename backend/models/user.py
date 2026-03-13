@@ -51,6 +51,10 @@ class User(Base):
     # current_term is derived from department's active_semester + active_academic_year
     section = Column(String(50))     # e.g., "BSIT-4A"
 
+    # Notifications
+    email_notifications_enabled = Column(Boolean, default=True)
+    in_app_notifications_enabled = Column(Boolean, default=True)
+
     # Timestamps
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_active = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

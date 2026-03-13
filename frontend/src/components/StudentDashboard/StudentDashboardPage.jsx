@@ -397,14 +397,16 @@ const AttendanceTrendChart = ({ logs }) => {
                         const y = height - padding - (t * (height - 2 * padding));
                         return (
                             <g key={i}>
-                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f5f5f5" strokeDasharray="5,5" />
-                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="#999" fontWeight="500">{val}</text>
+                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--chart-grid)" strokeDasharray="5,5" />
+                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="var(--chart-text)" fontWeight="500">{val}</text>
                             </g>
+
                         );
                     })}
 
                     {/* Base Axis Line */}
-                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#ddd" strokeWidth="2" strokeLinecap="round" />
+                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--chart-axis)" strokeWidth="2" strokeLinecap="round" />
+
 
                     {/* PATHS - Render Areas First */}
                     {(typeFilter === 'ALL' || typeFilter === 'ABSENT') &&
@@ -440,7 +442,8 @@ const AttendanceTrendChart = ({ logs }) => {
                                 <rect x={xp - (width / chartData.length / 2)} y={0} width={width / chartData.length} height={height} fill="transparent" />
 
                                 {/* X-Axis Label */}
-                                <text x={xp} y={height - 15} textAnchor="middle" fill="#777" fontSize="12" fontWeight="500">{d.label}</text>
+                                <text x={xp} y={height - 15} textAnchor="middle" fill="var(--chart-text)" fontSize="12" fontWeight="500">{d.label}</text>
+
 
                                 {/* Visible Dots */}
                                 {(typeFilter === 'ALL' || typeFilter === 'PRESENT') && <circle cx={xp} cy={yp} r="4" fill={colors.present} stroke="#fff" strokeWidth="2" />}
@@ -450,18 +453,19 @@ const AttendanceTrendChart = ({ logs }) => {
                                 {/* TOOLTIP */}
                                 {hoveredIndex === i && (
                                     <g transform={`translate(${xp}, 20)`}>
-                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="rgba(255,255,255,0.95)" filter="url(#shadow)" stroke="#eee" />
-                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#333">{d.label}</text>
+                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="var(--chart-tooltip-bg)" filter="url(#shadow)" stroke="var(--chart-tooltip-border)" />
+                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="var(--chart-tooltip-text)">{d.label}</text>
                                         <rect x="-50" y="18" width="8" height="8" rx="2" fill={colors.present} />
-                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="#555">Present: {d.present}</text>
+                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Present: {d.present}</text>
 
                                         <rect x="10" y="18" width="8" height="8" rx="2" fill={colors.break} />
-                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="#555">Break: {d.break}</text>
+                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Break: {d.break}</text>
 
                                         <rect x="-50" y="32" width="8" height="8" rx="2" fill={colors.absent} />
-                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="#555">Absent: {d.absent}</text>
+                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="var(--chart-text)">Absent: {d.absent}</text>
                                     </g>
                                 )}
+
                             </g>
                         );
                     })}

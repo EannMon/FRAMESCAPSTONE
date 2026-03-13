@@ -83,8 +83,11 @@ def approve_user(req: VerificationRequest, db: Session = Depends(get_db)):
     user.verification_status = VerificationStatus.VERIFIED
     db.commit()
     
-    # Send approval email to the user
-    send_approval_email(user.email, user.first_name, user.role.value)
+    # Send approval email to the user if enabled
+    if user.email_notifications_enabled:
+        send_approval_email(user.email, user.first_name, user.role.value)
+    else:
+        logger.info("Email notification skipped for user %d (disabled by user)", user.id)
     
     logger.info("User %d approved", req.user_id)
     return MessageResponse(message=f"User {req.user_id} has been approved")
