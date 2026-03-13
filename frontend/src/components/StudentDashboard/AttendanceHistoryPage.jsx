@@ -326,7 +326,7 @@ const AttendanceHistoryPage = () => {
             filtered = filtered.filter(l => l.mapped_subject === selectedSubject);
         }
 
-        // Sort ascending (oldest first — chronological reading order)
+        // Server already scopes report windows, so client only sorts for display.
         return filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     };
 
@@ -472,241 +472,6 @@ const AttendanceHistoryPage = () => {
         );
     };
 
-    // ─── INSIGHT COMPUTATIONS ────────────────────────────────────────────
-    // Computes summary stats from filtered data for the insight panel.
-    const getInsights = (data) => {
-        if (!data.length) return null;
-
-        const entries   = data.filter(l => l.action?.toUpperCase() === 'ENTRY');
-        const exits     = data.filter(l => l.action?.toUpperCase() === 'EXIT');
-        const breakOuts = data.filter(l => l.action?.toUpperCase() === 'BREAK_OUT');
-        const lates     = entries.filter(l => l.is_late);
-        const onTime    = entries.filter(l => !l.is_late);
-        const earlyExit = exits.filter(l => l.remarks === 'Early exit');
-
-        // Unique session days
-        const sessionDays = [...new Set(entries.map(l => new Date(l.timestamp).toDateString()))];
-
-        // Attendance rate across unique days with entries
-        const allDays = [...new Set(data.map(l => new Date(l.timestamp).toDateString()))];
-        const attendanceRate = allDays.length ? Math.round((sessionDays.length / allDays.length) * 100) : 0;
-
-        // Punctuality rate
-        const punctualityRate = entries.length ? Math.round((onTime.length / entries.length) * 100) : 0;
-
-        // Per-subject breakdown
-        const bySubject = {};
-        entries.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (!bySubject[subj]) bySubject[subj] = { present: 0, late: 0, earlyExit: 0, breaks: 0 };
-            bySubject[subj].present++;
-            if (l.is_late) bySubject[subj].late++;
-        });
-        earlyExit.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (bySubject[subj]) bySubject[subj].earlyExit++;
-        });
-        breakOuts.forEach(l => {
-            const subj = l.mapped_subject || 'Unknown';
-            if (bySubject[subj]) bySubject[subj].breaks++;
-        });
-
-        // Weekly breakdown (for weekly/monthly views)
-        const byWeek = {};
-        entries.forEach(l => {
-            const d = new Date(l.timestamp);
-            const weekKey = `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-            if (!byWeek[weekKey]) byWeek[weekKey] = { present: 0, late: 0 };
-            byWeek[weekKey].present++;
-            if (l.is_late) byWeek[weekKey].late++;
-        });
-
-        // Daily breakdown for weekly view
-        const byDay = {};
-        const dayOrder = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-        entries.forEach(l => {
-            const d = new Date(l.timestamp);
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-            if (!byDay[dayName]) byDay[dayName] = { present: 0, late: 0 };
-            byDay[dayName].present++;
-            if (l.is_late) byDay[dayName].late++;
-        });
-
-        return {
-            totalSessions: sessionDays.length,
-            totalEntries: entries.length,
-            lateCount: lates.length,
-            onTimeCount: onTime.length,
-            earlyExitCount: earlyExit.length,
-            breakCount: breakOuts.length,
-            attendanceRate,
-            punctualityRate,
-            bySubject,
-            byWeek,
-            byDay: dayOrder.filter(d => byDay[d]).map(d => ({ day: d.slice(0, 3), ...byDay[d] })),
-        };
-    };
-
-    // ─── INSIGHT PANEL RENDERER ─────────────────────────────────────────
-    const renderInsightPanel = (data) => {
-        const ins = getInsights(data);
-        if (!ins) return null;
-
-        // ── Stat Card helper ──
-        const StatCard = ({ label, value, sub, color, icon }) => (
-            <div className="insight-stat-card" style={{ borderTop: `3px solid ${color}` }}>
-                <div className="insight-stat-icon" style={{ color }}>{icon}</div>
-                <div className="insight-stat-value" style={{ color }}>{value}</div>
-                <div className="insight-stat-label">{label}</div>
-                {sub && <div className="insight-stat-sub">{sub}</div>}
-            </div>
-        );
-
-        // ── Bar-chart helper (pure CSS, no library) ──
-        const BarChart = ({ items, maxVal, colorFn, labelKey, valueKey, height = 80 }) => {
-            if (!items.length) return null;
-            const max = maxVal || Math.max(...items.map(i => i[valueKey]), 1);
-            return (
-                <div className="insight-barchart">
-                    {items.map((item, i) => (
-                        <div key={i} className="insight-bar-col">
-                            <div className="insight-bar-track" style={{ height }}>
-                                <div
-                                    className="insight-bar-fill"
-                                    style={{
-                                        height: `${Math.round((item[valueKey] / max) * 100)}%`,
-                                        background: colorFn ? colorFn(item) : '#163269'
-                                    }}
-                                />
-                            </div>
-                            <div className="insight-bar-val">{item[valueKey]}</div>
-                            <div className="insight-bar-lbl">{item[labelKey]}</div>
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-
-        // ── Donut / ring helper ──
-        const DonutRing = ({ pct, color, label }) => {
-            const r = 32, cx = 40, cy = 40;
-            const circ = 2 * Math.PI * r;
-            const dash = (pct / 100) * circ;
-            return (
-                <div className="insight-donut-wrap">
-                    <svg width="80" height="80" viewBox="0 0 80 80">
-                        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#eee" strokeWidth="9" />
-                        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="9"
-                            strokeDasharray={`${dash} ${circ}`}
-                            strokeLinecap="round"
-                            transform={`rotate(-90 ${cx} ${cy})`} />
-                        <text x={cx} y={cy + 5} textAnchor="middle" fontSize="13" fontWeight="700" fill={color}>{pct}%</text>
-                    </svg>
-                    <div className="insight-donut-lbl">{label}</div>
-                </div>
-            );
-        };
-
-        // Subject rows
-        const subjectRows = Object.entries(ins.bySubject).map(([subj, d]) => ({
-            subj,
-            present: d.present,
-            late: d.late,
-            onTime: d.present - d.late,
-            earlyExit: d.earlyExit,
-            breaks: d.breaks,
-            pctLate: d.present ? Math.round((d.late / d.present) * 100) : 0
-        }));
-
-        // ── Contextual insight text ──
-        const getVerdict = () => {
-            if (ins.attendanceRate >= 90 && ins.punctualityRate >= 85) return { text: 'Excellent standing — keep it up!', color: '#2e7d32' };
-            if (ins.attendanceRate >= 75 && ins.punctualityRate >= 70) return { text: 'Good standing — minor improvements needed.', color: '#1565c0' };
-            if (ins.attendanceRate >= 60) return { text: 'Fair — attendance needs attention.', color: '#e65100' };
-            return { text: 'At risk — consider speaking with your instructor.', color: '#c62828' };
-        };
-
-        const verdict = getVerdict();
-
-        return (
-            <div className="insight-panel">
-                {/* ── Verdict banner ── */}
-                <div className="insight-verdict" style={{ borderLeft: `4px solid ${verdict.color}`, color: verdict.color }}>
-                    <i className="fas fa-chart-line" style={{ marginRight: 8 }} />
-                    <strong>Summary: </strong>{verdict.text}
-                </div>
-
-                {/* ── Stat cards row ── */}
-                <div className="insight-stats-row">
-                    <StatCard label="Sessions Attended" value={ins.totalSessions} color="#163269" icon="📅" />
-                    <StatCard label="On Time" value={ins.onTimeCount} sub={`${ins.punctualityRate}% punctual`} color="#2e7d32" icon="✅" />
-                    <StatCard label="Late Arrivals" value={ins.lateCount} sub={ins.totalEntries ? `${Math.round((ins.lateCount/ins.totalEntries)*100)}% of entries` : ''} color="#e65100" icon="⏰" />
-                    <StatCard label="Early Exits" value={ins.earlyExitCount} color="#7b1fa2" icon="🚪" />
-                    <StatCard label="Breaks Taken" value={ins.breakCount} color="#0277bd" icon="☕" />
-                </div>
-
-                {/* ── Donut rings ── */}
-                <div className="insight-rings-row">
-                    <DonutRing pct={ins.attendanceRate} color="#163269" label="Attendance Rate" />
-                    <DonutRing pct={ins.punctualityRate} color="#2e7d32" label="Punctuality Rate" />
-                    <DonutRing pct={ins.earlyExitCount && ins.totalSessions ? Math.round((ins.earlyExitCount / ins.totalSessions) * 100) : 0} color="#7b1fa2" label="Early Exit Rate" />
-                </div>
-
-                {/* ── Per-subject breakdown (only if multiple subjects) ── */}
-                {subjectRows.length > 0 && (
-                    <div className="insight-section">
-                        <div className="insight-section-title">Per-Subject Breakdown</div>
-                        <table className="insight-subject-table">
-                            <thead>
-                                <tr>
-                                    <th>Subject</th>
-                                    <th>Sessions Present</th>
-                                    <th>On Time</th>
-                                    <th>Late</th>
-                                    <th>Early Exits</th>
-                                    <th>Breaks</th>
-                                    <th>Late Rate</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {subjectRows.map((row, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 600 }}>{row.subj}</td>
-                                        <td>{row.present}</td>
-                                        <td style={{ color: '#2e7d32', fontWeight: 600 }}>{row.onTime}</td>
-                                        <td style={{ color: row.late > 0 ? '#e65100' : '#aaa' }}>{row.late}</td>
-                                        <td style={{ color: row.earlyExit > 0 ? '#7b1fa2' : '#aaa' }}>{row.earlyExit}</td>
-                                        <td>{row.breaks}</td>
-                                        <td>
-                                            <div className="insight-mini-bar-wrap">
-                                                <div className="insight-mini-bar" style={{ width: `${row.pctLate}%`, background: row.pctLate > 30 ? '#c62828' : '#e65100' }} />
-                                                <span>{row.pctLate}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* ── Day-of-week bar chart (for weekly/monthly/semester views) ── */}
-                {ins.byDay.length > 0 && !['DAILY_REPORT', 'LATE_REPORT', 'BREAK_LOG'].includes(selectedReportType) && (
-                    <div className="insight-section">
-                        <div className="insight-section-title">Attendance by Day of Week</div>
-                        <BarChart
-                            items={ins.byDay}
-                            labelKey="day"
-                            valueKey="present"
-                            colorFn={(item) => item.late > 0 ? '#e65100' : '#163269'}
-                            height={70}
-                        />
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     // Helper: Map action to display status
     const getActionStatus = (action) => {
         if (!action) return { text: '—', isPresent: false };
@@ -834,7 +599,7 @@ const AttendanceHistoryPage = () => {
                 "Professor": log.faculty_name || 'N/A',
                 "Room": log.mapped_room || 'N/A',
                 "Status": status.text,
-                "Remarks": log.remarks || '—',
+                "Remarks": log.remarks || '-'
             };
         });
 
@@ -908,7 +673,6 @@ const AttendanceHistoryPage = () => {
                 {isFetchingReport && <div className="report-refreshing-note">Updating report data...</div>}
             </div>
 
-            {/* INSIGHT PANEL */}
             {!loading && displayData.length > 0 && renderServerInsightPanel()}
             {!loading && displayData.length > 0 && renderSessionCountReference()}
             {!loading && displayData.length > 0 && renderMetricDictionary()}
@@ -981,13 +745,15 @@ const AttendanceHistoryPage = () => {
                                                 );
                                             })()}
                                         </td>
-                                        <td>{log.remarks || '—'}</td>
+                                        <td style={{ fontSize: '0.9em', color: log.remarks === 'Late' ? 'orange' : '#555' }}>
+                                            {log.remarks || '-'}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
                                     <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
-                                        {isFetchingReport ? 'Loading selected report...' : 'No records found for this view.'}
+                                        No records found for this view.
                                     </td>
                                 </tr>
                             )}
