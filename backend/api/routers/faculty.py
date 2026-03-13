@@ -941,6 +941,20 @@ def add_student_to_class(
     enrollment = Enrollment(class_id=class_id, student_id=data.student_id)
     db.add(enrollment)
     db.commit()
+
+    # Log Audit Entry (Task: Full Activity Tracking)
+    from models.audit_log import AuditLog, AuditActions
+    from datetime import datetime, timezone
+    audit_entry = AuditLog(
+        user_id=None, # System/Anonymous unless we add faculty_id to req
+        action_type=AuditActions.STUDENT_ENROLL,
+        target_table="enrollments",
+        target_id=class_id,
+        new_value={"student_id": data.student_id, "student_name": f"{student.first_name} {student.last_name}"},
+        timestamp=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
+    db.commit()
     
     return {
         "message": "Student added successfully",
@@ -969,6 +983,20 @@ def remove_student_from_class(
         raise api_error(404, "ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class")
     
     db.delete(enrollment)
+    db.commit()
+
+    # Log Audit Entry (Task: Full Activity Tracking)
+    from models.audit_log import AuditLog, AuditActions
+    from datetime import datetime, timezone
+    audit_entry = AuditLog(
+        user_id=None,
+        action_type=AuditActions.STUDENT_UNENROLL,
+        target_table="enrollments",
+        target_id=student_id,
+        new_value={"class_id": class_id},
+        timestamp=datetime.now(timezone.utc)
+    )
+    db.add(audit_entry)
     db.commit()
     
     return {"message": "Student removed from class successfully"}
