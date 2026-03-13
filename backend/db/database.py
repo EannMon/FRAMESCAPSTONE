@@ -35,12 +35,12 @@ engine = create_engine(
     DATABASE_URL,
     echo=False,              # NEVER True in production
     pool_pre_ping=True,      # Verify connections before use (detects stale connections)
-    pool_size=3,             # Keep small — Aiven free tier has ~20 connection limit
-    max_overflow=3,          # Allow up to 3 extra connections briefly
+    pool_size=5,             # Increased slightly — Aiven free tier has ~20 connection limit
+    max_overflow=10,         # Increased to handle bursts during schedule uploads
     pool_recycle=300,        # Recycle connections every 5 minutes
-    pool_timeout=10,         # Fail fast after 10s (was 30s — caused long blank screens)
+    pool_timeout=45,         # Increased from 10s to 45s to handle database "cold start" or slow response times
     connect_args={
-        "connect_timeout": 8  # PostgreSQL TCP connect timeout (fail before pool_timeout)
+        "connect_timeout": 30  # Increased TCP connect timeout (was 8)
     }
 )
 

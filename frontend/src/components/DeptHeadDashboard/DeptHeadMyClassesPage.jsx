@@ -209,18 +209,19 @@ const DeptHeadMyClassesPage = () => {
                 const parsedSem = response.data.semester || '';
                 const parsedAy = response.data.academic_year || '';
                 const mismatchParts = [];
+                
                 if (semester && parsedSem && parsedSem !== semester) {
                     mismatchParts.push(`Semester: file says "${parsedSem}" but department is set to "${semester}"`);
                 }
                 if (academicYear && parsedAy && parsedAy !== academicYear) {
                     mismatchParts.push(`Academic Year: file says "${parsedAy}" but department is set to "${academicYear}"`);
                 }
+
                 if (mismatchParts.length > 0) {
-                    // TEMP OVERRIDE: ignore mismatch, use department head settings
-                    console.warn('[TEMP] Semester/AY mismatch detected — overriding with department settings:', mismatchParts);
-                    // Override parsed data semester/AY with the locked dept values
-                    response.data.semester = semester || response.data.semester;
-                    response.data.academic_year = academicYear || response.data.academic_year;
+                    // DECLINE UPLOAD: If there is a mismatch, stop and show message as per Dept Head requirement
+                    setUploadMessage(`❌ Please upload an updated Schedule. The academic year/semester in this PDF does not match the current official settings (${academicYear} ${semester}).`);
+                    setIsUploading(false);
+                    return;
                 }
 
                 // Store parsed data and switch to preview
@@ -233,10 +234,16 @@ const DeptHeadMyClassesPage = () => {
                 setSelectedFile(null);
                 setSubView('preview');
             } else {
-                setUploadMessage(`❌ Error: ${response.data.error || 'Parse failed'}`);
+                setUploadMessage(`❌ Error: ${response.data.error?.message || response.data.error || 'Parse failed'}`);
             }
         } catch (error) {
-            setUploadMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
+            // Check for specific mismatch error codes from backend (Task 45/48)
+            const errorData = error.response?.data?.detail?.error || error.response?.data;
+            if (errorData?.code === 'AY_MISMATCH' || errorData?.code === 'SEMESTER_MISMATCH') {
+                setUploadMessage(`⚠️ ${errorData.message}`);
+            } else {
+                setUploadMessage(`❌ ${errorData?.message || errorData?.error || error.message}`);
+            }
         } finally {
             setIsUploading(false);
         }
@@ -251,6 +258,7 @@ const DeptHeadMyClassesPage = () => {
                 faculty_id: user.user_id || user.id,
                 semester: semester,
                 academic_year: academicYear,
+                filename: previewData.filename,
                 courses: previewData.courses
             };
             const response = await api.post('/api/faculty/confirm-schedule', payload, {
@@ -261,8 +269,14 @@ const DeptHeadMyClassesPage = () => {
             setSubView('main');
             setViewMode('list');
             fetchSchedule(user.user_id || user.id);
+            fetchUploadHistory(user.user_id || user.id);
         } catch (error) {
-            toast.error(`❌ Failed: ${error.response?.data?.error || error.message}`);
+            const errorData = error.response?.data?.detail?.error || error.response?.data;
+            if (errorData?.code === 'CLASS_ALREADY_CLAIMED') {
+                toast.error(`⚠️ ${errorData.message}`);
+            } else {
+                toast.error(`❌ Failed: ${errorData?.message || errorData?.error || error.message}`);
+            }
         } finally {
             setIsConfirming(false);
         }
@@ -866,34 +880,41 @@ const DeptHeadMyClassesPage = () => {
                 {uploadedSchedules.length === 0 ? (
                     <p className="no-data">No schedules uploaded yet</p>
                 ) : (
-                    <table className="history-table">
-                        <thead>
-                            <tr>
-                                <th>File Name</th>
-                                <th>Semester</th>
-                                <th>Academic Year</th>
-                                <th>Schedules</th>
-                                <th>Status</th>
-                                <th>Uploaded</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {uploadedSchedules.map((upload) => (
-                                <tr key={upload.upload_id}>
-                                    <td>{upload.file_name}</td>
-                                    <td>{upload.semester}</td>
-                                    <td>{upload.academic_year}</td>
-                                    <td>{upload.schedules_count}</td>
-                                    <td>
-                                        <span className={`status ${upload.status.toLowerCase()}`}>
-                                            {upload.status}
-                                        </span>
-                                    </td>
-                                    <td>{new Date(upload.uploaded_at).toLocaleDateString()}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div className="history-list">
+                        {uploadedSchedules.map((upload) => (
+                            <div key={upload.id || upload.upload_id} className="history-item">
+                                <div className="history-file-info">
+                                    <div className="file-icon-box">
+                                        <i className="fas fa-file-pdf"></i>
+                                    </div>
+                                    <div className="file-details">
+                                        <span className="file-name">{upload.filename || upload.file_name}</span>
+                                        <div className="file-meta">
+                                            <span>{upload.semester}</span>
+                                            <span className="meta-separator">•</span>
+                                            <span>{upload.academic_year}</span>
+                                            <span className="meta-separator">•</span>
+                                            <span className="schedules-count">
+                                                {upload.schedules_created !== undefined ? upload.schedules_created + upload.schedules_updated : upload.schedules_count} Schedules
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="history-status-info">
+                                    <span className={`status-pill ${(upload.status || 'Success').toLowerCase()}`}>
+                                        {upload.status || 'Success'}
+                                    </span>
+                                    <span className="upload-date">
+                                        {new Date(upload.timestamp || upload.uploaded_at).toLocaleDateString(undefined, {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

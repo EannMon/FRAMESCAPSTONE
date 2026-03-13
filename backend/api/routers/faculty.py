@@ -9,6 +9,7 @@ from typing import List, Optional
 from datetime import datetime, date
 from pydantic import BaseModel
 import logging
+import re
 
 from db.database import get_db
 from core.errors import api_error
@@ -86,6 +87,7 @@ class ConfirmScheduleRequest(BaseModel):
     faculty_id: int
     semester: str
     academic_year: str
+    filename: Optional[str] = "Schedule Upload"
     courses: List[CourseEntry]
 
 
@@ -287,14 +289,36 @@ def get_class_details(class_id: int, db: Session = Depends(get_db)):
 def get_upload_history(user_id: int, db: Session = Depends(get_db)):
     """
     Get the history of COR/schedule uploads for a faculty member.
-    This is a placeholder - actual file storage is not implemented yet.
+    Uses AuditLog to retrieve past schedule upload actions.
     """
+    from models.audit_log import AuditLog, AuditActions
+    
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
     
-    # Return empty list for now - file upload tracking will be added in future phase
-    return []
+    # Fetch uploads from AuditLog
+    uploads = db.query(AuditLog).filter(
+        AuditLog.user_id == user_id,
+        AuditLog.action_type == AuditActions.SCHEDULE_UPLOAD
+    ).order_by(AuditLog.timestamp.desc()).limit(20).all()
+    
+    result = []
+    for upload in uploads:
+        data = upload.new_value or {}
+        result.append({
+            "id": upload.id,
+            "filename": data.get("filename", "PDF Report"),
+            "timestamp": upload.timestamp,
+            "academic_year": data.get("academic_year", "N/A"),
+            "semester": data.get("semester", "N/A"),
+            "schedules_created": data.get("schedules_created", 0),
+            "schedules_updated": data.get("schedules_updated", 0),
+            "students_created": data.get("students_created", 0),
+            "enrollments_added": data.get("enrollments_added", 0)
+        })
+    
+    return result
 
 
 @router.post("/upload-schedule", status_code=status.HTTP_201_CREATED)
@@ -350,14 +374,16 @@ async def upload_schedule(
                     if dept.active_academic_year and current_academic_year != dept.active_academic_year:
                         raise api_error(
                             400, "AY_MISMATCH",
-                            f"Academic year '{current_academic_year}' does not match the department setting "
-                            f"'{dept.active_academic_year}'. Please contact your department head."
+                            f"Please upload an updated Schedule. The academic year '{current_academic_year}' "
+                            f"contained in this PDF does not match the current official academic year "
+                            f"({dept.active_academic_year}) set by the Department Head."
                         )
                     if dept.active_semester and current_semester != dept.active_semester:
                         raise api_error(
                             400, "SEMESTER_MISMATCH",
-                            f"Semester '{current_semester}' does not match the department setting "
-                            f"'{dept.active_semester}'. Please contact your department head."
+                            f"Please upload an updated Schedule. The semester '{current_semester}' "
+                            f"contained in this PDF does not match the current official semester "
+                            f"({dept.active_semester}) set by the Department Head."
                         )
         
         for course_data in parsed_data['courses']:
@@ -501,6 +527,28 @@ async def upload_schedule(
             
             db.commit()
         
+        # --- Audit Logging (FRAMES Activity Tracking) ---
+        from models.audit_log import AuditLog, AuditActions
+        from datetime import datetime, timezone
+        
+        audit_entry = AuditLog(
+            user_id=faculty_id,
+            action_type=AuditActions.SCHEDULE_UPLOAD,
+            target_table="classes",
+            new_value={
+                "filename": file.filename,
+                "academic_year": current_academic_year,
+                "semester": current_semester,
+                "schedules_created": len(created_schedules),
+                "schedules_updated": len(updated_schedules),
+                "students_created": len(created_students),
+                "enrollments_added": enrolled_count
+            },
+            timestamp=datetime.now(timezone.utc)
+        )
+        db.add(audit_entry)
+        db.commit()
+        
         return {
             "message": "Schedule uploaded and processed successfully!",
             "filename": file.filename,
@@ -554,20 +602,72 @@ async def parse_schedule_preview(
         if not parsed_data:
             raise api_error(400, "PARSE_FAILED", "Could not parse PDF. Please check the file format.")
         
-        # Get active semester/academic year from faculty's existing classes
-        active_semester = None
-        active_academic_year = None
+        # --- VALIDATE AGAINST DEPARTMENT SETTINGS ---
+        # Fetch department settings to validate PDF content early as per User Request
+        current_ay = None
+        current_sem = None
+        
+        pdf_ay = parsed_data.get('academic_year')
+        pdf_sem = parsed_data.get('semester')
+        logger.info("SCHEDULE | PDF Meta - AY: %s, SEM: %s", pdf_ay, pdf_sem)
+        
         if faculty_id:
-            existing_class = db.query(Class).filter(Class.faculty_id == faculty_id).order_by(Class.created_at.desc()).first()
-            if existing_class:
-                active_semester = existing_class.semester
-                active_academic_year = existing_class.academic_year
+            from models.department import Department
+            user = db.query(User).filter(User.id == faculty_id).first()
+            if user and user.department_id:
+                dept = db.query(Department).filter(Department.id == user.department_id).first()
+                if dept:
+                    current_ay = dept.active_academic_year
+                    current_sem = dept.active_semester
+                    logger.info("SCHEDULE | Dept Meta - AY: %s, SEM: %s", current_ay, current_sem)
+                    
+                    # Choose valid PDF metadata or fallback to empty string
+                    pdf_ay_val = pdf_ay if pdf_ay else ""
+                    pdf_sem_val = pdf_sem if pdf_sem else ""
+
+                    # Task 45/48: Clean-up strings for comparison (remove whitespace)
+                    pdf_ay_clean = re.sub(r'\s+', '', pdf_ay_val)
+                    current_ay_clean = re.sub(r'\s+', '', current_ay) if current_ay else ""
+                    
+                    logger.info("SCHEDULE | Comparing AY: PDF='%s' vs DEPT='%s'", pdf_ay_clean, current_ay_clean)
+
+                    # Only decline if BOTH strings exist and don't match after cleaning
+                    if current_ay_clean and pdf_ay_clean and pdf_ay_clean != current_ay_clean:
+                        logger.warning("SCHEDULE | AY Mismatch: PDF='%s', Dept='%s'", pdf_ay, current_ay)
+                        raise api_error(
+                            400, "AY_MISMATCH", 
+                            f"Please upload an updated Schedule. The academic year '{pdf_ay}' "
+                            f"in this PDF does not match the current official '{current_ay}'."
+                        )
+                    
+                    pdf_sem_clean = pdf_sem_val.strip().lower()
+                    current_sem_clean = current_sem.strip().lower() if current_sem else ""
+                    
+                    # Fuzzy match normalization for semesters (e.g. "1st" -> "1")
+                    def normalize_sem(s):
+                        if not s: return ""
+                        if "1st" in s or "first" in s: return "1"
+                        if "2nd" in s or "second" in s: return "2"
+                        return s
+
+                    pdf_sem_norm = normalize_sem(pdf_sem_clean)
+                    current_sem_norm = normalize_sem(current_sem_clean)
+                    
+                    logger.info("SCHEDULE | Comparing SEM: PDF='%s' vs DEPT='%s'", pdf_sem_norm, current_sem_norm)
+
+                    if current_sem_norm and pdf_sem_norm and pdf_sem_norm != current_sem_norm:
+                        logger.warning("SCHEDULE | SEM Mismatch: PDF='%s', Dept='%s'", pdf_sem, current_sem)
+                        raise api_error(
+                            400, "SEMESTER_MISMATCH",
+                            f"Please upload an updated Schedule. The semester '{pdf_sem}' "
+                            f"in this PDF does not match the current official '{current_sem}'."
+                        )
         
         return {
             "success": True,
             "filename": file.filename,
-            "semester": active_semester or parsed_data.get('semester', '1st Semester'),
-            "academic_year": active_academic_year or parsed_data.get('academic_year', '2025-2026'),
+            "semester": current_sem or parsed_data.get('semester', '1st Semester'),
+            "academic_year": current_ay or parsed_data.get('academic_year', '2025-2026'),
             "courses": parsed_data.get('courses', [])
         }
     
@@ -601,14 +701,16 @@ def confirm_schedule(
                 if dept.active_academic_year and data.academic_year != dept.active_academic_year:
                     raise api_error(
                         400, "AY_MISMATCH",
-                        f"Academic year '{data.academic_year}' does not match the department setting "
-                        f"'{dept.active_academic_year}'. Please contact your department head."
+                        f"Please upload an updated Schedule. The academic year '{data.academic_year}' "
+                        f"does not match the current official academic year ({dept.active_academic_year}) "
+                        f"set by the Department Head."
                     )
                 if dept.active_semester and data.semester != dept.active_semester:
                     raise api_error(
                         400, "SEMESTER_MISMATCH",
-                        f"Semester '{data.semester}' does not match the department setting "
-                        f"'{dept.active_semester}'. Please contact your department head."
+                        f"Please upload an updated Schedule. The semester '{data.semester}' "
+                        f"does not match the current official semester ({dept.active_semester}) "
+                        f"set by the Department Head."
                     )
 
     created_schedules = []
@@ -740,6 +842,29 @@ def confirm_schedule(
                     enrolled_count += 1
             
             db.commit()
+        
+        # --- Audit Logging (FRAMES Activity Tracking) ---
+        from models.audit_log import AuditLog, AuditActions
+        from datetime import datetime, timezone
+        
+        audit_entry = AuditLog(
+            user_id=data.faculty_id,
+            action_type=AuditActions.SCHEDULE_UPLOAD,
+            target_table="classes",
+            new_value={
+                "action": "confirm_schedule",
+                "filename": data.filename,
+                "academic_year": data.academic_year,
+                "semester": data.semester,
+                "schedules_created": len(created_schedules),
+                "schedules_updated": len(updated_schedules),
+                "students_created": len(created_students),
+                "enrollments_added": enrolled_count
+            },
+            timestamp=datetime.now(timezone.utc)
+        )
+        db.add(audit_entry)
+        db.commit()
         
         return {
             "message": "Schedule confirmed and saved successfully!",
