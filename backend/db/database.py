@@ -5,6 +5,7 @@ Pool settings per FRAMES_DEPLOYMENT_CONSTRAINTS §1.5.
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import NullPool
 from pathlib import Path
 import os
 import logging
@@ -30,19 +31,37 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set!")
 
 # Create SQLAlchemy engine with SSL requirement for Aiven
-# NOTE: Aiven free tier has ~20 connection limit. Keep pool small.
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,              # NEVER True in production
-    pool_pre_ping=True,      # Verify connections before use (detects stale connections)
-    pool_size=3,             # Keep small — Aiven free tier has ~20 connection limit
-    max_overflow=3,          # Allow up to 3 extra connections briefly
-    pool_recycle=300,        # Recycle connections every 5 minutes
-    pool_timeout=10,         # Fail fast after 10s (was 30s — caused long blank screens)
-    connect_args={
-        "connect_timeout": 8  # PostgreSQL TCP connect timeout (fail before pool_timeout)
-    }
-)
+# NOTE: Aiven tiers are connection-limited. Keep defaults conservative.
+db_pool_mode = os.getenv("DB_POOL_MODE", "queue").strip().lower()
+db_pool_size = int(os.getenv("DB_POOL_SIZE", "2"))
+db_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "1"))
+db_pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "15"))
+db_pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "300"))
+db_connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT", "8"))
+
+engine_kwargs = {
+    "echo": False,                         # NEVER True in production
+    "pool_pre_ping": True,                 # Verify connections before use
+    "connect_args": {"connect_timeout": db_connect_timeout},
+}
+
+if db_pool_mode == "null":
+    # Useful for local dev when connection slots are saturated.
+    # Each DB use gets a fresh connection with no persistent pool.
+    engine_kwargs["poolclass"] = NullPool
+    logger.warning("DB pool mode is 'null'; persistent pooling is disabled")
+else:
+    engine_kwargs.update(
+        {
+            "pool_size": db_pool_size,
+            "max_overflow": db_max_overflow,
+            "pool_recycle": db_pool_recycle,
+            "pool_timeout": db_pool_timeout,
+            "pool_use_lifo": True,
+        }
+    )
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

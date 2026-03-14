@@ -53,6 +53,9 @@ class UserUpdate(BaseModel):
     middle_name: Optional[str] = None
     section: Optional[str] = None
     email: Optional[str] = None
+    email_notifications_enabled: Optional[bool] = None
+    in_app_notifications_enabled: Optional[bool] = None
+
 
 
 class PasswordChange(BaseModel):
@@ -96,7 +99,10 @@ class UserResponse(UserBase):
     face_registered: bool = False
     verification_status: str
     section: Optional[str] = None
+    email_notifications_enabled: bool = True
+    in_app_notifications_enabled: bool = True
     created_at: Optional[datetime] = None
+
     last_active: Optional[datetime] = None
     # Derived fields — computed from department settings, not stored on user
     academic_year: Optional[str] = None

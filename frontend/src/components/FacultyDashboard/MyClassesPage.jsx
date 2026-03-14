@@ -102,6 +102,56 @@ const FacultyMyClassesPage = () => {
         }
     }, [myClasses, currentMonth]);
 
+    // --- HELPER: Calculate class status based on schedule ---
+    const getClassStatus = (classData) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Days of week mapping
+        const dayOfWeekMap = {
+            'Sunday': 0,
+            'Monday': 1,
+            'Tuesday': 2,
+            'Wednesday': 3,
+            'Thursday': 4,
+            'Friday': 5,
+            'Saturday': 6
+        };
+
+        const classDay = dayOfWeekMap[classData.day_of_week];
+        if (classDay === undefined) return 'no-bar'; // Invalid day
+
+        // Find the next occurrence of this class day
+        let nextClassDate = new Date(today);
+        let daysUntilClass = (classDay - nextClassDate.getDay() + 7) % 7;
+
+        if (daysUntilClass === 0) {
+            // Class is today, check if it's ongoing
+            const now = new Date();
+            const [hour, min] = classData.start_time.split(':').map(Number);
+            const classStartTime = new Date(today);
+            classStartTime.setHours(hour, min, 0);
+
+            // Assume 1 hour class duration
+            const classEndTime = new Date(classStartTime);
+            classEndTime.setHours(classEndTime.getHours() + 1);
+
+            if (now >= classStartTime && now < classEndTime) {
+                return 'ongoing';
+            } else if (now < classStartTime) {
+                return 'upcoming'; // Class is today but hasn't started yet
+            } else {
+                return 'no-bar'; // Class already finished
+            }
+        } else if (daysUntilClass > 0 && daysUntilClass <= 2) {
+            // Class is within next 2 days
+            return 'upcoming';
+        } else {
+            // Class is more than 2 days away or in the past
+            return 'no-bar';
+        }
+    };
+
     const fetchUploadHistory = async (userId, signal) => {
         try {
             const response = await api.get(`/api/faculty/upload-history/${userId}`, { signal });
@@ -208,18 +258,19 @@ const FacultyMyClassesPage = () => {
                 const parsedSem = response.data.semester || '';
                 const parsedAy = response.data.academic_year || '';
                 const mismatchParts = [];
+                
                 if (semester && parsedSem && parsedSem !== semester) {
                     mismatchParts.push(`Semester: file says "${parsedSem}" but department is set to "${semester}"`);
                 }
                 if (academicYear && parsedAy && parsedAy !== academicYear) {
                     mismatchParts.push(`Academic Year: file says "${parsedAy}" but department is set to "${academicYear}"`);
                 }
+
                 if (mismatchParts.length > 0) {
-                    // TEMP OVERRIDE: ignore mismatch, use department head settings
-                    console.warn('[TEMP] Semester/AY mismatch detected — overriding with department settings:', mismatchParts);
-                    // Override parsed data semester/AY with the locked dept values
-                    response.data.semester = semester || response.data.semester;
-                    response.data.academic_year = academicYear || response.data.academic_year;
+                    // DECLINE UPLOAD: If there is a mismatch, stop and show message as per Dept Head requirement
+                    setUploadMessage(`❌ Please upload an updated Schedule. The academic year/semester in this PDF does not match the current official settings (${academicYear} ${semester}).`);
+                    setIsUploading(false);
+                    return;
                 }
 
                 // Store parsed data and switch to preview
@@ -232,10 +283,16 @@ const FacultyMyClassesPage = () => {
                 setSelectedFile(null);
                 setSubView('preview');
             } else {
-                setUploadMessage(`❌ Error: ${response.data.error || 'Parse failed'}`);
+                setUploadMessage(`❌ Error: ${response.data.error?.message || response.data.error || 'Parse failed'}`);
             }
         } catch (error) {
-            setUploadMessage(`❌ Upload failed: ${error.response?.data?.error || error.message}`);
+            // Check for specific mismatch error codes from backend (Task 45/48)
+            const errorData = error.response?.data?.detail?.error || error.response?.data;
+            if (errorData?.code === 'AY_MISMATCH' || errorData?.code === 'SEMESTER_MISMATCH') {
+                setUploadMessage(`⚠️ ${errorData.message}`);
+            } else {
+                setUploadMessage(`❌ ${errorData?.message || errorData?.error || error.message}`);
+            }
         } finally {
             setIsUploading(false);
         }
@@ -250,6 +307,7 @@ const FacultyMyClassesPage = () => {
                 faculty_id: user.user_id || user.id,
                 semester: semester,
                 academic_year: academicYear,
+                filename: previewData.filename,
                 courses: previewData.courses
             };
             const response = await api.post('/api/faculty/confirm-schedule', payload, {
@@ -260,8 +318,14 @@ const FacultyMyClassesPage = () => {
             setSubView('main');
             setViewMode('list');
             fetchSchedule(user.user_id || user.id);
+            fetchUploadHistory(user.user_id || user.id);
         } catch (error) {
-            toast.error(`❌ Failed: ${error.response?.data?.error || error.message}`);
+            const errorData = error.response?.data?.detail?.error || error.response?.data;
+            if (errorData?.code === 'CLASS_ALREADY_CLAIMED') {
+                toast.error(`⚠️ ${errorData.message}`);
+            } else {
+                toast.error(`❌ Failed: ${errorData?.message || errorData?.error || error.message}`);
+            }
         } finally {
             setIsConfirming(false);
         }
@@ -341,6 +405,21 @@ const FacultyMyClassesPage = () => {
     // --- HANDLERS ---
     const handleTakeAttendance = (cls) => {
         fetchClassDetails(cls);
+    };
+
+    const handleDeleteClass = async (classId, className) => {
+        if (!window.confirm(`Are you sure you want to delete the class "${className}"? All enrolled students will be preserved.`)) {
+            return;
+        }
+
+        try {
+            await api.delete(`/api/faculty/class/${classId}`);
+            setMyClasses(prev => prev.filter(c => c.id !== classId));
+            toast.success(`Class "${className}" deleted successfully`);
+        } catch (error) {
+            console.error("Error deleting class:", error);
+            toast.error(error.response?.data?.message || 'Failed to delete class');
+        }
     };
 
     const handleViewStudent = (student) => {
@@ -566,35 +645,52 @@ const FacultyMyClassesPage = () => {
     const renderClassCards = () => (
         <div className="faculty-classes-grid fade-in">
             {myClasses.length > 0 ? (
-                myClasses.map((cls) => (
-                    <div key={cls.id} className={`card faculty-class-card ${cls.status === 'ongoing' ? 'today-active' : ''}`}>
-                        <div className="card-status-badge">
-                            {cls.status === 'ongoing' ? <span className="badge-today">Ongoing</span> : <span className="badge-upcoming">Upcoming</span>}
-                        </div>
-                        <div className="faculty-class-header">
-                            <h3>{cls.subject_title}</h3>
-                            <span className="faculty-class-code">{cls.subject_code}</span>
-                        </div>
-                        <div className="faculty-class-details">
-                            <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {formatTo12Hr(cls.start_time)}</div>
-                            <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
-                            <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
-                        </div>
+                myClasses.map((cls) => {
+                    const classStatus = getClassStatus(cls);
+                    const shouldShowBadge = classStatus !== 'no-bar';
+                    
+                    return (
+                        <div key={cls.id} className={`card faculty-class-card ${classStatus === 'ongoing' ? 'today-active' : ''}`}>
+                            {shouldShowBadge && (
+                                <div className="card-status-badge">
+                                    {classStatus === 'ongoing' ? <span className="badge-today">Ongoing</span> : <span className="badge-upcoming">Upcoming</span>}
+                                </div>
+                            )}
+                            <div className="faculty-class-header">
+                                <h3>{cls.subject_title}</h3>
+                                <span className="faculty-class-code">{cls.subject_code}</span>
+                            </div>
+                            <div className="faculty-class-details">
+                                <div className="detail-row"><i className="fas fa-clock"></i> {cls.day_of_week} {formatTo12Hr(cls.start_time)}</div>
+                                <div className="detail-row"><i className="fas fa-map-marker-alt"></i> {cls.room || 'TBA'}</div>
+                                <div className="detail-row"><i className="fas fa-users"></i> {cls.section} ({cls.total_students})</div>
+                            </div>
 
-                        <div className="attendance-preview-bar">
-                            <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
-                            <div className="progress-track">
-                                <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
+                            <div className="attendance-preview-bar">
+                                <div className="bar-label"><span>Avg. Attendance</span><span className="green">{cls.rate}%</span></div>
+                                <div className="progress-track">
+                                    <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
+                                </div>
+                            </div>
+
+                            <div className="action-area">
+                                <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
+                                    <i className="fas fa-user-check"></i> View Attendance
+                                </button>
+                                <button 
+                                    className="faculty-delete-class-btn" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteClass(cls.id, `${cls.subject_code} - ${cls.section}`);
+                                    }}
+                                    title="Delete Class"
+                                >
+                                    <i className="fas fa-trash-alt"></i>
+                                </button>
                             </div>
                         </div>
-
-                        <div className="action-area">
-                            <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
-                                <i className="fas fa-user-check"></i> View Attendance
-                            </button>
-                        </div>
-                    </div>
-                ))
+                    );
+                })
             ) : (
                 <div className="no-classes-message">
                     {loading ? "Loading classes..." : "No classes assigned."}
@@ -865,34 +961,41 @@ const FacultyMyClassesPage = () => {
                 {uploadedSchedules.length === 0 ? (
                     <p className="no-data">No schedules uploaded yet</p>
                 ) : (
-                    <table className="history-table">
-                        <thead>
-                            <tr>
-                                <th>File Name</th>
-                                <th>Semester</th>
-                                <th>Academic Year</th>
-                                <th>Schedules</th>
-                                <th>Status</th>
-                                <th>Uploaded</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {uploadedSchedules.map((upload) => (
-                                <tr key={upload.upload_id}>
-                                    <td>{upload.file_name}</td>
-                                    <td>{upload.semester}</td>
-                                    <td>{upload.academic_year}</td>
-                                    <td>{upload.schedules_count}</td>
-                                    <td>
-                                        <span className={`status ${upload.status.toLowerCase()}`}>
-                                            {upload.status}
-                                        </span>
-                                    </td>
-                                    <td>{new Date(upload.uploaded_at).toLocaleDateString()}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div className="history-list">
+                        {uploadedSchedules.map((upload) => (
+                            <div key={upload.id || upload.upload_id} className="history-item">
+                                <div className="history-file-info">
+                                    <div className="file-icon-box">
+                                        <i className="fas fa-file-pdf"></i>
+                                    </div>
+                                    <div className="file-details">
+                                        <span className="file-name">{upload.filename || upload.file_name}</span>
+                                        <div className="file-meta">
+                                            <span>{upload.semester}</span>
+                                            <span className="meta-separator">•</span>
+                                            <span>{upload.academic_year}</span>
+                                            <span className="meta-separator">•</span>
+                                            <span className="schedules-count">
+                                                {upload.schedules_created !== undefined ? upload.schedules_created + upload.schedules_updated : upload.schedules_count} Schedules
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="history-status-info">
+                                    <span className={`status-pill ${(upload.status || 'Success').toLowerCase()}`}>
+                                        {upload.status || 'Success'}
+                                    </span>
+                                    <span className="upload-date">
+                                        {new Date(upload.timestamp || upload.uploaded_at).toLocaleDateString(undefined, {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

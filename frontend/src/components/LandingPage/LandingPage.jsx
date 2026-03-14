@@ -25,6 +25,15 @@ const FacultyLoginModal = ({ isOpen, onClose }) => {
     const [forgotEmail, setForgotEmail] = useState('');
     const [forgotMessage, setForgotMessage] = useState('');
 
+    // Reset forgot password state when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setShowForgotPassword(false);
+            setForgotMessage('');
+            setForgotEmail('');
+        }
+    }, [isOpen]);
+
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
         if (isSubmitting) return;
@@ -183,8 +192,17 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
-    const [forgotId, setForgotId] = useState('');
+    const [forgotEmail, setForgotEmail] = useState('');
     const [forgotMessage, setForgotMessage] = useState('');
+
+    // Reset forgot password state when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setShowForgotPassword(false);
+            setForgotMessage('');
+            setForgotEmail('');
+        }
+    }, [isOpen]);
 
     const handleLogin = async (e) => {
         if (e) e.preventDefault();
@@ -217,15 +235,15 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
 
     const handleForgotPassword = async (e) => {
         if (e) e.preventDefault();
-        if (!forgotId.trim()) {
-            setForgotMessage('Please enter your TUP-M ID.');
+        if (!forgotEmail.trim()) {
+            setForgotMessage('Please enter your registered email address.');
             return;
         }
         try {
-            setForgotMessage('Verifying account...');
-            // Need to specify this is a student forgot password request
-            await api.post('/api/auth/forgot-password', { tup_id: forgotId.trim(), type: 'student' });
-            setForgotMessage('If your account is set up with an email, a password reset link has been sent. Check your inbox.');
+            setForgotMessage('Sending...');
+            // Send email-based password reset
+            await api.post('/api/auth/forgot-password', { email: forgotEmail.trim(), type: 'student' });
+            setForgotMessage('If this email is registered, a password reset link has been sent. Please check your inbox.');
         } catch (error) {
             setForgotMessage(error.response?.data?.detail || 'An error occurred. Please try again later.');
         }
@@ -239,7 +257,7 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
                 <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
                     <div className="login-modal-type-badge student">STUDENT PORTAL</div>
                     <h3>Forgot Password</h3>
-                    <p className="role-modal-subtitle">Enter your TUP-M ID to reset your password</p>
+                    <p className="role-modal-subtitle">Enter the email address associated with your student account</p>
 
                     {forgotMessage && (
                         <div className="login-error-msg" style={{ background: forgotMessage.includes('sent') ? '#ecfdf5' : '#fee2e2', color: forgotMessage.includes('sent') ? '#065f46' : '#b91c1c' }}>
@@ -249,12 +267,13 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
 
                     <form onSubmit={handleForgotPassword}>
                         <div className="login-form-group">
-                            <label>TUP-M ID</label>
+                            <label>Email Address</label>
                             <input
-                                type="text"
-                                placeholder="TUPM-XX-XXXX"
-                                value={forgotId}
-                                onChange={(e) => setForgotId(e.target.value.toUpperCase())}
+                                type="email"
+                                placeholder="example@student.tup.edu.ph"
+                                value={forgotEmail}
+                                onChange={(e) => setForgotEmail(e.target.value)}
+                                autoComplete="email"
                                 required
                             />
                         </div>
@@ -264,7 +283,7 @@ const StudentLoginModal = ({ isOpen, onClose }) => {
                     </form>
 
                     <p className="login-switch-prompt">
-                        <span onClick={() => { setShowForgotPassword(false); setForgotId(''); setForgotMessage(''); }}>
+                        <span onClick={() => { setShowForgotPassword(false); setForgotEmail(''); setForgotMessage(''); }}>
                             <i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i>Back to Login
                         </span>
                     </p>
@@ -441,6 +460,133 @@ const FeaturesSection = ({ aboutRef }) => (
 );
 
 // ==========================================
+// WATCH DEMO MODAL (New Feature)
+// ==========================================
+const WatchDemoModal = ({ isOpen, onClose }) => {
+    const [demoRole, setDemoRole] = useState(null); // 'faculty' | 'student' | null
+
+    // Reset role when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setDemoRole(null);
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    // Role selection screen
+    if (!demoRole) {
+        return (
+            <div className="role-modal-overlay" onClick={onClose}>
+                <div className="role-modal-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                    {/* Close button */}
+                    <button 
+                        className="modal-close-btn"
+                        onClick={onClose}
+                    >
+                        <i className="fas fa-times"></i>
+                    </button>
+
+                    <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', color: '#0F172A' }}>Watch Demo</h3>
+                        <p className="role-modal-subtitle">Choose your role to see a personalized walkthrough</p>
+                    </div>
+
+                    <div className="role-modal-grid" style={{ marginTop: '30px' }}>
+                        {/* Faculty Demo Card */}
+                        <div 
+                            className="role-modal-item faculty"
+                            onClick={() => setDemoRole('faculty')}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <i className="fas fa-chalkboard-teacher"></i>
+                            <h3>Faculty / Head</h3>
+                            <p>See how to manage classes and attendance</p>
+                        </div>
+                        {/* Student Demo Card */}
+                        <div 
+                            className="role-modal-item student"
+                            onClick={() => setDemoRole('student')}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <i className="fas fa-user-graduate"></i>
+                            <h3>Student</h3>
+                            <p>Explore the student dashboard features</p>
+                        </div>
+                    </div>
+
+                    {/* Removed bottom close button as top-right is added */}
+                </div>
+            </div>
+        );
+    }
+
+    // Video demo screen
+    const demoTitle = demoRole === 'faculty' 
+        ? 'Faculty / Department Head Demo' 
+        : 'Student Portal Demo';
+
+    return (
+        <div className="role-modal-overlay" onClick={onClose}>
+            <div className="login-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', padding: 0 }}>
+                {/* Close button */}
+                <button 
+                    className="modal-close-btn light"
+                    onClick={onClose}
+                >
+                    <i className="fas fa-times"></i>
+                </button>
+
+                {/* Header */}
+                <div style={{ backgroundColor: '#0F172A', padding: '20px 25px', textAlign: 'center', borderBottom: '1px solid #1e293b' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#FFFFFF', letterSpacing: '0.5px' }}>{demoTitle}</h3>
+                </div>
+
+                {/* Video Placeholder */}
+                <div style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#f8fafc' }}>
+                    <div style={{
+                        width: '100%',
+                        height: '400px',
+                        backgroundColor: '#e2e8f0',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px dashed #94a3b8'
+                    }}>
+                        <h4 style={{ color: '#475569', margin: '0 0 10px 0', fontSize: '1.2rem' }}>Video Coming Soon</h4>
+                        <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem', maxWidth: '500px' }}>
+                            We're preparing a comprehensive walkthrough tutorial demonstrating all features for the {demoRole === 'faculty' ? 'Faculty' : 'Student'} portal. Stay tuned!
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={() => setDemoRole(null)}
+                        style={{
+                            marginTop: '25px',
+                            backgroundColor: '#0F172A',
+                            color: 'white',
+                            padding: '12px 28px',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '1rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#1e293b'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#0F172A'}
+                    >
+                        <i className="fas fa-arrow-left" style={{ marginRight: '8px' }}></i>Back to Role Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ==========================================
 // MAIN COMPONENT
 // ==========================================
 const LandingPage = () => {
@@ -466,6 +612,11 @@ const LandingPage = () => {
                 </main>
 
                 {/* MODALS */}
+                <WatchDemoModal
+                    isOpen={panel === 'watch-demo'}
+                    onClose={() => setPanel(null)}
+                />
+
                 <FacultyLoginModal
                     isOpen={panel === 'faculty-login'}
                     onClose={() => setPanel(null)}

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,yellow\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "vite",
-    "dev:backend": "cd ../backend && .\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload",
+    "dev:backend": "cd ../backend && set DB_POOL_MODE=null&& set SKIP_DB_WARMUP=1&& .\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5000",
+    "dev:backend:reload": "cd ../backend && set DB_POOL_MODE=null&& set SKIP_DB_WARMUP=1&& .\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload",
     "build": "vite build",
     "preview": "vite preview"
   },

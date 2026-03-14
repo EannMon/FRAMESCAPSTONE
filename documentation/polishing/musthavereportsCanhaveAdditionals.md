@@ -1,4 +1,5 @@
 # Attendance Reporting Structure
+these reports MUST BE the basic reports. You can add more insightful reports, just document everyhting what it is for and how is that reports derived.
 
 | Module | General Type of Report | Specific Type of Report | Purpose or Description |
 |------|------|------|------|

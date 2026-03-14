@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 import logging
 
@@ -17,9 +17,57 @@ from models.class_ import Class
 from models.subject import Subject
 from models.enrollment import Enrollment
 from models.attendance_log import AttendanceLog, AttendanceAction
+from services.report_service import get_student_report_envelope
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _parse_report_window(report_type: str, date_from: Optional[str], date_to: Optional[str]):
+    """Parse/resolve report date window with sensible defaults per report type."""
+    now = datetime.now(timezone.utc)
+    report_code = (report_type or "DAILY_REPORT").upper()
+
+    def _parse_iso_day(value: Optional[str], end_of_day: bool = False) -> Optional[datetime]:
+        if not value:
+            return None
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if end_of_day:
+            return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return parsed.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    parsed_from = _parse_iso_day(date_from)
+    parsed_to = _parse_iso_day(date_to, end_of_day=True)
+
+    if parsed_from and parsed_to:
+        return parsed_from, parsed_to
+
+    if report_code in {"DAILY_REPORT", "LATE_REPORT", "BREAK_LOG"}:
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return parsed_from or start, parsed_to or end
+
+    if report_code == "WEEKLY_SUMMARY":
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    if report_code == "MONTHLY_TRENDS":
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    if report_code in {"HISTORY_30D", "CONSISTENCY"}:
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    # Semestral / overall default window fallback.
+    end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    start = (end - timedelta(days=120)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return parsed_from or start, parsed_to or end
 
 
 # ============================================
@@ -304,9 +352,17 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
     
-    if user.verification_status != VerificationStatus.VERIFIED:
+    # Relaxed verification check: check if value or string matches "Verified"
+    is_verified = False
+    if hasattr(user.verification_status, 'value'):
+        is_verified = user.verification_status.value == "Verified"
+    else:
+        is_verified = str(user.verification_status) == "Verified"
+
+    if not is_verified:
+        logger.warning("DASHBOARD | student=%d not verified (status=%s)", user_id, user.verification_status)
         return StudentDashboard(
-            attendance_rate="N/A",
+            attendance_rate="0%",
             enrolled_courses=0,
             notifications=[{"message": "Account pending admin approval", "icon": "fa-user-lock"}],
             recent_attendance=[]
@@ -362,8 +418,10 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
 
         rate = round(sessions_attended / total_sessions * 100, 1) if total_sessions > 0 else 0.0
         attendance_rate = f"{rate}%"
+        logger.info("DASHBOARD | student=%d sessions=%d/%d rate=%s", user_id, sessions_attended, total_sessions, attendance_rate)
     else:
         attendance_rate = "0%"
+        logger.info("DASHBOARD | student=%d NOT_ENROLLED", user_id)
     
     # Get recent attendance — eager load Class + Subject in one query (no N+1)
     recent_logs = (
@@ -492,3 +550,48 @@ def get_attendance_history(
         ))
     
     return result
+
+
+@router.get("/reports/data/{user_id}")
+def get_student_report_data(
+    user_id: int,
+    report_type: str,
+    class_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """
+    Phase 1 server-driven student report endpoint.
+    Returns rows plus summary metrics and explainable insights.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    if user.verification_status != VerificationStatus.VERIFIED:
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
+
+    window_from, window_to = _parse_report_window(report_type, date_from, date_to)
+
+    envelope = get_student_report_envelope(
+        db=db,
+        user_id=user_id,
+        report_type=report_type,
+        date_from=window_from,
+        date_to=window_to,
+        class_id=class_id,
+        skip=max(skip, 0),
+        limit=min(limit, 100),
+    )
+
+    logger.info(
+        "Student report %s for user %d: rows=%d insights=%d",
+        report_type,
+        user_id,
+        len(envelope.get("rows", [])),
+        len(envelope.get("insights", [])),
+    )
+    return envelope
