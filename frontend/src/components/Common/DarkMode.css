@@ -271,10 +271,29 @@ body.dark-mode .logs-empty h4 {
 }
 
 /* --- Charts --- */
+:root {
+    --chart-grid: #f5f5f5;
+    --chart-axis: #ddd;
+    --chart-text: #999;
+    --chart-tooltip-bg: rgba(255, 255, 255, 0.95);
+    --chart-tooltip-text: #333;
+    --chart-tooltip-border: #eee;
+}
+
+body.dark-mode {
+    --chart-grid: #334155;
+    --chart-axis: #475569;
+    --chart-text: #94A3B8;
+    --chart-tooltip-bg: #1e293b;
+    --chart-tooltip-text: #f8fafc;
+    --chart-tooltip-border: #334155;
+}
+
 body.dark-mode .chart-card {
     background: #1E293B !important;
     border-color: #334155 !important;
 }
+
 
 body.dark-mode .chart-card h3 {
     color: #F8FAFC !important;
@@ -3114,4 +3133,92 @@ body.dark-mode [style*="background:#f1f5f9"],
 body.dark-mode [style*="background: #f1f5f9"] {
     background-color: #334155 !important;
     color: #F1F5F9 !important;
+}
+/* --- Common Elements Overrides --- */
+body.dark-mode .search-wrapper input {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .search-wrapper i {
+    color: #64748B !important;
+}
+
+body.dark-mode .styled-table {
+    border-color: #334155 !important;
+}
+
+body.dark-mode .styled-table th {
+    background: #0F172A !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .styled-table td {
+    background: #1E293B !important;
+    color: #CBD5E1 !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .clickable-row:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .avatar-placeholder {
+    background: #334155 !important;
+    color: #94A3B8 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .back-btn {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .back-btn:hover {
+    color: #F8FAFC !important;
+}
+
+/* --- React Calendar Library --- */
+body.dark-mode .react-calendar {
+    background: #1E293B !important;
+    color: #E2E8F0 !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .react-calendar__navigation {
+    background: #0F172A !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .react-calendar__navigation button {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .react-calendar__navigation button:enabled:hover,
+body.dark-mode .react-calendar__navigation button:enabled:focus {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .react-calendar__month-view__weekdays {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .react-calendar__tile:enabled:hover,
+body.dark-mode .react-calendar__tile:enabled:focus {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .react-calendar__tile--now {
+    background: #312E81 !important; /* Deep Indigo for "Today" */
+    color: #C7D2FE !important;
+}
+
+body.dark-mode .react-calendar__tile--active {
+    background: #163269 !important; /* Brand Navy */
+    color: white !important;
+}
+
+body.dark-mode .react-calendar__month-view__days__day--neighboringMonth {
+    color: #475569 !important;
 }

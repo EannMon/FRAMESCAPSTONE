@@ -98,6 +98,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
 
         setLoading(true);
         try {
+            console.log("AUTH | Attempting password change for userId:", userId);
             await api.put('/api/users/change-password', {
                 user_id: userId,
                 new_password: newPassword
@@ -105,7 +106,7 @@ const PasswordModal = ({ isOpen, onClose, userId }) => {
             toast.success("Password Changed Successfully!");
             onClose();
         } catch (err) {
-            console.error("Password Update Error:", err);
+            console.error("AUTH | Password Update Error:", err);
             let detailedError = "";
 
             if (err.response) {

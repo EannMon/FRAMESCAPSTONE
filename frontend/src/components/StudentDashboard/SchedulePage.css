@@ -375,3 +375,95 @@
     font-size: 0.875em;
     color: var(--text-success, #388E3C);
 }
+
+/* ============================================
+   DARK MODE OVERRIDES - SchedulePage
+   ============================================ */
+
+body.dark-mode .schedule-header {
+    background: #1E293B;
+}
+
+body.dark-mode .schedule-header h2 {
+    color: #F8FAFC;
+}
+
+body.dark-mode .schedule-filters {
+    background-color: #0F172A;
+}
+
+body.dark-mode .schedule-filter-btn {
+    color: #64748B;
+}
+
+body.dark-mode .schedule-filter-btn:hover {
+    color: #F8FAFC;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .schedule-filter-btn.active {
+    background-color: #334155;
+    color: #F8FAFC;
+}
+
+/* Cards */
+body.dark-mode .today-classes-card,
+body.dark-mode .week-day-card,
+body.dark-mode .calendar-view {
+    background: #1E293B;
+    border-color: #334155;
+}
+
+body.dark-mode .today-classes-card h3 {
+    color: #60A5FA;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .week-day-header {
+    background-color: #0F172A;
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .week-day-header .day-name {
+    color: #F8FAFC;
+}
+
+/* Class Items */
+body.dark-mode .week-class-time {
+    color: #FBBF24;
+}
+
+body.dark-mode .class-title-main {
+    color: #F8FAFC;
+}
+
+body.dark-mode .class-meta-text {
+    color: #94A3B8;
+}
+
+body.dark-mode .class-item,
+body.dark-mode .week-class-item {
+    border-bottom-color: #334155;
+}
+
+/* Auto-Sync Banner */
+body.dark-mode .auto-sync-banner {
+    background: rgba(46, 125, 50, 0.1);
+    border-left-color: #22C55E;
+}
+
+body.dark-mode .sync-icon {
+    color: #4ADE80;
+}
+
+body.dark-mode .sync-title {
+    color: #C6F6D5;
+}
+
+body.dark-mode .sync-description {
+    color: #4ADE80;
+}
+
+body.dark-mode .no-classes-message {
+    color: #64748B;
+}
