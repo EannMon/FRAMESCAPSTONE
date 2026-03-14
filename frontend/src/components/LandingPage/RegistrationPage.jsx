@@ -291,13 +291,27 @@ const RegistrationPage = () => {
         setNewPrograms(prev => prev.filter((_, i) => i !== index));
     };
 
-    /**
-     * Complete registration: create department (head), programs (head), then register user.
-     */
     const handleFinish = async () => {
         if (isSubmitting) return;
-        if (password !== retypePassword || password.length < 6) {
-            showAlert('Invalid Password', 'Passwords must match and be at least 6 characters long.', 'warning');
+
+        // Password Validation 
+        // 1.) Must be minimum length of 8-15 characters
+        // 2.) Must include uppercase
+        // 3.) Special character
+        // 4.) Number
+        const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$/;
+
+        if (!strongPasswordRegex.test(password)) {
+            showAlert(
+                'Weak Password', 
+                'Password must be 8-15 characters long, include at least one uppercase letter, one number, and one special character.', 
+                'warning'
+            );
+            return;
+        }
+
+        if (password !== retypePassword) {
+            showAlert('Password Mismatch', 'Passwords do not match.', 'warning');
             return;
         }
 
@@ -730,7 +744,7 @@ const RegistrationPage = () => {
                                     <div className="reg-password-wrapper">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            placeholder="At least 6 characters"
+                                            placeholder="Enter password"
                                             value={password}
                                             onChange={e => setPassword(e.target.value)}
                                         />
@@ -741,6 +755,14 @@ const RegistrationPage = () => {
                                         >
                                             <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
                                         </button>
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', lineHeight: '1.4' }}>
+                                        Password must be 8-15 characters long and include at least:
+                                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                                            <li>One uppercase letter</li>
+                                            <li>One number</li>
+                                            <li>One special character (e.g., @$!%*?&)</li>
+                                        </ul>
                                     </div>
                                 </div>
                                 <div className="reg-form-group full-width">

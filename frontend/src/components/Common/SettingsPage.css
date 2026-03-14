@@ -1,187 +1,141 @@
 /* =========================================== */
-/* 11. Settings Page Styles */
+/* 11. Settings Page Styles - Refined Unified UI */
 /* =========================================== */
 
-/* --- Main Layout --- */
 .settings-page-container {
-    max-width: 1100px;
+    max-width: 900px;
     margin: 0 auto;
-    padding: 30px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f5f6fa;
-    padding-top: 95px;
-    /* 65px header + 30px padding */
+    padding: 120px 20px 60px;
+    font-family: 'Inter', -apple-system, sans-serif;
 }
 
 .settings-page-container.embedded {
-    padding: 0;
-    /* Let main-content-area handle padding */
+    padding: 20px 0;
     max-width: 100%;
-    margin: 0;
-    min-height: auto;
 }
 
-/* --- Header Bar --- */
+/* --- Header --- */
 .settings-header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    margin-bottom: 40px;
 }
 
 .settings-header-left {
     display: flex;
     align-items: center;
-    gap: 15px;
-}
-
-.settings-back-button {
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    color: #555;
-    font-size: 1em;
-    height: 40px;
-    width: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.settings-back-button:hover {
-    background-color: #EEF2FF;
-    color: #0F172A;
-    border-color: #163269;
-}
-
-.settings-main-title {
-    font-size: 1.8em;
-    font-weight: 700;
-    color: #333;
-    margin: 0;
-}
-
-/* --- Settings Grid --- */
-.settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 30px;
-}
-
-.settings-card {
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
     gap: 20px;
 }
 
-.settings-card h3 {
-    font-size: 1.3em;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
+.settings-back-button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.settings-card p {
-    font-size: 0.95em;
-    color: #666;
-    margin: -10px 0 0 0;
+.settings-back-button:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    transform: translateX(-2px);
 }
 
-/* --- Form Elements --- */
-.settings-field {
+.settings-main-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.025em;
+}
+
+/* --- Content Container --- */
+.settings-main-container {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.settings-section {
+    padding: 32px;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 24px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+}
+
+.settings-item-group {
     display: flex;
     flex-direction: column;
+    gap: 24px;
 }
 
-.settings-field label {
-    font-size: 0.9em;
-    font-weight: 500;
-    color: #555;
-    margin-bottom: 5px;
-}
-
-.settings-select-input {
-    font-size: 1em;
-    padding: 10px 12px;
-    background-color: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    color: #333;
-    font-family: inherit;
-}
-
-/* --- Buttons --- */
-.settings-link-button,
-.settings-action-button {
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    color: #555;
-    padding: 12px 15px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
+.settings-item {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    /* Link button */
-    gap: 8px;
-    font-size: 0.95em;
-    transition: all 0.2s;
-    text-decoration: none;
+    align-items: center;
+    gap: 20px;
 }
 
-.settings-action-button {
-    justify-content: flex-start;
-    /* Regular button */
+.settings-item-info {
+    flex: 1;
 }
 
-.settings-link-button:hover,
-.settings-action-button:hover {
-    background-color: #EEF2FF;
-    color: #0F172A;
-    border-color: #163269;
+.settings-item-info label {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
 }
 
-.settings-link-button i,
-.settings-action-button i {
-    color: #888;
-    transition: color 0.2s;
-    margin-right: 5px;
+.settings-item-info p {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.5;
 }
 
-.settings-link-button:hover i,
-.settings-action-button:hover i {
-    color: #0F172A;
+/* --- Specific Elements --- */
+.role-chip {
+    display: inline-flex;
+    padding: 4px 12px;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    border: 1px solid #e2e8f0;
 }
 
+.settings-divider {
+    border: 0;
+    height: 1px;
+    background: #f1f5f9;
+    margin: 0;
+}
 
 /* --- Toggle Switch --- */
-.toggle-switch-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.toggle-switch-label {
-    font-size: 1em;
-    font-weight: 500;
-    color: #333;
-}
-
 .toggle-switch {
+    width: 44px;
+    height: 24px;
     position: relative;
     display: inline-block;
-    width: 50px;
-    /* Width of the switch */
-    height: 28px;
-    /* Height of the switch */
 }
 
 .toggle-switch input {
@@ -197,64 +151,79 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 28px;
+    background-color: #e2e8f0;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 34px;
 }
 
 .toggle-slider:before {
     position: absolute;
     content: "";
-    height: 20px;
-    width: 20px;
-    left: 4px;
-    bottom: 4px;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
     background-color: white;
-    transition: .4s;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.toggle-switch input:checked+.toggle-slider {
-    background-color: #0F172A;
-    /* Navy when on */
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #0f172a;
 }
 
-.toggle-switch input:checked+.toggle-slider:before {
-    transform: translateX(22px);
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
 }
 
-/* =========================================== */
-/* Responsive Styles */
-/* =========================================== */
-@media (max-width: 576px) {
-    .settings-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
+/* --- Faculty Theme Overrides --- */
+.faculty-theme .settings-main-container {
+    border-top: 4px solid #163269;
+}
+
+.faculty-theme .toggle-switch input:checked + .toggle-slider {
+    background-color: #163269;
+}
+
+/* --- Dark Mode Support --- */
+.dark-mode .settings-main-container {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dark-mode .settings-item-info label,
+.dark-mode .section-title,
+.dark-mode .settings-main-title {
+    color: #f8fafc;
+}
+
+.dark-mode .settings-divider {
+    background: #334155;
+}
+
+.dark-mode .role-chip {
+    background: #334155;
+    color: #cbd5e1;
+    border-color: #475569;
+}
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+    .settings-page-container {
+        padding-top: 100px;
     }
 
-    .settings-header-bar {
-        flex-direction: column;
+    .settings-section {
+        padding: 24px;
+    }
+
+    .settings-item {
+        flex-direction: row;
         align-items: flex-start;
-        gap: 15px;
-    }
-}
-
-@media (max-width: 375px) {
-    .settings-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .settings-card {
-        padding: 16px;
-        gap: 14px;
     }
 
     .settings-main-title {
-        font-size: 1.4em;
-    }
-
-    .settings-page-container {
-        padding: 15px 10px;
-        gap: 16px;
+        font-size: 1.5rem;
     }
 }
