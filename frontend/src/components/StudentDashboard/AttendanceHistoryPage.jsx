@@ -205,32 +205,111 @@ const AttendanceHistoryPage = () => {
     };
 
     const statusDistribution = useMemo(() => {
-        const buckets = { PRESENT: 0, LATE: 0, ON_BREAK: 0, EXITED: 0 };
+        const buckets = {
+            ENTERED: 0,
+            LATE: 0,
+            ABSENT: 0,
+            BREAK_OUT: 0,
+            BREAK_IN: 0,
+            EXITED: 0,
+        };
+
         rawLogs.forEach((log) => {
             const action = (log.action || '').toUpperCase();
-            if (action === 'ENTRY' || action === 'BREAK_IN') {
+            if (action === 'ENTRY') {
                 if (log.is_late) buckets.LATE += 1;
-                else buckets.PRESENT += 1;
+                else buckets.ENTERED += 1;
             } else if (action === 'BREAK_OUT') {
-                buckets.ON_BREAK += 1;
+                buckets.BREAK_OUT += 1;
+            } else if (action === 'BREAK_IN') {
+                buckets.BREAK_IN += 1;
             } else if (action === 'EXIT') {
                 buckets.EXITED += 1;
             }
         });
+
+        const windowStats = sessionCountReference?.report_window || {};
+        const attended = Number(windowStats.attended || 0);
+        const conducted = Number(windowStats.conducted || 0);
+        buckets.ABSENT = Math.max(conducted - attended, 0);
+
         return buckets;
-    }, [rawLogs]);
+    }, [rawLogs, sessionCountReference]);
 
     const dailyTrend = useMemo(() => {
-        const grouped = {};
+        const parseIsoDate = (value) => {
+            if (!value) return null;
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) return null;
+            parsed.setHours(0, 0, 0, 0);
+            return parsed;
+        };
+
+        const wholeSemester = sessionCountReference?.whole_semester || {};
+        const reportWindow = sessionCountReference?.report_window || {};
+
+        const fallbackStart = parseIsoDate(rawLogs[0]?.timestamp);
+        const fallbackEnd = parseIsoDate(rawLogs[rawLogs.length - 1]?.timestamp);
+
+        const startDate =
+            parseIsoDate(wholeSemester.semester_start_date) ||
+            parseIsoDate(reportWindow.date_from) ||
+            fallbackStart;
+        const endDate =
+            parseIsoDate(wholeSemester.semester_end_date) ||
+            parseIsoDate(reportWindow.date_to) ||
+            fallbackEnd;
+
+        if (!startDate || !endDate || startDate > endDate) {
+            return [];
+        }
+
+        const groupedByDay = {};
         rawLogs.forEach((log) => {
             if (!log.timestamp) return;
             const key = new Date(log.timestamp).toISOString().split('T')[0];
-            grouped[key] = (grouped[key] || 0) + 1;
+            if (!groupedByDay[key]) {
+                groupedByDay[key] = {
+                    entered: 0,
+                    late: 0,
+                    breakOut: 0,
+                    breakIn: 0,
+                    exited: 0,
+                    total: 0,
+                };
+            }
+            const action = (log.action || '').toUpperCase();
+            if (action === 'ENTRY') {
+                if (log.is_late) groupedByDay[key].late += 1;
+                else groupedByDay[key].entered += 1;
+            } else if (action === 'BREAK_OUT') {
+                groupedByDay[key].breakOut += 1;
+            } else if (action === 'BREAK_IN') {
+                groupedByDay[key].breakIn += 1;
+            } else if (action === 'EXIT') {
+                groupedByDay[key].exited += 1;
+            }
+            groupedByDay[key].total += 1;
         });
-        return Object.entries(grouped)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([day, count]) => ({ day, count }));
-    }, [rawLogs]);
+
+        const trend = [];
+        const cursor = new Date(startDate);
+        while (cursor <= endDate) {
+            const key = cursor.toISOString().split('T')[0];
+            const value = groupedByDay[key] || {
+                entered: 0,
+                late: 0,
+                breakOut: 0,
+                breakIn: 0,
+                exited: 0,
+                total: 0,
+            };
+            trend.push({ day: key, ...value });
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        return trend;
+    }, [rawLogs, sessionCountReference]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -394,13 +473,25 @@ const AttendanceHistoryPage = () => {
         if (!rawLogs.length) return null;
 
         const statusItems = [
-            { label: 'Present', value: statusDistribution.PRESENT, color: '#2e7d32' },
+            { label: 'Entered', value: statusDistribution.ENTERED, color: '#2e7d32' },
             { label: 'Late', value: statusDistribution.LATE, color: '#e65100' },
-            { label: 'On Break', value: statusDistribution.ON_BREAK, color: '#1565c0' },
+            { label: 'Absent', value: statusDistribution.ABSENT, color: '#c62828' },
+            { label: 'On Break (Out)', value: statusDistribution.BREAK_OUT, color: '#1565c0' },
+            { label: 'From Break (In)', value: statusDistribution.BREAK_IN, color: '#00897b' },
             { label: 'Exited', value: statusDistribution.EXITED, color: '#6c757d' },
         ];
         const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
-        const maxTrend = Math.max(...dailyTrend.map((item) => item.count), 1);
+        const maxTrend = Math.max(...dailyTrend.map((item) => item.total), 1);
+
+        const trendItemWidth = 42;
+        const trendHeight = 110;
+        const trendWidth = Math.max(dailyTrend.length * trendItemWidth, 320);
+        const totalLinePoints = dailyTrend.map((item, index) => {
+            const x = (index * trendItemWidth) + (trendItemWidth / 2);
+            const y = trendHeight - ((item.total / maxTrend) * trendHeight);
+            return `${x},${y}`;
+        }).join(' ');
+        const trendLabelStep = dailyTrend.length > 42 ? 7 : dailyTrend.length > 21 ? 3 : 1;
 
         return (
             <div className="insight-panel">
@@ -422,20 +513,52 @@ const AttendanceHistoryPage = () => {
                         ))}
                     </div>
                     <div className="visual-card">
-                        <div className="visual-title">Daily Activity Trend</div>
-                        <div className="mini-column-chart">
-                            {dailyTrend.slice(-10).map((item) => (
-                                <div key={item.day} className="mini-column-item">
-                                    <div className="mini-column-track">
-                                        <div
-                                            className="mini-column-fill"
-                                            style={{ height: `${(item.count / maxTrend) * 100}%` }}
-                                        />
-                                    </div>
-                                    <div className="mini-column-value">{item.count}</div>
-                                    <div className="mini-column-label">{new Date(item.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div className="visual-title">Semestral Daily Activity Trend</div>
+                        <div className="trend-chart-scroll-wrap">
+                            <div className="trend-chart-track" style={{ width: `${trendWidth}px` }}>
+                                <svg className="trend-line-svg" viewBox={`0 0 ${trendWidth} ${trendHeight}`} preserveAspectRatio="none">
+                                    <polyline
+                                        points={totalLinePoints}
+                                        fill="none"
+                                        stroke="#0d47a1"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                                <div className="trend-bar-grid" style={{ width: `${trendWidth}px` }}>
+                                    {dailyTrend.map((item, index) => (
+                                        <div key={item.day} className="trend-bar-item" style={{ width: `${trendItemWidth}px` }}>
+                                            <div className="trend-group-track" style={{ height: `${trendHeight}px` }}>
+                                                <div
+                                                    className="trend-bar entered"
+                                                    style={{ height: `${(item.entered / maxTrend) * 100}%` }}
+                                                    title={`Entered: ${item.entered}`}
+                                                />
+                                                <div
+                                                    className="trend-bar late"
+                                                    style={{ height: `${(item.late / maxTrend) * 100}%` }}
+                                                    title={`Late: ${item.late}`}
+                                                />
+                                            </div>
+                                            <div className="mini-column-value">{item.total}</div>
+                                            <div className="mini-column-label">
+                                                {index % trendLabelStep === 0
+                                                    ? new Date(item.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                    : ''}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
+                        </div>
+                        <div className="trend-legend-row">
+                            <span className="trend-legend-item"><span className="trend-legend-dot entered" />Entered</span>
+                            <span className="trend-legend-item"><span className="trend-legend-dot late" />Late</span>
+                            <span className="trend-legend-item"><span className="trend-legend-line" />Total activity</span>
+                        </div>
+                        <div className="trend-note">
+                            Range: {dailyTrend[0]?.day || 'N/A'} to {dailyTrend[dailyTrend.length - 1]?.day || 'N/A'}
                         </div>
                     </div>
                 </div>
@@ -473,11 +596,12 @@ const AttendanceHistoryPage = () => {
     };
 
     // Helper: Map action to display status
-    const getActionStatus = (action) => {
+    const getActionStatus = (action, isLate = false) => {
         if (!action) return { text: '—', isPresent: false };
         const upper = action.toUpperCase();
-        if (upper === 'ENTRY' || upper === 'BREAK_IN') return { text: 'PRESENT', isPresent: true };
-        if (upper === 'BREAK_OUT') return { text: 'ON BREAK', isPresent: false };
+        if (upper === 'ENTRY') return { text: isLate ? 'LATE' : 'ENTERED', isPresent: !isLate };
+        if (upper === 'BREAK_OUT') return { text: 'ON BREAK (OUT)', isPresent: false };
+        if (upper === 'BREAK_IN') return { text: 'FROM BREAK (IN)', isPresent: true };
         if (upper === 'EXIT') return { text: 'EXITED', isPresent: false };
         return { text: action, isPresent: false };
     };
@@ -591,7 +715,7 @@ const AttendanceHistoryPage = () => {
     const handleGenerateReport = (format) => {
         // 1. Map Data for Report (Matching keys to headers)
         const tableInput = displayData.map(log => {
-            const status = getActionStatus(log.action);
+            const status = getActionStatus(log.action, log.is_late);
             return {
                 "Date": new Date(log.timestamp).toLocaleDateString(),
                 "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -733,7 +857,7 @@ const AttendanceHistoryPage = () => {
                                         <td>{log.mapped_room}</td>
                                         <td>
                                             {(() => {
-                                                const status = getActionStatus(log.action);
+                                                const status = getActionStatus(log.action, log.is_late);
                                                 return (
                                                     <LogStatusTag
                                                         text={status.text}

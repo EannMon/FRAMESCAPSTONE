@@ -1,42 +1,58 @@
 BEGIN;
 SET search_path TO public;
 
--- Student seed (BSIT-2B-M)
--- Uses actual class schedule:
---   class_id=12, Monday, 18:00-20:00
---   class_id=11, Wednesday, 18:00-20:00
--- Date range: 2026-01-19 to 2026-06-27
--- Absences are implicit (some class days intentionally skipped)
+-- Student seed based on current test data.
+-- Semester dates come from the department managed by head user_id=1.
+-- Student population is resolved by enrollments within that department.
+-- Absences are implicit (some class days intentionally skipped).
 
-DELETE FROM attendance_logs
-WHERE user_id IN (
-  SELECT id FROM users WHERE role = 'STUDENT' AND id BETWEEN 98 AND 146
+WITH bounds AS (
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
+),
+target_students AS (
+  SELECT DISTINCT u.id AS user_id
+  FROM users u
+  JOIN enrollments e ON e.student_id = u.id
+  WHERE u.role = 'STUDENT'
+    AND u.department_id = (SELECT department_id FROM users WHERE id = 1 LIMIT 1)
 )
-AND timestamp::date BETWEEN DATE '2026-01-19' AND DATE '2026-06-27'
+DELETE FROM attendance_logs
+WHERE user_id IN (SELECT user_id FROM target_students)
+AND timestamp::date BETWEEN (SELECT start_date FROM bounds) AND (SELECT end_date FROM bounds)
 AND remarks LIKE '[FINALSEED_STUDENT]%';
 
 CREATE TEMP TABLE tmp_student_days ON COMMIT DROP AS
 WITH bounds AS (
-  SELECT DATE '2026-01-19' AS start_date, DATE '2026-06-27' AS end_date
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
 ),
 students AS (
-  SELECT
-    u.id AS user_id
+  SELECT DISTINCT
+    u.id AS user_id,
+    e.class_id,
+    COALESCE(c.start_time, TIME '07:30') AS base_start,
+    COALESCE(c.end_time, TIME '11:30') AS base_end,
+    COALESCE(c.day_of_week, 'Monday') AS class_day
   FROM users u
+  JOIN enrollments e ON e.student_id = u.id
+  LEFT JOIN classes c ON c.id = e.class_id
   WHERE u.role = 'STUDENT'
-    AND u.id BETWEEN 98 AND 146
-    AND COALESCE(u.section, '') = 'BSIT-2B-M'
-),
-section_classes AS (
-  SELECT
-    c.id AS class_id,
-    c.day_of_week,
-    c.start_time,
-    c.end_time
-  FROM classes c
-  WHERE c.section = 'BSIT-2B-M'
-    AND c.id IN (11, 12)
-    AND c.day_of_week IN ('Monday', 'Wednesday')
+    AND u.department_id = (SELECT department_id FROM users WHERE id = 1 LIMIT 1)
 ),
 calendar AS (
   SELECT gs::date AS day
@@ -45,21 +61,28 @@ calendar AS (
 )
 SELECT
   s.user_id,
-  sc.class_id,
+  s.class_id,
   c.day,
-  COALESCE(sc.start_time, TIME '18:00') AS base_start,
-  COALESCE(sc.end_time, TIME '20:00') AS base_end,
-  ((s.user_id + EXTRACT(DAY FROM c.day)::int) % 8 = 0) AS is_late,
-  ((s.user_id + EXTRACT(DAY FROM c.day)::int) % 6 = 0) AS has_break,
-  ((s.user_id + EXTRACT(DAY FROM c.day)::int) % 13 = 0) AS early_exit
+  s.base_start,
+  s.base_end,
+  s.class_day,
+  ((s.user_id + s.class_id + EXTRACT(DAY FROM c.day)::int) % 8 = 0) AS is_late,
+  ((s.user_id + s.class_id + EXTRACT(DAY FROM c.day)::int) % 6 = 0) AS has_break,
+  ((s.user_id + s.class_id + EXTRACT(DAY FROM c.day)::int) % 13 = 0) AS early_exit
 FROM students s
-JOIN calendar c ON TRUE
-JOIN section_classes sc ON (
-  (EXTRACT(ISODOW FROM c.day) = 1 AND sc.day_of_week = 'Monday')
-  OR (EXTRACT(ISODOW FROM c.day) = 3 AND sc.day_of_week = 'Wednesday')
-)
-WHERE EXTRACT(ISODOW FROM c.day) IN (1, 3)
-  AND ((s.user_id + EXTRACT(DOY FROM c.day)::int) % 10) NOT IN (0, 1);
+CROSS JOIN calendar c
+WHERE EXTRACT(ISODOW FROM c.day) =
+  CASE LOWER(s.class_day)
+    WHEN 'monday' THEN 1
+    WHEN 'tuesday' THEN 2
+    WHEN 'wednesday' THEN 3
+    WHEN 'thursday' THEN 4
+    WHEN 'friday' THEN 5
+    WHEN 'saturday' THEN 6
+    WHEN 'sunday' THEN 7
+    ELSE 1
+  END
+  AND ((s.user_id + s.class_id + EXTRACT(DOY FROM c.day)::int) % 10) NOT IN (0, 1);
 
 -- ENTRY
 INSERT INTO attendance_logs (
@@ -98,7 +121,7 @@ SELECT
   'FACE+GESTURE',
   ROUND((0.66 + ((EXTRACT(DAY FROM tsd.day)::int % 15) / 100.0))::numeric, 3),
   'PEACE_SIGN',
-  tsd.day::timestamp + tsd.base_start + INTERVAL '55 minutes',
+  tsd.day::timestamp + tsd.base_start + INTERVAL '50 minutes',
   '[FINALSEED_STUDENT] Break Out',
   FALSE
 FROM tmp_student_days tsd
@@ -117,7 +140,7 @@ SELECT
   'FACE+GESTURE',
   ROUND((0.67 + ((EXTRACT(DAY FROM tsd.day)::int % 15) / 100.0))::numeric, 3),
   'THUMBS_UP',
-  tsd.day::timestamp + tsd.base_start + INTERVAL '1 hour 8 minutes',
+  tsd.day::timestamp + tsd.base_start + INTERVAL '1 hour 2 minutes',
   '[FINALSEED_STUDENT] Break In',
   FALSE
 FROM tmp_student_days tsd
@@ -137,7 +160,7 @@ SELECT
   ROUND((0.69 + ((EXTRACT(DAY FROM tsd.day)::int % 14) / 100.0))::numeric, 3),
   'OPEN_PALM',
   CASE
-    WHEN tsd.early_exit THEN tsd.day::timestamp + tsd.base_end - INTERVAL '18 minutes'
+    WHEN tsd.early_exit THEN tsd.day::timestamp + tsd.base_end - INTERVAL '14 minutes'
     ELSE tsd.day::timestamp + tsd.base_end + INTERVAL '3 minutes'
   END,
   CASE

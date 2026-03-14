@@ -1,30 +1,60 @@
 BEGIN;
 SET search_path TO public;
 
--- Faculty seed (user_id = 97)
--- Uses actual class schedule: class_id=12, Monday, 18:00-20:00
--- Date range: 2026-01-19 to 2026-06-27
--- Absences are implicit (some Mondays intentionally skipped)
+-- Faculty seed (all faculty in head-managed department)
+-- Semester dates come from the department managed by head user_id=1.
+-- Class day/time are resolved from each assigned faculty class.
+-- Absences are implicit (some class days intentionally skipped).
 
+WITH bounds AS (
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
+),
+faculty_users AS (
+  SELECT u.id AS user_id
+  FROM users u
+  WHERE u.role = 'FACULTY'
+    AND u.department_id = (SELECT department_id FROM users WHERE id = 1 LIMIT 1)
+)
 DELETE FROM attendance_logs
-WHERE user_id = 97
-  AND timestamp::date BETWEEN DATE '2026-01-19' AND DATE '2026-06-27'
+WHERE user_id IN (SELECT user_id FROM faculty_users)
+  AND timestamp::date BETWEEN (SELECT start_date FROM bounds) AND (SELECT end_date FROM bounds)
   AND remarks LIKE '[FINALSEED_FACULTY]%';
 
 CREATE TEMP TABLE tmp_faculty_days ON COMMIT DROP AS
 WITH bounds AS (
-  SELECT DATE '2026-01-19' AS start_date, DATE '2026-06-27' AS end_date
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
 ),
 faculty_users AS (
-  SELECT 97::int AS user_id
+  SELECT u.id AS user_id
+  FROM users u
+  WHERE u.role = 'FACULTY'
+    AND u.department_id = (SELECT department_id FROM users WHERE id = 1 LIMIT 1)
 ),
-faculty_class AS (
-  SELECT fu.user_id,
-         COALESCE(
-           (SELECT c.id FROM classes c WHERE c.faculty_id = fu.user_id ORDER BY c.id LIMIT 1),
-           (SELECT c2.id FROM classes c2 ORDER BY c2.id LIMIT 1)
-         ) AS class_id
+faculty_classes AS (
+  SELECT
+    fu.user_id,
+    c.id AS class_id,
+    COALESCE(c.start_time, TIME '08:00') AS base_start,
+    COALESCE(c.end_time, TIME '10:00') AS base_end,
+    COALESCE(c.day_of_week, 'Monday') AS class_day
   FROM faculty_users fu
+  JOIN classes c ON c.faculty_id = fu.user_id
 ),
 calendar AS (
   SELECT gs::date AS day
@@ -35,16 +65,27 @@ SELECT
   fu.user_id,
   fc.class_id,
   c.day,
-  ((fu.user_id + EXTRACT(DAY FROM c.day)::int) % 7 = 0) AS is_late,
-  ((fu.user_id + EXTRACT(DAY FROM c.day)::int) % 5 = 0) AS has_break,
-  ((fu.user_id + EXTRACT(DAY FROM c.day)::int) % 9 = 0) AS early_exit,
-  TIME '18:00' AS base_start,
-  TIME '20:00' AS base_end
+  ((fu.user_id + fc.class_id + EXTRACT(DAY FROM c.day)::int) % 7 = 0) AS is_late,
+  ((fu.user_id + fc.class_id + EXTRACT(DAY FROM c.day)::int) % 5 = 0) AS has_break,
+  ((fu.user_id + fc.class_id + EXTRACT(DAY FROM c.day)::int) % 9 = 0) AS early_exit,
+  fc.base_start,
+  fc.base_end,
+  fc.class_day
 FROM faculty_users fu
-JOIN faculty_class fc ON fc.user_id = fu.user_id
+JOIN faculty_classes fc ON fc.user_id = fu.user_id
 CROSS JOIN calendar c
-WHERE EXTRACT(ISODOW FROM c.day) = 1
-AND ((fu.user_id + EXTRACT(DOY FROM c.day)::int) % 10) NOT IN (0, 1);
+WHERE EXTRACT(ISODOW FROM c.day) =
+  CASE LOWER(fc.class_day)
+    WHEN 'monday' THEN 1
+    WHEN 'tuesday' THEN 2
+    WHEN 'wednesday' THEN 3
+    WHEN 'thursday' THEN 4
+    WHEN 'friday' THEN 5
+    WHEN 'saturday' THEN 6
+    WHEN 'sunday' THEN 7
+    ELSE 1
+  END
+AND ((fu.user_id + fc.class_id + EXTRACT(DOY FROM c.day)::int) % 10) NOT IN (0, 1);
 
 -- ENTRY
 INSERT INTO attendance_logs (

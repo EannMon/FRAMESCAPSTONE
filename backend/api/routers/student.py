@@ -22,6 +22,16 @@ from services.report_service import get_student_report_envelope
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_DAY_ORDER = {
+    "monday": 1,
+    "tuesday": 2,
+    "wednesday": 3,
+    "thursday": 4,
+    "friday": 5,
+    "saturday": 6,
+    "sunday": 7,
+}
+
 
 def _parse_report_window(report_type: str, date_from: Optional[str], date_to: Optional[str]):
     """Parse/resolve report date window with sensible defaults per report type."""
@@ -368,14 +378,25 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
             recent_attendance=[]
         )
     
-    # Count enrolled courses + class IDs for attendance calculation
-    enrolled_rows = (
+    # Count enrolled courses by unique subject code (same code across multiple class slots counts as one course).
+    enrolled_class_ids = [
+        cid for (cid,) in
         db.query(Enrollment.class_id)
         .filter(Enrollment.student_id == user_id)
         .all()
-    )
-    enrolled_count = len(enrolled_rows)
-    enrolled_class_ids = [cid for (cid,) in enrolled_rows]
+    ]
+
+    unique_subject_codes = [
+        code for (code,) in
+        db.query(func.distinct(Subject.code))
+        .select_from(Enrollment)
+        .join(Class, Class.id == Enrollment.class_id)
+        .join(Subject, Subject.id == Class.subject_id)
+        .filter(Enrollment.student_id == user_id)
+        .all()
+        if code
+    ]
+    enrolled_count = len(unique_subject_codes)
 
     # Calculate real attendance rate using session-based logic
     if enrolled_class_ids:
@@ -495,6 +516,14 @@ def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
                 section=cls.section,
             ))
     
+    schedule.sort(
+        key=lambda item: (
+            _DAY_ORDER.get((item.day_of_week or "").lower(), 99),
+            item.start_time or "99:99:99",
+            item.subject_code or "",
+        )
+    )
+
     return schedule
 
 
