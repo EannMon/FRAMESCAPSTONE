@@ -747,7 +747,7 @@ const AttendanceHistoryPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                                    <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
                                         No records found for this view.
                                     </td>
                                 </tr>

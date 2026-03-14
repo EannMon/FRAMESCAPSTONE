@@ -16,6 +16,20 @@ const FACULTY_COLORS = [
     '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
 ];
 
+const TIME_OPTIONS = (() => {
+    const opts = [];
+    for (let i = 7 * 2; i <= 21 * 2; i++) {
+        const h = Math.floor(i / 2);
+        const m = (i % 2 === 0) ? '00' : '30';
+        const period = h >= 12 ? 'PM' : 'AM';
+        let displayH = h > 12 ? h - 12 : h;
+        if (displayH === 0) displayH = 12;
+        const displayHStr = displayH.toString().padStart(2, '0');
+        opts.push(`${displayHStr}:${m} ${period}`);
+    }
+    return opts;
+})();
+
 const WeeklyCalendarView = ({ courses }) => {
     // Parse schedule strings like "Monday 9:00 AM - 12:00 PM" into structured data
     const calendarEvents = useMemo(() => {
@@ -69,14 +83,6 @@ const WeeklyCalendarView = ({ courses }) => {
         <div className="weekly-calendar-container card">
             <div className="calendar-header-row">
                 <h3><i className="fas fa-calendar-week"></i> Weekly Schedule Overview</h3>
-                <div className="calendar-legend">
-                    {Object.entries(facultyColorMap).map(([name, color]) => (
-                        <span key={name} className="legend-item">
-                            <span className="legend-dot" style={{ background: color }}></span>
-                            {name}
-                        </span>
-                    ))}
-                </div>
             </div>
             <div className="calendar-scroll-wrapper">
                 <table className="calendar-grid">
@@ -125,6 +131,14 @@ const WeeklyCalendarView = ({ courses }) => {
                     </tbody>
                 </table>
             </div>
+            <div className="calendar-legend" style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px', justifyContent: 'center' }}>
+                {Object.entries(facultyColorMap).map(([name, color]) => (
+                    <span key={name} className="legend-item">
+                        <span className="legend-dot" style={{ background: color }}></span>
+                        {name}
+                    </span>
+                ))}
+            </div>
         </div>
     );
 };
@@ -147,6 +161,7 @@ const DeptHeadManagePage = () => {
 
     // Selection State
     const [selectedCourse, setSelectedCourse] = useState(null);
+    const [pendingLogs, setPendingLogs] = useState([]);
 
     // Form States
     const [newCourse, setNewCourse] = useState({
@@ -160,7 +175,15 @@ const DeptHeadManagePage = () => {
         endTime: '12:00 PM'
     });
 
-    const [logs, setLogs] = useState([]);
+    const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const logKey = `frames-activity-log-${storedUser.id || 'default'}`;
+    const [logs, setLogs] = useState(() => {
+        const saved = localStorage.getItem(logKey);
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) {}
+        }
+        return [];
+    });
 
     // Camera/Device management
     const [devices, setDevices] = useState([]);
@@ -274,7 +297,11 @@ const DeptHeadManagePage = () => {
     // --- LOGGING HELPER ---
     const addLog = (action) => {
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setLogs(prev => [{ time, action, user: 'You' }, ...prev]);
+        setLogs(prev => {
+            const newLogs = [{ time, action, user: 'You' }, ...prev].slice(0, 50); // limit to 50
+            localStorage.setItem(logKey, JSON.stringify(newLogs));
+            return newLogs;
+        });
     };
 
     // --- HANDLERS ---
@@ -301,18 +328,30 @@ const DeptHeadManagePage = () => {
 
     const handleAssignTeacher = async (facultyId, facultyName) => {
         if (!selectedCourse) return;
+        
+        // Optimistic UI update
+        setCourses(prev => prev.map(c => 
+            (c.schedule_id === selectedCourse.schedule_id && c.subject_code === selectedCourse.subject_code)
+                ? { ...c, assigned_faculty: facultyName }
+                : c
+        ));
+        
+        // Update the modal's state so it reflects the change IMMEDIATELY when we go back
+        setSelectedCourse(prev => ({ ...prev, assigned_faculty: facultyName }));
+        setShowAssignModal(false);
+
         try {
             await api.post('/api/dept/assign-faculty', {
                 schedule_id: selectedCourse.schedule_id,
                 subject_code: selectedCourse.subject_code,
                 faculty_id: facultyId
             });
-            addLog(`Assigned ${facultyName} to ${selectedCourse.subject_code}`);
-            setShowAssignModal(false);
-            fetchManagementData();
+            // Queue the log until 'Finish' is clicked
+            setPendingLogs(prev => [...prev, `Assigned ${facultyName} to ${selectedCourse.subject_code}`]);
         } catch (error) {
             console.error("Assignment failed:", error);
             toast.error("Assignment failed. Check console for details.");
+            fetchManagementData(); // Revert on failure
         }
     };
 
@@ -351,6 +390,23 @@ const DeptHeadManagePage = () => {
         e.preventDefault();
         if (!selectedCourse) return;
 
+        const newSchedStr = `${roomForm.day} ${roomForm.startTime} - ${roomForm.endTime}`;
+
+        // Optistic update for the modal
+        setSelectedCourse(prev => ({ 
+            ...prev, 
+            room_name: roomForm.roomName, 
+            schedule: newSchedStr 
+        }));
+        
+        setCourses(prev => prev.map(c => 
+            (c.schedule_id === selectedCourse.schedule_id && c.subject_code === selectedCourse.subject_code)
+                ? { ...c, room_name: roomForm.roomName, schedule: newSchedStr }
+                : c
+        ));
+        
+        setShowRoomModal(false);
+
         try {
             await api.post('/api/dept/assign-room', {
                 schedule_id: selectedCourse.schedule_id,
@@ -360,12 +416,11 @@ const DeptHeadManagePage = () => {
                 start_time: roomForm.startTime,
                 end_time: roomForm.endTime
             });
-            addLog(`Assigned ${roomForm.roomName} to ${selectedCourse.subject_code}`);
-            setShowRoomModal(false);
-            fetchManagementData();
+            setPendingLogs(prev => [...prev, `Assigned ${roomForm.roomName} to ${selectedCourse.subject_code}`]);
         } catch (error) {
             console.error("Room assignment failed:", error);
             toast.error("Room assignment failed. Check console for details.");
+            fetchManagementData(); // Revert
         }
     };
 
@@ -448,6 +503,17 @@ const DeptHeadManagePage = () => {
         } catch (err) {
             toast.error('Failed to remove device.');
         }
+    };
+
+    const handleFinishCourseDetail = () => {
+        // Fire all accumulated logs
+        if (pendingLogs.length > 0) {
+            [...pendingLogs].reverse().forEach(logText => addLog(logText));
+            setPendingLogs([]);
+            toast.success("Recent activities updated!");
+            fetchManagementData();
+        }
+        setSelectedCourse(null);
     };
 
     // PDF Export
@@ -600,45 +666,22 @@ const DeptHeadManagePage = () => {
                                 <tr>
                                     <th>Device Name</th>
                                     <th>Room</th>
-                                    <th>IP Address</th>
                                     <th>Capacity</th>
                                     <th>Status</th>
-                                    <th>Last Heartbeat</th>
                                     <th className="th-actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {devices.map(d => {
-                                    // Compute heartbeat display with tooltip
-                                    const heartbeatText = d.last_heartbeat
-                                        ? new Date(d.last_heartbeat).toLocaleString()
-                                        : 'Never';
-                                    const heartbeatAgo = d.last_heartbeat
-                                        ? (() => {
-                                            const diffMs = Date.now() - new Date(d.last_heartbeat).getTime();
-                                            const diffMin = Math.floor(diffMs / 60000);
-                                            if (diffMin < 1) return 'Just now';
-                                            if (diffMin < 60) return `${diffMin}m ago`;
-                                            const diffHr = Math.floor(diffMin / 60);
-                                            if (diffHr < 24) return `${diffHr}h ago`;
-                                            return `${Math.floor(diffHr / 24)}d ago`;
-                                        })()
-                                        : 'No data';
-
                                     return (
                                         <tr key={d.id}>
                                             <td>{d.device_name}</td>
                                             <td>{d.room || '—'}</td>
-                                            <td>{d.ip_address || '—'}</td>
                                             <td>{d.room_capacity || '—'}</td>
                                             <td>
                                                 <span className={`status-badge ${d.status === 'ACTIVE' ? 'active' : d.status === 'INACTIVE' ? 'inactive' : 'maintenance'}`}>
                                                     {d.status}
                                                 </span>
-                                            </td>
-                                            <td title={`Last ping: ${heartbeatText}`} className="td-cursor-help">
-                                                <span>{heartbeatAgo}</span>
-                                                <span className="heartbeat-subtext">{heartbeatText !== 'Never' ? heartbeatText : ''}</span>
                                             </td>
                                             <td className="td-actions-center">
                                                 <button title="Edit device" onClick={() => openEditDevice(d)} className="action-btn-icon edit">
@@ -778,8 +821,8 @@ const DeptHeadManagePage = () => {
 
             {/* 1. Create Course */}
             {showCreateModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Add New Subject</h3>
                             <button className="close-btn" onClick={() => setShowCreateModal(false)}>&times;</button>
@@ -820,8 +863,8 @@ const DeptHeadManagePage = () => {
 
             {/* 2. Change Instructor */}
             {showAssignModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Change Instructor</h3>
                             {selectedCourse && (
@@ -847,8 +890,8 @@ const DeptHeadManagePage = () => {
 
             {/* 3. Assign Room */}
             {showRoomModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => { setShowRoomModal(false); setIsCustomRoom(false); }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Assign Room &amp; Schedule</h3>
                             {selectedCourse && (
@@ -875,11 +918,12 @@ const DeptHeadManagePage = () => {
                                         }
                                     }}
                                 >
+                                    <option value="Online">Online</option>
                                     {availableRooms.length > 0 ? (
-                                        availableRooms.map(r => <option key={r} value={r}>{r}</option>)
-                                    ) : (
-                                        <option value="">No rooms available yet</option>
-                                    )}
+                                        availableRooms
+                                            .filter(r => r.toLowerCase() !== 'online')
+                                            .map(r => <option key={r} value={r}>{r}</option>)
+                                    ) : null}
                                     <option value="__custom__">＋ Add new room...</option>
                                 </select>
                                 {isCustomRoom && (
@@ -910,17 +954,23 @@ const DeptHeadManagePage = () => {
                             <div className="form-row">
                                 <div className="form-group half">
                                     <label>Start Time</label>
-                                    <input type="text" className="modal-input" placeholder="09:00 AM" required
+                                    <select className="modal-select" required
                                         value={roomForm.startTime}
                                         onChange={e => setRoomForm({ ...roomForm, startTime: e.target.value })}
-                                    />
+                                    >
+                                        <option value="">Start Time...</option>
+                                        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                                 <div className="form-group half">
                                     <label>End Time</label>
-                                    <input type="text" className="modal-input" placeholder="12:00 PM" required
+                                    <select className="modal-select" required
                                         value={roomForm.endTime}
                                         onChange={e => setRoomForm({ ...roomForm, endTime: e.target.value })}
-                                    />
+                                    >
+                                        <option value="">End Time...</option>
+                                        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                             </div>
                             <button type="submit" className="submit-btn full">Save Assignment</button>
@@ -980,11 +1030,11 @@ const DeptHeadManagePage = () => {
 
             {/* ── COURSE DETAIL MODAL ── */}
             {selectedCourse && !showAssignModal && !showRoomModal && (
-                <div className="modal-overlay" onClick={() => setSelectedCourse(null)}>
+                <div className="modal-overlay" onClick={handleFinishCourseDetail}>
                     <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <div className="modal-header">
                             <h3 style={{ margin: 0 }}>{selectedCourse.subject_code} — {selectedCourse.name}</h3>
-                            <button className="close-btn" onClick={() => setSelectedCourse(null)}>&times;</button>
+                            <button className="close-btn" onClick={handleFinishCourseDetail}>&times;</button>
                         </div>
                         <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div><strong>Instructor:</strong> {selectedCourse.assigned_faculty || 'Unassigned'}</div>
@@ -995,16 +1045,18 @@ const DeptHeadManagePage = () => {
                         </div>
                         <div className="modal-actions-row">
                             <button className="mgmt-btn primary" style={{ background: '#163269', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); openAssignModal(c); }}>
+                                onClick={() => setShowAssignModal(true)}>
                                 <i className="fas fa-user-edit" /> Change Instructor
                             </button>
-                            <button className="mgmt-btn primary" style={{ background: '#1a5632', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); openRoomModal(c); }}>
+                            <button className="mgmt-btn primary" style={{ background: '#2563eb', flex: 1, justifyContent: 'center' }}
+                                onClick={() => openRoomModal(selectedCourse)}>
                                 <i className="fas fa-door-open" /> Assign Room
                             </button>
-                            <button className="mgmt-btn primary" style={{ background: '#b91c1c', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); handleDeleteCourse(c); }}>
-                                <i className="fas fa-trash" /> Delete
+                        </div>
+                        <div className="modal-actions-row" style={{ marginTop: '10px' }}>
+                            <button className="mgmt-btn primary" style={{ background: '#2E7D32', flex: 1, justifyContent: 'center', padding: '12px', fontSize: '1rem' }}
+                                onClick={handleFinishCourseDetail}>
+                                <i className="fas fa-check-circle" /> Finish
                             </button>
                         </div>
                     </div>

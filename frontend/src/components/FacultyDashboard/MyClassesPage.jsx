@@ -42,6 +42,8 @@ const FacultyMyClassesPage = () => {
     const [uploadMessage, setUploadMessage] = useState('');
     const [semester, setSemester] = useState('');
     const [academicYear, setAcademicYear] = useState('');
+    const [ayStart, setAyStart] = useState('');
+    const [ayEnd, setAyEnd] = useState('');
 
     // Preview States (two-step upload)
     const [previewData, setPreviewData] = useState(null); // parsed schedule data
@@ -69,6 +71,8 @@ const FacultyMyClassesPage = () => {
                     .then(res => {
                         if (res.data.academic_year) setAcademicYear(res.data.academic_year);
                         if (res.data.semester) setSemester(res.data.semester);
+                        if (res.data.semester_start_date) setAyStart(res.data.semester_start_date);
+                        if (res.data.semester_end_date) setAyEnd(res.data.semester_end_date);
                     })
                     .catch(err => {
                         if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
@@ -100,7 +104,7 @@ const FacultyMyClassesPage = () => {
         if (myClasses.length > 0) {
             generateCalendarEvents(myClasses, currentMonth);
         }
-    }, [myClasses, currentMonth]);
+    }, [myClasses, currentMonth, ayStart, ayEnd]);
 
     // --- HELPER: Calculate class status based on schedule ---
     const getClassStatus = (classData) => {
@@ -195,8 +199,21 @@ const FacultyMyClassesPage = () => {
         // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
-            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            
+            // Check if within academic year dates
+            let isWithinAY = true;
+            if (ayStart && ayEnd) {
+                isWithinAY = dateStr >= ayStart && dateStr <= ayEnd;
+            } else if (ayStart) {
+                isWithinAY = dateStr >= ayStart;
+            } else if (ayEnd) {
+                isWithinAY = dateStr <= ayEnd;
+            }
+
+            if (!isWithinAY) continue; // Skip events outside the bounds
+
+            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
             const isPast = currentDate < today;
 
             // Find classes that meet on this day name

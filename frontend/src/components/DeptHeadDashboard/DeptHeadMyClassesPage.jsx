@@ -22,9 +22,6 @@ const DeptHeadMyClassesPage = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    // Edit Student State
-    const [editingStudent, setEditingStudent] = useState(null);
-    const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '', tupm_id: '' });
 
     // Calendar States
     const [calendarEvents, setCalendarEvents] = useState([]);
@@ -43,6 +40,8 @@ const DeptHeadMyClassesPage = () => {
     const [uploadMessage, setUploadMessage] = useState('');
     const [semester, setSemester] = useState('');
     const [academicYear, setAcademicYear] = useState('');
+    const [ayStart, setAyStart] = useState('');
+    const [ayEnd, setAyEnd] = useState('');
 
     // Preview States (two-step upload)
     const [previewData, setPreviewData] = useState(null); // parsed schedule data
@@ -70,6 +69,8 @@ const DeptHeadMyClassesPage = () => {
                     .then(res => {
                         if (res.data.academic_year) setAcademicYear(res.data.academic_year);
                         if (res.data.semester) setSemester(res.data.semester);
+                        if (res.data.semester_start_date) setAyStart(res.data.semester_start_date);
+                        if (res.data.semester_end_date) setAyEnd(res.data.semester_end_date);
                     })
                     .catch(err => {
                         if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
@@ -101,7 +102,7 @@ const DeptHeadMyClassesPage = () => {
         if (myClasses.length > 0) {
             generateCalendarEvents(myClasses, currentMonth);
         }
-    }, [myClasses, currentMonth]);
+    }, [myClasses, currentMonth, ayStart, ayEnd]);
 
     const fetchUploadHistory = async (userId, signal) => {
         try {
@@ -196,8 +197,21 @@ const DeptHeadMyClassesPage = () => {
         // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
-            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            
+            // Check if within academic year dates
+            let isWithinAY = true;
+            if (ayStart && ayEnd) {
+                isWithinAY = dateStr >= ayStart && dateStr <= ayEnd;
+            } else if (ayStart) {
+                isWithinAY = dateStr >= ayStart;
+            } else if (ayEnd) {
+                isWithinAY = dateStr <= ayEnd;
+            }
+
+            if (!isWithinAY) continue; // Skip events outside the bounds
+
+            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }); // e.g. "Monday"
             const isPast = currentDate < today;
 
             // Find classes that meet on this day name
@@ -584,9 +598,7 @@ const DeptHeadMyClassesPage = () => {
 
         const tableData = studentList.map(s => ({
             "Student Name": `${s.lastName}, ${s.firstName}`,
-            "Student ID": s.tupm_id,
-            "Time In": s.timeIn,
-            "Status": s.status
+            "Student ID": s.tupm_id
         }));
 
         generateFramesPDF(reportInfo, tableData);
@@ -724,7 +736,7 @@ const DeptHeadMyClassesPage = () => {
             </div>
             <div className="students-list-wrapper">
                 <table className="styled-table">
-                    <thead><tr><th>Student Info</th><th>Time In</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Student Info</th><th>Actions</th></tr></thead>
                     <tbody>
                         {studentList
                             .filter(s =>
@@ -733,49 +745,17 @@ const DeptHeadMyClassesPage = () => {
                                 (s.tupm_id || '').includes(searchTerm)
                             )
                             .map(s => (
-                                <tr key={s.user_id} onClick={() => handleViewStudent(s)} className={`clickable-row ${editingStudent === s.user_id ? 'editing-row' : ''}`}>
+                                <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
                                     <td className="student-name-cell" style={{ minWidth: '300px' }}>
                                         <div className="avatar-placeholder">{(s.firstName || '?').charAt(0)}</div>
-                                        {editingStudent === s.user_id ? (
-                                            <div className="edit-student-inline-form" onClick={e => e.stopPropagation()}>
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.lastName}
-                                                    onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
-                                                    placeholder="Last Name"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.firstName}
-                                                    onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
-                                                    placeholder="First Name"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.tupm_id}
-                                                    onChange={e => setEditFormData({ ...editFormData, tupm_id: e.target.value })}
-                                                    placeholder="TUPM ID"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
-                                        )}
+                                        <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
                                     </td>
-                                    <td>{s.timeIn}</td>
-                                    <td><span className={`status-badge ${s.statusColor}`}>{s.status}</span></td>
                                     <td>
-                                        {editingStudent === s.user_id ? (
-                                            <div className="edit-actions" onClick={e => e.stopPropagation()}>
-                                                <button className="save-icon-btn" onClick={(e) => handleSaveStudentEdit(e, s.user_id)} title="Save"><i className="fas fa-check"></i></button>
-                                                <button className="cancel-icon-btn" onClick={handleCancelEdit} title="Cancel"><i className="fas fa-times"></i></button>
-                                            </div>
-                                        ) : (
-                                            <div className="student-row-actions">
-                                                <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
-                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
-                                                <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
-                                            </div>
-                                        )}
+                                        <div className="student-row-actions">
+                                            <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student">
+                                                <i className="fas fa-trash-alt"></i> Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

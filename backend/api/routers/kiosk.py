@@ -331,9 +331,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
                 is_late=False
             )
 
-    # Parse timestamp
-    timestamp = datetime.now()
-    if body.timestamp:
+    if body.timestamp is not None:
         try:
             timestamp = datetime.fromisoformat(body.timestamp)
         except Exception:
