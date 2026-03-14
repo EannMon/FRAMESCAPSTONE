@@ -247,14 +247,7 @@ const FacultyInviteRegistrationPage = () => {
                                                     <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
                                                 </button>
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', lineHeight: '1.4' }}>
-                                                Password must be 8-15 characters long and include at least:
-                                                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                                                    <li>One uppercase letter</li>
-                                                    <li>One number</li>
-                                                    <li>One special character (e.g., @$!%*?&)</li>
-                                                </ul>
-                                            </div>                                        </div>
+                                        </div>
                                         <div className="reg-form-group">
                                             <label style={{ color: '#334155' }}>Confirm Password <span style={{ color: '#0F172A' }}>*</span></label>
                                             <div className="reg-password-wrapper">

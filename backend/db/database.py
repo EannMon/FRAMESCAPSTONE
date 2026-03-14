@@ -31,14 +31,13 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set!")
 
 # Create SQLAlchemy engine with SSL requirement for Aiven
-# NOTE: Aiven tiers are connection-limited. Keep defaults conservative but robust for bursts.
+# NOTE: Aiven tiers are connection-limited. Keep defaults conservative.
 db_pool_mode = os.getenv("DB_POOL_MODE", "queue").strip().lower()
-# Using values from HEAD as defaults to preserve optimized performance
-db_pool_size = int(os.getenv("DB_POOL_SIZE", "5"))
-db_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-db_pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "45"))
+db_pool_size = int(os.getenv("DB_POOL_SIZE", "2"))
+db_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "1"))
+db_pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "15"))
 db_pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "300"))
-db_connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT", "30"))
+db_connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT", "8"))
 
 engine_kwargs = {
     "echo": False,                         # NEVER True in production

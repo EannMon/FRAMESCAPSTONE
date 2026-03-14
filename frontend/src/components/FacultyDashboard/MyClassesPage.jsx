@@ -157,6 +157,56 @@ const FacultyMyClassesPage = () => {
     };
 
 
+    // --- HELPER: Calculate class status based on schedule ---
+    const getClassStatus = (classData) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Days of week mapping
+        const dayOfWeekMap = {
+            'Sunday': 0,
+            'Monday': 1,
+            'Tuesday': 2,
+            'Wednesday': 3,
+            'Thursday': 4,
+            'Friday': 5,
+            'Saturday': 6
+        };
+
+        const classDay = dayOfWeekMap[classData.day_of_week];
+        if (classDay === undefined) return 'no-bar'; // Invalid day
+
+        // Find the next occurrence of this class day
+        let nextClassDate = new Date(today);
+        let daysUntilClass = (classDay - nextClassDate.getDay() + 7) % 7;
+
+        if (daysUntilClass === 0) {
+            // Class is today, check if it's ongoing
+            const now = new Date();
+            const [hour, min] = classData.start_time.split(':').map(Number);
+            const classStartTime = new Date(today);
+            classStartTime.setHours(hour, min, 0);
+
+            // Assume 1 hour class duration
+            const classEndTime = new Date(classStartTime);
+            classEndTime.setHours(classEndTime.getHours() + 1);
+
+            if (now >= classStartTime && now < classEndTime) {
+                return 'ongoing';
+            } else if (now < classStartTime) {
+                return 'upcoming'; // Class is today but hasn't started yet
+            } else {
+                return 'no-bar'; // Class already finished
+            }
+        } else if (daysUntilClass > 0 && daysUntilClass <= 2) {
+            // Class is within next 2 days
+            return 'upcoming';
+        } else {
+            // Class is more than 2 days away or in the past
+            return 'no-bar';
+        }
+    };
+
     const fetchUploadHistory = async (userId, signal) => {
         try {
             const response = await api.get(`/api/faculty/upload-history/${userId}`, { signal });
