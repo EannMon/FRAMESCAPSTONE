@@ -546,6 +546,7 @@
     gap: 12px;
     font-size: 0.8rem;
     color: #64748b;
+    justify-content: center;
 }
 
 .legend-item {

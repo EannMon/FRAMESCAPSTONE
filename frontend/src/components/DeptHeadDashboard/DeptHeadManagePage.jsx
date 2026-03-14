@@ -131,12 +131,11 @@ const WeeklyCalendarView = ({ courses }) => {
                     </tbody>
                 </table>
             </div>
-
-            <div className="calendar-legend" style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+            <div className="calendar-legend" style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px', justifyContent: 'center' }}>
                 {Object.entries(facultyColorMap).map(([name, color]) => (
-                    <span key={name} className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span className="legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }}></span>
-                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{name}</span>
+                    <span key={name} className="legend-item">
+                        <span className="legend-dot" style={{ background: color }}></span>
+                        {name}
                     </span>
                 ))}
             </div>
