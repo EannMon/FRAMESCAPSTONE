@@ -65,15 +65,75 @@
     line-height: 1;
 }
 
+@media (max-width: 768px) {
+    .universal-header {
+        height: 70px;
+        padding: 0 20px;
+    }
+
+    .universal-header-logo {
+        gap: 10px;
+    }
+
+    .universal-header-logo span {
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+    }
+}
+
+@media (max-width: 576px) {
+    .universal-header {
+        height: 60px;
+        padding: 0 12px;
+    }
+
+    .universal-header-logo {
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .universal-header-logo span {
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+}
+
 .header-logo-icon {
-    /* Removed fixed width/height to allow Logo component to control size */
-    /* width: 30px; */
-    /* height: 30px; */
-    margin-right: 0;
-    /* Handled by gap in parent */
-    /* This allows us to toggle between Red Logo (Guest) and White Logo (User) */
-    /* filter: var(--logo-filter); REMOVED for new SVG component */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-right: 0 !important;
     transition: filter 0.3s;
+    flex-shrink: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.logo-container {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.header-logo-icon img {
+    width: 42px;
+    height: 42px;
+    display: block !important;
+    object-fit: contain;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 768px) {
+    /* Logo size adjustments removed - keeping original size */
+}
+
+@media (max-width: 576px) {
+    /* Logo size adjustments removed - keeping original size */
 }
 
 .universal-header-actions {
@@ -182,6 +242,10 @@
 .header-login-btn:hover {
     background-color: var(--header-text);
     color: var(--header-bg);
+}
+
+.header-login-btn i {
+    margin-right: 8px;
 }
 
 .header-signup-btn {
@@ -541,10 +605,9 @@
     color: #3B82F6;
 }
 
-/* --- Responsive --- */
 @media (max-width: 992px) {
     .universal-header-logo {
-        display: none;
+        display: flex;
     }
 }
 
@@ -577,16 +640,36 @@
         margin-right: 15px;
     }
 
-    /* Ensure minimum touch targets */
+    /* Normalize header buttons */
     .header-login-btn,
     .header-signup-btn {
-        padding: 10px 16px;
-        min-height: 44px;
+        padding: 0 15px;
+        min-height: unset;
+        font-size: 0.8rem;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        border-radius: 6px;
+    }
+
+    .header-login-btn {
+        border: 1.5px solid var(--header-text) !important;
+    }
+
+    .header-signup-btn {
+        border: 1.5px solid transparent !important; /* Keep same height calculation */
+    }
+
+    .header-login-btn i {
+        margin-right: 6px;
+        font-size: 0.9rem;
     }
 
     .header-sidebar-toggle {
-        width: 44px;
-        height: 44px;
+        width: 34px;
+        height: 34px;
     }
 }
 
