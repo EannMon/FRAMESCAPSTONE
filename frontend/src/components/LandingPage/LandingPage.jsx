@@ -605,7 +605,7 @@ const LandingPage = () => {
     return (
         <>
             <div className="landing-page">
-                <Header setPanel={setPanel} onAboutClick={scrollToAbout} />
+                <Header showLogo={true} setPanel={setPanel} onAboutClick={scrollToAbout} />
                 <main>
                     <HeroSection setPanel={setPanel} />
                     <FeaturesSection aboutRef={aboutRef} />

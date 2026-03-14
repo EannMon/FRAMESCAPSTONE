@@ -65,7 +65,7 @@
 }
 
 .social-icon.tw {
-    background-color: #1da1f2;
+    background-color: #000000;
 }
 
 .social-icon.ig {
@@ -103,6 +103,17 @@
     width: 25px;
     text-align: center;
     margin-right: 10px;
+}
+
+.contact-list a {
+    color: #aaa;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.contact-list a:hover {
+    color: #aaa;
+    text-decoration: underline;
 }
 
 /* --- Bottom Bar --- */

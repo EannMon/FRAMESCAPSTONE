@@ -85,7 +85,7 @@ const SettingsPage = ({ isEmbedded = false }) => {
 
     return (
         <>
-            {!isEmbedded && <Header theme={redTheme} user={user} setPanel={() => navigate('/')} />}
+            {!isEmbedded && <Header theme={navyTheme} user={user} setPanel={() => navigate('/')} />}
 
             <div className={`settings-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass}`}>
                 {!isEmbedded && (
@@ -99,41 +99,90 @@ const SettingsPage = ({ isEmbedded = false }) => {
                     </div>
                 )}
 
-                <div className="settings-grid">
+                <div className="settings-content-wrapper">
+                    {/* Unified Settings Container */}
+                    <div className="settings-main-container">
+                        
+                        {/* Profile Section */}
+                        <section className="settings-section">
+                            <h2 className="section-title">Profile Information</h2>
+                            <div className="settings-item-group">
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Full Name</label>
+                                        <p>
+                                            {user?.first_name && user?.last_name 
+                                                ? `${user.first_name} ${user.last_name}` 
+                                                : 'Not set'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Email Address</label>
+                                        <p>{user?.email || 'Not set'}</p>
+                                    </div>
+                                </div>
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Account Role</label>
+                                        <div className="role-chip">
+                                            {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'Unknown'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
 
-                    {/* Account Settings Card */}
-                    <div className="card settings-card">
-                        <h3>Account</h3>
-                        <p>Manage your account and security settings.</p>
+                        <hr className="settings-divider" />
+
+                        {/* Notifications Section */}
+                        <section className="settings-section">
+                            <h2 className="section-title">Notifications</h2>
+                            <div className="settings-item-group">
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Email Alerts</label>
+                                        <p>Receive updates and security alerts via email</p>
+                                    </div>
+                                    <ToggleSwitch
+                                        isToggled={notifications.email}
+                                        onToggle={() => handleToggle('email')}
+                                    />
+                                </div>
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Push Notifications</label>
+                                        <p>Get real-time browser notifications for important events</p>
+                                    </div>
+                                    <ToggleSwitch
+                                        isToggled={notifications.push}
+                                        onToggle={() => handleToggle('push')}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <hr className="settings-divider" />
+
+                        {/* Appearance Section */}
+                        <section className="settings-section">
+                            <h2 className="section-title">Appearance</h2>
+                            <div className="settings-item-group">
+                                <div className="settings-item">
+                                    <div className="settings-item-info">
+                                        <label>Dark Mode</label>
+                                        <p>Switch between light and dark themes</p>
+                                    </div>
+                                    <ToggleSwitch
+                                        isToggled={darkMode}
+                                        onToggle={() => setDarkMode(!darkMode)}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
                     </div>
-
-                    {/* Notification Settings Card */}
-                    <div className="card settings-card">
-                        <h3>Notifications</h3>
-                        <p>Control how you receive notifications.</p>
-                        <ToggleSwitch
-                            label="Email Notifications"
-                            isToggled={notifications.email}
-                            onToggle={() => handleToggle('email')}
-                        />
-                        <ToggleSwitch
-                            label="Push Notifications"
-                            isToggled={notifications.push}
-                            onToggle={() => handleToggle('push')}
-                        />
-                    </div>
-
-                    {/* Theme Settings Card - with functional dark mode */}
-                    <div className="card settings-card">
-                        <h3>Theme & Appearance</h3>
-                        <p>Customize the look and feel of the app.</p>
-                        <ToggleSwitch
-                            label="Dark Mode"
-                            isToggled={darkMode}
-                            onToggle={() => setDarkMode(!darkMode)}
-                        />
-                    </div>
-
                 </div>
             </div>
 
