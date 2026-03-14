@@ -598,8 +598,7 @@ const AttendanceHistoryPage = () => {
                 "Subject": log.mapped_subject,
                 "Professor": log.faculty_name || 'N/A',
                 "Room": log.mapped_room || 'N/A',
-                "Status": status.text,
-                "Remarks": log.remarks || '-'
+                "Status": status.text
             };
         });
 
@@ -717,7 +716,6 @@ const AttendanceHistoryPage = () => {
                                 <th>Professor</th>
                                 <th>Room</th>
                                 <th>Status</th>
-                                <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -744,9 +742,6 @@ const AttendanceHistoryPage = () => {
                                                     />
                                                 );
                                             })()}
-                                        </td>
-                                        <td style={{ fontSize: '0.9em', color: log.remarks === 'Late' ? 'orange' : '#555' }}>
-                                            {log.remarks || '-'}
                                         </td>
                                     </tr>
                                 ))

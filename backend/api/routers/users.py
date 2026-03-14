@@ -22,77 +22,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/verify-password")
-def verify_password(data: PasswordVerify, db: Session = Depends(get_db)):
-    """
-    Verify current password before allowing changes.
-    """
-    user = db.query(User).filter(User.id == data.user_id).first()
-    
-    if not user:
-        raise api_error(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="USER_NOT_FOUND",
-            message="User not found"
-        )
-    
-    # Check password
-    stored_hash = user.password_hash
-    if isinstance(stored_hash, str):
-        stored_hash = stored_hash.encode('utf-8')
-    
-    if bcrypt.checkpw(data.password.encode('utf-8'), stored_hash):
-        return {"valid": True}
-    else:
-        raise api_error(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            code="INCORRECT_PASSWORD",
-            message="Incorrect password"
-        )
-
-
-@router.put("/change-password", response_model=MessageResponse)
-def change_password(data: PasswordChange, db: Session = Depends(get_db)):
-    """
-    Change user password.
-    Self-contained hashing to avoid circular imports.
-    """
-    try:
-        user = db.query(User).filter(User.id == data.user_id).first()
-        
-        if not user:
-            raise api_error(
-                status_code=status.HTTP_404_NOT_FOUND,
-                code="USER_NOT_FOUND",
-                message="User not found"
-            )
-        
-        # Validation
-        if len(data.new_password) < 8:
-            raise api_error(400, "WEAK_PASSWORD", "Password must be at least 8 characters")
-
-        # Direct bcrypt hashing
-        pw_bytes = data.new_password.encode('utf-8')
-        new_hash = bcrypt.hashpw(pw_bytes[:72], bcrypt.gensalt()).decode('utf-8')
-        
-        user.password_hash = new_hash
-        db.commit()
-        
-        logger.info("AUTH | Password updated successfully for user_id=%d", data.user_id)
-        return MessageResponse(message="Password updated successfully")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        import traceback
-        error_trace = traceback.format_exc()
-        logger.error("AUTH | Critical failure in change_password: %s\n%s", str(e), error_trace)
-        # Direct print to ensure visibility in console
-        print(f"\n[CRITICAL ERROR] change_password: {str(e)}\n{error_trace}")
-        raise api_error(500, "INTERNAL_ERROR", f"Interal server error: {str(e)}")
-
-
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     """
@@ -170,6 +99,7 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
     from models.audit_log import AuditLog
     from models.class_ import Class
     from models.subject import Subject
+    from models.notification import Notification, NotificationType
     from sqlalchemy.orm import joinedload
     from datetime import datetime, timedelta
 
@@ -177,10 +107,55 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
+    if not user.in_app_notifications_enabled:
+        return []
+
     notifications = []
-    
+
+    # 1. Fetch Real Stored Notifications from DB
+    db_notifications = (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id)
+        .order_by(Notification.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    def get_notif_icon(ntype):
+        icons = {
+            NotificationType.ATTENDANCE_ENTRY: "fas fa-sign-in-alt",
+            NotificationType.ATTENDANCE_BREAK: "fas fa-coffee",
+            NotificationType.ATTENDANCE_EXIT: "fas fa-sign-out-alt",
+            NotificationType.LATE_ALERT: "fas fa-clock",
+            NotificationType.VERIFICATION_APPROVED: "fas fa-check-circle",
+            NotificationType.VERIFICATION_REJECTED: "fas fa-times-circle",
+            NotificationType.OVERCROWDING_ALERT: "fas fa-users-slash",
+            NotificationType.SYSTEM_ALERT: "fas fa-exclamation-triangle",
+            NotificationType.GENERAL: "fas fa-bell"
+        }
+        return icons.get(ntype, "fas fa-info-circle")
+
+    for dn in db_notifications:
+        # Construct link based on reference or type
+        link = "/notifications"
+        if dn.notification_type in [NotificationType.ATTENDANCE_ENTRY, NotificationType.ATTENDANCE_EXIT, NotificationType.LATE_ALERT]:
+            link = "/faculty-attendance" if user.role == UserRole.FACULTY else "/student-dashboard"
+        elif dn.notification_type == NotificationType.VERIFICATION_APPROVED:
+            link = "/profile"
+            
+        notifications.append({
+            "id": f"db-{dn.id}",
+            "icon": get_notif_icon(dn.notification_type),
+            "text": dn.message,
+            "title": dn.title,
+            "time": dn.created_at.strftime("%I:%M %p") if dn.created_at else "Just now",
+            "timestamp": dn.created_at or datetime.now(),
+            "read": dn.is_read,
+            "link": link
+        })
+
+    # 2. Dept Head Logic (Virtual Notifications)
     if user.role == UserRole.HEAD:
-        # Dept Head Notifications (Pending Verifications + Audit)
         pending = db.query(User).filter(
             User.verification_status == VerificationStatus.PENDING
         ).order_by(User.created_at.desc()).limit(5).all()
@@ -190,6 +165,7 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
                 "icon": "fas fa-user-clock",
                 "text": f"New Registration: {p.first_name} {p.last_name}",
                 "time": "Pending",
+                "timestamp": p.created_at or datetime.now(),
                 "read": False,
                 "link": "/dept-head-dashboard"
             })
@@ -203,74 +179,60 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
                 "icon": "fas fa-shield-alt",
                 "text": f"System Alert: {log.action_type.replace('_', ' ')}",
                 "time": log.timestamp.strftime("%I:%M %p"),
+                "timestamp": log.timestamp,
                 "read": True,
                 "link": "/dept-head-logs"
             })
 
     elif user.role == UserRole.FACULTY:
-        # Faculty Notifications — single batch query with eager loading (NO N+1)
         faculty_classes = db.query(Class).filter(Class.faculty_id == user_id).all()
         class_ids = [c.id for c in faculty_classes]
-        
         if class_ids:
-            # Eager load related user and class+subject in one query
             recent_logs = (
                 db.query(AttendanceLog)
-                .options(
-                    joinedload(AttendanceLog.user),
-                    joinedload(AttendanceLog.class_).joinedload(Class.subject),
-                )
+                .options(joinedload(AttendanceLog.user), joinedload(AttendanceLog.class_).joinedload(Class.subject))
                 .filter(AttendanceLog.class_id.in_(class_ids))
                 .order_by(AttendanceLog.timestamp.desc())
                 .limit(10)
                 .all()
             )
             for al in recent_logs:
-                student = al.user
-                cls = al.class_
-                subject = cls.subject if cls else None
-                
                 notifications.append({
                     "id": f"att-{al.id}",
                     "icon": "fas fa-user-check",
-                    "text": f"{student.first_name if student else 'User'} logged {al.action.value} in {subject.code if subject else 'Class'}",
+                    "text": f"{al.user.first_name if al.user else 'User'} logged {al.action.value} in {al.class_.subject.code if al.class_ and al.class_.subject else 'Class'}",
                     "time": al.timestamp.strftime("%I:%M %p"),
+                    "timestamp": al.timestamp,
                     "read": True,
                     "link": "/faculty-attendance"
                 })
 
     elif user.role == UserRole.STUDENT:
-        # Student Notifications — eager load class+subject (NO N+1)
         personal_logs = (
             db.query(AttendanceLog)
-            .options(
-                joinedload(AttendanceLog.class_).joinedload(Class.subject),
-            )
+            .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
             .filter(AttendanceLog.user_id == user_id)
             .order_by(AttendanceLog.timestamp.desc())
             .limit(10)
             .all()
         )
         for al in personal_logs:
-            cls = al.class_
-            subject = cls.subject if cls else None
             notifications.append({
                 "id": f"satt-{al.id}",
                 "icon": "fas fa-calendar-check",
-                "text": f"Your {al.action.value} for {subject.code if subject else 'Class'} was recorded.",
+                "text": f"Your {al.action.value} for {al.class_.subject.code if al.class_ and al.class_.subject else 'Class'} was recorded.",
                 "time": al.timestamp.strftime("%I:%M %p"),
+                "timestamp": al.timestamp,
                 "read": True,
                 "link": "/student-dashboard"
             })
 
-        if user.verification_status == VerificationStatus.VERIFIED:
-            notifications.append({
-                "id": "v-status",
-                "icon": "fas fa-check-circle",
-                "text": "Your account has been fully verified.",
-                "time": "Account",
-                "read": True,
-                "link": "/student-profile"
-            })
+    # Sort all by timestamp desc
+    notifications.sort(key=lambda x: x.get('timestamp', datetime.min), reverse=True)
+    
+    # Remove timestamp before returning
+    for n in notifications:
+        if 'timestamp' in n:
+            del n['timestamp']
 
     return notifications

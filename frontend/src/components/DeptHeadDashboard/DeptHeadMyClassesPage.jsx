@@ -443,6 +443,43 @@ const DeptHeadMyClassesPage = () => {
         setSubView('profile');
     };
 
+    const handleEditStudentClick = (e, student) => {
+        e.stopPropagation();
+        setEditingStudent(student.user_id);
+        setEditFormData({
+            firstName: student.firstName,
+            lastName: student.lastName,
+            tupm_id: student.tupm_id
+        });
+    };
+
+    const handleCancelEdit = (e) => {
+        if (e) e.stopPropagation();
+        setEditingStudent(null);
+        setEditFormData({ firstName: '', lastName: '', tupm_id: '' });
+    };
+
+    const handleSaveStudentEdit = async (e, studentId) => {
+        e.stopPropagation();
+        try {
+            await api.put(`/api/faculty/student/${studentId}`, editFormData);
+
+            // Update local state instantly
+            setStudentList(studentList.map(s => {
+                if (s.user_id === studentId) {
+                    return { ...s, ...editFormData };
+                }
+                return s;
+            }));
+
+            toast.success("Student updated successfully!");
+            setEditingStudent(null);
+        } catch (error) {
+            console.error("Error updating student:", error);
+            toast.error("Failed to update student: " + (error.response?.data?.error || error.message));
+        }
+    };
+
     const handleBack = () => {
         if (subView === 'profile') setSubView('sheet');
         else if (subView === 'sheet') {
@@ -651,7 +688,7 @@ const DeptHeadMyClassesPage = () => {
 
                             <div className="action-area">
                                 <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
-                                    <i className="fas fa-list"></i> View Class List
+                                    <i className="fas fa-user-check"></i> View Attendance
                                 </button>
                                 <button 
                                     className="faculty-delete-class-btn" 

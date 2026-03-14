@@ -129,7 +129,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
             {showLogo ? (
                 <Link to={user ? (user.role === 'admin' ? "/admin-dashboard" : user.role === 'faculty' ? "/faculty-dashboard" : "/student-dashboard") : "/"} className="header-logo-link">
                     <div className="universal-header-logo">
-                        <Logo className="header-logo-icon" size={42} colorShift />
+                        <Logo className="header-logo-icon" size={42} colorShift={true} />
                         <span>FRAMES</span>
                     </div>
                 </Link>
@@ -153,7 +153,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                         <div className="notification-bell-container" ref={notificationRef}>
                             <button className="icon-button notification-trigger" onClick={toggleNotifications}>
                                 <i className="far fa-bell"></i>
-                                {notifications.some(n => !n.read) && (
+                                {user.in_app_notifications_enabled !== false && notifications.some(n => !n.read) && (
                                     <span className="notification-count-text">
                                         {notifications.filter(n => !n.read).length}
                                     </span>
@@ -203,7 +203,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                     </>
                 ) : (
                     <nav className="guest-nav">
-                        <button onClick={() => setPanel && setPanel('watch-demo')} className="header-login-btn"><i className="fas fa-play-circle" style={{ marginRight: '8px' }}></i>Watch Demo</button>
+                        <button onClick={() => setPanel && setPanel('watch-demo')} className="header-login-btn"><i className="fas fa-play-circle"></i>Watch Demo</button>
                         <button onClick={() => onAboutClick && onAboutClick()} className="header-signup-btn">About Us</button>
                     </nav>
                 )}
