@@ -125,9 +125,9 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
 
     return (
         <div className="card attendance-trend-chart-card">
-            <div className="trend-chart-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+            <div className="trend-chart-header" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <h3><i className="fas fa-chart-line"></i> Attendance Trends</h3>
-                <div className="chart-filters-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                <div className="chart-filters-group" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                     <select
                         value={trendView}
                         onChange={(e) => setTrendView(e.target.value)}
@@ -618,32 +618,30 @@ const DeptHeadDashboardPage = () => {
                 <DeptHeadLiveStatus rooms={liveRooms} personalStatus={personalStatus} />
                 
                 {/* Right Column: Trends + Recent Activity */}
-                <div className="dh-right-column">
-                    <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} />
+                <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} />
                     
-                    {/* Recent Activity */}
-                    <div className="card recent-activity-card dh-recent-activity">
-                        <h3><i className="fas fa-history"></i> Recent Activity</h3>
-                        {recentActivity.length > 0 ? (
-                            <div className="activity-list dh-activity-scrollable">
-                                {recentActivity.map((act, i) => (
-                                    <div key={i} className={`activity-item ${act.is_late ? 'late' : ''}`}>
-                                        <div className="activity-icon"><i className="fas fa-sign-in-alt"></i></div>
-                                        <div className="activity-details">
-                                            <strong>{act.student_name}</strong>
-                                            <span>{act.subject_code} • {act.room_name || 'N/A'}</span>
-                                        </div>
-                                        <div className="activity-time">
-                                            <span>{act.time}</span>
-                                            {act.is_late && <span className="late-badge">LATE</span>}
-                                        </div>
+                {/* Recent Activity */}
+                <div className="card recent-activity-card dh-recent-activity">
+                    <h3><i className="fas fa-history"></i> Recent Activity</h3>
+                    {recentActivity.length > 0 ? (
+                        <div className="activity-list dh-activity-scrollable">
+                            {recentActivity.map((act, i) => (
+                                <div key={i} className={`activity-item ${act.is_late ? 'late' : ''}`}>
+                                    <div className="activity-icon"><i className="fas fa-sign-in-alt"></i></div>
+                                    <div className="activity-details">
+                                        <strong>{act.student_name}</strong>
+                                        <span>{act.subject_code} • {act.room_name || 'N/A'}</span>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="empty-state-mini"><i className="fas fa-inbox"></i><p>No recent activity</p></div>
-                        )}
-                    </div>
+                                    <div className="activity-time">
+                                        <span>{act.time}</span>
+                                        {act.is_late && <span className="late-badge">LATE</span>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="empty-state-mini"><i className="fas fa-inbox"></i><p>No recent activity</p></div>
+                    )}
                 </div>
             </div>
         </div>

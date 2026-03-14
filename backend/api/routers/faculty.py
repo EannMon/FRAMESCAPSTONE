@@ -58,6 +58,10 @@ class DashboardStats(BaseModel):
     total_students: int
     todays_classes: int
     average_attendance: float
+    total_faculty: Optional[int] = None
+    total_teaching_students: Optional[int] = None
+    all_logs: Optional[list] = None
+    recent_attendance: Optional[list] = None
 
 
 class SubjectCreate(BaseModel):
@@ -208,20 +212,96 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
         Class.day_of_week == today
     ).count()
     
-    # Total unique students across all classes
+    # Total unique students across all classes taught by this user
     class_ids = [c.id for c in db.query(Class).filter(Class.faculty_id == user_id).all()]
-    total_students = db.query(Enrollment).filter(
+    total_teaching_students = db.query(Enrollment).filter(
         Enrollment.class_id.in_(class_ids)
     ).distinct(Enrollment.student_id).count() if class_ids else 0
     
     # Average attendance (simplified calculation)
     average_attendance = 85.0  # TODO: Calculate from actual logs
+
+    default_total_students = total_teaching_students
+    
+    total_faculty = 0
+    total_dept_students = 0
+    
+    if user.role == UserRole.HEAD and user.department_id:
+        # Dept Head sees all faculty and students in their department
+        total_faculty = db.query(User).filter(
+            User.department_id == user.department_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD])
+        ).count()
+        total_dept_students = db.query(User).filter(
+            User.department_id == user.department_id,
+            User.role == UserRole.STUDENT
+        ).count()
+        default_total_students = total_dept_students
+        
+    # Get all logs for chart
+    from datetime import timedelta
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    
+    # For logs, get logs for classes taught by this user (or all dept classes if head)
+    if user.role == UserRole.HEAD and user.department_id:
+        dept_faculty_ids = [f.id for f in db.query(User.id).filter(User.department_id == user.department_id).all()]
+        log_class_ids = [c.id for c in db.query(Class.id).filter(Class.faculty_id.in_(dept_faculty_ids)).all()]
+    else:
+        log_class_ids = class_ids
+        
+    # Query recent logs
+    recent_logs_query = db.query(AttendanceLog).filter(
+        AttendanceLog.class_id.in_(log_class_ids),
+        AttendanceLog.timestamp >= thirty_days_ago
+    ).order_by(AttendanceLog.timestamp.desc())
+    
+    raw_logs = recent_logs_query.all()
+    
+    all_logs_formatted = []
+    recent_attendance_formatted = []
+    
+    for i, log in enumerate(raw_logs):
+        # Format for charts (need event_type 'entry', 'exit', 'break_in', 'break_out')
+        action_val = log.action.value if hasattr(log.action, 'value') else log.action
+        
+        event_type = "entry" if action_val in ["ENTRY", "BREAK_IN"] else ("break_out" if action_val == "BREAK_OUT" else "exit")
+            
+        all_logs_formatted.append({
+            "id": log.id,
+            "timestamp": log.timestamp.isoformat(),
+            "is_late": log.is_late,
+            "event_type": event_type
+        })
+        
+        # Take top 10 for recent activity list
+        if i < 10:
+            student = db.query(User).filter(User.id == log.user_id).first()
+            cls_obj = db.query(Class).filter(Class.id == log.class_id).first()
+            subject_code = ""
+            room_name = ""
+            if cls_obj:
+                room_name = cls_obj.room
+                subj = db.query(Subject).filter(Subject.id == cls_obj.subject_id).first()
+                if subj:
+                    subject_code = subj.code
+            
+            recent_attendance_formatted.append({
+                "student_name": f"{student.first_name} {student.last_name}" if student else "Unknown",
+                "subject_code": subject_code,
+                "room_name": room_name,
+                "time": log.timestamp.strftime("%I:%M %p"),
+                "is_late": log.is_late
+            })
     
     return DashboardStats(
         total_classes=total_classes,
-        total_students=total_students,
+        total_students=default_total_students,
         todays_classes=todays_classes,
-        average_attendance=average_attendance
+        average_attendance=average_attendance,
+        total_faculty=total_faculty,
+        total_teaching_students=total_teaching_students,
+        all_logs=all_logs_formatted,
+        recent_attendance=recent_attendance_formatted
     )
 
 

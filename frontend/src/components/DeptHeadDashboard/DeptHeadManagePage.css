@@ -88,8 +88,13 @@
 /* LAYOUT GRID */
 .mgmt-layout {
     display: grid;
-    grid-template-columns: 3fr 1fr;
+    grid-template-columns: 2fr 1fr;
     gap: 20px;
+    min-width: 0;
+}
+
+.mgmt-layout > div {
+    min-width: 0; /* Prevents table from blowing out grid */
 }
 
 /* CARD STYLE - MATCHING STUDENT MODULE */
@@ -134,7 +139,6 @@
     border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
     color: #333;
-    white-space: nowrap !important;
 }
 
 .mgmt-table tbody tr:hover {
@@ -144,7 +148,7 @@
 .table-responsive {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
-    max-width: 100vw;
+    max-width: 100%;
     width: 100%;
 }
 
@@ -350,7 +354,8 @@
 }
 
 .close-btn:hover {
-    color: #163269;
+    color: #dc2626;
+    transform: scale(1.1);
 }
 
 .form-group {

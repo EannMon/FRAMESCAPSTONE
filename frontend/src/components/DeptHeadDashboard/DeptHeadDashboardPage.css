@@ -146,11 +146,13 @@
 }
 
 /* 
-   Since align-items is stretch, the left card (Live Status) and the right column 
-   will always be exactly the same height natively without needing fixed pixel heights.
+   Since align-items is stretch, the left card (Live Status) and the Attendance Trends card
+   will inherently match heights in the first row.
 */
 
 .dh-live-status-card {
+    grid-column: 1;
+    grid-row: 1;
     margin-bottom: 0 !important;
     display: flex;
     flex-direction: column;
@@ -160,17 +162,12 @@
     flex: 1; /* Let it expand naturally without a scrollbar cut-off */
 }
 
-.dh-right-column {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
 /* Trends Chart */
 .attendance-trend-chart-card {
+    grid-column: 2;
+    grid-row: 1;
     display: flex;
     flex-direction: column;
-    /* Remove height: 50% to let it size based on SVG content naturally */
 }
 
 .dh-chart-container {
@@ -210,18 +207,33 @@
 }
 
 .dh-recent-activity {
+    grid-column: 1 / -1; /* Span full width */
+    grid-row: 2;
     margin-bottom: 0 !important;
     display: flex;
     flex-direction: column;
+    min-height: 280px; /* Double size approx for 3+ records */
 }
 
 .dh-activity-scrollable {
     flex: 1; /* Let the list expand naturally */
+    overflow-y: auto;
+    padding-right: 4px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+    align-content: start;
 }
 
 @media (max-width: 992px) {
     .dh-lower-layout {
         grid-template-columns: 1fr;
+    }
+    .dh-live-status-card,
+    .attendance-trend-chart-card,
+    .dh-recent-activity {
+        grid-column: 1;
+        grid-row: auto;
     }
 }
 

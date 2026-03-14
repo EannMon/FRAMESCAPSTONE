@@ -79,8 +79,9 @@ const FacultyInviteRegistrationPage = () => {
             return;
         }
 
-        if (formData.password.length < 8) {
-            setFormError('Password must be at least 8 characters long.');
+        const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$/;
+        if (!strongPasswordRegex.test(formData.password)) {
+            setFormError('Password must be 8-15 characters long, include at least one uppercase letter, one number, and one special character.');
             return;
         }
 
@@ -245,6 +246,14 @@ const FacultyInviteRegistrationPage = () => {
                                                 <button type="button" className="reg-password-toggle" onClick={() => setShowPassword(!showPassword)}>
                                                     <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
                                                 </button>
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', lineHeight: '1.4' }}>
+                                                Password must be 8-15 characters long and include at least:
+                                                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                                                    <li>One uppercase letter</li>
+                                                    <li>One number</li>
+                                                    <li>One special character (e.g., @$!%*?&)</li>
+                                                </ul>
                                             </div>
                                         </div>
                                         <div className="reg-form-group">

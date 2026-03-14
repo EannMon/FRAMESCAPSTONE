@@ -83,14 +83,6 @@ const WeeklyCalendarView = ({ courses }) => {
         <div className="weekly-calendar-container card">
             <div className="calendar-header-row">
                 <h3><i className="fas fa-calendar-week"></i> Weekly Schedule Overview</h3>
-                <div className="calendar-legend">
-                    {Object.entries(facultyColorMap).map(([name, color]) => (
-                        <span key={name} className="legend-item">
-                            <span className="legend-dot" style={{ background: color }}></span>
-                            {name}
-                        </span>
-                    ))}
-                </div>
             </div>
             <div className="calendar-scroll-wrapper">
                 <table className="calendar-grid">
@@ -139,6 +131,15 @@ const WeeklyCalendarView = ({ courses }) => {
                     </tbody>
                 </table>
             </div>
+
+            <div className="calendar-legend" style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {Object.entries(facultyColorMap).map(([name, color]) => (
+                    <span key={name} className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span className="legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }}></span>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{name}</span>
+                    </span>
+                ))}
+            </div>
         </div>
     );
 };
@@ -161,6 +162,7 @@ const DeptHeadManagePage = () => {
 
     // Selection State
     const [selectedCourse, setSelectedCourse] = useState(null);
+    const [pendingLogs, setPendingLogs] = useState([]);
 
     // Form States
     const [newCourse, setNewCourse] = useState({
@@ -334,6 +336,9 @@ const DeptHeadManagePage = () => {
                 ? { ...c, assigned_faculty: facultyName }
                 : c
         ));
+        
+        // Update the modal's state so it reflects the change IMMEDIATELY when we go back
+        setSelectedCourse(prev => ({ ...prev, assigned_faculty: facultyName }));
         setShowAssignModal(false);
 
         try {
@@ -342,12 +347,12 @@ const DeptHeadManagePage = () => {
                 subject_code: selectedCourse.subject_code,
                 faculty_id: facultyId
             });
-            addLog(`Assigned ${facultyName} to ${selectedCourse.subject_code}`);
-            fetchManagementData(); // Re-fetch silently
+            // Queue the log until 'Finish' is clicked
+            setPendingLogs(prev => [...prev, `Assigned ${facultyName} to ${selectedCourse.subject_code}`]);
         } catch (error) {
             console.error("Assignment failed:", error);
             toast.error("Assignment failed. Check console for details.");
-            fetchManagementData(); // Revet on failure
+            fetchManagementData(); // Revert on failure
         }
     };
 
@@ -386,6 +391,23 @@ const DeptHeadManagePage = () => {
         e.preventDefault();
         if (!selectedCourse) return;
 
+        const newSchedStr = `${roomForm.day} ${roomForm.startTime} - ${roomForm.endTime}`;
+
+        // Optistic update for the modal
+        setSelectedCourse(prev => ({ 
+            ...prev, 
+            room_name: roomForm.roomName, 
+            schedule: newSchedStr 
+        }));
+        
+        setCourses(prev => prev.map(c => 
+            (c.schedule_id === selectedCourse.schedule_id && c.subject_code === selectedCourse.subject_code)
+                ? { ...c, room_name: roomForm.roomName, schedule: newSchedStr }
+                : c
+        ));
+        
+        setShowRoomModal(false);
+
         try {
             await api.post('/api/dept/assign-room', {
                 schedule_id: selectedCourse.schedule_id,
@@ -395,12 +417,11 @@ const DeptHeadManagePage = () => {
                 start_time: roomForm.startTime,
                 end_time: roomForm.endTime
             });
-            addLog(`Assigned ${roomForm.roomName} to ${selectedCourse.subject_code}`);
-            setShowRoomModal(false);
-            fetchManagementData();
+            setPendingLogs(prev => [...prev, `Assigned ${roomForm.roomName} to ${selectedCourse.subject_code}`]);
         } catch (error) {
             console.error("Room assignment failed:", error);
             toast.error("Room assignment failed. Check console for details.");
+            fetchManagementData(); // Revert
         }
     };
 
@@ -483,6 +504,17 @@ const DeptHeadManagePage = () => {
         } catch (err) {
             toast.error('Failed to remove device.');
         }
+    };
+
+    const handleFinishCourseDetail = () => {
+        // Fire all accumulated logs
+        if (pendingLogs.length > 0) {
+            [...pendingLogs].reverse().forEach(logText => addLog(logText));
+            setPendingLogs([]);
+            toast.success("Recent activities updated!");
+            fetchManagementData();
+        }
+        setSelectedCourse(null);
     };
 
     // PDF Export
@@ -790,8 +822,8 @@ const DeptHeadManagePage = () => {
 
             {/* 1. Create Course */}
             {showCreateModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Add New Subject</h3>
                             <button className="close-btn" onClick={() => setShowCreateModal(false)}>&times;</button>
@@ -832,8 +864,8 @@ const DeptHeadManagePage = () => {
 
             {/* 2. Change Instructor */}
             {showAssignModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Change Instructor</h3>
                             {selectedCourse && (
@@ -859,8 +891,8 @@ const DeptHeadManagePage = () => {
 
             {/* 3. Assign Room */}
             {showRoomModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content-box">
+                <div className="modal-overlay" onClick={() => { setShowRoomModal(false); setIsCustomRoom(false); }}>
+                    <div className="modal-content-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Assign Room &amp; Schedule</h3>
                             {selectedCourse && (
@@ -887,11 +919,12 @@ const DeptHeadManagePage = () => {
                                         }
                                     }}
                                 >
+                                    <option value="Online">Online</option>
                                     {availableRooms.length > 0 ? (
-                                        availableRooms.map(r => <option key={r} value={r}>{r}</option>)
-                                    ) : (
-                                        <option value="">No rooms available yet</option>
-                                    )}
+                                        availableRooms
+                                            .filter(r => r.toLowerCase() !== 'online')
+                                            .map(r => <option key={r} value={r}>{r}</option>)
+                                    ) : null}
                                     <option value="__custom__">＋ Add new room...</option>
                                 </select>
                                 {isCustomRoom && (
@@ -998,11 +1031,11 @@ const DeptHeadManagePage = () => {
 
             {/* ── COURSE DETAIL MODAL ── */}
             {selectedCourse && !showAssignModal && !showRoomModal && (
-                <div className="modal-overlay" onClick={() => setSelectedCourse(null)}>
+                <div className="modal-overlay" onClick={handleFinishCourseDetail}>
                     <div className="modal-content-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <div className="modal-header">
                             <h3 style={{ margin: 0 }}>{selectedCourse.subject_code} — {selectedCourse.name}</h3>
-                            <button className="close-btn" onClick={() => setSelectedCourse(null)}>&times;</button>
+                            <button className="close-btn" onClick={handleFinishCourseDetail}>&times;</button>
                         </div>
                         <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <div><strong>Instructor:</strong> {selectedCourse.assigned_faculty || 'Unassigned'}</div>
@@ -1013,16 +1046,18 @@ const DeptHeadManagePage = () => {
                         </div>
                         <div className="modal-actions-row">
                             <button className="mgmt-btn primary" style={{ background: '#163269', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); openAssignModal(c); }}>
+                                onClick={() => setShowAssignModal(true)}>
                                 <i className="fas fa-user-edit" /> Change Instructor
                             </button>
-                            <button className="mgmt-btn primary" style={{ background: '#1a5632', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); openRoomModal(c); }}>
+                            <button className="mgmt-btn primary" style={{ background: '#2563eb', flex: 1, justifyContent: 'center' }}
+                                onClick={() => openRoomModal(selectedCourse)}>
                                 <i className="fas fa-door-open" /> Assign Room
                             </button>
-                            <button className="mgmt-btn primary" style={{ background: '#b91c1c', flex: 1, justifyContent: 'center' }}
-                                onClick={() => { const c = selectedCourse; setSelectedCourse(null); handleDeleteCourse(c); }}>
-                                <i className="fas fa-trash" /> Delete
+                        </div>
+                        <div className="modal-actions-row" style={{ marginTop: '10px' }}>
+                            <button className="mgmt-btn primary" style={{ background: '#2E7D32', flex: 1, justifyContent: 'center', padding: '12px', fontSize: '1rem' }}
+                                onClick={handleFinishCourseDetail}>
+                                <i className="fas fa-check-circle" /> Finish
                             </button>
                         </div>
                     </div>
