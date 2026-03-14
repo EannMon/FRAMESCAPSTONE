@@ -46,10 +46,10 @@ class GestureDetector:
         """
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
+            static_image_mode=False,  # Video mode — fast tracking (~50ms vs ~2000ms)
             max_num_hands=1,
             min_detection_confidence=min_confidence,
-            min_tracking_confidence=0.4  # Lower for better tracking continuity
+            min_tracking_confidence=0.3
         )
         self.mp_draw = mp.solutions.drawing_utils
         
@@ -57,8 +57,14 @@ class GestureDetector:
         self._consecutive_frames = consecutive_frames
         self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 2, 8))
         
-        logger.info(f"✅ GestureDetector initialized (confidence={min_confidence}, "
-                     f"consecutive={consecutive_frames})")
+        # Diagnostic counters (reset on each gesture session via reset_buffer)
+        self._diag_frames = 0
+        self._diag_hand_found = 0
+        self._diag_gesture_found = 0
+        
+        logger.info("GestureDetector initialized (confidence=%.2f, "
+                     "consecutive=%d, static_image_mode=False)",
+                     min_confidence, consecutive_frames)
     
     def _dist(self, a, b) -> float:
         """Euclidean distance between two landmarks."""
@@ -87,7 +93,7 @@ class GestureDetector:
             return False
         
         ratio = tip_to_mcp / pip_to_mcp
-        return ratio > 1.5  # Extended if tip is 1.5x further than PIP from MCP
+        return ratio > 1.3  # Extended if tip is 1.3x further than PIP from MCP
     
     def _is_finger_curled(self, landmarks, tip: int, dip: int, pip: int, mcp: int) -> bool:
         """
@@ -101,10 +107,7 @@ class GestureDetector:
             return True
         
         ratio = tip_to_mcp / pip_to_mcp
-        # Raised from 1.7 → 1.8 to avoid grey zone between extended (1.5) and curled
-        # This makes peace sign detection more reliable since ring/pinky
-        # often hover in a semi-curled state
-        return ratio < 1.8
+        return ratio < 2.0  # Curled if ratio below 2.0 (lenient)
     
     def _is_thumb_extended(self, landmarks, handedness: str = "Right") -> bool:
         """
@@ -135,11 +138,17 @@ class GestureDetector:
             (gesture_type, hand_landmarks) or (NONE, None)
         """
         results = self.hands.process(frame_rgb)
+        self._diag_frames += 1
         
         if not results.multi_hand_landmarks:
             self._gesture_buffer.append(Gesture.NONE)
+            # Log diagnostics every 10 frames so we can see what's happening
+            if self._diag_frames % 10 == 0:
+                logger.info("GESTURE_DIAG | frames=%d hand_found=%d gesture_found=%d (no hand this frame)",
+                            self._diag_frames, self._diag_hand_found, self._diag_gesture_found)
             return Gesture.NONE, None
         
+        self._diag_hand_found += 1
         hand = results.multi_hand_landmarks[0]
         landmarks = hand.landmark
         
@@ -152,37 +161,62 @@ class GestureDetector:
         raw_gesture = self._classify_gesture(landmarks, handedness)
         self._gesture_buffer.append(raw_gesture)
         
-        # Apply temporal smoothing: require N consecutive same gestures
+        if raw_gesture != Gesture.NONE:
+            self._diag_gesture_found += 1
+        
+        logger.info("GESTURE_DIAG | hand_found! raw=%s hand=%s (frames=%d found=%d gestures=%d)",
+                    raw_gesture.value, handedness,
+                    self._diag_frames, self._diag_hand_found, self._diag_gesture_found)
+        
+        # Apply temporal smoothing: require N out of last M frames
         smoothed = self._get_smoothed_gesture()
         
         return smoothed, hand
     
+    def _finger_ratio(self, landmarks, tip: int, pip: int, mcp: int) -> float:
+        """Get the tip-to-mcp / pip-to-mcp ratio for a finger."""
+        tip_to_mcp = self._dist(landmarks[tip], landmarks[mcp])
+        pip_to_mcp = self._dist(landmarks[pip], landmarks[mcp])
+        if pip_to_mcp < 1e-6:
+            return 0.0
+        return tip_to_mcp / pip_to_mcp
+
     def _classify_gesture(self, landmarks, handedness: str) -> Gesture:
         """Classify gesture from landmarks for a single frame."""
-        # Check finger states using distance-ratio method
-        index_up = self._is_finger_extended(landmarks, 8, 7, 6, 5)
-        middle_up = self._is_finger_extended(landmarks, 12, 11, 10, 9)
-        ring_up = self._is_finger_extended(landmarks, 16, 15, 14, 13)
-        pinky_up = self._is_finger_extended(landmarks, 20, 19, 18, 17)
+        # Get raw extension ratios for all fingers
+        idx_ratio = self._finger_ratio(landmarks, 8, 6, 5)
+        mid_ratio = self._finger_ratio(landmarks, 12, 10, 9)
+        ring_ratio = self._finger_ratio(landmarks, 16, 14, 13)
+        pinky_ratio = self._finger_ratio(landmarks, 20, 18, 17)
         thumb_up = self._is_thumb_extended(landmarks, handedness)
 
-        ring_curled = self._is_finger_curled(landmarks, 16, 15, 14, 13)
-        pinky_curled = self._is_finger_curled(landmarks, 20, 19, 18, 17)
-        index_curled = self._is_finger_curled(landmarks, 8, 7, 6, 5)
-        middle_curled = self._is_finger_curled(landmarks, 12, 11, 10, 9)
+        # Boolean states using thresholds
+        index_up = idx_ratio > 1.3
+        middle_up = mid_ratio > 1.3
+        ring_up = ring_ratio > 1.3
+        pinky_up = pinky_ratio > 1.3
+
+        index_curled = idx_ratio < 1.5
+        middle_curled = mid_ratio < 1.5
+        ring_curled = ring_ratio < 1.5
+        pinky_curled = pinky_ratio < 1.5
+
+        logger.debug("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
+                     idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
 
         # ---- PEACE SIGN ----
-        # Primary: index + middle UP, ring + pinky curled (thumb irrelevant)
-        # Fallback: if ring/pinky are in the grey zone, check that index+middle
-        # tips are significantly further from wrist than ring+pinky tips
-        if index_up and middle_up and not ring_up and not pinky_up:
-            return Gesture.PEACE_SIGN
-
-        if index_up and middle_up and ring_curled and pinky_curled:
-            return Gesture.PEACE_SIGN
+        # Index + middle must be clearly more extended than ring + pinky.
+        # Uses relative comparison so lowered thresholds don't cause
+        # a peace sign to be mis-detected as open palm.
+        if index_up and middle_up:
+            avg_up = (idx_ratio + mid_ratio) / 2
+            avg_down = (ring_ratio + pinky_ratio) / 2
+            # The two raised fingers should be at least 15% more extended
+            if avg_up > avg_down * 1.15:
+                return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # All 4 fingers up (thumb can be relaxed)
+        # All 4 fingers clearly extended (thumb can be relaxed)
         if index_up and middle_up and ring_up and pinky_up:
             return Gesture.OPEN_PALM
 
@@ -196,17 +230,27 @@ class GestureDetector:
     def _get_smoothed_gesture(self) -> Gesture:
         """
         Get temporally smoothed gesture.
-        Requires N consecutive frames of the same non-NONE gesture.
+        Requires N non-NONE matching gestures out of the last M frames.
+        This tolerates MediaPipe dropping hand detection on some frames,
+        which previously caused consecutive-frame checks to always fail.
         """
         if len(self._gesture_buffer) < self._consecutive_frames:
             return Gesture.NONE
         
-        # Check last N frames
-        recent = list(self._gesture_buffer)[-self._consecutive_frames:]
+        # Look at a wider window (last M frames) and count occurrences
+        window = list(self._gesture_buffer)  # up to maxlen (8)
         
-        # All must be the same non-NONE gesture
-        if all(g == recent[0] and g != Gesture.NONE for g in recent):
-            return recent[0]
+        # Count each non-NONE gesture in the window
+        counts = {}
+        for g in window:
+            if g != Gesture.NONE:
+                counts[g] = counts.get(g, 0) + 1
+        
+        # Find the most common gesture that meets the threshold
+        for gesture, count in counts.items():
+            if count >= self._consecutive_frames:
+                logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", gesture.value, count, len(window))
+                return gesture
         
         return Gesture.NONE
     
@@ -254,8 +298,11 @@ class GestureDetector:
         return gesture == Gesture.PEACE_SIGN
     
     def reset_buffer(self):
-        """Clear the temporal smoothing buffer."""
+        """Clear the temporal smoothing buffer and reset diagnostics."""
         self._gesture_buffer.clear()
+        self._diag_frames = 0
+        self._diag_hand_found = 0
+        self._diag_gesture_found = 0
     
     def draw_landmarks(self, frame_bgr: np.ndarray, hand_landmarks) -> np.ndarray:
         """Draw hand landmarks on frame for visualization."""

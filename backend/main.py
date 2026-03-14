@@ -6,6 +6,17 @@ Logging configured per FRAMES_OBSERVABILITY_RULES before any router import.
 import sys
 import os
 import logging
+from pathlib import Path
+
+# Load .env using utf-8-sig to handle BOM-encoded files (python-dotenv silently fails on BOM)
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    with open(_env_path, encoding="utf-8-sig") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _key, _, _val = _line.partition("=")
+                os.environ.setdefault(_key.strip(), _val.strip())
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from core.limiter import limiter
@@ -49,18 +60,24 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — lock down to FRONTEND_URL per FRAMES_DEPLOYMENT_CONSTRAINTS §5.1
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# CORS — reads FRONTEND_URL from environment (comma-separated for multiple origins)
+# On Render: set FRONTEND_URL=https://frames-smartattendance.vercel.app
+# For local dev the default covers localhost Vite server
+_raw_origins = os.getenv("FRONTEND_URL", "https://frames-smartattendance.vercel.app,http://localhost:3000,http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Authorization", "Content-Type", "X-Device-Key"],
 )
 
 # Import routers after app and limiter are ready to avoid circular imports
-from api.routers import auth, users, admin, faculty, student, face, kiosk, dept, reports, support
+from api.routers import (
+    auth, users, admin, faculty, student, face, kiosk, 
+    invites, dept, reports, support
+)
 
 # Include routers with prefixes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
@@ -68,6 +85,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(faculty.router, prefix="/api/faculty", tags=["Faculty"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
+app.include_router(invites.router)
 app.include_router(face.router)  # Already has /api/face prefix
 app.include_router(kiosk.router)  # Already has /api/kiosk prefix
 app.include_router(dept.router, prefix="/api/dept", tags=["Department"])

@@ -3,8 +3,8 @@ Kiosk Configuration
 Edit these settings for your deployment environment.
 
 Supports two modes:
-- LAPTOP mode:  buffalo_l @ (640,640) — high accuracy, ~50ms/frame
-- RPI mode:     buffalo_l @ (320,320) — optimized for RPi4, ~150-250ms/frame
+- LAPTOP mode:  buffalo_sc @ (640,640) — high accuracy, ~50ms/frame
+- RPI mode:     buffalo_sc @ (320,320) — optimized for RPi4, ~300-500ms/frame
                 Uses two-stage gated detection (MediaPipe gate → InsightFace only when face found)
 """
 import os
@@ -56,7 +56,8 @@ class KioskConfig:
     CAMERA_FPS: int = 30
     # On RPi Bookworm, the Pi Camera V2 requires picamera2 (libcamera stack).
     # OpenCV's cv2.VideoCapture cannot read from the CSI camera on Bookworm.
-    USE_PICAMERA2: bool = field(default=None)  # Auto-set in __post_init__
+    # Set USE_PICAMERA2=0 in .env.rpi to force USB webcam via OpenCV.
+    USE_PICAMERA2: bool = field(default_factory=lambda: None if os.getenv("USE_PICAMERA2") is None else os.getenv("USE_PICAMERA2") not in ("0", "false", "False", "no"))
     
     # ===========================================
     # Face Detection (MediaPipe BlazeFace)
@@ -68,9 +69,10 @@ class KioskConfig:
     # ===========================================
     # Face Recognition (InsightFace)
     # ===========================================
-    # MUST use buffalo_l to match enrollment embeddings.
+    # MUST use buffalo_sc to match enrollment embeddings.
     # On RPi, use smaller det_size for speed (recognition model stays the same).
-    INSIGHTFACE_MODEL: str = "buffalo_l"
+    # buffalo_sc uses MobileNet backbone — ~7-10x faster than buffalo_l on RPi CPU.
+    INSIGHTFACE_MODEL: str = "buffalo_sc"
     RECOGNITION_DET_SIZE: tuple = field(default=None)  # Auto-set in __post_init__
     
     # ===========================================
@@ -88,20 +90,21 @@ class KioskConfig:
     # Matching Thresholds
     # ===========================================
     # Cosine similarity thresholds (InsightFace same-model embeddings: 0.25-0.50)
-    # With matching models (buffalo_l ↔ buffalo_l), genuine pairs typically score 0.4-0.7
-    MATCH_THRESHOLD: float = 0.35  # Balanced: catches most genuine matches
-    MATCH_THRESHOLD_STRICT: float = 0.50  # For high-security scenarios
+    # With matching models (buffalo_sc ↔ buffalo_sc), genuine pairs typically score 0.3-0.6
+    # buffalo_sc thresholds are slightly lower than buffalo_l due to MobileNet backbone.
+    MATCH_THRESHOLD: float = 0.30  # Balanced: catches most genuine matches
+    MATCH_THRESHOLD_STRICT: float = 0.45  # For high-security scenarios
     
     # ===========================================
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
-    GESTURE_CONFIDENCE: float = 0.5  # Lower for better hand detection rate
+    GESTURE_CONFIDENCE: float = 0.35  # Low threshold for reliable hand detection across lighting
     # ENTRY uses face-only verification (no gesture required).
     # BREAK/EXIT still use specific gestures (peace/thumbs/palm).
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
-    GESTURE_TIMEOUT_SECONDS: float = 8.0  # More time to show gesture
-    GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require gesture for N consecutive frames
+    GESTURE_TIMEOUT_SECONDS: float = 8.0  # Comfortable window; gesture loop is fast now
+    GESTURE_CONSECUTIVE_FRAMES: int = 1  # Accept first valid gesture detection immediately
     
     # ===========================================
     # Attendance Rules
@@ -113,7 +116,7 @@ class KioskConfig:
     # Backend API
     # ===========================================
     BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
-    API_TIMEOUT_SECONDS: int = 15  # Generous timeout for remote Aiven DB queries
+    API_TIMEOUT_SECONDS: int = 3  # Short timeout — fail fast and use cache. Render can be slow on free tier.
     
     # ===========================================
     # Device Identity

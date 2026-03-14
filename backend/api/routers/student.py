@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 import logging
 
@@ -17,9 +17,57 @@ from models.class_ import Class
 from models.subject import Subject
 from models.enrollment import Enrollment
 from models.attendance_log import AttendanceLog, AttendanceAction
+from services.report_service import get_student_report_envelope
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _parse_report_window(report_type: str, date_from: Optional[str], date_to: Optional[str]):
+    """Parse/resolve report date window with sensible defaults per report type."""
+    now = datetime.now(timezone.utc)
+    report_code = (report_type or "DAILY_REPORT").upper()
+
+    def _parse_iso_day(value: Optional[str], end_of_day: bool = False) -> Optional[datetime]:
+        if not value:
+            return None
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if end_of_day:
+            return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return parsed.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    parsed_from = _parse_iso_day(date_from)
+    parsed_to = _parse_iso_day(date_to, end_of_day=True)
+
+    if parsed_from and parsed_to:
+        return parsed_from, parsed_to
+
+    if report_code in {"DAILY_REPORT", "LATE_REPORT", "BREAK_LOG"}:
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        return parsed_from or start, parsed_to or end
+
+    if report_code == "WEEKLY_SUMMARY":
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    if report_code == "MONTHLY_TRENDS":
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    if report_code in {"HISTORY_30D", "CONSISTENCY"}:
+        end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return parsed_from or start, parsed_to or end
+
+    # Semestral / overall default window fallback.
+    end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    start = (end - timedelta(days=120)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return parsed_from or start, parsed_to or end
 
 
 # ============================================
@@ -492,3 +540,48 @@ def get_attendance_history(
         ))
     
     return result
+
+
+@router.get("/reports/data/{user_id}")
+def get_student_report_data(
+    user_id: int,
+    report_type: str,
+    class_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """
+    Phase 1 server-driven student report endpoint.
+    Returns rows plus summary metrics and explainable insights.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise api_error(404, "USER_NOT_FOUND", "User not found")
+
+    if user.verification_status != VerificationStatus.VERIFIED:
+        raise api_error(403, "NOT_VERIFIED", "Account not verified")
+
+    window_from, window_to = _parse_report_window(report_type, date_from, date_to)
+
+    envelope = get_student_report_envelope(
+        db=db,
+        user_id=user_id,
+        report_type=report_type,
+        date_from=window_from,
+        date_to=window_to,
+        class_id=class_id,
+        skip=max(skip, 0),
+        limit=min(limit, 100),
+    )
+
+    logger.info(
+        "Student report %s for user %d: rows=%d insights=%d",
+        report_type,
+        user_id,
+        len(envelope.get("rows", [])),
+        len(envelope.get("insights", [])),
+    )
+    return envelope

@@ -98,7 +98,7 @@ class EnrolledUserInfo(BaseModel):
     user_id: int
     name: str
     email: Optional[str] = None
-    tupm_id: str
+    tupm_id: Optional[str] = ""
     role: str
     section: Optional[str] = None
 
@@ -554,12 +554,16 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
             last_action = last_action.value
 
     # State machine: determine allowed actions
-    # After EXIT, user can ENTRY again (new cycle within same session)
+    # After EXIT, the session is CLOSED — no re-entry allowed.
+    # If a user accidentally exits, an admin/faculty must manually adjust the record.
+    # This prevents confusing data with multiple ENTRY/EXIT cycles per class session.
     allowed_actions = []
-    if not has_entered or has_exited:
+    if not has_entered:
         allowed_actions.append("ENTRY")
     elif has_exited:
-        pass  # Should not reach here due to above condition
+        # Session is done — no more actions allowed for this class today.
+        # Re-entry after exit is intentionally blocked.
+        pass
     elif is_on_break:
         allowed_actions.append("BREAK_IN")
     else:
@@ -624,6 +628,54 @@ def get_device_info(device_id: int, db: Session = Depends(get_db), x_device_key:
         "ip_address": device.ip_address,
         "status": device.status.value if device.status else None,
         "last_heartbeat": device.last_heartbeat.isoformat() if device.last_heartbeat else None
+    }
+
+
+@router.get("/embeddings")
+def download_embeddings(db: Session = Depends(get_db)):
+    """
+    Download all enrolled face embeddings as JSON.
+    Used by RPi kiosk on startup to populate its local embeddings_cache.json
+    without requiring direct database access on the device.
+    """
+    from models.facial_profile import FacialProfile
+    import numpy as np
+
+    profiles = (
+        db.query(FacialProfile, User)
+        .join(User, FacialProfile.user_id == User.id)
+        .filter(FacialProfile.embedding.isnot(None))
+        .all()
+    )
+
+    embeddings = []
+    for profile, user in profiles:
+        try:
+            emb_array = np.frombuffer(profile.embedding, dtype=np.float32)
+            if len(emb_array) != 512:
+                continue
+            embeddings.append({
+                "user_id": user.id,
+                "name": f"{user.first_name} {user.last_name}",
+                "email": user.email,
+                "tupm_id": user.tupm_id or "",
+                "role": user.role.value if user.role else "",
+                "section": user.section or "",
+                "embedding": emb_array.tolist(),
+                "quality": profile.enrollment_quality or 0.0,
+                "model_version": profile.model_version or "",
+                "enrolled_at": profile.created_at.isoformat() if profile.created_at else None,
+            })
+        except Exception:
+            continue
+
+    return {
+        "version": "1.0",
+        "exported_at": datetime.now().isoformat(),
+        "model": "insightface_buffalo_sc_v1",
+        "embedding_dim": 512,
+        "count": len(embeddings),
+        "embeddings": embeddings,
     }
 
 

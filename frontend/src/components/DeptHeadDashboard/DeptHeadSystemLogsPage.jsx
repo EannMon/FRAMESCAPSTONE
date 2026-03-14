@@ -2,9 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import './DeptHeadSystemLogsPage.css';
 
+const formatTimestamp = (ts) => {
+    if (!ts) return '—';
+    try {
+        return new Date(ts).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+    } catch {
+        return ts;
+    }
+};
+
 const DeptHeadSystemLogsPage = () => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [levelFilter, setLevelFilter] = useState('');
     const [roomFilter, setRoomFilter] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +40,7 @@ const DeptHeadSystemLogsPage = () => {
 
     const fetchLogs = async (signal) => {
         setLoading(true);
+        setError(null);
         try {
             const params = {};
             if (levelFilter) params.level = levelFilter;
@@ -40,6 +54,7 @@ const DeptHeadSystemLogsPage = () => {
         } catch (err) {
             if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                 console.error('System logs fetch error:', err);
+                setError('Failed to load system logs. Please try again.');
                 setLogs([]);
             }
         } finally {
@@ -76,7 +91,7 @@ const DeptHeadSystemLogsPage = () => {
     return (
         <div className="system-logs-page">
             <div className="logs-header" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="logs-refresh-btn" onClick={fetchLogs}>
+                <button className="logs-refresh-btn" onClick={() => fetchLogs()}>
                     <i className="fas fa-sync-alt"></i> Refresh
                 </button>
             </div>
@@ -124,7 +139,7 @@ const DeptHeadSystemLogsPage = () => {
                 </select>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="logs-filter-input" />
                 <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="logs-filter-input" />
-                <button className="logs-apply-btn" onClick={fetchLogs}>
+                <button className="logs-apply-btn" onClick={() => fetchLogs()}>
                     <i className="fas fa-filter"></i> Apply
                 </button>
             </div>
@@ -135,6 +150,15 @@ const DeptHeadSystemLogsPage = () => {
                     <div className="logs-loading">
                         <i className="fas fa-spinner fa-spin"></i>
                         <p>Loading system logs...</p>
+                    </div>
+                ) : error ? (
+                    <div className="logs-empty" style={{ color: '#ef4444' }}>
+                        <i className="fas fa-exclamation-circle"></i>
+                        <h4>Failed to Load Logs</h4>
+                        <p>{error}</p>
+                        <button className="logs-refresh-btn" onClick={() => fetchLogs()} style={{ marginTop: '12px' }}>
+                            <i className="fas fa-sync-alt"></i> Retry
+                        </button>
                     </div>
                 ) : logs.length === 0 ? (
                     <div className="logs-empty">
@@ -147,7 +171,7 @@ const DeptHeadSystemLogsPage = () => {
                         {logs.map((log, i) => {
                             const { icon, color } = getLevelIcon(log.level);
                             return (
-                                <div key={i} className={`log-entry level-${log.level?.toLowerCase()}`}>
+                                <div key={log.id ?? i} className={`log-entry level-${log.level?.toLowerCase()}`}>
                                     <div className="log-icon" style={{ color }}>
                                         <i className={`fas ${icon}`}></i>
                                     </div>
@@ -155,13 +179,14 @@ const DeptHeadSystemLogsPage = () => {
                                         <div className="log-message">{log.message}</div>
                                         <div className="log-meta">
                                             <span className="log-service">{log.service}</span>
-                                            <span className="log-room">{log.room}</span>
-                                            <span className="log-source">{log.source}</span>
+                                            {log.room && <span className="log-room">{log.room}</span>}
+                                            {log.source && <span className="log-source">{log.source}</span>}
+                                            {log.user_name && <span className="log-user">{log.user_name}</span>}
                                         </div>
                                     </div>
                                     <div className="log-time">
                                         <span className={`log-level-badge ${log.level?.toLowerCase()}`}>{log.level}</span>
-                                        <span className="log-timestamp">{log.timestamp}</span>
+                                        <span className="log-timestamp">{formatTimestamp(log.timestamp)}</span>
                                     </div>
                                 </div>
                             );

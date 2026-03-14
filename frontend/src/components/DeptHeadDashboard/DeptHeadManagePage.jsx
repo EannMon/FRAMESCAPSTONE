@@ -16,6 +16,20 @@ const FACULTY_COLORS = [
     '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
 ];
 
+const TIME_OPTIONS = (() => {
+    const opts = [];
+    for (let i = 7 * 2; i <= 21 * 2; i++) {
+        const h = Math.floor(i / 2);
+        const m = (i % 2 === 0) ? '00' : '30';
+        const period = h >= 12 ? 'PM' : 'AM';
+        let displayH = h > 12 ? h - 12 : h;
+        if (displayH === 0) displayH = 12;
+        const displayHStr = displayH.toString().padStart(2, '0');
+        opts.push(`${displayHStr}:${m} ${period}`);
+    }
+    return opts;
+})();
+
 const WeeklyCalendarView = ({ courses }) => {
     // Parse schedule strings like "Monday 9:00 AM - 12:00 PM" into structured data
     const calendarEvents = useMemo(() => {
@@ -130,6 +144,7 @@ const WeeklyCalendarView = ({ courses }) => {
 };
 
 const DeptHeadManagePage = () => {
+    const toast = useToast();
     // --- STATE MANAGEMENT ---
     const [department] = useState("College of Science (COS)");
     const [courses, setCourses] = useState([]);
@@ -159,7 +174,15 @@ const DeptHeadManagePage = () => {
         endTime: '12:00 PM'
     });
 
-    const [logs, setLogs] = useState([]);
+    const storedUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const logKey = `frames-activity-log-${storedUser.id || 'default'}`;
+    const [logs, setLogs] = useState(() => {
+        const saved = localStorage.getItem(logKey);
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) {}
+        }
+        return [];
+    });
 
     // Camera/Device management
     const [devices, setDevices] = useState([]);
@@ -273,7 +296,11 @@ const DeptHeadManagePage = () => {
     // --- LOGGING HELPER ---
     const addLog = (action) => {
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setLogs(prev => [{ time, action, user: 'You' }, ...prev]);
+        setLogs(prev => {
+            const newLogs = [{ time, action, user: 'You' }, ...prev].slice(0, 50); // limit to 50
+            localStorage.setItem(logKey, JSON.stringify(newLogs));
+            return newLogs;
+        });
     };
 
     // --- HANDLERS ---
@@ -300,6 +327,15 @@ const DeptHeadManagePage = () => {
 
     const handleAssignTeacher = async (facultyId, facultyName) => {
         if (!selectedCourse) return;
+        
+        // Optimistic UI update
+        setCourses(prev => prev.map(c => 
+            (c.schedule_id === selectedCourse.schedule_id && c.subject_code === selectedCourse.subject_code)
+                ? { ...c, assigned_faculty: facultyName }
+                : c
+        ));
+        setShowAssignModal(false);
+
         try {
             await api.post('/api/dept/assign-faculty', {
                 schedule_id: selectedCourse.schedule_id,
@@ -307,11 +343,11 @@ const DeptHeadManagePage = () => {
                 faculty_id: facultyId
             });
             addLog(`Assigned ${facultyName} to ${selectedCourse.subject_code}`);
-            setShowAssignModal(false);
-            fetchManagementData();
+            fetchManagementData(); // Re-fetch silently
         } catch (error) {
             console.error("Assignment failed:", error);
             toast.error("Assignment failed. Check console for details.");
+            fetchManagementData(); // Revet on failure
         }
     };
 
@@ -370,7 +406,8 @@ const DeptHeadManagePage = () => {
 
     // Delete course handler
     const handleDeleteCourse = async (course) => {
-        if (!window.confirm(`Delete subject "${course.subject_code} - ${course.name}"? This cannot be undone.`)) return;
+        const confirmed = await toast.confirm(`Delete subject "${course.subject_code} - ${course.name}"? This cannot be undone.`);
+        if (!confirmed) return;
         try {
             await api.delete(`/api/dept/subjects/${course.subject_id || course.id}`);
             addLog(`Deleted subject ${course.subject_code}`);
@@ -436,7 +473,8 @@ const DeptHeadManagePage = () => {
         }
     };
     const handleDeleteDevice = async (device) => {
-        if (!window.confirm(`Are you sure you want to remove "${device.device_name}"? This action cannot be undone.`)) return;
+        const confirmed = await toast.confirm(`Are you sure you want to remove "${device.device_name}"? This action cannot be undone.`);
+        if (!confirmed) return;
         try {
             await api.delete(`/api/dept/devices/${device.id}`);
             toast.success('Device removed successfully.');
@@ -597,45 +635,22 @@ const DeptHeadManagePage = () => {
                                 <tr>
                                     <th>Device Name</th>
                                     <th>Room</th>
-                                    <th>IP Address</th>
                                     <th>Capacity</th>
                                     <th>Status</th>
-                                    <th>Last Heartbeat</th>
                                     <th className="th-actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {devices.map(d => {
-                                    // Compute heartbeat display with tooltip
-                                    const heartbeatText = d.last_heartbeat
-                                        ? new Date(d.last_heartbeat).toLocaleString()
-                                        : 'Never';
-                                    const heartbeatAgo = d.last_heartbeat
-                                        ? (() => {
-                                            const diffMs = Date.now() - new Date(d.last_heartbeat).getTime();
-                                            const diffMin = Math.floor(diffMs / 60000);
-                                            if (diffMin < 1) return 'Just now';
-                                            if (diffMin < 60) return `${diffMin}m ago`;
-                                            const diffHr = Math.floor(diffMin / 60);
-                                            if (diffHr < 24) return `${diffHr}h ago`;
-                                            return `${Math.floor(diffHr / 24)}d ago`;
-                                        })()
-                                        : 'No data';
-
                                     return (
                                         <tr key={d.id}>
                                             <td>{d.device_name}</td>
                                             <td>{d.room || '—'}</td>
-                                            <td>{d.ip_address || '—'}</td>
                                             <td>{d.room_capacity || '—'}</td>
                                             <td>
                                                 <span className={`status-badge ${d.status === 'ACTIVE' ? 'active' : d.status === 'INACTIVE' ? 'inactive' : 'maintenance'}`}>
                                                     {d.status}
                                                 </span>
-                                            </td>
-                                            <td title={`Last ping: ${heartbeatText}`} className="td-cursor-help">
-                                                <span>{heartbeatAgo}</span>
-                                                <span className="heartbeat-subtext">{heartbeatText !== 'Never' ? heartbeatText : ''}</span>
                                             </td>
                                             <td className="td-actions-center">
                                                 <button title="Edit device" onClick={() => openEditDevice(d)} className="action-btn-icon edit">
@@ -907,17 +922,23 @@ const DeptHeadManagePage = () => {
                             <div className="form-row">
                                 <div className="form-group half">
                                     <label>Start Time</label>
-                                    <input type="text" className="modal-input" placeholder="09:00 AM" required
+                                    <select className="modal-select" required
                                         value={roomForm.startTime}
                                         onChange={e => setRoomForm({ ...roomForm, startTime: e.target.value })}
-                                    />
+                                    >
+                                        <option value="">Start Time...</option>
+                                        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                                 <div className="form-group half">
                                     <label>End Time</label>
-                                    <input type="text" className="modal-input" placeholder="12:00 PM" required
+                                    <select className="modal-select" required
                                         value={roomForm.endTime}
                                         onChange={e => setRoomForm({ ...roomForm, endTime: e.target.value })}
-                                    />
+                                    >
+                                        <option value="">End Time...</option>
+                                        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
                             </div>
                             <button type="submit" className="submit-btn full">Save Assignment</button>

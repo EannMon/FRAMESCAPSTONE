@@ -3,304 +3,23 @@
    Extends FacultyDashboardPage.css
    ============================================ */
 
-/* ---------- Quick Actions Card ---------- */
-.quick-actions-card {
-    background: white;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #f1f5f9;
+
+
+/* ---------- 3 Column Summary Layout ---------- */
+.dh-summary-cards-row {
+    grid-template-columns: repeat(3, 1fr) !important;
 }
 
-.quick-actions-card h3 {
-    margin: 0 0 12px 0;
-    font-size: 0.95rem;
-    color: #0F172A;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+@media (max-width: 1200px) {
+    .dh-summary-cards-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
 }
 
-.quick-actions-card h3 i {
-    color: #f59e0b;
-}
-
-.quick-action-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
-    margin-bottom: 6px;
-}
-
-.quick-action-item:hover {
-    background: #f1f5f9;
-    transform: translateX(4px);
-}
-
-.quick-action-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-}
-
-.quick-action-text {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #0F172A;
-}
-
-/* ---------- Verification List ---------- */
-.pending-verifications-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.verification-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: #f8fafc;
-    border-radius: 10px;
-    border: 1px solid #f1f5f9;
-    transition: all 0.2s;
-}
-
-.verification-row:hover {
-    background: #f1f5f9;
-    border-color: #e2e8f0;
-}
-
-.v-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #0F172A, #1e3a5f);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-}
-
-.v-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.v-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #0F172A;
-}
-
-.v-meta {
-    font-size: 0.75rem;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.v-role-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.v-role-badge.faculty {
-    background: #dbeafe;
-    color: #1d4ed8;
-}
-
-.v-role-badge.student {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.v-role-badge.head {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.v-btn-review {
-    padding: 6px 16px;
-    background: linear-gradient(135deg, #0F172A, #1e3a5f);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.v-btn-review:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
-}
-
-/* ---------- Review Modal ---------- */
-.v-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
-}
-
-.v-modal-content {
-    background: white;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 520px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-}
-
-.v-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.v-modal-header h2 {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #0F172A;
-}
-
-.v-modal-close {
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-.v-modal-close:hover {
-    background: #f1f5f9;
-    color: #0F172A;
-}
-
-.v-modal-body {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.v-detail-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 16px;
-    font-size: 0.85rem;
-}
-
-.v-detail-label {
-    font-weight: 600;
-    color: #64748b;
-}
-
-.v-detail-value {
-    color: #0F172A;
-}
-
-.v-modal-footer {
-    display: flex;
-    gap: 10px;
-    padding: 16px 24px;
-    border-top: 1px solid #f1f5f9;
-    justify-content: flex-end;
-}
-
-.v-action-btn {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-
-.v-action-btn.reject {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-.v-action-btn.reject:hover {
-    background: #fee2e2;
-}
-
-.v-action-btn.approve {
-    background: linear-gradient(135deg, #00A859, #059669);
-    color: white;
-}
-
-.v-action-btn.approve:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.3);
-}
-
-.v-empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 30px;
-    color: #94a3b8;
-    gap: 8px;
-}
-
-.v-empty-state i {
-    font-size: 2rem;
-    color: #00A859;
-}
-
-.loading-inline {
-    text-align: center;
-    padding: 20px;
-    color: #64748b;
-}
-
-/* Badge styles */
-.summary-badge.warning {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.summary-badge.danger {
-    background: #fef2f2;
-    color: #dc2626;
+@media (max-width: 576px) {
+    .dh-summary-cards-row {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* ---------- DeptHead Live Status View Controls ---------- */
@@ -330,19 +49,20 @@
     border-radius: 6px;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 0.95rem;
 }
 
 .dh-view-btn:hover {
     color: #0F172A;
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
 }
 
 .dh-view-btn.active {
     background: #FFFFFF;
-    color: #0F172A;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    color: #00A859;
+    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.15);
     font-weight: 600;
 }
 
@@ -375,31 +95,8 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 576px) {
-    .v-detail-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .v-modal-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        position: relative;
-    }
-
-    .v-modal-close {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-    }
-
-    .v-modal-footer {
-        flex-direction: column;
-    }
-
-    .v-action-btn {
-        width: 100%;
-        justify-content: center;
+    .dh-view-toggle {
+        display: none;
     }
 }
 
@@ -407,34 +104,6 @@
 /* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
 /* =========================================== */
 @media (max-width: 375px) {
-    .verification-row {
-        padding: 10px;
-        gap: 8px;
-    }
-
-    .v-avatar {
-        width: 32px;
-        height: 32px;
-        font-size: 0.75rem;
-    }
-
-    .v-btn-review {
-        padding: 5px 12px;
-        font-size: 0.75rem;
-    }
-
-    .quick-action-item {
-        padding: 8px 10px;
-    }
-
-    .v-modal-body {
-        padding: 16px;
-    }
-
-    .v-modal-footer {
-        padding: 12px 16px;
-    }
-
     .dh-room-selector select {
         font-size: 0.82rem;
         padding: 6px 28px 6px 10px;
@@ -446,20 +115,114 @@
    New CSS Classes for Dark Mode Support
    ============================================ */
 
-/* Quick Action Icon Colors */
-.quick-action-icon.quick-action-green {
-    background: rgba(0, 168, 89, 0.1);
-    color: #00A859;
+/* Reports-Style Dropdown for Live Status / Trends */
+.dh-filter-select {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #0F172A;
+    background: #f8fafc;
+    outline: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-weight: 500;
 }
 
-.quick-action-icon.quick-action-blue {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+.dh-filter-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.quick-action-icon.quick-action-purple {
-    background: rgba(139, 92, 246, 0.1);
-    color: #8b5cf6;
+.dh-filter-select:hover {
+    border-color: #cbd5e1;
+}
+/* ---------- 50:50 Lower Dashboard Layout ---------- */
+.dh-lower-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: stretch; /* Make heights match */
+}
+
+/* 
+   Since align-items is stretch, the left card (Live Status) and the right column 
+   will always be exactly the same height natively without needing fixed pixel heights.
+*/
+
+.dh-live-status-card {
+    margin-bottom: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.dh-live-scrollable {
+    flex: 1; /* Let it expand naturally without a scrollbar cut-off */
+}
+
+.dh-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Trends Chart */
+.attendance-trend-chart-card {
+    display: flex;
+    flex-direction: column;
+    /* Remove height: 50% to let it size based on SVG content naturally */
+}
+
+.dh-chart-container {
+    flex: 1;
+    min-height: 150px;
+}
+
+/* Fix Attendance Trend Footer Legends */
+.attendance-trend-chart-card .chart-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: auto;
+    border: 1px solid #f1f5f9;
+}
+
+.attendance-trend-chart-card .chart-insight {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.attendance-trend-chart-card .chart-legends {
+    display: flex;
+    gap: 16px;
+    margin: 0 !important;
+}
+
+.attendance-trend-chart-card .legend-item {
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.dh-recent-activity {
+    margin-bottom: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.dh-activity-scrollable {
+    flex: 1; /* Let the list expand naturally */
+}
+
+@media (max-width: 992px) {
+    .dh-lower-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Live Header Flex */
@@ -476,23 +239,7 @@
     gap: 8px;
 }
 
-/* Pending Verifications */
-.pending-verifications-card {
-    margin-top: 20px;
-    padding: 20px;
-}
 
-.pending-verifications-title {
-    margin: 0 0 16px;
-    color: var(--text-primary, #0F172A);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.pending-icon {
-    color: #f97316;
-}
 
 /* Face Registration Warning */
 .face-registration-warning {

@@ -17,7 +17,12 @@ from models.user import User, UserRole
 from models.attendance_log import AttendanceLog
 from models.class_ import Class
 from models.device import Device
-from services.report_service import get_faculty_report, get_dept_report
+from services.report_service import (
+    get_dept_report,
+    get_dept_report_envelope,
+    get_faculty_report,
+    get_faculty_report_envelope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +40,9 @@ def faculty_report_data(
     class_id: Optional[int] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    skip: int = Query(0),
+    limit: int = Query(100),
+    legacy: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     """
@@ -45,12 +53,22 @@ def faculty_report_data(
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
-    rows = get_faculty_report(
-        db, user_id, report_type,
-        class_id=class_id, date_from=date_from, date_to=date_to
+    envelope = get_faculty_report_envelope(
+        db,
+        user_id,
+        report_type,
+        class_id=class_id,
+        date_from=date_from,
+        date_to=date_to,
+        skip=max(skip, 0),
+        limit=min(limit, 200),
     )
+    rows = envelope.get("rows", [])
     logger.info("Faculty report %s for user %d: %d rows", report_type, user_id, len(rows))
-    return rows
+
+    if legacy:
+        return rows
+    return envelope
 
 
 # ──────────────────────────────────────────────
@@ -64,18 +82,31 @@ def dept_report_data(
     date_to: Optional[str] = Query(None),
     room: Optional[str] = Query(None),
     dept_id: Optional[int] = Query(None),
+    skip: int = Query(0),
+    limit: int = Query(100),
+    legacy: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     """
     Generate report data for department head dashboards.
     Returns list of rows with shape { id, col1, col2, status, col3, remarks }.
     """
-    rows = get_dept_report(
-        db, dept_id or 0, report_type,
-        date_from=date_from, date_to=date_to, room=room
+    envelope = get_dept_report_envelope(
+        db,
+        dept_id or 0,
+        report_type,
+        date_from=date_from,
+        date_to=date_to,
+        room=room,
+        skip=max(skip, 0),
+        limit=min(limit, 200),
     )
+    rows = envelope.get("rows", [])
     logger.info("Dept report %s: %d rows", report_type, len(rows))
-    return rows
+
+    if legacy:
+        return rows
+    return envelope
 
 
 # ──────────────────────────────────────────────

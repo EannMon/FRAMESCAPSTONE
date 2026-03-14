@@ -10,6 +10,7 @@ import RegistrationPage from './components/LandingPage/RegistrationPage';
 // Face Enrollment (mandatory before dashboard access)
 import FaceEnrollmentPage from './components/FaceEnrollment/FaceEnrollmentPage';
 import ResetPasswordPage from './components/Auth/ResetPasswordPage';
+import FacultyInviteRegistrationPage from './components/Auth/FacultyInviteRegistrationPage';
 
 // Import Layout Components (Wrappers)
 import AdminLayout from './components/AdminDashboard/AdminLayout';
@@ -71,6 +72,8 @@ function App() {
                             <Route path="/face-enrollment" element={<FaceEnrollmentPage />} />
                             {/* Password Reset - Public route from email link */}
                             <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            {/* Faculty Invite Registration */}
+                            <Route path="/register-faculty" element={<FacultyInviteRegistrationPage />} />
 
                             {/* --- Admin Routes (using AdminLayout + ProtectedRoute) --- */}
                             <Route element={<ProtectedRoute allowedRoles={['admin']}><ErrorBoundary><AdminLayout /></ErrorBoundary></ProtectedRoute>}>

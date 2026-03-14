@@ -125,13 +125,14 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
 
     return (
         <div className="card attendance-trend-chart-card">
-            <div className="trend-chart-header">
+            <div className="trend-chart-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                 <h3><i className="fas fa-chart-line"></i> Attendance Trends</h3>
-                <div className="chart-filters-group">
+                <div className="chart-filters-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                     <select
                         value={trendView}
                         onChange={(e) => setTrendView(e.target.value)}
-                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '0.85rem', marginRight: '8px', cursor: 'pointer' }}
+                        className="dh-filter-select"
+                        style={{ minWidth: '160px' }}
                     >
                         <option value="department">Department</option>
                         <option value="faculty">Faculty</option>
@@ -156,7 +157,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                 ))}
             </div>
 
-            <div className="svg-chart-container" style={{ height: '220px' }}>
+            <div className="svg-chart-container dh-chart-container">
                 <svg viewBox={`0 0 ${width} ${height}`} className="trend-svg">
                     <defs>
                         <linearGradient id="fGradPresent" x1="0" x2="0" y1="0" y2="1">
@@ -309,10 +310,9 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
                 <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
                 <div className="dh-live-controls">
                     <select
-                        className="status-view-dropdown"
+                        className="dh-filter-select"
                         value={statusView}
                         onChange={(e) => setStatusView(e.target.value)}
-                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '0.85rem', marginRight: '8px', cursor: 'pointer' }}
                     >
                         <option value="personal">Personal</option>
                         <option value="classroom">Classroom</option>
@@ -367,7 +367,7 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
                             <p>No active classrooms right now</p>
                         </div>
                     ) : (
-                        <div className={`dh-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'}`}>
+                        <div className={`dh-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'} dh-live-scrollable`}>
                             {displayRooms.map((room, idx) => (
                                 <div key={idx} className={`dh-room-box ${viewMode === 'single' ? 'dh-room-large' : ''} ${room.is_overcrowded ? 'dh-room-overcrowded' : ''}`}>
                                     <div className="live-room-label">
@@ -445,57 +445,14 @@ const DeptHeadLiveStatus = ({ rooms, personalStatus }) => {
     );
 };
 
-// --- Review Modal ---
-const ReviewModal = ({ user, onClose, onAction }) => {
-    if (!user) return null;
-    return (
-        <div className="v-modal-overlay" onClick={onClose}>
-            <div className="v-modal-content" onClick={e => e.stopPropagation()}>
-                <div className="v-modal-header">
-                    <h2>Review User Registration</h2>
-                    <button className="v-modal-close" onClick={onClose}><i className="fas fa-times"></i></button>
-                </div>
-                <div className="v-modal-body">
-                    <div className="v-detail-grid">
-                        <span className="v-detail-label">Full Name:</span>
-                        <span className="v-detail-value">{user.first_name} {user.last_name}</span>
-                        <span className="v-detail-label">TUPM ID:</span>
-                        <span className="v-detail-value">{user.tupm_id}</span>
-                        <span className="v-detail-label">Email:</span>
-                        <span className="v-detail-value">{user.email}</span>
-                        <span className="v-detail-label">Role:</span>
-                        <span className="v-detail-value">{user.role}</span>
-                        <span className="v-detail-label">Department ID:</span>
-                        <span className="v-detail-value">{user.department_id || 'N/A'}</span>
-                        <span className="v-detail-label">Registered:</span>
-                        <span className="v-detail-value">{new Date(user.created_at).toLocaleString()}</span>
-                    </div>
-                    <div className="info-banner warning">
-                        <i className="fas fa-info-circle"></i>
-                        Please verify the TUPM ID and role before approving this account.
-                    </div>
-                </div>
-                <div className="v-modal-footer">
-                    <button className="v-action-btn reject" onClick={() => onAction(user.id, 'reject', `${user.first_name} ${user.last_name}`)}>
-                        <i className="fas fa-times"></i> Reject
-                    </button>
-                    <button className="v-action-btn approve" onClick={() => onAction(user.id, 'approve', `${user.first_name} ${user.last_name}`)}>
-                        <i className="fas fa-check"></i> Approve Account
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
+
 
 const DeptHeadDashboardPage = () => {
     const navigate = useNavigate();
     const toast = useToast();
-    const [stats, setStats] = useState({ pending_verifications: 0, total_faculty: 0, total_students: 0, issues_reported: 0 });
-    const [pendingUsers, setPendingUsers] = useState([]);
+    const [stats, setStats] = useState({ total_faculty: 0, total_students: 0, issues_reported: 0 });
     const [loading, setLoading] = useState(true);
     const [listLoading, setListLoading] = useState(false);
-    const [selectedUser, setSelectedUser] = useState(null);
     const [chartFilter, setChartFilter] = useState('weekly');
     const [trendView, setTrendView] = useState('department');
     const [allLogs, setAllLogs] = useState([]);
@@ -513,25 +470,22 @@ const DeptHeadDashboardPage = () => {
     const fetchData = async (signal) => {
         setListLoading(true);
         try {
-            const [verifyRes, facultyStatsRes] = await Promise.all([
-                api.get('/api/admin/verification/list', { signal }).catch(() => ({ data: [] })),
+            const [facultyStatsRes] = await Promise.all([
                 user?.id ? api.get(`/api/faculty/dashboard-stats/${user.id}`, { signal }).catch(() => ({ data: {} })) : Promise.resolve({ data: {} })
             ]);
 
-            const users = verifyRes.data || [];
-            const pending = users.filter(u => u.verification_status === 'Pending');
-            const facultyCount = users.filter(u => u.role === 'FACULTY' || u.role === 'HEAD').length;
-            const studentCount = users.filter(u => u.role === 'STUDENT').length;
-
+            const fStats = facultyStatsRes.data;
+            // Note: Since we don't fetch users from verification list here anymore, 
+            // stats for total faculty and students should optimally come from facultyStatsRes
+            // For now, if default stats don't contain it, we fallback to 0.
+            
             setStats({
-                pending_verifications: pending.length,
-                total_faculty: facultyCount,
-                total_students: studentCount,
+                total_faculty: fStats.total_faculty || 0,
+                total_students: fStats.total_students || 0,
+                total_teaching_students: fStats.total_teaching_students || 0,
                 issues_reported: 0
             });
-            setPendingUsers(pending);
 
-            const fStats = facultyStatsRes.data;
             setAllLogs(fStats.all_logs || []);
             setRecentActivity(fStats.recent_attendance || []);
         } catch (error) {
@@ -594,18 +548,7 @@ const DeptHeadDashboardPage = () => {
         };
     }, []);
 
-    const handleAction = async (userId, action, name) => {
-        const confirmed = await toast.confirm(`Are you sure you want to ${action} ${name}'s account?`);
-        if (!confirmed) return;
-        try {
-            await api.post(`/api/admin/verification/${action}`, null, { params: { user_id: userId } });
-            setSelectedUser(null);
-            fetchData();
-        } catch (error) {
-            console.error(`Error performing ${action}:`, error);
-            toast.error(`Failed to ${action} user. Please try again.`);
-        }
-    };
+
 
     if (loading) return (
         <div className="faculty-dashboard-loading">
@@ -623,7 +566,7 @@ const DeptHeadDashboardPage = () => {
                 <div className="welcome-avatar"><i className="fas fa-university"></i></div>
                 <div className="welcome-info">
                     <h3>Welcome back, {displayName}!</h3>
-                    <p>Department Head • {user?.tupm_id || 'N/A'}</p>
+                    <p>Department Head • {user?.college_name || 'COS'}</p>
                 </div>
                 <div className="welcome-status">
                     <span className={`face-status ${faceRegistered ? 'registered' : 'not-registered'}`}>
@@ -657,11 +600,7 @@ const DeptHeadDashboardPage = () => {
             )}
 
             {/* Summary Cards */}
-            <div className="summary-cards-row">
-                <SummaryCard iconClass="fas fa-user-clock" title="Pending Approvals" value={stats.pending_verifications}
-                    subValue="Users waiting" iconBgClass="icon-bg-orange"
-                    badge={stats.pending_verifications > 0 ? { text: "Action Needed", type: "warning" } : null}
-                    onClick={() => navigate('/dept-head-users#verification')} />
+            <div className="summary-cards-row dh-summary-cards-row">
                 <SummaryCard iconClass="fas fa-chalkboard-teacher" title="Faculty Members" value={stats.total_faculty}
                     subValue="In department" iconBgClass="icon-bg-blue"
                     onClick={() => navigate('/dept-head-users')} />
@@ -673,83 +612,40 @@ const DeptHeadDashboardPage = () => {
                     onClick={() => navigate('/dept-head-my-classes')} />
             </div>
 
-            {/* Two Column Layout: Live Status (left) + Chart (right) */}
-            <div className="dashboard-two-col">
+            {/* Lower Section: 50:50 Layout */}
+            <div className="dh-lower-layout" style={{ marginTop: '20px' }}>
+                {/* Left Column: Live Status */}
                 <DeptHeadLiveStatus rooms={liveRooms} personalStatus={personalStatus} />
-                <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} />
-            </div>
-
-            {/* Bottom Row: Recent Activity (left) + Quick Actions (right) */}
-            <div className="dashboard-two-col" style={{ marginTop: '20px' }}>
-                {/* Recent Activity */}
-                <div className="card recent-activity-card">
-                    <h3><i className="fas fa-history"></i> Recent Activity</h3>
-                    {recentActivity.length > 0 ? (
-                        <div className="activity-list">
-                            {recentActivity.map((act, i) => (
-                                <div key={i} className={`activity-item ${act.is_late ? 'late' : ''}`}>
-                                    <div className="activity-icon"><i className="fas fa-sign-in-alt"></i></div>
-                                    <div className="activity-details">
-                                        <strong>{act.student_name}</strong>
-                                        <span>{act.subject_code} • {act.room_name || 'N/A'}</span>
+                
+                {/* Right Column: Trends + Recent Activity */}
+                <div className="dh-right-column">
+                    <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} />
+                    
+                    {/* Recent Activity */}
+                    <div className="card recent-activity-card dh-recent-activity">
+                        <h3><i className="fas fa-history"></i> Recent Activity</h3>
+                        {recentActivity.length > 0 ? (
+                            <div className="activity-list dh-activity-scrollable">
+                                {recentActivity.map((act, i) => (
+                                    <div key={i} className={`activity-item ${act.is_late ? 'late' : ''}`}>
+                                        <div className="activity-icon"><i className="fas fa-sign-in-alt"></i></div>
+                                        <div className="activity-details">
+                                            <strong>{act.student_name}</strong>
+                                            <span>{act.subject_code} • {act.room_name || 'N/A'}</span>
+                                        </div>
+                                        <div className="activity-time">
+                                            <span>{act.time}</span>
+                                            {act.is_late && <span className="late-badge">LATE</span>}
+                                        </div>
                                     </div>
-                                    <div className="activity-time">
-                                        <span>{act.time}</span>
-                                        {act.is_late && <span className="late-badge">LATE</span>}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="empty-state-mini"><i className="fas fa-inbox"></i><p>No recent activity</p></div>
-                    )}
-                </div>
-
-                {/* Quick Actions */}
-                <div className="card quick-actions-card">
-                    <h3><i className="fas fa-bolt"></i> Quick Actions</h3>
-                    <div className="quick-action-item" onClick={() => navigate('/dept-head-reports')}>
-                        <div className="quick-action-icon quick-action-green"><i className="fas fa-file-alt"></i></div>
-                        <div className="quick-action-text">Generate Reports</div>
-                    </div>
-                    <div className="quick-action-item" onClick={() => navigate('/dept-head-management')}>
-                        <div className="quick-action-icon quick-action-blue"><i className="fas fa-tasks"></i></div>
-                        <div className="quick-action-text">Manage Department</div>
-                    </div>
-                    <div className="quick-action-item" onClick={() => navigate('/dept-head-logs')}>
-                        <div className="quick-action-icon quick-action-purple"><i className="fas fa-clipboard-list"></i></div>
-                        <div className="quick-action-text">View System Logs</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Pending Verifications Table */}
-            {pendingUsers.length > 0 && (
-                <div className="card pending-verifications-card">
-                    <h3 className="pending-verifications-title">
-                        <i className="fas fa-user-check pending-icon"></i> Pending User Verifications
-                    </h3>
-                    <div className="pending-verifications-list">
-                        {pendingUsers.map(u => (
-                            <div key={u.id} className="verification-row">
-                                <div className="v-avatar"><i className="fas fa-user"></i></div>
-                                <div className="v-info">
-                                    <div className="v-name">{u.first_name} {u.last_name}</div>
-                                    <div className="v-meta">
-                                        <span className={`v-role-badge ${u.role.toLowerCase()}`}>{u.role}</span>
-                                        • {u.tupm_id} • Registered {new Date(u.created_at).toLocaleDateString()}
-                                    </div>
-                                </div>
-                                <div className="v-actions">
-                                    <button className="v-btn-review" onClick={() => setSelectedUser(u)}>Review</button>
-                                </div>
+                                ))}
                             </div>
-                        ))}
+                        ) : (
+                            <div className="empty-state-mini"><i className="fas fa-inbox"></i><p>No recent activity</p></div>
+                        )}
                     </div>
                 </div>
-            )}
-
-            {selectedUser && <ReviewModal user={selectedUser} onClose={() => setSelectedUser(null)} onAction={handleAction} />}
+            </div>
         </div>
     );
 };

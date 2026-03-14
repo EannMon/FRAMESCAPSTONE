@@ -3,11 +3,13 @@ Face Recognizer using InsightFace
 Extracts 512-d embeddings for face matching.
 
 CRITICAL: The recognition model MUST match the enrollment model!
-- Enrollment uses: buffalo_l (server-side)
-- Recognition MUST use: buffalo_l (same model)
+- Enrollment uses: buffalo_sc (server-side)
+- Recognition MUST use: buffalo_sc (same model)
 
 buffalo_l and buffalo_sc produce DIFFERENT embedding spaces despite
 both outputting 512-d vectors. Cross-model similarity will be near-random.
+
+buffalo_sc uses MobileNet backbone — ~7-10x faster than buffalo_l on RPi CPU.
 """
 import numpy as np
 import cv2
@@ -17,31 +19,40 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Global model instance (lazy loaded)
+# Global model instance (lazy loaded) — keyed on (model_name, det_size)
 _face_analyzer = None
 _loaded_model_name = None
+_loaded_det_size = None
 
 
-def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] = (640, 640)):
+def get_face_analyzer(model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (640, 640)):
     """
     Lazy-load InsightFace model.
     
-    IMPORTANT: Use the SAME model as enrollment (buffalo_l) for compatible embeddings.
+    IMPORTANT: Use the SAME model as enrollment (buffalo_sc) for compatible embeddings.
     """
-    global _face_analyzer, _loaded_model_name
+    global _face_analyzer, _loaded_model_name, _loaded_det_size
     
-    if _face_analyzer is None or _loaded_model_name != model_name:
+    if _face_analyzer is None or _loaded_model_name != model_name or _loaded_det_size != det_size:
         try:
             from insightface.app import FaceAnalysis
             
-            logger.info("Loading InsightFace model (%s)...", model_name)
+            logger.info("Loading InsightFace model (%s) det_size=%s...", model_name, det_size)
             start = time.perf_counter()
-            _face_analyzer = FaceAnalysis(
-                name=model_name,
-                providers=['CPUExecutionProvider']
-            )
-            _face_analyzer.prepare(ctx_id=0, det_size=det_size)
+            # Note: older insightface versions don't accept `providers` in the
+            # constructor — pass it to prepare() or omit for CPU default.
+            # Explicit root ensures the model is always found/downloaded to
+            # the correct ~/.insightface location regardless of CWD.
+            import pathlib
+            _insightface_root = str(pathlib.Path.home() / ".insightface")
+            _face_analyzer = FaceAnalysis(name=model_name, root=_insightface_root)
+            try:
+                _face_analyzer.prepare(ctx_id=-1, det_size=det_size, providers=['CPUExecutionProvider'])
+            except TypeError:
+                # Even older versions: prepare() doesn't take providers either
+                _face_analyzer.prepare(ctx_id=-1, det_size=det_size)
             _loaded_model_name = model_name
+            _loaded_det_size = det_size
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.info("InsightFace model loaded: %s (det_size=%s) in %.1fms", model_name, det_size, elapsed_ms)
             
@@ -55,15 +66,16 @@ def get_face_analyzer(model_name: str = "buffalo_l", det_size: Tuple[int, int] =
     return _face_analyzer
 
 
+
 class FaceRecognizer:
     """Face embedding extraction using InsightFace."""
     
-    def __init__(self, model_name: str = "buffalo_l", det_size: Tuple[int, int] = (320, 320)):
+    def __init__(self, model_name: str = "buffalo_sc", det_size: Tuple[int, int] = (320, 320)):
         """
         Initialize recognizer with InsightFace model.
         
         Args:
-            model_name: InsightFace model name (buffalo_sc for RPi, buffalo_l for server)
+            model_name: InsightFace model name (buffalo_sc for both RPi and server)
             det_size: Detection input size (smaller = faster)
         """
         self.model_name = model_name

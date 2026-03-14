@@ -339,7 +339,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                 <div className="contact-support-section" style={{ marginTop: 20 }}>
                     <div className="section-title" style={{ cursor: 'pointer' }} onClick={() => setShowTickets(!showTickets)}>
                         <i className="fas fa-ticket-alt"></i>
-                        <h3>My Tickets ({myTickets.length})</h3>
+                        <h3>My Support Tickets ({myTickets.length})</h3>
                         <i className={`fas fa-chevron-down ${showTickets ? 'open' : ''}`} style={{ marginLeft: 'auto' }}></i>
                     </div>
                     {showTickets && (
@@ -347,29 +347,53 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                             {myTickets.length === 0 ? (
                                 <p style={{ padding: 16, color: '#888', textAlign: 'center' }}>No tickets submitted yet.</p>
                             ) : (
-                                myTickets.map(t => (
-                                    <div key={t.id} style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <strong style={{ fontSize: '0.92em' }}>{t.subject}</strong>
-                                            <span style={{
-                                                fontSize: '0.78em', padding: '3px 10px', borderRadius: 12,
-                                                background: t.status === 'OPEN' ? '#e6f4ea' : t.status === 'IN_PROGRESS' ? '#fff8e1' : t.status === 'RESOLVED' ? '#e3f2fd' : '#f5f5f5',
-                                                color: t.status === 'OPEN' ? '#2e7d32' : t.status === 'IN_PROGRESS' ? '#f57f17' : t.status === 'RESOLVED' ? '#1565c0' : '#666',
-                                            }}>{t.status}</span>
-                                        </div>
-                                        <p style={{ fontSize: '0.85em', color: '#555', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>
-                                            {t.message.length > 120 ? t.message.slice(0, 120) + '...' : t.message}
-                                        </p>
-                                        <div style={{ fontSize: '0.75em', color: '#aaa', marginTop: 4 }}>
-                                            {t.created_at ? new Date(t.created_at).toLocaleString() : ''}
-                                            {t.evidence_files?.length > 0 && (
-                                                <span style={{ marginLeft: 10 }}>
-                                                    <i className="fas fa-paperclip"></i> {t.evidence_files.length} file(s)
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {myTickets.map(t => (
+                                        <div 
+                                            key={t.id}
+                                            style={{ 
+                                                padding: '14px 16px', 
+                                                borderBottom: '1px solid #eee',
+                                                cursor: 'pointer',
+                                                borderLeft: '3px solid',
+                                                borderLeftColor: t.status === 'OPEN' ? '#10b981' : t.status === 'IN_PROGRESS' ? '#f59e0b' : t.status === 'RESOLVED' ? '#3b82f6' : '#9ca3af',
+                                                backgroundColor: 'hover' ? '#f9fafb' : 'transparent',
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}>
+                                                <div style={{flex: 1}}>
+                                                    <strong style={{ fontSize: '0.95em', color: '#0f172a' }}>#{t.id} - {t.subject}</strong>
+                                                    <p style={{ fontSize: '0.85em', color: '#475569', margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                                                        {t.message.length > 100 ? t.message.slice(0, 100) + '...' : t.message}
+                                                    </p>
+                                                    <div style={{ fontSize: '0.75em', color: '#94a3b8', marginTop: '6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                        <span>{t.created_at ? new Date(t.created_at).toLocaleString() : ''}</span>
+                                                        {t.evidence_files?.length > 0 && (
+                                                            <span><i className="fas fa-paperclip"></i> {t.evidence_files.length} file(s)</span>
+                                                        )}
+                                                        {(t.replies?.length || 0) > 0 && (
+                                                            <span><i className="fas fa-reply"></i> {t.replies.length} reply(ies)</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: '0.8em', 
+                                                    padding: '4px 12px', 
+                                                    borderRadius: '14px',
+                                                    fontWeight: '600',
+                                                    whiteSpace: 'nowrap',
+                                                    background: t.status === 'OPEN' ? '#d1fae5' : t.status === 'IN_PROGRESS' ? '#fef3c7' : t.status === 'RESOLVED' ? '#dbeafe' : '#f3f4f6',
+                                                    color: t.status === 'OPEN' ? '#065f46' : t.status === 'IN_PROGRESS' ? '#92400e' : t.status === 'RESOLVED' ? '#0c4a6e' : '#374151',
+                                                }}>
+                                                    {t.status}
                                                 </span>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    ))}
+                                </div>
                             )}
                         </div>
                     )}
