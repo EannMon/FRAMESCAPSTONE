@@ -254,8 +254,7 @@ const FacultyInviteRegistrationPage = () => {
                                                     <li>One number</li>
                                                     <li>One special character (e.g., @$!%*?&)</li>
                                                 </ul>
-                                            </div>
-                                        </div>
+                                            </div>                                        </div>
                                         <div className="reg-form-group">
                                             <label style={{ color: '#334155' }}>Confirm Password <span style={{ color: '#0F172A' }}>*</span></label>
                                             <div className="reg-password-wrapper">

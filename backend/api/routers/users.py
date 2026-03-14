@@ -22,6 +22,79 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.post("/verify-password")
+def verify_password(data: PasswordVerify, db: Session = Depends(get_db)):
+    """
+    Verify current password before allowing changes.
+    """
+    user = db.query(User).filter(User.id == data.user_id).first()
+    
+    if not user:
+        raise api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="USER_NOT_FOUND",
+            message="User not found"
+        )
+    
+    # Check password
+    stored_hash = user.password_hash
+    if isinstance(stored_hash, str):
+        stored_hash = stored_hash.encode('utf-8')
+    
+    if bcrypt.checkpw(data.password.encode('utf-8'), stored_hash):
+        return {"valid": True}
+    else:
+        raise api_error(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="INCORRECT_PASSWORD",
+            message="Incorrect password"
+        )
+
+
+@router.put("/change-password", response_model=MessageResponse)
+def change_password(data: PasswordChange, db: Session = Depends(get_db)):
+    """
+    Change user password.
+    Self-contained hashing to avoid circular imports.
+    """
+    try:
+        logger.info("AUTH | change_password requested for user_id=%d", data.user_id)
+        user = db.query(User).filter(User.id == data.user_id).first()
+        
+        if not user:
+            logger.warning("AUTH | change_password failed: user_id=%d not found", data.user_id)
+            raise api_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="USER_NOT_FOUND",
+                message="User not found"
+            )
+        
+        # Validation
+        if len(data.new_password) < 8:
+            logger.warning("AUTH | change_password failed: weak password for user_id=%d", data.user_id)
+            raise api_error(400, "WEAK_PASSWORD", "Password must be at least 8 characters")
+
+        # Direct bcrypt hashing
+        pw_bytes = data.new_password.encode('utf-8')
+        new_hash = bcrypt.hashpw(pw_bytes[:72], bcrypt.gensalt()).decode('utf-8')
+        
+        user.password_hash = new_hash
+        db.commit()
+        db.refresh(user)
+        
+        logger.info("AUTH | Password updated successfully for user_id=%d", data.user_id)
+        return MessageResponse(message="Password updated successfully")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error("AUTH | Critical failure in change_password for user_id=%d: %s\n%s", data.user_id, str(e), error_trace)
+        raise api_error(500, "INTERNAL_ERROR", f"Internal server error: {str(e)}")
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     """
