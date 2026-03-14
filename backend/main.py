@@ -96,13 +96,20 @@ app.include_router(support.router, prefix="/api", tags=["Support"])
 @app.on_event("startup")
 async def startup_warmup():
     """Warm up the DB connection pool on startup to avoid cold-start timeouts on first request."""
+    if os.getenv("SKIP_DB_WARMUP", "0").strip().lower() in {"1", "true", "yes"}:
+        logger.info("Database warmup skipped (SKIP_DB_WARMUP is enabled)")
+        return
+
+    db = None
     try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
-        db.close()
         logger.info("Database connection pool warmed up successfully")
     except Exception as e:
         logger.warning("Database warmup failed (will retry on first request): %s", str(e))
+    finally:
+        if db is not None:
+            db.close()
 
 
 @app.get("/")

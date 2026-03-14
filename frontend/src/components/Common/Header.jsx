@@ -153,7 +153,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                         <div className="notification-bell-container" ref={notificationRef}>
                             <button className="icon-button notification-trigger" onClick={toggleNotifications}>
                                 <i className="far fa-bell"></i>
-                                {notifications.some(n => !n.read) && (
+                                {user.in_app_notifications_enabled !== false && notifications.some(n => !n.read) && (
                                     <span className="notification-count-text">
                                         {notifications.filter(n => !n.read).length}
                                     </span>

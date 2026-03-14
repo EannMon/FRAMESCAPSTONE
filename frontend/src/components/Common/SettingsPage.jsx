@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import api from '../../services/api';
 import './SettingsPage.css';
 import './Utility.css';
 import Header from './Header';
@@ -39,9 +40,20 @@ const SettingsPage = ({ isEmbedded = false }) => {
 
     // Notification Toggles
     const [notifications, setNotifications] = useState({
-        email: true,
-        push: true
+        email: user?.email_notifications_enabled ?? true,
+        inApp: user?.in_app_notifications_enabled ?? true
     });
+
+    // Update notifications state when user data changes
+    useEffect(() => {
+        if (user) {
+            setNotifications({
+                email: user.email_notifications_enabled ?? true,
+                inApp: user.in_app_notifications_enabled ?? true
+            });
+        }
+    }, [user]);
+
 
     // Dark Mode State - persisted per user in localStorage
     const getDarkModeKey = () => {
@@ -75,9 +87,33 @@ const SettingsPage = ({ isEmbedded = false }) => {
         navigate(-1);
     };
 
-    const handleToggle = (type) => {
-        setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
+    const handleToggle = async (type) => {
+        const fieldMap = {
+            email: 'email_notifications_enabled',
+            inApp: 'in_app_notifications_enabled'
+        };
+        
+        const newValue = !notifications[type];
+        const fieldName = fieldMap[type];
+
+        try {
+            // Update Backend
+            await api.put(`/api/users/${user.id}`, { [fieldName]: newValue });
+            
+            // Update Local State
+            setNotifications(prev => ({ ...prev, [type]: newValue }));
+            
+            // Update User Object and LocalStorage
+            const updatedUser = { ...user, [fieldName]: newValue };
+            setUser(updatedUser);
+            localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+            
+        } catch (err) {
+            console.error(`Failed to update ${type} notifications:`, err);
+            alert(`Failed to update ${type} notifications. Please try again.`);
+        }
     };
+
 
     const role = user?.role?.toLowerCase();
     const isFaculty = role === 'faculty' || role === 'dept_head' || role === 'head';
