@@ -643,10 +643,10 @@
     /* Normalize header buttons */
     .header-login-btn,
     .header-signup-btn {
-        padding: 0 15px;
+        padding: 0 16px;
         min-height: unset;
-        font-size: 0.8rem;
-        height: 32px;
+        font-size: 0.9rem;
+        height: 38px;
         display: flex;
         align-items: center;
         justify-content: center;
