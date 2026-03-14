@@ -156,7 +156,6 @@ const FacultyMyClassesPage = () => {
         }
     };
 
-
     const fetchUploadHistory = async (userId, signal) => {
         try {
             const response = await api.get(`/api/faculty/upload-history/${userId}`, { signal });
