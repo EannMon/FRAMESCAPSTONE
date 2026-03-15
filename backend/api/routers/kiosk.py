@@ -149,11 +149,13 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     active_class = None
 
     # Query classes in this room on current day, eagerly load subject + faculty
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(
-            Class.room == device.room,
+            func.lower(func.trim(Class.room)) == normalized_room,
             Class.day_of_week == current_day
         )
         .all()
@@ -218,10 +220,12 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
-        .filter(Class.room == device.room)
+        .filter(func.lower(func.trim(Class.room)) == normalized_room)
         .all()
     )
 

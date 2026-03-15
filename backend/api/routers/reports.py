@@ -145,7 +145,11 @@ def get_system_logs(
     if date_to:
         query = query.filter(AttendanceLog.timestamp <= date_to + " 23:59:59")
     if room:
-        query = query.join(Class, AttendanceLog.class_id == Class.id).filter(Class.room == room)
+        normalized_room = room.strip().lower()
+        query = (
+            query.join(Class, AttendanceLog.class_id == Class.id)
+            .filter(func.lower(func.trim(Class.room)) == normalized_room)
+        )
 
     logs = query.order_by(desc(AttendanceLog.timestamp)).offset(skip).limit(limit).all()
 
@@ -200,7 +204,7 @@ def get_system_logs(
                 continue
             if search and search.lower() not in entry["message"].lower():
                 continue
-            if room and entry["room"] != room:
+            if room and (entry["room"] or "").strip().lower() != room.strip().lower():
                 continue
             entries.append(entry)
 

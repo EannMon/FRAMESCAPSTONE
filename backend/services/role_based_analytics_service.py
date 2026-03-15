@@ -234,7 +234,68 @@ def _row_status_rate(rows: List[Dict], tokens: List[str]) -> float:
     return round((matched / len(rows)) * 100, 1)
 
 
-def generate_faculty_role_insights(rows: List[Dict], summary_metrics: Optional[List[Dict]] = None) -> List[Dict]:
+def _select_faculty_insights_for_report(insights: List[Dict], report_code: Optional[str]) -> List[Dict]:
+    if not report_code:
+        return insights[:10]
+
+    code = report_code.upper()
+    keep_map = {
+        "CLASS_LATE": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
+        "PUNCTUALITY_INDEX": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
+        "BREAK_DURATION": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_ENGAGEMENT_COMPLETION", "FACULTY_DATA_SUFFICIENCY"},
+        "BREAK_ABUSE": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_ENGAGEMENT_COMPLETION", "FACULTY_DATA_SUFFICIENCY"},
+        "ATTENDANCE_INCONSISTENCY": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
+        "EARLY_EXITS": {"FACULTY_ENGAGEMENT_COMPLETION", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
+        "PERSONAL_CONSISTENCY": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
+        "INSTRUCTOR_DELAY": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
+        "UNRECOGNIZED_LOGS": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
+    }
+
+    keep = keep_map.get(code)
+    if not keep:
+        return insights[:10]
+
+    filtered = [insight for insight in insights if insight.get("insight_code") in keep]
+    return filtered[:10] if filtered else insights[:3]
+
+
+def _select_department_insights_for_report(insights: List[Dict], report_code: Optional[str]) -> List[Dict]:
+    if not report_code:
+        return insights[:10]
+
+    code = report_code.upper()
+    facility_reports = {"ROOM_OCCUPANCY", "PEAK_USAGE", "ROOM_UTILIZATION", "OVERCROWDING"}
+    faculty_reports = {"FACULTY_SUMMARY", "FACULTY_LATE", "FACULTY_CONSISTENCY", "DEPT_ACTIVITY"}
+
+    facility_codes = {
+        "DEPT_CAPACITY_PRESSURE",
+        "DEPT_UTILIZATION_EFFICIENCY",
+        "DEPT_PEAK_LOAD_CONCENTRATION",
+        "DEPT_SYSTEMIC_RISK_BALANCE",
+        "DEPT_EVIDENCE_STRENGTH",
+    }
+    faculty_codes = {
+        "DEPT_OPERATIONAL_HEALTH",
+        "DEPT_SYSTEMIC_RISK_BALANCE",
+        "DEPT_EVIDENCE_STRENGTH",
+    }
+
+    if code in facility_reports:
+        filtered = [insight for insight in insights if insight.get("insight_code") in facility_codes]
+        return filtered[:10] if filtered else insights[:3]
+
+    if code in faculty_reports:
+        filtered = [insight for insight in insights if insight.get("insight_code") in faculty_codes]
+        return filtered[:10] if filtered else insights[:3]
+
+    return insights[:10]
+
+
+def generate_faculty_role_insights(
+    rows: List[Dict],
+    summary_metrics: Optional[List[Dict]] = None,
+    report_code: Optional[str] = None,
+) -> List[Dict]:
     summary_metrics = summary_metrics or []
     total_rows = len(rows)
     late_rate = _row_status_rate(rows, ["late"])
@@ -319,10 +380,14 @@ def generate_faculty_role_insights(rows: List[Dict], summary_metrics: Optional[L
         ),
     ]
 
-    return insights[:10]
+    return _select_faculty_insights_for_report(insights, report_code)
 
 
-def generate_department_role_insights(rows: List[Dict], summary_metrics: Optional[List[Dict]] = None) -> List[Dict]:
+def generate_department_role_insights(
+    rows: List[Dict],
+    summary_metrics: Optional[List[Dict]] = None,
+    report_code: Optional[str] = None,
+) -> List[Dict]:
     summary_metrics = summary_metrics or []
     total_rows = len(rows)
     overcrowd_rate = _row_status_rate(rows, ["overcrowded"])
@@ -410,4 +475,4 @@ def generate_department_role_insights(rows: List[Dict], summary_metrics: Optiona
         ),
     ]
 
-    return insights[:10]
+    return _select_department_insights_for_report(insights, report_code)

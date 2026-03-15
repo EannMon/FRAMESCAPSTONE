@@ -29,7 +29,11 @@ const reportOptions = [
     { id: 'CLASS_SEMESTER', label: 'Class Semester Summary', desc: 'Semester-wide per-student summary: entries, lates, rate.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_ABSENCE', label: 'Absent Students Report', desc: 'Enrolled students with no entry in date range.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_LATE', label: 'Late Students Report', desc: 'Students who had late entries.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'PUNCTUALITY_INDEX', label: 'Punctuality Index per Section', desc: 'Ranks student punctuality based on arrival offset from class start.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'BREAK_DURATION', label: 'Break Duration Report', desc: 'Break out/in activity logs.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'UNRECOGNIZED_LOGS', label: 'Unrecognized Individual Logs', desc: 'Low-confidence detections for security and audit checks.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'ATTENDANCE_INCONSISTENCY', label: 'Attendance Inconsistency Logs', desc: 'Break events with no matching ENTRY attendance for the same day.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'BREAK_ABUSE', label: 'Break Abuse / Extended Break Report', desc: 'Detects extended breaks and no-return break behavior.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'EARLY_EXITS', label: 'Early Exits Report', desc: 'Students who exited before class end.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'PARTICIPATION_INSIGHT', label: 'Participation Insight', desc: 'Participation summary per student.', type: 'CLASS', category: 'Class-Specific Reports' },
 
@@ -39,6 +43,7 @@ const reportOptions = [
     { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
     { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
     { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
 ];
 
 /**
@@ -80,6 +85,7 @@ const DeptHeadReportsPage = () => {
     const [error, setError] = useState(null);
     const [summaryMetrics, setSummaryMetrics] = useState([]);
     const [insights, setInsights] = useState([]);
+    const [sessionCountReference, setSessionCountReference] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
 
@@ -150,8 +156,12 @@ const DeptHeadReportsPage = () => {
             if (report?.type === 'CLASS' || report?.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
                 if (!user?.id) return;
+                const resolvedClassId = report?.type === 'CLASS'
+                    ? (selectedClass || classes[0]?.class_id || undefined)
+                    : undefined;
+
                 const params = { report_type: reportId };
-                if (selectedClass) params.class_id = selectedClass;
+                if (resolvedClassId) params.class_id = resolvedClassId;
                 if (dateFrom) params.date_from = dateFrom;
                 if (dateTo) params.date_to = dateTo;
                 params.limit = 200;
@@ -162,6 +172,7 @@ const DeptHeadReportsPage = () => {
                 setReportData(rows);
                 setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
                 setInsights(Array.isArray(payload.insights) ? payload.insights : []);
+                setSessionCountReference(payload.session_count_reference || null);
             } else {
                 // Use the dept reports endpoint for department-wide reports
                 const params = { report_type: reportId };
@@ -177,6 +188,7 @@ const DeptHeadReportsPage = () => {
                 setReportData(rows);
                 setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
                 setInsights(Array.isArray(payload.insights) ? payload.insights : []);
+                setSessionCountReference(payload.session_count_reference || null);
             }
         } catch (err) {
             if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
@@ -184,6 +196,7 @@ const DeptHeadReportsPage = () => {
                 setReportData([]);
                 setSummaryMetrics([]);
                 setInsights([]);
+                setSessionCountReference(null);
             }
         } finally {
             setLoading(false);
@@ -192,6 +205,9 @@ const DeptHeadReportsPage = () => {
 
     const handleSelectReport = (report) => {
         setSelectedReport(report);
+        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0) {
+            setSelectedClass(String(classes[0].class_id));
+        }
         fetchReportData(report.id);
     };
 
@@ -230,6 +246,69 @@ const DeptHeadReportsPage = () => {
                         </ul>
                     </div>
                 )}
+            </div>
+        );
+    };
+
+    const renderSessionCountReference = () => {
+        if (!sessionCountReference) return null;
+        const reportWindow = sessionCountReference.report_window || {};
+        const wholeSemester = sessionCountReference.whole_semester || {};
+
+        return (
+            <div className="insight-panel" style={{ marginBottom: '14px' }}>
+                <div className="insight-section-title">Session Count Reference</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '10px' }}>
+                    <div className="insight-stat-card" style={{ textAlign: 'left' }}>
+                        <div className="insight-stat-label">Report Window</div>
+                        <div className="insight-stat-sub">Attended: {reportWindow.attended ?? 0}</div>
+                        <div className="insight-stat-sub">Conducted: {reportWindow.conducted ?? 0}</div>
+                        <div className="insight-stat-sub">Expected: {reportWindow.expected ?? 0}</div>
+                    </div>
+                    <div className="insight-stat-card" style={{ textAlign: 'left' }}>
+                        <div className="insight-stat-label">Reference Window</div>
+                        <div className="insight-stat-sub">Attended: {wholeSemester.attended ?? 0}</div>
+                        <div className="insight-stat-sub">Conducted: {wholeSemester.conducted ?? 0}</div>
+                        <div className="insight-stat-sub">Expected: {wholeSemester.expected ?? 0}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderVisualSummary = () => {
+        if (!reportData.length) return null;
+
+        const statusCounts = reportData.reduce((acc, row) => {
+            const key = String(row.status || 'UNKNOWN').toUpperCase();
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+
+        const sorted = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+        const maxCount = Math.max(...sorted.map((item) => item[1]), 1);
+
+        return (
+            <div className="insight-panel" style={{ marginBottom: '14px' }}>
+                <div className="insight-section-title">Visual Summary</div>
+                <div style={{ marginTop: '10px', display: 'grid', gap: '8px' }}>
+                    {sorted.map(([status, count]) => (
+                        <div key={status} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 44px', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{status.replaceAll('_', ' ')}</div>
+                            <div style={{ background: '#eef2f7', borderRadius: '8px', height: '12px', overflow: 'hidden' }}>
+                                <div
+                                    style={{
+                                        height: '100%',
+                                        width: `${(count / maxCount) * 100}%`,
+                                        background: '#1f6feb',
+                                        borderRadius: '8px',
+                                    }}
+                                />
+                            </div>
+                            <div style={{ textAlign: 'right', fontWeight: 600 }}>{count}</div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     };
@@ -385,6 +464,8 @@ const DeptHeadReportsPage = () => {
 
                             <div className="report-table-container">
                                 {!loading && reportData.length > 0 && renderInsightPanel()}
+                                {!loading && reportData.length > 0 && renderSessionCountReference()}
+                                {!loading && reportData.length > 0 && renderVisualSummary()}
                                 {loading ? (
                                     <div className="report-loading"><i className="fas fa-spinner fa-spin"></i><p>Loading report data...</p></div>
                                 ) : error ? (
