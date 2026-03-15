@@ -1,4 +1,104 @@
 {
-  "queued_at": null,
-  "records": []
+  "queued_at": "2026-03-15T23:09:58.684506",
+  "records": [
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.47592222690582275,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:07:21.574819",
+      "remarks": "[NOT_IN_CLASS] HEAD TEST"
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.45030248165130615,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:07:39.687176",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.4817326068878174,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:07:59.792732",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5621334314346313,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:08:19.548243",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5298564434051514,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:08:41.114827",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5267444849014282,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:09:00.677453",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5549066066741943,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:09:18.580409",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5552608966827393,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:09:38.235209",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5176013708114624,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:09:56.314505",
+      "remarks": null
+    }
+  ]
 }

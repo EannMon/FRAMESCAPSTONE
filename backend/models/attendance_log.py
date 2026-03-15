@@ -17,6 +17,7 @@ class AttendanceAction(enum.Enum):
 class VerifiedBy(enum.Enum):
     FACE = "FACE"
     FACE_GESTURE = "FACE+GESTURE"
+    AUTO_TIMEOUT = "AUTO_TIMEOUT"
 
 class AttendanceLog(Base):
     __tablename__ = "attendance_logs"
