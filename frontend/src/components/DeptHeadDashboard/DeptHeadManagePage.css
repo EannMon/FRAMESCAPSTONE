@@ -655,7 +655,69 @@
     line-height: 1.2;
 }
 
-/* Dark mode overrides for calendar */
+/* Dark mode overrides for modal and calendar */
+
+/* ==========================================
+   MODAL DARK MODE SUPPORT
+   ========================================== */
+body.dark-mode .modal-content-box {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .modal-content-box h3,
+body.dark-mode .modal-header h3,
+body.dark-mode .modal-content-box label,
+body.dark-mode .modal-content-box .modal-subtitle {
+    color: #f8fafc;
+}
+
+body.dark-mode .modal-content-box input,
+body.dark-mode .modal-content-box select,
+body.dark-mode .form-group input,
+body.dark-mode .form-group select {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .modal-content-box input:focus,
+body.dark-mode .modal-content-box select:focus,
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+body.dark-mode .close-btn {
+    color: #94A3B8;
+}
+
+body.dark-mode .close-btn:hover {
+    color: #f8fafc;
+}
+
+body.dark-mode .faculty-option-btn {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .faculty-option-btn:hover {
+    background: #1e293b;
+    border-color: #3b82f6;
+}
+
+body.dark-mode .fac-name {
+    color: #f8fafc;
+}
+
+body.dark-mode .form-help-text {
+    color: #94a3b8;
+}
+
 body.dark-mode .view-toggle-btn {
     background: #1E293B;
     border-color: #334155;
@@ -1009,4 +1071,8 @@ body.dark-mode .calendar-legend {
     font-size: 0.78em;
     color: var(--text-muted, #888);
     margin: 4px 0 0;
+}
+
+.dark-mode .modal-content-box label {
+    color: #e2e8f0;
 }

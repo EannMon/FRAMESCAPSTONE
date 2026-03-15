@@ -74,6 +74,75 @@
     line-height: 1.4;
 }
 
+.timestamp-sub {
+    font-size: 0.85em;
+    color: #888;
+}
+
+.subject-cell {
+    font-weight: 600;
+    color: #333;
+}
+
+.admin-empty-state {
+    text-align: center;
+    padding: 30px;
+}
+
+.empty-state-text {
+    color: #999;
+}
+
+/* Dark Mode */
+body.dark-mode .report-type-card {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .report-type-title {
+    color: #94a3b8;
+}
+
+body.dark-mode .report-type-description {
+    color: #94a3b8;
+}
+
+body.dark-mode .active-card {
+    background-color: #1e293b;
+    border-color: #3b82f6 !important;
+}
+
+body.dark-mode .timestamp-sub {
+    color: #94a3b8;
+}
+
+body.dark-mode .subject-cell {
+    color: #f1f5f9;
+}
+
+body.dark-mode .empty-state-text {
+    color: #94a3b8;
+}
+
+body.dark-mode .reports-header-section {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .big-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .report-description-box {
+    background-color: #1e293b;
+    border-left-color: #3b82f6;
+    color: #94a3b8;
+}
+
 .active-card {
     border-color: #163269 !important;
     /* FRAMES Navy */

@@ -185,7 +185,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="notification-item" style={{ justifyContent: 'center', color: '#94a3b8' }}>
+                                            <div className="notification-item notification-empty-state">
                                                 No new notifications
                                             </div>
                                         )}
