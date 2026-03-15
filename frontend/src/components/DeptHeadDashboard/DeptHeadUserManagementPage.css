@@ -99,6 +99,403 @@
 .user-summary-value {
     font-size: 2.5rem;
     font-weight: 700;
+    color: #163269;
+}
+
+.dark-mode .user-summary-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.dark-mode .user-summary-value {
+    color: #60a5fa;
+}
+
+/* ==========================================
+   INVITE SECTION STYLES
+   ========================================== */
+.invite-section-card {
+    margin-bottom: 24px;
+    padding: 24px 28px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    background-color: #f4f9ff;
+    border: 1px solid #e0ecfe;
+}
+
+.invite-section-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.invite-section-left {
+    flex: '1 1 500px';
+}
+
+.invite-header-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 10px;
+}
+
+.invite-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background-color: #163269;
+    color: white;
+}
+
+.invite-title {
+    font-size: 1.4rem;
+    margin: 0;
+    fontWeight: 700;
+    letter-spacing: 0.01em;
+    color: #163269;
+}
+
+.invite-desc {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    line-height: 1.6;
+    color: #475569;
+}
+
+.invite-textarea {
+    width: 100%;
+    padding: 14px;
+    border-radius: 8px;
+    resize: vertical;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+    border: 1px solid #cbd5e1;
+    background-color: white;
+    color: #1e293b;
+}
+
+.invite-textarea:focus {
+    border-color: #163269;
+    box-shadow: 0 0 0 3px rgba(22, 50, 105, 0.1);
+}
+
+.invite-message.error {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: #fef2f2;
+    color: #991b1b;
+}
+
+.invite-result-box {
+    margin-top: 16px;
+    font-size: 0.95rem;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background-color: white;
+    border: 1px solid #e2e8f0;
+}
+
+.invite-success-text {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #166534;
+}
+
+.invite-error-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #991b1b;
+}
+
+.invite-error-list {
+    margin: 8px 0 0 24px;
+    padding: 0;
+    color: #991b1b;
+}
+
+.invite-section-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 180px;
+    margin-top: 10px;
+}
+
+.invite-submit-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s, opacity 0.2s;
+    background-color: #163269;
+    color: white;
+    box-shadow: 0 4px 6px -1px rgba(22, 50, 105, 0.1);
+}
+
+.invite-submit-btn:hover:not(:disabled) {
+    background-color: #0e224a;
+}
+
+.invite-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Dark Mode Overrides for Invite Section */
+.dark-mode .invite-section-card {
+    background-color: #1e293b;
+    border-color: #334155;
+}
+
+.dark-mode .invite-title {
+    color: #60a5fa;
+}
+
+.dark-mode .invite-icon-box {
+    background-color: #163269;
+}
+
+.dark-mode .invite-desc {
+    color: #94a3b8;
+}
+
+.dark-mode .invite-textarea {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.dark-mode .invite-textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.dark-mode .invite-result-box {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+.dark-mode .invite-message.error {
+    background-color: rgba(153, 27, 27, 0.2);
+    color: #fca5a5;
+}
+
+/* ==========================================
+   USER ROW & TABLE DARK MODE
+   ========================================== */
+.dark-mode .user-table-name {
+    color: #f1f5f9;
+}
+
+.dark-mode .user-table-name.invite-name {
+    color: #94a3b8;
+}
+
+.dark-mode .method-tag.invite-method {
+    background-color: rgba(2, 132, 199, 0.2);
+    color: #7dd3fc;
+    border-color: #075985;
+}
+
+.dark-mode .method-tag.manual-method {
+    background-color: #334155;
+    color: #cbd5e1;
+    border-color: #475569;
+}
+
+.dark-mode .invite-action-btn {
+    color: #94a3b8;
+}
+
+.td-empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #64748b;
+}
+
+.dark-mode .td-empty-state {
+    color: #94a3b8;
+}
+
+/* ==========================================
+   REGISTRATION MODAL STYLES
+   ========================================== */
+.user-registration-modal .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    padding: 30px;
+}
+
+.add-user-modal-header {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.dark-mode .add-user-modal-header {
+    border-bottom-color: #334155;
+}
+
+.add-user-modal-title {
+    margin: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+    color: #1e293b;
+    flex: 1;
+    white-space: nowrap;
+}
+
+.dark-mode .add-user-modal-title {
+    color: #f1f5f9;
+}
+
+.add-user-modal-close {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    font-size: 1.5rem !important;
+    color: #64748b !important;
+    cursor: pointer !important;
+    outline: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    border-radius: 50% !important;
+    transition: background-color 0.2s;
+    box-shadow: none !important;
+}
+
+.add-user-modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    color: #ef4444 !important;
+}
+
+.dark-mode .add-user-modal-close {
+    color: #94a3b8 !important;
+}
+
+.dark-mode .add-user-modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #f87171 !important;
+}
+
+.modal-step-indicator-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 8px;
+}
+
+.modal-step-line {
+    flex: 1;
+    height: 4px;
+    background-color: #e2e8f0;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.modal-step-line.active {
+    background-color: #163269;
+}
+
+.dark-mode .modal-step-line {
+    background-color: #334155;
+}
+
+.dark-mode .modal-step-line.active {
+    background-color: #60a5fa;
+}
+
+.add-user-form label span {
+    color: #163269;
+}
+
+.dark-mode .add-user-form label span {
+    color: #60a5fa;
+}
+
+.modal-step-actions {
+    display: flex;
+    gap: 12px;
+    marginTop: 20px;
+}
+
+.step-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Method Tag Base */
+.method-tag {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid transparent;
+}
+
+.manual-method {
+    background-color: #f8fafc;
+    color: #64748b;
+    border-color: #cbd5e1;
+}
+
+.invite-method {
+    background-color: #f0f9ff;
+    color: #0284c7;
+    border-color: #bae6fd;
+}
+    font-weight: 700;
     color: #1e293b;
     line-height: 1;
 }
@@ -365,6 +762,22 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
+.dark-mode .modal-content,
+body.dark-mode .modal-content {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+.dark-mode .modal-content input,
+.dark-mode .modal-content select,
+body.dark-mode .modal-content input,
+body.dark-mode .modal-content select {
+    background-color: #0F172A;
+    border: 1px solid #334155;
+    color: #F8FAFC;
+}
+
 .modal-content h3 {
     margin-top: 0;
     font-size: 1.5rem;
@@ -372,6 +785,12 @@
     padding-bottom: 15px;
     margin-bottom: 20px;
     color: #1e293b;
+}
+
+.dark-mode .modal-content h3,
+body.dark-mode .modal-content h3 {
+    color: #f1f5f9;
+    border-bottom-color: #334155;
 }
 
 .add-user-form input,
@@ -629,15 +1048,32 @@
     padding: 0 10px;
 }
 
+.dark-mode .tupm-wrapper,
+body.dark-mode .tupm-wrapper {
+    background: #0f172a;
+    border-color: #334155;
+}
+
 .tupm-wrapper span {
     color: #666;
     font-weight: 600;
+}
+
+.dark-mode .tupm-wrapper span,
+body.dark-mode .tupm-wrapper span {
+    color: #60a5fa;
 }
 
 .tupm-wrapper input {
     border: none !important;
     background: transparent !important;
     padding-left: 5px !important;
+    color: inherit;
+}
+
+.dark-mode .tupm-wrapper input,
+body.dark-mode .tupm-wrapper input {
+    color: #f8fafc;
 }
 
 .form-divider {
@@ -657,6 +1093,11 @@
     margin-bottom: 10px;
     color: #444;
     font-size: 0.95rem;
+}
+
+.dark-mode .detailed-form h4,
+body.dark-mode .detailed-form h4 {
+    color: #e2e8f0;
 }
 
 /* ==========================================
@@ -1116,4 +1557,194 @@
     text-align: center;
     padding: 20px;
     color: var(--text-muted, #888);
+}
+
+/* --- Invite Faculty Section --- */
+.invite-section-card {
+    background-color: #f4f9ff;
+    border: 1px solid #bfdbfe;
+}
+
+.invite-icon-box {
+    background-color: #eff6ff;
+    color: #163269;
+    border: 1px solid #bfdbfe;
+}
+
+.invite-title {
+    color: #163269;
+}
+
+.invite-desc {
+    color: #475569;
+}
+
+.invite-textarea {
+    background-color: #ffffff;
+    color: #334155;
+    border: 1px solid #93c5fd;
+}
+
+.invite-textarea:focus {
+    border-color: #163269;
+}
+
+.invite-message.error {
+    color: #dc2626;
+    background-color: #fee2e2;
+}
+
+.invite-result-box {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+.invite-success-text {
+    color: #059669;
+}
+
+.invite-success-text span {
+    color: #334155;
+}
+
+.invite-error-text {
+    color: #dc2626;
+}
+
+.invite-error-text span {
+    color: #64748b;
+}
+
+.invite-submit-btn {
+    background: #163269;
+    color: white;
+}
+
+.invite-submit-btn:hover:not(:disabled) {
+    background: #1e3a8a;
+}
+
+/* --- Reusable Buttons (Modal) --- */
+.btn-primary {
+    background: #163269;
+    color: white;
+    border: 1px solid #163269;
+}
+
+.btn-primary:hover {
+    background: #1e3a8a;
+    border-color: #1e3a8a;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #163269;
+    border: 1px solid #163269;
+}
+
+.btn-outline:hover {
+    background: rgba(22, 50, 105, 0.05);
+}
+
+/* ==========================================
+   DARK MODE OVERRIDES
+   ========================================== */
+body.dark-mode .invite-section-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .invite-icon-box {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .invite-title {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .invite-desc {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .invite-textarea {
+    background-color: #0F172A !important;
+    color: #E2E8F0 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .invite-textarea:focus {
+    border-color: #60A5FA !important;
+}
+
+body.dark-mode .invite-message.error {
+    background-color: rgba(220, 38, 38, 0.1) !important;
+    color: #FCA5A5 !important;
+}
+
+body.dark-mode .invite-result-box {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .invite-success-text {
+    color: #4ADE80 !important;
+}
+
+body.dark-mode .invite-success-text span {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .invite-error-text {
+    color: #FCA5A5 !important;
+}
+
+body.dark-mode .invite-error-text span {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .invite-submit-btn {
+    background: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .invite-submit-btn:hover:not(:disabled) {
+    background: #2563eb !important;
+}
+
+body.dark-mode .add-user-btn {
+    background: #1E293B !important;
+    color: #E2E8F0 !important;
+    border-color: #475569 !important;
+}
+
+body.dark-mode .add-user-btn:hover {
+    background: #334155 !important;
+    border-color: #64748B !important;
+}
+
+body.dark-mode .btn-primary {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+body.dark-mode .btn-primary:hover {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+body.dark-mode .btn-outline {
+    color: #93c5fd !important;
+    border-color: #93c5fd !important;
+    background: transparent !important;
+}
+
+body.dark-mode .btn-outline:hover {
+    background: rgba(147, 197, 253, 0.1) !important;
+}
+
+.dark-mode .modal-content label {
+    color: #e2e8f0;
 }

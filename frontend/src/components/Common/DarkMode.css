@@ -341,12 +341,39 @@ body.dark-mode .quick-action-btn:hover {
 }
 
 /* --- Activity List --- */
+body.dark-mode .recent-activity-card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .recent-activity-card h3 {
+    color: #f1f5f9 !important;
+}
+
 body.dark-mode .activity-item {
-    border-bottom-color: #334155;
+    background: #0f172a !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .activity-item:hover {
+    background: #1E293B !important;
 }
 
 body.dark-mode .activity-item strong {
-    color: #F1F5F9;
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .activity-item span {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .activity-icon {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .activity-time span:first-child {
+    color: #CBD5E1 !important;
 }
 
 /* --- Pending Verification --- */

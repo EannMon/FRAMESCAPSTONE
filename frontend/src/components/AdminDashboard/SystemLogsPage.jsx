@@ -74,7 +74,7 @@ const SystemLogsPage = () => {
     if (loading) {
         return (
             <div className="system-logs-container">
-                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div className="admin-empty-state" style={{ padding: '60px 20px' }}>
                     <div className="loading-spinner"></div>
                     <p>Loading system logs...</p>
                 </div>
@@ -85,9 +85,9 @@ const SystemLogsPage = () => {
     if (error) {
         return (
             <div className="system-logs-container">
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#dc2626' }}>
-                    <i className="fas fa-exclamation-triangle"></i>
-                    <p>{error}</p>
+                <div className="admin-error-state admin-empty-state">
+                    <i className="fas fa-exclamation-triangle error-text" style={{ fontSize: '2rem', marginBottom: '10px' }}></i>
+                    <p className="error-text">{error}</p>
                     <button onClick={() => setPage(0)} className="submit-btn" style={{ marginTop: 12 }}>Retry</button>
                 </div>
             </div>
@@ -160,7 +160,7 @@ const SystemLogsPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="4" style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                                    <td colSpan="4" className="admin-empty-state empty-state-text">
                                         {logs.length === 0
                                             ? 'No audit logs recorded yet. Logs are created when system actions occur (user verification, schedule uploads, device changes, etc.).'
                                             : 'No logs match your filters.'}
@@ -177,7 +177,7 @@ const SystemLogsPage = () => {
                         <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="submit-btn" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
                             <i className="fas fa-chevron-left"></i> Previous
                         </button>
-                        <span style={{ fontSize: '0.85rem', color: '#555' }}>Page {page + 1} of {totalPages} ({total} total)</span>
+                        <span className="pagination-text">Page {page + 1} of {totalPages} ({total} total)</span>
                         <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="submit-btn" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
                             Next <i className="fas fa-chevron-right"></i>
                         </button>

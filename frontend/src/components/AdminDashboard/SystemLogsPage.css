@@ -98,6 +98,71 @@
 .log-service {
     font-weight: 500;
     color: #333;
+}
+
+.admin-empty-state {
+    text-align: center;
+    padding: 20px;
+}
+
+.empty-state-text {
+    color: #888;
+}
+
+.error-text {
+    color: #dc3545;
+}
+
+/* Dark Mode */
+body.dark-mode .admin-empty-state {
+    color: #94a3b8;
+}
+
+body.dark-mode .empty-state-text {
+    color: #94a3b8;
+}
+
+body.dark-mode .error-text {
+    color: #ef4444;
+}
+
+body.dark-mode .logs-table th {
+    background-color: #1e293b;
+    color: #94a3b8;
+    border-bottom: 1px solid #334155;
+}
+
+body.dark-mode .logs-table td {
+    border-bottom: 1px solid #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .log-timestamp {
+    color: #94a3b8;
+}
+
+body.dark-mode .log-service {
+    color: #f1f5f9;
+}
+
+body.dark-mode .log-message {
+    color: #cbd5e1;
+}
+
+body.dark-mode .logs-filter-select,
+body.dark-mode .logs-search-bar {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .logs-search-bar input {
+    color: #f1f5f9;
+}
+
+body.dark-mode .pagination-text {
+    color: #94a3b8;
+}
     white-space: nowrap;
 }
 

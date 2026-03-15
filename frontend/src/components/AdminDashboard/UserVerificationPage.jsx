@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../Common/ToastProvider';
-// I-import ang inyong CSS file dito, e.g., 'ReportsPage.css' o 'UserManagementPage.css'
-// Note: Assuming na ang classes na 'admin-reports-container', 'admin-recent-reports-table', atbp. ay available.
+import './UserVerificationPage.css';
 
 const API_BASE_URL = 'http://127.0.0.1:5000'; // Palitan base sa inyong Flask URL
 // NOTE: Kailangan mo ring i-pass ang ID ng naka-login na Admin para sa SystemAudit log.
@@ -72,7 +71,7 @@ const UserVerificationPage = ({ adminUser }) => {
 
     return (
         <div className="admin-reports-container">
-            <div className="card admin-recent-reports-card" style={{ gridColumn: '1 / -1' }}>
+            <div className="card admin-recent-reports-card admin-card-full-width">
                 <div className="admin-recent-reports-header">
                     <h2>Pending User Verification ({pendingUsers.length})</h2>
                 </div>
@@ -90,9 +89,9 @@ const UserVerificationPage = ({ adminUser }) => {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>Loading pending users...</td></tr>
+                                <tr><td colSpan="5" className="admin-empty-state">Loading pending users...</td></tr>
                             ) : pendingUsers.length === 0 ? (
-                                <tr><td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>No pending accounts requiring verification.</td></tr>
+                                <tr><td colSpan="5" className="admin-empty-state">No pending accounts requiring verification.</td></tr>
                             ) : (
                                 pendingUsers.map(user => (
                                     <tr key={user.user_id}>
@@ -103,16 +102,14 @@ const UserVerificationPage = ({ adminUser }) => {
                                         <td>
                                             <div className="admin-recent-reports-table .action-buttons-wrapper">
                                                 <button
-                                                    className="admin-action-button"
-                                                    style={{ color: '#28a745' }}
+                                                    className="admin-action-button approve-btn"
                                                     title="Approve Account"
                                                     onClick={() => handleAction(user.user_id, 'Verified', `${user.lastName}, ${user.firstName}`)}
                                                 >
                                                     <i className="fas fa-check"></i>
                                                 </button>
                                                 <button
-                                                    className="admin-action-button"
-                                                    style={{ color: '#dc3545' }}
+                                                    className="admin-action-button reject-btn"
                                                     title="Reject Account"
                                                     onClick={() => handleAction(user.user_id, 'Rejected', `${user.lastName}, ${user.firstName}`)}
                                                 >
