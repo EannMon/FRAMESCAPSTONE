@@ -107,6 +107,7 @@ class StreamingAttendanceKiosk:
             api_timeout=self.config.API_TIMEOUT_SECONDS,
             failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 60),
             use_api=getattr(self.config, "USE_ACTIVE_CLASS_API", True),
+            early_entry_minutes=self.config.EARLY_ENTRY_MINUTES,
         )
 
         self.attendance_logger = AttendanceLogger(
@@ -122,6 +123,7 @@ class StreamingAttendanceKiosk:
         self._current_class_id: Optional[int] = None
         self._not_in_class_logged: Set[int] = set()
         self._enrollment_loaded: bool = False
+        self._auto_exit_done_for: Set[int] = set()  # class_ids already auto-exited
         self._last_cache_refresh: Optional[float] = None
         self._metrics = KioskMetricsCollector(
             report_interval_sec=getattr(self.config, "METRICS_REPORT_INTERVAL_SEC", 60),
@@ -204,6 +206,31 @@ class StreamingAttendanceKiosk:
         if overrides:
             self.current_state.update(overrides)
         push_state_update(self.current_state.copy())
+
+    def _trigger_auto_exit(self, class_id: int):
+        """Call backend auto-exit endpoint for users who forgot to exit."""
+        if class_id in self._auto_exit_done_for:
+            return
+        if not self.config.AUTO_EXIT_ENABLED:
+            return
+
+        try:
+            url = f"{self.config.BACKEND_URL}/api/kiosk/attendance/auto-exit"
+            response = requests.post(
+                url,
+                json={"class_id": class_id, "device_id": self.config.DEVICE_ID},
+                timeout=self.config.API_TIMEOUT_SECONDS
+            )
+            if response.status_code in (200, 201):
+                data = response.json()
+                count = data.get("auto_exited_count", 0)
+                logger.info("AUTO_EXIT | class=%d: auto-exited %d users", class_id, count)
+            else:
+                logger.warning("AUTO_EXIT | API returned %d for class=%d", response.status_code, class_id)
+        except requests.exceptions.RequestException as e:
+            logger.warning("AUTO_EXIT | request failed for class=%d: %s", class_id, str(e))
+
+        self._auto_exit_done_for.add(class_id)
 
     def run(self):
         """
@@ -434,6 +461,12 @@ class StreamingAttendanceKiosk:
                     self._metrics.record_frame(frame_elapsed, num_faces=0)
                     self._metrics.maybe_report(cache_size=self.embedding_cache.count)
                     time.sleep(0.1)
+
+                    # Auto-exit check: when a class just ended, trigger auto-exit
+                    if last_class_id is not None and last_class_id not in self._auto_exit_done_for:
+                        logger.info("AUTO_EXIT | class %d ended, triggering auto-exit", last_class_id)
+                        self._trigger_auto_exit(last_class_id)
+
                     continue
 
                 # Update class info in state

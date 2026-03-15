@@ -1,0 +1,99 @@
+Note: This Chapter 1 is our current documentation which has not been updated. It is not updated realttime as we are implemeting or creating our capstone. This should have changes and be updated based on our capstone context.
+
+
+side comments: 
+    -we are now using webcam and raspberry pi 4b. not raspberry pi camera.
+    -we do not have any admin roles.
+    -is anomaly norification in kiosk means that the detected inidvidual is supposedly not in that class? if yes, then it is fine.
+    -our system shall be evaluated using the ISO/IEC 25010 Software Quality Model, focusing on: Functional Suitability, Performance Efficiency, Interaction Capability, Reliability, Security
+    -we will now be only using 1 room which is Room 328 of College of Science Building Computer Studies Department. It will only be tested and deployed in 1 day. 1 department head will be utilizing the system which is the Computer Studies Department and 1 faculty under the department. 1 class managed by the 1 faculty will be utilized. For now, the number of students is not yet recognized and maybe approximately around 50. The generated data is only set for 1 day for 1 class. For testing of reports, we will just be seeding data in accordance to the format of the generated attendance data of the system.  
+    -With this after testing, we still need surveys after the deployment and testing. the survey shall revolve with the Functional Suitability, Performance Efficiency, Interaction Capability, Reliability, Security of ISO/IEC 25010. Help us create a solid and appropriate survey questionnaire or likert scale. For students, faculty, and department head.
+    -Since the only credible faculty and department head to be surveyed is limited because they will only be the ones who used the system, we will make a demo video of the system for faculty and department head only.
+    -our techstack also changed, apis are changed also. 
+    -we do not have a mobile application but our system is mobie responsive.
+
+
+Chapter 1
+
+THE PROBLEM AND ITS SETTING
+	This chapter outlines the rationale, goals, and context of the proposed system. It introduces the background, significance, objectives, and scope of the study to guide the reader in understanding the relevance and direction of the research.
+
+Introduction
+    The integration of digital technologies into educational institutions has transformed how classrooms are managed, secured, and evaluated. Among these processes, attendance monitoring remains a critical yet persistent challenge. Accurate attendance records are essential for evaluating student engagement, faculty compliance, classroom utilization, and institutional accountability (Aguda, 2024; Vadwala, 2024). However, traditional attendance methods, such as manual roll calls, paper logbooks, and basic digital sign-ins, remain widely used despite their inefficiency and vulnerability to misuse.
+
+    Manual attendance consumes valuable instructional time and is prone to human error, delayed recording, and intentional misreporting (Domingo & Ladia, 2024). Proxy attendance, commonly referred to as “buddy punching,” undermines the reliability of records and weakens institutional enforcement of attendance policies (Mukthineni et al., 2020). Even technology-assisted approaches such as RFID cards and QR codes offer limited protection against misuse, as credentials may be shared, misplaced, or scanned without physical presence (Hasini et al., 2024). While CCTV systems are increasingly deployed in classrooms, they typically function only as passive surveillance tools and do not provide automated identity verification or structured attendance data (Kagona, 2022).
+
+    Recent advances in computer vision and artificial intelligence have enabled contactless biometric systems capable of addressing these limitations. Facial recognition has emerged as a practical solution for identity verification without requiring physical tokens or contact (Siddiqui et al., 2023). However, facial recognition systems that automatically log attendance upon detection remain vulnerable to unintended walk-by logging, spoofing attempts using printed images or mobile phone displays, and ambiguous user intent (Jha et al., 2024). These issues highlight the need for attendance systems that not only recognize identity but also confirm intentional participation.
+    
+    To address this gap, gesture-gated interaction has gained attention as a complementary mechanism to facial recognition. Hand gesture recognition introduces an explicit, touchless action that confirms user intent, ensuring that attendance events are logged deliberately rather than passively (Mukthineni et al., 2020). When combined with facial recognition, gesture-gated systems form a multimodal authentication approach that enhances reliability, minimizes accidental logging, and improves resilience against simple presentation attacks (Jha et al., 2024).
+    
+    Despite the promise of such systems, many existing solutions rely on high-cost infrastructure, including GPU-powered servers and enterprise-grade camera systems, which are impractical for large-scale deployment in resource-constrained educational institutions (Mohammad et al., 2024). This limitation is particularly evident in Philippine public universities, where cost-effective, scalable, and energy-efficient solutions are required.
+    
+    In response, this study proposes Facial Recognition and Attendance Monitoring with Embedded System (FRAMES)—a web-based, gesture-gated attendance and monitoring system deployed on Raspberry Pi hardware. FRAMES integrates optimized facial recognition, static hand gesture confirmation, and room-aware monitoring to deliver an intentional, contactless, and low-cost attendance solution suitable for classroom environments. By combining embedded computing with real-time visualization and actionable analytics, the system transforms attendance monitoring from a routine administrative task into a data-driven decision-support tools. 
+
+Background of the Study
+    Attendance monitoring plays a central role in maintaining academic integrity, evaluating instructional delivery, and ensuring effective utilization of institutional resources. However, persistent challenges continue to affect its reliability. Manual attendance systems are susceptible to falsification, delayed encoding, and inconsistent enforcement, resulting in records that do not accurately reflect actual classroom participation (Vadwala, 2024). In academic settings, discrepancies between scheduled classes and actual room usage further complicate administrative oversight and departmental monitoring.
+
+    Various technological alternatives have been introduced to address these concerns. RFID-based systems and QR code scanning reduce recording time but remain vulnerable to credential sharing and impersonation (Hasini et al., 2024). Biometric systems such as fingerprint scanners improve identity verification but require physical contact, raising hygiene concerns and limiting usability in post-pandemic learning environments (Aguda, 2024). Facial recognition offers a contactless alternative; however, facial-only systems often lack intent verification, leading to accidental or unauthorized attendance logging (Siddiqui et al., 2023).
+
+    Research in multimodal biometric systems emphasizes the effectiveness of combining facial recognition with behavioral confirmation mechanisms, such as hand gestures, to improve authentication reliability (Mukthineni et al., 2020). Gesture-gated interaction ensures that users consciously initiate attendance events, reducing false positives and mitigating basic spoofing attempts. This approach aligns well with classroom dynamics, where intentional participation is essential (Jha et al., 2024).
+
+    From a deployment perspective, the cost and complexity of conventional facial recognition systems present significant barriers. High-performance servers and proprietary platforms are often unsuitable for institutions with limited budgets (Mohammad et al., 2024). Embedded systems, particularly the Raspberry Pi 4 Model B, offer a viable alternative due to their affordability, low power consumption, and sufficient computational capability when paired with optimized machine learning models (Aboluhom & Kandilli, 2023). Lightweight deep learning architectures—such as MobileNetV2-based FaceNet models converted to TensorFlow Lite and quantized for edge deployment—enable near real-time facial recognition on resource-constrained devices (Mohammad et al., 2024).\
+
+    Within the context of the Technological University of the Philippines–Manila (TUP-M), challenges related to attendance verification, classroom utilization, and departmental monitoring highlight the need for an integrated and scalable solution. Instances of unverified attendance claims, inconsistencies between schedules and actual class conduct, and limited visibility into room usage underscore the importance of an automated monitoring system that operates holistically across students, faculty members, and administrative units.
+
+    FRAMES is designed to address these challenges through a modular web-based platform consisting of Student, Faculty, Department Head, and Administrator modules. Facial embeddings are enrolled through a controlled registration process and stored in a centralized database. Classroom-mounted Raspberry Pi units equipped with cameras and kiosk displays perform real-time recognition and gesture-gated logging. Room-aware visualization allows stakeholders to monitor active classrooms, while analytics and reports provide insights into attendance patterns, punctuality, break durations, and room utilization. Through this integrated approach, FRAMES extends beyond attendance recording to support institutional accountability and informed decision-making.
+
+Objectives of the Study
+    The general objective of this study is to design, develop, and evaluate a web-based smart monitoring system that integrates Raspberry Pi–based facial recognition and gesture-gated authentication for real-time attendance tracking and classroom monitoring within selected classrooms of the Technological University of the Philippines–Manila.
+
+    Specifically, the study aims:
+
+    1. To design a smart monitoring system that incorporates:
+        a. Facial recognition for reliable identity verification
+        b. Static hand gesture recognition for confirming attendance actions, including:
+            -Entry (automatic upon intentional recognition)
+            -Break-out (peace sign)
+            -Break-in (thumbs-up)
+            -Final exit (open palm)
+        c. A web-based dashboard composed of Student, Faculty (with Department Head access), and Administrator modules
+        d. A kiosk feedback interface that provides real-time confirmation, gesture guidance, and anomaly notifications
+    2. To create reporting and visualization features that generate structured attendance records exportable in CSV and PDF formats, including:
+        a. Personal attendance summaries and real-time status indicators for students
+        b. Class-specific and faculty-level reports for instructors and department heads
+        c. Institution-wide attendance, room utilization, and system activity reports for administrators
+    3. To test and improve the functionality, compatibility, and usability of the system through pilot deployment in selected classrooms using Raspberry Pi–based camera units
+    4. To evaluate the acceptability and quality of the developed system using the ISO/IEC 25010 Software Quality Model, focusing on:
+        a. Functional Suitability
+        b. Performance Efficiency
+        c. Interaction Capability
+        d. Reliability
+        e. Security
+
+Scope and Delimitations of the Study
+    This study focuses on the design, development, and evaluation of FRAMES, a prototype smart attendance and monitoring system intended for classroom environments. The system integrates facial recognition and static hand gesture confirmation to automate attendance logging while ensuring intentional user interaction. Unlike attendance systems that automatically log presence upon facial detection, FRAMES employs gesture-gated actions to prevent accidental or unauthorized attendance recording, thereby improving the reliability and integrity of attendance data (Mukthineni et al., 2020).
+
+    The scope of the study covers the deployment of FRAMES on Raspberry Pi 4 Model B units equipped with camera modules and kiosk displays. The system is piloted in two classrooms, specifically Rooms 324 and 326 of the College of Science Building at the Technological University of the Philippines–Manila. Each classroom accommodates two class sections, resulting in a total of four academic sections included in the study. Each section consists of approximately forty (40) students, yielding an estimated one hundred sixty (160) student participants whose facial data are enrolled in the system with informed consent. Attendance monitoring is enabled only in these selected classrooms and only during scheduled class hours.
+
+    The subjects of the study include the enrolled students, the faculty members assigned to handle each class section, and a faculty or department head who provides higher-level evaluative feedback. Each class section is handled by one faculty member, who utilizes the system to monitor attendance and generate class-level reports. In addition, one department or faculty head participates as a general evaluator, focusing on aggregated reports, room utilization insights, and administrative relevance. Individuals not officially enrolled in the selected sections, such as visitors or walk-in users, are excluded from the study.
+
+    On the software side, the system utilizes a lightweight facial recognition pipeline based on a MobileNetV2-based FaceNet model, converted and optimized using TensorFlow Lite for edge deployment. Model quantization is applied to enhance inference speed and reduce computational load on the Raspberry Pi hardware (Mohammad et al., 2024). Static hand gesture recognition is implemented using the MediaPipe framework to confirm user intent during attendance actions (Siddiqui et al., 2023). System logic and data processing are handled through a Flask-based backend, while attendance visualization, reporting, and monitoring are delivered through a React-based web dashboard developed using Vite and JSX. A cloud-hosted relational database stores user profiles, facial embeddings, class schedules, and attendance logs.
+
+    The evaluation of FRAMES is conducted using the ISO/IEC 25010 Software Quality Model, focusing on functional suitability, performance efficiency, interaction capability, reliability, and security. System evaluation is performed by students, faculty members, and the department head, using structured questionnaires and hands-on system use during the pilot deployment. Evaluation metrics include facial recognition accuracy, system response time, frame processing rate, CPU utilization on the Raspberry Pi, usability feedback, and compliance with the Data Privacy Act of 2012.
+
+    The study is delimited to the evaluation of FRAMES as a prototype system and does not assess enterprise-scale or campus-wide deployment. The system focuses exclusively on facial recognition combined with static hand gesture interaction, excluding other biometric modalities such as fingerprint, iris, or voice recognition. While gesture-gated interaction reduces basic spoofing and unintended logging, advanced liveness detection and presentation attack detection techniques are beyond the scope of this study. Furthermore, the system is limited to attendance verification and classroom occupancy monitoring and does not include behavioral surveillance, academic performance tracking, or integration with external learning management systems.
+
+Significance of the Study
+    This study contributes to the advancement of smart classroom technologies by presenting a low-cost, contactless, and intention-aware attendance monitoring system.
+
+    For students and faculty members, FRAMES minimizes attendance errors, reduces administrative workload, and promotes accountability through transparent and real-time feedback mechanisms. The gesture-gated approach ensures that attendance records reflect deliberate participation rather than passive presence.
+
+    For academic departments and university administrators, the system provides actionable insights into classroom utilization, faculty punctuality, and attendance trends, supporting data-driven decision-making and policy evaluation (Vadwala, 2024). The room-aware visualization component also establishes a foundation for future applications in facility management, safety planning, and emergency preparedness.
+
+    For the institution and future researchers, FRAMES demonstrates the feasibility of deploying embedded, edge-optimized artificial intelligence systems using affordable hardware, contributing to research on multimodal biometrics, TensorFlow Lite deployment, and gesture-gated interaction design in educational environment
+
+
+
+
+
+
