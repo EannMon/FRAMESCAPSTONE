@@ -738,6 +738,65 @@ body.dark-mode .report-description-box {
     padding: 12px;
 }
 
+/* Dark Mode for Visual Summary */
+body.dark-mode .insight-panel {
+    background: #0f172a !important;
+    border: 1px solid #1e293b;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .visual-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .visual-title {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .visual-label,
+body.dark-mode .visual-value {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .visual-bar-track {
+    background: #0f172a !important;
+}
+
+body.dark-mode .visual-filter-row label {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .grouped-cluster-bar {
+    border: 1px solid rgba(0,0,0,0.2) !important;
+}
+
+body.dark-mode .grouped-cluster-track {
+    background: #0f172a !important;
+}
+
+body.dark-mode .grouped-cluster-label {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .grouped-cluster-value {
+    color: #f8fafc !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+
+body.dark-mode .trend-legend-item {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .trend-note {
+    color: #64748b !important;
+}
+
+body.dark-mode .insight-section-title {
+    color: #f8fafc !important;
+    border-bottom-color: #334155 !important;
+}
+
 .visual-title {
     font-size: 0.86em;
     font-weight: 700;

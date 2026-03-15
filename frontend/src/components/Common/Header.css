@@ -277,11 +277,28 @@
     border: none;
     font-size: 1.3em;
     cursor: pointer;
-    margin-right: 20px;
+    margin-right: 15px; /* Reduced margin to account for padding */
     position: relative;
-    padding: 5px;
-    color: #64748B;
-    /* Slate Grey from reference image */
+    padding: 8px; /* Balanced padding */
+    color: #94A3B8; /* Lighter Slate for Dark Mode Visibility */
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-button:hover {
+    background-color: var(--header-hover);
+    color: #fff; /* Ensure icon is white on hover */
+}
+
+body.dark-mode .icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.dark-mode .notification-trigger i {
+    color: #CBD5E1 !important;
 }
 
 /* --- Profile Menu --- */

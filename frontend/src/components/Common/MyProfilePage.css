@@ -465,13 +465,80 @@
     cursor: not-allowed;
 }
 
-.error-msg {
-    background-color: #ffe6e6;
-    color: #d63031;
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 0.9em;
-    text-align: center;
+body.dark-mode .modal-header {
+    background-color: #111827 !important; /* Deeper dark for header */
+    border-bottom: 2px solid #1f2937 !important;
+    padding: 15px 20px;
+}
+
+body.dark-mode .modal-header h3 {
+    color: #f9fafb !important;
+}
+
+body.dark-mode .modal-box {
+    background: #1f2937 !important; /* Consistent gray-dark background */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid #374151 !important;
+    padding: 0 !important; /* Reset padding to allow full-width header/footer */
+    overflow: hidden !important;
+}
+
+body.dark-mode .modal-body {
+    padding: 24px !important;
+    background-color: #1f2937 !important;
+}
+
+body.dark-mode .form-group label {
+    color: #e5e7eb !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode .modal-input {
+    background-color: #111827 !important; /* Match header depth */
+    border: 1px solid #374151 !important;
+    color: #f9fafb !important;
+}
+
+body.dark-mode .modal-input:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+body.dark-mode .modal-footer {
+    background-color: #111827 !important; /* Deep dark for footer */
+    padding: 16px 24px !important;
+    border-top: 1px solid #374151 !important;
+    margin-top: 0 !important;
+}
+
+body.dark-mode .modal-btn.primary {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+    padding: 10px 24px !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode .modal-btn.primary:hover {
+    background-color: #2563eb !important;
+}
+
+body.dark-mode .modal-btn.primary:disabled {
+    background-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .close-btn {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .close-btn:hover {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .error-msg {
+    background-color: rgba(220, 38, 38, 0.2) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(220, 38, 38, 0.3) !important;
 }
 
 @keyframes fadeIn {

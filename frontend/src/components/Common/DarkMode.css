@@ -1454,7 +1454,8 @@ body.dark-mode .notification-item {
 }
 
 body.dark-mode .notification-item:hover {
-    background-color: #334155 !important;
+    background-color: #2D3748 !important; /* Slightly lighter than background on hover */
+    cursor: pointer;
 }
 
 body.dark-mode .notification-item.unread {

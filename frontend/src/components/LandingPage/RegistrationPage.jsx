@@ -235,7 +235,6 @@ const RegistrationPage = () => {
                 // Faculty
                 if (!formData.collegeId) newErrors.collegeId = true;
                 if (!formData.departmentId) newErrors.departmentId = true;
-                if (!formData.programId) newErrors.programId = true;
             }
         }
 
@@ -599,23 +598,7 @@ const RegistrationPage = () => {
                                     </div>
                                 )}
 
-                                {/* Program — only for faculty, cascading from department */}
-                                {role === 'faculty' && (
-                                    <div className="reg-form-group full-width">
-                                        <label>Program <span style={{ color: '#ef4444' }}>*</span></label>
-                                        <select
-                                            value={formData.programId}
-                                            onChange={e => handleInputChange('programId', e.target.value)}
-                                            className={errors.programId ? 'input-error' : ''}
-                                            disabled={!formData.departmentId}
-                                        >
-                                            <option value="">{formData.departmentId ? 'Select Program' : 'Select a department first'}</option>
-                                            {programs.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Program selection removed for faculty - now handled by Dept Head */}
                             </div>
                         </>
                     )}
@@ -822,14 +805,6 @@ const RegistrationPage = () => {
                                                 : '-'}
                                         </span>
                                     </div>
-                                    {role === 'faculty' && (
-                                        <div className="summary-item">
-                                            <span className="summary-label">Program</span>
-                                            <span className="summary-value">
-                                                {selectedProgram ? `${selectedProgram.name} (${selectedProgram.code})` : '-'}
-                                            </span>
-                                        </div>
-                                    )}
                                     {role === 'head' && newPrograms.length > 0 && (
                                         <div className="summary-item">
                                             <span className="summary-label">Programs</span>
