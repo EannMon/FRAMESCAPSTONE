@@ -2,41 +2,56 @@ BEGIN;
 SET search_path TO public;
 
 -- Department Head seed (user_id = 1)
--- Uses actual class schedule: class_id=11, Wednesday, 18:00-20:00
--- Date range: 2026-01-19 to 2026-06-27
--- Absences are implicit (some Wednesdays intentionally skipped)
+-- Semester dates come from the department managed by the head account.
+-- Class day/time are resolved from the head's assigned class in test data.
+-- Absences are implicit (some class days intentionally skipped).
 
+WITH bounds AS (
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
+)
 DELETE FROM attendance_logs
 WHERE user_id = 1
-  AND timestamp::date BETWEEN DATE '2026-01-19' AND DATE '2026-06-27'
+  AND timestamp::date BETWEEN (SELECT start_date FROM bounds) AND (SELECT end_date FROM bounds)
   AND remarks LIKE '[FINALSEED_HEAD]%';
 
 CREATE TEMP TABLE tmp_head_days ON COMMIT DROP AS
 WITH bounds AS (
-  SELECT DATE '2026-01-19' AS start_date, DATE '2026-06-27' AS end_date
+  SELECT
+    COALESCE(
+      (SELECT d.semester_start_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-01-19'
+    ) AS start_date,
+    COALESCE(
+      (SELECT d.semester_end_date FROM users u JOIN departments d ON d.id = u.department_id WHERE u.id = 1 LIMIT 1),
+      DATE '2026-06-27'
+    ) AS end_date
 ),
 head_class AS (
   SELECT
     COALESCE(
-      (
-        SELECT c.id
-        FROM classes c
-        WHERE c.id = 11
-          AND c.faculty_id = 1
-          AND c.section = 'BSIT-2B-M'
-        LIMIT 1
-      ),
-      (
-        SELECT c2.id
-        FROM classes c2
-        WHERE c2.faculty_id = 1
-          AND c2.day_of_week = 'Wednesday'
-        ORDER BY c2.id
-        LIMIT 1
-      )
+      (SELECT c.id FROM classes c WHERE c.faculty_id = 1 ORDER BY c.id LIMIT 1),
+      (SELECT c2.id FROM classes c2 ORDER BY c2.id LIMIT 1)
     ) AS class_id,
-    TIME '18:00' AS base_start,
-    TIME '20:00' AS base_end
+    COALESCE(
+      (SELECT c.start_time FROM classes c WHERE c.faculty_id = 1 ORDER BY c.id LIMIT 1),
+      TIME '08:00'
+    ) AS base_start,
+    COALESCE(
+      (SELECT c.end_time FROM classes c WHERE c.faculty_id = 1 ORDER BY c.id LIMIT 1),
+      TIME '10:00'
+    ) AS base_end,
+    COALESCE(
+      (SELECT c.day_of_week FROM classes c WHERE c.faculty_id = 1 ORDER BY c.id LIMIT 1),
+      'Monday'
+    ) AS class_day
 ),
 calendar AS (
   SELECT gs::date AS day
@@ -48,12 +63,23 @@ SELECT
   hc.class_id,
   hc.base_start,
   hc.base_end,
+  hc.class_day,
   ((EXTRACT(DAY FROM c.day)::int + 1) % 6 = 0) AS is_late,
   ((EXTRACT(DAY FROM c.day)::int + 3) % 4 = 0) AS has_break,
   ((EXTRACT(DAY FROM c.day)::int + 2) % 10 = 0) AS early_exit
 FROM calendar c
 CROSS JOIN head_class hc
-WHERE EXTRACT(ISODOW FROM c.day) = 3
+WHERE EXTRACT(ISODOW FROM c.day) =
+  CASE LOWER(hc.class_day)
+    WHEN 'monday' THEN 1
+    WHEN 'tuesday' THEN 2
+    WHEN 'wednesday' THEN 3
+    WHEN 'thursday' THEN 4
+    WHEN 'friday' THEN 5
+    WHEN 'saturday' THEN 6
+    WHEN 'sunday' THEN 7
+    ELSE 1
+  END
   AND (EXTRACT(WEEK FROM c.day)::int % 6) <> 0;
 
 -- ENTRY

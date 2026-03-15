@@ -1,12 +1,13 @@
 """
 Schedule Resolver - Determine active class based on device room and current time.
 Queries backend API with local cache fallback for reliability.
+Supports early entry window to start recognition before class officially begins.
 """
 import json
 import os
 import logging
 import requests
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from typing import Optional, Dict, List
 from dataclasses import dataclass, asdict
 
@@ -61,6 +62,7 @@ class ScheduleResolver:
         api_timeout: int = 5,
         failure_backoff_sec: int = 30,
         use_api: bool = True,
+        early_entry_minutes: int = 10,
     ):
         self.backend_url = backend_url.rstrip('/')
         self.device_id = device_id
@@ -69,6 +71,7 @@ class ScheduleResolver:
         # When API is down, avoid blocking every frame by backing off for a while
         self._failure_backoff_sec = failure_backoff_sec
         self._use_api = use_api
+        self._early_entry_minutes = early_entry_minutes
         
         self._schedule_cache: List[ScheduleEntry] = []
         self._device_room: Optional[str] = None
@@ -221,7 +224,11 @@ class ScheduleResolver:
             start = datetime.strptime(entry.start_time, "%H:%M:%S").time()
             end = datetime.strptime(entry.end_time, "%H:%M:%S").time()
             
-            if start <= current_time <= end:
+            # Apply early entry window
+            start_dt = datetime.combine(now.date(), start)
+            early_start = (start_dt - timedelta(minutes=self._early_entry_minutes)).time()
+            
+            if early_start <= current_time <= end:
                 return ActiveClass(
                     class_id=entry.class_id,
                     subject_code=entry.subject_code,
@@ -234,6 +241,24 @@ class ScheduleResolver:
                 )
         
         return None
+    
+    def get_current_class_end_time(self) -> Optional[datetime]:
+        """
+        Get the end_time of the currently active class as a full datetime.
+        Used by kiosk to determine when to trigger auto-exit.
+        
+        Returns:
+            datetime of class end, or None if no active class
+        """
+        active = self.get_active_class()
+        if active is None:
+            return None
+        
+        try:
+            end = datetime.strptime(active.end_time, "%H:%M:%S").time()
+            return datetime.combine(datetime.now().date(), end)
+        except (ValueError, AttributeError):
+            return None
     
     def _save_cache(self):
         """Save schedule cache to file."""

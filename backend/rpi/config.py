@@ -98,19 +98,22 @@ class KioskConfig:
     # ===========================================
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
-    GESTURE_CONFIDENCE: float = 0.35  # Low threshold for reliable hand detection across lighting
+    GESTURE_CONFIDENCE: float = 0.65  # Raised from 0.35 — low threshold caused false-positive gestures
     # ENTRY uses face-only verification (no gesture required).
     # BREAK/EXIT still use specific gestures (peace/thumbs/palm).
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # Comfortable window; gesture loop is fast now
-    GESTURE_CONSECUTIVE_FRAMES: int = 1  # Accept first valid gesture detection immediately
+    GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require 3 consecutive matching frames — prevents false triggers
     
     # ===========================================
     # Attendance Rules
     # ===========================================
     COOLDOWN_SECONDS: int = 10  # Prevent duplicate scans
     LATE_THRESHOLD_MINUTES: int = 15  # Mark as late after this
+    EARLY_ENTRY_MINUTES: int = 10  # Allow recognition N minutes before class starts
+    AUTO_EXIT_ENABLED: bool = True  # Auto-log EXIT at class end time for users who forgot
+    AUTO_EXIT_GRACE_MINUTES: int = 0  # Extra minutes after end_time before auto-exit fires
     
     # ===========================================
     # Backend API

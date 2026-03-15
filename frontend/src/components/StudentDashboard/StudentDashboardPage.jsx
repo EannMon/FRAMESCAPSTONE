@@ -17,8 +17,8 @@ const WelcomeBanner = ({ studentName, studentId }) => (
     </div>
 );
 
-const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor }) => (
-    <div className="card student-summary-card">
+const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor, hoverExplanation }) => (
+    <div className="card student-summary-card" title={hoverExplanation || ''}>
         <div className={`summary-icon-container ${iconBgClass}`}>
             <i className={iconClass}></i>
         </div>
@@ -40,6 +40,23 @@ const StudentSummaryCards = ({ stats, metrics }) => {
     const attRate = metrics ? `${metrics.attendance_rate}%` : stats.attendanceRate;
     const puncRate = metrics ? `${metrics.punctuality_rate}%` : '--';
 
+    const tierGuideText = 'Tier Guide: Compliant (>=95%), Acceptable (85-94%), Warning (75-84%), Probation (<75%).';
+    const attendanceHover = metrics
+        ? [
+            'Attendance Rate = (Sessions Attended / Total Conducted Sessions) x 100.',
+            `Current: ${metrics.sessions_attended} / ${metrics.total_sessions} = ${metrics.attendance_rate}%.`,
+            tierGuideText,
+        ].join('\n')
+        : `Attendance Rate = (Sessions Attended / Total Conducted Sessions) x 100.\n${tierGuideText}`;
+
+    const punctualityHover = metrics
+        ? [
+            'Punctuality Rate = (On-Time Arrivals / Attended Sessions) x 100.',
+            `Current: ${metrics.on_time_arrivals} on-time / ${metrics.sessions_attended} attended = ${metrics.punctuality_rate}%.`,
+            tierGuideText,
+        ].join('\n')
+        : `Punctuality Rate = (On-Time Arrivals / Attended Sessions) x 100.\n${tierGuideText}`;
+
     return (
         <div className="student-summary-cards-container">
             <StudentSummaryCard
@@ -49,6 +66,7 @@ const StudentSummaryCards = ({ stats, metrics }) => {
                 iconBgClass="s-attendance-bg"
                 subtitle={attTier}
                 subtitleColor={attColor}
+                hoverExplanation={attendanceHover}
             />
             <StudentSummaryCard
                 iconClass="fas fa-book"
@@ -63,6 +81,7 @@ const StudentSummaryCards = ({ stats, metrics }) => {
                 iconBgClass="s-access-bg"
                 subtitle={puncTier}
                 subtitleColor={puncColor}
+                hoverExplanation={punctualityHover}
             />
         </div>
     );

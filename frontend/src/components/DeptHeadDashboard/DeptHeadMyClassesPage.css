@@ -721,17 +721,26 @@
     margin-top: 5px;
 }
 
-.icon-btn-view {
-    background: none;
-    border: none;
+.icon-btn-remove {
+    background: transparent;
+    border: 1px solid transparent;
     color: #94a3b8;
     cursor: pointer;
-    font-size: 1rem;
-    transition: color 0.2s;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
 }
 
-.icon-btn-view:hover {
-    color: #163269;
+.icon-btn-remove:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
 }
 
 /* Profile */
@@ -1406,4 +1415,116 @@
 
 .add-search-btn:hover {
     background: #1B5E20;
+}
+
+/* ==========================================
+   DARK MODE OVERRIDES
+   ========================================== */
+body.dark-mode .real-calendar-container,
+body.dark-mode .upload-section,
+body.dark-mode .preview-container,
+body.dark-mode .history-section,
+body.dark-mode .calendar-grid-card {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-title-group h3,
+body.dark-mode .upload-section h3,
+body.dark-mode .history-section h3,
+body.dark-mode .file-name,
+body.dark-mode .upload-section label,
+body.dark-mode .form-group label,
+body.dark-mode .preview-header h3,
+body.dark-mode .info-text {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .cal-instruction,
+body.dark-mode .file-meta {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .calendar-grid-wrapper {
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-header-row {
+    background-color: #0F172A !important;
+    border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .cal-header-row div {
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .cal-cell {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .cal-cell.empty {
+    background-color: #0F172A !important;
+}
+
+body.dark-mode .cal-cell.past-day {
+    background-color: #162032 !important;
+}
+
+body.dark-mode .cal-cell.past-clickable:hover {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .cal-day-number {
+    color: #F8FAFC !important;
+}
+
+body.dark-mode .locked-field {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .history-item {
+    background-color: #0F172A !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .history-item:hover {
+    border-color: #60A5FA !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .file-icon-box {
+    background-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+body.dark-mode .cal-event-pill {
+    background-color: #334155 !important;
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .cal-event-green {
+    background-color: rgba(46, 125, 50, 0.2) !important;
+    color: #81C784 !important;
+    border-left-color: #2E7D32 !important;
+}
+
+body.dark-mode .cal-event-blue {
+    background-color: rgba(22, 50, 105, 0.2) !important;
+    color: #93C5FD !important;
+    border-left-color: #60A5FA !important;
+}
+
+body.dark-mode .cal-event-purple {
+    background-color: rgba(106, 27, 154, 0.2) !important;
+    color: #CE93D8 !important;
+    border-left-color: #AB47BC !important;
+}
+
+body.dark-mode .cal-event-red {
+    background-color: rgba(198, 40, 40, 0.2) !important;
+    color: #EF9A9A !important;
+    border-left-color: #E53935 !important;
 }

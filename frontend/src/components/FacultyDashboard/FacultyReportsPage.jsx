@@ -13,7 +13,8 @@ const reportOptions = [
     { id: 'CLASS_MONTHLY', label: 'Monthly Attendance Trends (Class)', desc: 'Visual trend of improvement or decline per class.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_SEMESTER', label: 'Semestral Class Attendance', desc: 'Full semester attendance summary per class.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_ABSENCE', label: 'Absence Summary per Section', desc: 'Quantifies student absences for easier grading.', type: 'CLASS', category: 'Class-Specific Reports' },
-    { id: 'CLASS_LATE', label: 'Punctuality Index per Section', desc: 'Ranks student punctuality relative to scheduled start.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'CLASS_LATE', label: 'Late Arrival Report', desc: 'Monitors frequency and timing of late student arrivals.', type: 'CLASS', category: 'Class-Specific Reports' },
+    { id: 'PUNCTUALITY_INDEX', label: 'Punctuality Index per Section', desc: 'Ranks student punctuality relative to scheduled start.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'BREAK_DURATION', label: 'Break Duration & Abuse Report', desc: 'Detects excessive breaks or failures to return.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'UNRECOGNIZED_LOGS', label: 'Unrecognized Individual Logs', desc: 'Unknown individuals detected by camera.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'EARLY_EXITS', label: 'Early Exits Report', desc: 'Students leaving before class ends.', type: 'CLASS', category: 'Class-Specific Reports' },
@@ -118,8 +119,13 @@ const FacultyReportsPage = () => {
         setLoading(true);
         setError(null);
         try {
+            const report = reportOptions.find((opt) => opt.id === reportId);
+            const resolvedClassId = report?.type === 'CLASS'
+                ? (selectedClass || classes[0]?.class_id || undefined)
+                : undefined;
+
             const params = { report_type: reportId };
-            if (selectedClass) params.class_id = selectedClass;
+            if (resolvedClassId) params.class_id = resolvedClassId;
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
             params.limit = 200;
@@ -143,6 +149,9 @@ const FacultyReportsPage = () => {
 
     const handleSelectReport = (report) => {
         setSelectedReport(report);
+        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0) {
+            setSelectedClass(String(classes[0].class_id));
+        }
         fetchReportData(report.id);
     };
 

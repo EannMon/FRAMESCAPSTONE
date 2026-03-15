@@ -186,7 +186,7 @@ const UserManagementPage = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>
+                                <td colSpan="6" className="admin-empty-state">
                                     No users found.
                                 </td>
                             </tr>

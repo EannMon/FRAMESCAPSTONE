@@ -114,7 +114,7 @@ const NotificationsPage = ({ isEmbedded = false }) => {
                                 <i className="fas fa-arrow-left"></i>
                             </button>
                             <h1 className="notifications-main-title">
-                                Notifications {unreadCount > 0 && <span style={{ fontSize: '0.7em', color: '#ef4444' }}>({unreadCount} unread)</span>}
+                                Notifications {unreadCount > 0 && <span className="unread-count-badge">({unreadCount} unread)</span>}
                             </h1>
                         </div>
                     )}
@@ -139,16 +139,16 @@ const NotificationsPage = ({ isEmbedded = false }) => {
                 {/* Notifications List */}
                 <div className="card notifications-list-card">
                     {isLoading ? (
-                        <div style={{ padding: 24, textAlign: 'center', color: '#888' }}>
-                            <i className="fas fa-spinner fa-spin" style={{ marginRight: 8 }}></i> Loading notifications...
+                        <div className="notification-status-message">
+                            <i className="fas fa-spinner fa-spin"></i> Loading notifications...
                         </div>
                     ) : error ? (
-                        <div style={{ padding: 24, textAlign: 'center', color: '#ef4444' }}>
-                            <i className="fas fa-exclamation-circle" style={{ marginRight: 8 }}></i> {error}
+                        <div className="notification-status-message error-text">
+                            <i className="fas fa-exclamation-circle"></i> {error}
                         </div>
                     ) : filteredNotifications.length === 0 ? (
-                        <div style={{ padding: 24, textAlign: 'center', color: '#888' }}>
-                            <i className="fas fa-bell-slash" style={{ marginRight: 8 }}></i>
+                        <div className="notification-status-message">
+                            <i className="fas fa-bell-slash"></i>
                             {filter === 'unread' ? 'No unread notifications.' : 'No notifications yet.'}
                         </div>
                     ) : (

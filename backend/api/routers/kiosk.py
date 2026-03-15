@@ -35,6 +35,7 @@ class ActiveClassResponse(BaseModel):
     active_class: Optional[dict] = None
     device_room: Optional[str] = None
     current_time: str
+    is_early_entry: bool = False  # True if within early entry window but before official start
 
 
 class ScheduleEntryResponse(BaseModel):
@@ -149,15 +150,21 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     active_class = None
 
     # Query classes in this room on current day, eagerly load subject + faculty
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(
-            Class.room == device.room,
+            func.lower(func.trim(Class.room)) == normalized_room,
             Class.day_of_week == current_day
         )
         .all()
     )
+
+    # Early entry window: allow recognition N minutes before class starts
+    early_entry_minutes = 10
+    is_early_entry = False
 
     for cls in classes:
         try:
@@ -169,10 +176,17 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
             if isinstance(end, str):
                 end = datetime.strptime(end, "%H:%M:%S").time()
 
-            if start <= current_time <= end:
+            # Compute early start time (N minutes before official start)
+            start_dt = datetime.combine(now.date(), start)
+            early_start = (start_dt - timedelta(minutes=early_entry_minutes)).time()
+
+            if early_start <= current_time <= end:
                 # Access eagerly-loaded relationships — no extra queries
                 subject = cls.subject
                 faculty = cls.faculty
+
+                # Flag whether we're in the early window (before official start)
+                is_early_entry = current_time < start
 
                 active_class = {
                     "class_id": cls.id,
@@ -196,7 +210,8 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
         has_active_class=active_class is not None,
         active_class=active_class,
         device_room=device.room,
-        current_time=now.isoformat()
+        current_time=now.isoformat(),
+        is_early_entry=is_early_entry
     )
 
 
@@ -218,10 +233,12 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
-        .filter(Class.room == device.room)
+        .filter(func.lower(func.trim(Class.room)) == normalized_room)
         .all()
     )
 
@@ -331,9 +348,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
                 is_late=False
             )
 
-    # Parse timestamp
-    timestamp = datetime.now()
-    if body.timestamp:
+    if body.timestamp is not None:
         try:
             timestamp = datetime.fromisoformat(body.timestamp)
         except Exception:
@@ -451,6 +466,110 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
         db.rollback()
         logger.exception("ATTENDANCE | failed to log: user=%d class=%d", body.user_id, body.class_id)
         raise api_error(500, "INTERNAL_ERROR", "An unexpected error occurred while logging attendance")
+
+
+class AutoExitRequest(BaseModel):
+    """Request to trigger auto-exit for a class."""
+    class_id: int
+    device_id: int
+
+
+class AutoExitResponse(BaseModel):
+    """Response after auto-exit processing."""
+    success: bool
+    auto_exited_count: int
+    message: str
+
+
+@router.post("/attendance/auto-exit", response_model=AutoExitResponse)
+def auto_exit_class(body: AutoExitRequest, db: Session = Depends(get_db)):
+    """
+    Auto-exit all users who are still present in a class.
+    Called by the kiosk when the class end_time is reached.
+    Bulk-inserts EXIT logs with verified_by=AUTO_TIMEOUT.
+    """
+    class_ = db.query(Class).filter(Class.id == body.class_id).first()
+    if not class_:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    device = db.query(Device).filter(Device.id == body.device_id).first()
+    if not device:
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+
+    # Get all attendance logs for this class today
+    logs = db.query(AttendanceLog).filter(
+        AttendanceLog.class_id == body.class_id,
+        AttendanceLog.timestamp >= today_start,
+        AttendanceLog.timestamp < today_end
+    ).order_by(AttendanceLog.timestamp.asc()).all()
+
+    # Walk logs per user to find who is still present (entered but not exited)
+    user_states = {}  # user_id -> last relevant action
+    for log in logs:
+        action_val = log.action.value if isinstance(log.action, AttendanceAction) else log.action
+        uid = log.user_id
+        if action_val == "ENTRY":
+            user_states[uid] = "PRESENT"
+        elif action_val == "EXIT":
+            user_states[uid] = "EXITED"
+        elif action_val == "BREAK_OUT":
+            if user_states.get(uid) == "PRESENT":
+                user_states[uid] = "ON_BREAK"
+        elif action_val == "BREAK_IN":
+            if user_states.get(uid) == "ON_BREAK":
+                user_states[uid] = "PRESENT"
+
+    # Find users still present or on break (not exited)
+    users_to_exit = [
+        uid for uid, state in user_states.items()
+        if state in ("PRESENT", "ON_BREAK")
+    ]
+
+    if not users_to_exit:
+        return AutoExitResponse(
+            success=True,
+            auto_exited_count=0,
+            message="No users needed auto-exit"
+        )
+
+    # Bulk insert EXIT logs
+    auto_exit_count = 0
+    try:
+        for uid in users_to_exit:
+            log = AttendanceLog(
+                user_id=uid,
+                class_id=body.class_id,
+                device_id=body.device_id,
+                action=AttendanceAction.EXIT,
+                verified_by=VerifiedBy.AUTO_TIMEOUT,
+                confidence_score=0.0,
+                is_late=False,
+                timestamp=now,
+                remarks="[AUTO_EXIT] System auto-exit at class end time"
+            )
+            db.add(log)
+            auto_exit_count += 1
+
+        db.commit()
+        logger.info(
+            "AUTO_EXIT | class=%d: auto-exited %d users",
+            body.class_id, auto_exit_count
+        )
+
+        return AutoExitResponse(
+            success=True,
+            auto_exited_count=auto_exit_count,
+            message=f"Auto-exited {auto_exit_count} users"
+        )
+
+    except Exception as e:
+        db.rollback()
+        logger.exception("AUTO_EXIT | failed for class=%d", body.class_id)
+        raise api_error(500, "INTERNAL_ERROR", "Failed to process auto-exit")
 
 
 @router.get("/class/{class_id}/enrolled", response_model=ClassEnrolledResponse)

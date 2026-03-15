@@ -137,12 +137,12 @@ const FaceEnrollmentPage = () => {
 
         if (errorCode === 'QUALITY_TOO_LOW') {
             const qualityPct = typeof errorDetails.quality_score === 'number'
-                ? Math.round(errorDetails.quality_score * 100)
+                ? (errorDetails.quality_score * 100).toFixed(2)
                 : null;
             return {
                 message: qualityPct !== null
-                    ? `Face not registered: quality is ${qualityPct}%, below the required 80%.`
-                    : 'Face not registered: captured quality is below the required 80%.',
+                    ? `Face not registered: quality is ${qualityPct}%, it must be above 75.00%.`
+                    : 'Face not registered: captured quality must be above 75.00%.',
                 status: 'Improve lighting, keep your whole face centered, and avoid blur before retaking.',
             };
         }
@@ -238,7 +238,7 @@ const FaceEnrollmentPage = () => {
             clearTimeout(phaseTimeout);
 
             if (response.data.success) {
-                const qualityPct = (response.data.quality_score * 100).toFixed(0);
+                const qualityPct = (response.data.quality_score * 100).toFixed(2);
 
                 setEnrollProgress(100);
                 setStatus(`Face enrolled successfully. Enrollment quality: ${qualityPct}%`);

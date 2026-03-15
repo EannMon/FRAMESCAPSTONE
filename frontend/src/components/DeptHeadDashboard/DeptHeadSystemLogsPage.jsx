@@ -15,7 +15,7 @@ const formatTimestamp = (ts) => {
 };
 
 const DeptHeadSystemLogsPage = () => {
-    const [logs, setLogs] = useState([]);
+    const [allLogs, setAllLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [levelFilter, setLevelFilter] = useState('');
@@ -43,19 +43,17 @@ const DeptHeadSystemLogsPage = () => {
         setError(null);
         try {
             const params = {};
-            if (levelFilter) params.level = levelFilter;
-            if (roomFilter) params.room = roomFilter;
-            if (searchTerm) params.search = searchTerm;
+            // Only send date filters to backend to keep cards constant
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
 
             const res = await api.get('/api/dept/system-logs', { params, signal });
-            setLogs(res.data || []);
+            setAllLogs(res.data || []);
         } catch (err) {
             if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                 console.error('System logs fetch error:', err);
                 setError('Failed to load system logs. Please try again.');
-                setLogs([]);
+                setAllLogs([]);
             }
         } finally {
             if (!signal || !signal.aborted) {
@@ -70,14 +68,35 @@ const DeptHeadSystemLogsPage = () => {
         return () => controller.abort();
     }, []);
 
-    // Stats computed from logs
+    // Stats computed from ALL logs for the period
     const stats = useMemo(() => {
-        const total = logs.length;
-        const errors = logs.filter(l => l.level === 'ERROR').length;
-        const warns = logs.filter(l => l.level === 'WARN').length;
-        const infos = logs.filter(l => l.level === 'INFO').length;
+        const total = allLogs.length;
+        const errors = allLogs.filter(l => l.level === 'ERROR').length;
+        const warns = allLogs.filter(l => l.level === 'WARN').length;
+        const infos = allLogs.filter(l => l.level === 'INFO').length;
         return { total, errors, warns, infos };
-    }, [logs]);
+    }, [allLogs]);
+
+    // Client-side filtering for the list
+    const filteredLogs = useMemo(() => {
+        return allLogs.filter(log => {
+            const matchLevel = !levelFilter || log.level === levelFilter;
+            const matchRoom = !roomFilter || log.room === roomFilter;
+            
+            let matchSearch = true;
+            if (searchTerm) {
+                const s = searchTerm.toLowerCase();
+                matchSearch = (
+                    log.message?.toLowerCase().includes(s) || 
+                    log.service?.toLowerCase().includes(s) || 
+                    log.user_name?.toLowerCase().includes(s) ||
+                    log.action_type?.toLowerCase().includes(s)
+                );
+            }
+            
+            return matchLevel && matchRoom && matchSearch;
+        });
+    }, [allLogs, levelFilter, roomFilter, searchTerm]);
 
     const getLevelIcon = (level) => {
         switch (level) {
@@ -160,7 +179,7 @@ const DeptHeadSystemLogsPage = () => {
                             <i className="fas fa-sync-alt"></i> Retry
                         </button>
                     </div>
-                ) : logs.length === 0 ? (
+                ) : filteredLogs.length === 0 ? (
                     <div className="logs-empty">
                         <i className="fas fa-check-circle"></i>
                         <h4>No Logs Found</h4>
@@ -168,7 +187,7 @@ const DeptHeadSystemLogsPage = () => {
                     </div>
                 ) : (
                     <div className="logs-list">
-                        {logs.map((log, i) => {
+                        {filteredLogs.map((log, i) => {
                             const { icon, color } = getLevelIcon(log.level);
                             return (
                                 <div key={log.id ?? i} className={`log-entry level-${log.level?.toLowerCase()}`}>
@@ -195,9 +214,9 @@ const DeptHeadSystemLogsPage = () => {
                 )}
             </div>
 
-            {logs.length > 0 && (
+            {filteredLogs.length > 0 && (
                 <div className="logs-footer">
-                    Showing {logs.length} log entries
+                    Showing {filteredLogs.length} of {allLogs.length} log entries
                 </div>
             )}
         </div>
