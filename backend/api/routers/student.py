@@ -69,7 +69,7 @@ def _parse_report_window(report_type: str, date_from: Optional[str], date_to: Op
         start = (end.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         return parsed_from or start, parsed_to or end
 
-    if report_code in {"HISTORY_30D", "CONSISTENCY"}:
+    if report_code in {"HISTORY_30D", "CONSISTENCY", "ABSENT_LOG"}:
         end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
         start = (end - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
         return parsed_from or start, parsed_to or end

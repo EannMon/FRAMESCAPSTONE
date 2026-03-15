@@ -17,13 +17,18 @@ from models.user import User, UserRole
 from models.enrollment import Enrollment
 from models.subject import Subject
 from models.device import Device
+from models.session_exception import SessionException, ExceptionType
 from services.report_metric_service import (
     build_student_summary_metrics,
     compute_student_session_count_reference,
     compute_student_core_metrics,
     resolve_student_scoped_class_ids,
 )
-from services.report_insight_service import generate_student_insights
+from services.role_based_analytics_service import (
+    generate_student_role_insights,
+    generate_faculty_role_insights,
+    generate_department_role_insights,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1523,7 +1528,10 @@ def get_faculty_report_envelope(
             "query_metrics": {"execution_ms": elapsed_ms},
         },
         "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
-        "insights": _build_insights_from_rows(all_rows, report_type),
+        "insights": generate_faculty_role_insights(
+            rows=all_rows,
+            summary_metrics=_build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+        ),
         "rows": rows,
     }
 
@@ -1566,7 +1574,10 @@ def get_dept_report_envelope(
             "query_metrics": {"execution_ms": elapsed_ms},
         },
         "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
-        "insights": _build_insights_from_rows(all_rows, report_type),
+        "insights": generate_department_role_insights(
+            rows=all_rows,
+            summary_metrics=_build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+        ),
         "rows": rows,
     }
 
@@ -1622,6 +1633,165 @@ def _build_student_rows(logs):
                 "class_id": log.class_id,
             }
         )
+    return rows
+
+
+def _build_student_absent_rows(
+    db: Session,
+    user_id: int,
+    scoped_class_ids,
+    date_from: datetime,
+    date_to: datetime,
+):
+    """Build synthetic ABSENT rows for conducted sessions where the student has no ENTRY."""
+    if not scoped_class_ids:
+        return []
+
+    classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.id.in_(scoped_class_ids))
+        .all()
+    )
+    class_map = {cls.id: cls for cls in classes}
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+
+    exception_rows = (
+        db.query(SessionException.class_id, SessionException.session_date, SessionException.exception_type)
+        .filter(
+            SessionException.class_id.in_(scoped_class_ids),
+            SessionException.session_date >= date_from.date(),
+            SessionException.session_date <= date_to.date(),
+        )
+        .all()
+    )
+    exception_map = {
+        (class_id, str(session_date)): exception_type
+        for class_id, session_date, exception_type in exception_rows
+    }
+
+    conducted_pairs = set(
+        (class_id, str(log_day))
+        for class_id, log_day in db.query(
+            AttendanceLog.class_id,
+            func.date(AttendanceLog.timestamp),
+        )
+        .filter(
+            AttendanceLog.class_id.in_(scoped_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp <= date_to,
+        )
+        .distinct()
+        .all()
+    )
+
+    student_entry_pairs = set(
+        (class_id, str(log_day))
+        for class_id, log_day in db.query(
+            AttendanceLog.class_id,
+            func.date(AttendanceLog.timestamp),
+        )
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.class_id.in_(scoped_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp <= date_to,
+        )
+        .distinct()
+        .all()
+    )
+
+    schedule_aligned_conducted_pairs = set()
+    for class_id, log_day in conducted_pairs:
+        cls = class_map.get(class_id)
+        if not cls:
+            continue
+
+        try:
+            day_date = datetime.fromisoformat(str(log_day)).date()
+        except ValueError:
+            continue
+
+        exception_type = exception_map.get((class_id, str(day_date)))
+        if exception_type in {ExceptionType.CANCELLED, ExceptionType.HOLIDAY, ExceptionType.ONLINE}:
+            continue
+
+        if exception_type == ExceptionType.ONSITE:
+            schedule_aligned_conducted_pairs.add((class_id, str(day_date)))
+            continue
+
+        day_name = (cls.day_of_week or "").strip().lower()
+        target_day = day_map.get(day_name)
+        if target_day is None:
+            continue
+
+        if day_date.weekday() == target_day:
+            schedule_aligned_conducted_pairs.add((class_id, str(day_date)))
+
+    absent_pairs = sorted(schedule_aligned_conducted_pairs - student_entry_pairs, key=lambda item: item[1], reverse=True)
+    rows = []
+
+    for idx, (class_id, log_day) in enumerate(absent_pairs, 1):
+        cls = class_map.get(class_id)
+        subject = cls.subject if cls else None
+        faculty = cls.faculty if cls else None
+
+        try:
+            day_date = datetime.fromisoformat(log_day).date()
+        except ValueError:
+            day_date = date_from.date()
+
+        scheduled_time = None
+        if cls and cls.start_time:
+            if isinstance(cls.start_time, time):
+                scheduled_time = cls.start_time
+            else:
+                try:
+                    scheduled_time = datetime.strptime(str(cls.start_time), "%H:%M:%S").time()
+                except ValueError:
+                    try:
+                        scheduled_time = datetime.strptime(str(cls.start_time), "%H:%M").time()
+                    except ValueError:
+                        scheduled_time = time(12, 0)
+        else:
+            scheduled_time = time(12, 0)
+
+        absent_dt = datetime.combine(day_date, scheduled_time, tzinfo=date_from.tzinfo)
+
+        rows.append(
+            {
+                "id": idx,
+                "col1": day_date.isoformat(),
+                "col2": f"{subject.code} - {subject.title}" if subject else (cls.room if cls else "—"),
+                "status": "ABSENT",
+                "col3": absent_dt.strftime("%I:%M %p"),
+                "remarks": "Absent",
+                "timestamp": absent_dt.isoformat(),
+                "action": "ABSENT",
+                "is_late": False,
+                "room": cls.room if cls else None,
+                "subject_code": subject.code if subject else None,
+                "subject_title": subject.title if subject else None,
+                "faculty_name": (
+                    f"{faculty.first_name} {faculty.last_name}".strip()
+                    if faculty and (faculty.first_name or faculty.last_name)
+                    else "—"
+                ),
+                "class_id": class_id,
+            }
+        )
+
     return rows
 
 
@@ -1691,16 +1861,41 @@ def get_student_report_envelope(
             AttendanceLog.action.in_([AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN])
         )
 
-    total_rows = base_query.count()
-    logs = (
-        base_query
-        .order_by(AttendanceLog.timestamp.desc())
-        .offset(skip)
-        .limit(min(limit, 100))
-        .all()
-    )
+    page_limit = min(limit, 100)
 
-    rows = _build_student_rows(logs)
+    if report_code in {"DAILY_REPORT", "ABSENT_LOG"}:
+        absent_rows = _build_student_absent_rows(
+            db=db,
+            user_id=user_id,
+            scoped_class_ids=scoped_class_ids,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        if report_code == "ABSENT_LOG":
+            all_rows = absent_rows
+        else:
+            all_logs = (
+                base_query
+                .order_by(AttendanceLog.timestamp.desc())
+                .all()
+            )
+            present_rows = _build_student_rows(all_logs)
+            all_rows = present_rows + absent_rows
+
+        all_rows.sort(key=lambda row: row.get("timestamp") or "", reverse=True)
+        total_rows = len(all_rows)
+        rows = all_rows[max(skip, 0): max(skip, 0) + page_limit]
+    else:
+        total_rows = base_query.count()
+        logs = (
+            base_query
+            .order_by(AttendanceLog.timestamp.desc())
+            .offset(skip)
+            .limit(page_limit)
+            .all()
+        )
+        rows = _build_student_rows(logs)
 
     core_metrics = compute_student_core_metrics(
         db=db,
@@ -1718,7 +1913,7 @@ def get_student_report_envelope(
     prev_from = prev_to - timedelta(seconds=window_seconds)
 
     prev_metrics = {}
-    if report_code in {"WEEKLY_SUMMARY", "MONTHLY_TRENDS", "SEM_REPORT", "HISTORY_30D", "CONSISTENCY"}:
+    if report_code in {"WEEKLY_SUMMARY", "MONTHLY_TRENDS", "SEM_REPORT", "CONSISTENCY", "ABSENT_LOG"}:
         prev_metrics = compute_student_core_metrics(
             db=db,
             user_id=user_id,
@@ -1729,8 +1924,17 @@ def get_student_report_envelope(
             classes=scoped_classes,
         )
 
-    summary_metrics = build_student_summary_metrics(core_metrics, date_from, date_to)
-    insights = generate_student_insights(core_metrics, prev_metrics)
+    summary_metrics = build_student_summary_metrics(
+        core_metrics,
+        date_from,
+        date_to,
+        is_all_subject_scope=(class_id is None),
+    )
+    insights = generate_student_role_insights(
+        core_metrics,
+        report_code=report_code,
+        previous_window_metrics=prev_metrics,
+    )
     session_count_reference = compute_student_session_count_reference(
         db=db,
         user_id=user_id,

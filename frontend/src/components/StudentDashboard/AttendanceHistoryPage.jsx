@@ -7,6 +7,7 @@ import StudentReportModal from './StudentReportModal';
 const LogStatusTag = ({ text, isPresent, type }) => {
     let statusClass = 'neutral';
     if (isPresent) statusClass = 'success';
+    else if (type === 'ABSENT') statusClass = 'danger';
     else if (type === 'BREAK_OUT') statusClass = 'warning';
     else if (type === 'EXIT') statusClass = 'neutral';
     else statusClass = 'neutral';
@@ -36,21 +37,76 @@ const AttendanceHistoryPage = () => {
     const [selectedReportType, setSelectedReportType] = useState('DAILY_REPORT'); // Default to first valid item
     const [selectedSubject, setSelectedSubject] = useState('ALL');
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
-    const [filterEndDate, setFilterEndDate] = useState(new Date().toISOString().split('T')[0]); // End Date
     const [selectedSemester, setSelectedSemester] = useState('1ST'); // 1ST, 2ND, SUMMER
     const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
+    const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [selectedWeekNumber, setSelectedWeekNumber] = useState('1');
+    const [selectedVisualStatus, setSelectedVisualStatus] = useState('ALL');
+    const [activeMetricName, setActiveMetricName] = useState(null);
 
     // ... (reportTypes array remains same) ...
     const reportTypes = [
-        { id: 'DAILY_REPORT', label: 'Daily Attendance per Subject', desc: 'Tracks presence, lateness, and breaks for each class session.' },
+        { id: 'DAILY_REPORT', label: 'Daily Attendance', desc: 'Tracks attendance behavior for selected date and subjects, including absences for conducted sessions.' },
         { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes present/absent/late counts; promotes accountability.' },
         { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Groups attendance by month to identify patterns and trends over time.' },
         { id: 'SEM_REPORT', label: 'Semestral Report', desc: 'Provides cumulative data and can be filtered per subject or all enrolled subjects.' },
-        { id: 'HISTORY_30D', label: 'Attendance History Log (30 Days)', desc: 'Maintains recent timestamps; balances data retention and privacy.' },
-        { id: 'LATE_REPORT', label: 'Personal Late Arrival Report', desc: 'Monitors frequency and duration of lateness for punctuality.' },
-        { id: 'BREAK_LOG', label: 'Break Duration Log', desc: 'Shows total break time to encourage responsible behavior.' },
-        { id: 'CONSISTENCY', label: 'Personal Consistency Index', desc: 'AI-generated metric predicting absence trends.' }
+        { id: 'LATE_REPORT', label: 'Personal Late Arrival Report', desc: 'Semestral view of your late arrivals across all subjects or a selected subject.' },
+        { id: 'BREAK_LOG', label: 'Break Duration Log', desc: 'Semestral view of your break-out and break-in behavior across subjects.' },
+        { id: 'ABSENT_LOG', label: 'Absent Logs', desc: 'Shows conducted sessions where you were marked absent in the selected period.' },
+        { id: 'CONSISTENCY', label: 'Personal Consistency Index', desc: 'Explains your stability score, trend direction, and confidence for this report window.' }
     ];
+
+    const getSemesterWindow = () => {
+        const year = parseInt(academicYear, 10);
+        if (selectedSemester === '1ST') {
+            return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
+        }
+        if (selectedSemester === '2ND') {
+            return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
+        }
+        return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
+    };
+
+    const getWeekRangesForMonth = () => {
+        const [yearText, monthText] = weeklyMonth.split('-');
+        const year = Number(yearText);
+        const month = Number(monthText);
+        if (!year || !month) return [];
+
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0);
+        const ranges = [];
+
+        let cursor = new Date(startOfMonth);
+        let week = 1;
+        while (cursor <= endOfMonth) {
+            const weekStart = new Date(cursor);
+            const weekEnd = new Date(cursor);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            if (weekEnd > endOfMonth) {
+                weekEnd.setTime(endOfMonth.getTime());
+            }
+
+            ranges.push({
+                value: String(week),
+                start: weekStart,
+                end: weekEnd,
+                label: `Week ${week}: ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            });
+
+            cursor.setDate(cursor.getDate() + 7);
+            week += 1;
+        }
+
+        return ranges;
+    };
+
+    const formatDateLocal = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     // Helper: Parse Time "HH:MM:SS" (24-hr) or "07:00 AM" (12-hr) -> Minutes
     const parseTimeStr = (timeStr) => {
@@ -127,31 +183,27 @@ const AttendanceHistoryPage = () => {
         const selectedDate = new Date(filterDate);
         selectedDate.setHours(0, 0, 0, 0);
 
-        const toIso = (d, end = false) => {
-            const copy = new Date(d);
-            if (end) copy.setHours(23, 59, 59, 999);
-            else copy.setHours(0, 0, 0, 0);
-            return copy.toISOString().split('T')[0];
-        };
+        const toIso = (d) => formatDateLocal(new Date(d));
 
         if (selectedReportType === 'DAILY_REPORT') {
             return { dateFrom: toIso(selectedDate), dateTo: toIso(selectedDate, true) };
         }
 
-        if (selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG') {
-            return { dateFrom: '2020-01-01', dateTo: toIso(new Date(), true) };
-        }
-
         if (selectedReportType === 'WEEKLY_SUMMARY') {
-            const weekEnd = new Date(selectedDate);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-            return { dateFrom: toIso(selectedDate), dateTo: toIso(weekEnd, true) };
+            const weekRanges = getWeekRangesForMonth();
+            const selectedWeek = weekRanges.find((item) => item.value === selectedWeekNumber) || weekRanges[0];
+            if (!selectedWeek) {
+                return { dateFrom: toIso(selectedDate), dateTo: toIso(selectedDate, true) };
+            }
+            return { dateFrom: toIso(selectedWeek.start), dateTo: toIso(selectedWeek.end, true) };
         }
 
-        if (selectedReportType === 'HISTORY_30D' || selectedReportType === 'CONSISTENCY') {
-            const last30 = new Date(selectedDate);
-            last30.setDate(last30.getDate() - 29);
-            return { dateFrom: toIso(last30), dateTo: toIso(selectedDate, true) };
+        if (selectedReportType === 'CONSISTENCY' || selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG') {
+            return getSemesterWindow();
+        }
+
+        if (selectedReportType === 'ABSENT_LOG') {
+            return getSemesterWindow();
         }
 
         if (selectedReportType === 'MONTHLY_TRENDS') {
@@ -162,14 +214,7 @@ const AttendanceHistoryPage = () => {
         }
 
         if (selectedReportType === 'SEM_REPORT') {
-            const year = parseInt(academicYear, 10);
-            if (selectedSemester === '1ST') {
-                return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
-            }
-            if (selectedSemester === '2ND') {
-                return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
-            }
-            return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
+            return getSemesterWindow();
         }
 
         return { dateFrom: `${academicYear}-08-01`, dateTo: `${parseInt(academicYear, 10) + 1}-07-31` };
@@ -219,6 +264,8 @@ const AttendanceHistoryPage = () => {
             if (action === 'ENTRY') {
                 if (log.is_late) buckets.LATE += 1;
                 else buckets.ENTERED += 1;
+            } else if (action === 'ABSENT') {
+                buckets.ABSENT += 1;
             } else if (action === 'BREAK_OUT') {
                 buckets.BREAK_OUT += 1;
             } else if (action === 'BREAK_IN') {
@@ -228,13 +275,49 @@ const AttendanceHistoryPage = () => {
             }
         });
 
-        const windowStats = sessionCountReference?.report_window || {};
-        const attended = Number(windowStats.attended || 0);
-        const conducted = Number(windowStats.conducted || 0);
-        buckets.ABSENT = Math.max(conducted - attended, 0);
+        if (buckets.ABSENT === 0) {
+            const windowStats = sessionCountReference?.report_window || {};
+            const attended = Number(windowStats.attended || 0);
+            const conducted = Number(windowStats.conducted || 0);
+            buckets.ABSENT = Math.max(conducted - attended, 0);
+        }
 
         return buckets;
     }, [rawLogs, sessionCountReference]);
+
+    const groupedSubjectActivity = useMemo(() => {
+        const summary = {};
+
+        rawLogs.forEach((log) => {
+            const subjectKey = log.mapped_subject || 'Unscheduled';
+            if (!summary[subjectKey]) {
+                summary[subjectKey] = {
+                    ENTERED: 0,
+                    LATE: 0,
+                    ABSENT: 0,
+                    BREAK_OUT: 0,
+                    BREAK_IN: 0,
+                    EXITED: 0,
+                };
+            }
+
+            const action = (log.action || '').toUpperCase();
+            if (action === 'ENTRY') {
+                if (log.is_late) summary[subjectKey].LATE += 1;
+                else summary[subjectKey].ENTERED += 1;
+            } else if (action === 'ABSENT') {
+                summary[subjectKey].ABSENT += 1;
+            } else if (action === 'BREAK_OUT') {
+                summary[subjectKey].BREAK_OUT += 1;
+            } else if (action === 'BREAK_IN') {
+                summary[subjectKey].BREAK_IN += 1;
+            } else if (action === 'EXIT') {
+                summary[subjectKey].EXITED += 1;
+            }
+        });
+
+        return Object.entries(summary).map(([subject, counts]) => ({ subject, ...counts }));
+    }, [rawLogs]);
 
     const dailyTrend = useMemo(() => {
         const parseIsoDate = (value) => {
@@ -354,7 +437,10 @@ const AttendanceHistoryPage = () => {
                         report_type: selectedReportType,
                         date_from: dateFrom,
                         date_to: dateTo,
-                        class_id: selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : undefined,
+                        class_id:
+                            selectedReportType === 'WEEKLY_SUMMARY'
+                                ? undefined
+                                : (selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : undefined),
                         limit: 250,
                     },
                 });
@@ -394,14 +480,20 @@ const AttendanceHistoryPage = () => {
 
         fetchServerReport();
         return () => controller.abort();
-    }, [selectedReportType, selectedSubject, filterDate, selectedSemester, academicYear, userProfile, subjectClassMap]);
+    }, [selectedReportType, selectedSubject, filterDate, selectedSemester, academicYear, weeklyMonth, selectedWeekNumber, userProfile, subjectClassMap]);
+
+    useEffect(() => {
+        if (selectedReportType === 'WEEKLY_SUMMARY' && selectedSubject !== 'ALL') {
+            setSelectedSubject('ALL');
+        }
+    }, [selectedReportType, selectedSubject]);
 
     // --- FILTER LOGIC ---
     const getFilteredData = () => {
         let filtered = [...rawLogs];
 
         // 1. Subject Filter
-        if (selectedSubject !== 'ALL') {
+        if (selectedReportType !== 'WEEKLY_SUMMARY' && selectedSubject !== 'ALL') {
             filtered = filtered.filter(l => l.mapped_subject === selectedSubject);
         }
 
@@ -409,20 +501,57 @@ const AttendanceHistoryPage = () => {
         return filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     };
 
+    const getMetricContext = (metric) => {
+        const dict = metricDictionary[metric.metric_name] || {
+            label: metric.metric_name.replaceAll('_', ' '),
+            explanation: metric.explanation || 'Derived from report window records.',
+            formula: metric.formula || 'N/A',
+        };
+
+        return {
+            ...dict,
+            metricName: metric.metric_name,
+            value: metric.value,
+            confidence: metric.confidence,
+            formula: metric.formula || dict.formula,
+            explanation: metric.explanation || dict.explanation,
+        };
+    };
+
     const renderServerInsightPanel = () => {
         if (!summaryMetrics.length && !insights.length) return null;
+
+        const activeMetric = summaryMetrics.find((metric) => metric.metric_name === activeMetricName);
+        const activeContext = activeMetric ? getMetricContext(activeMetric) : null;
 
         return (
             <div className="insight-panel">
                 {summaryMetrics.length > 0 && (
                     <div className="insight-stats-row">
                         {summaryMetrics.map((metric) => (
-                            <div key={metric.metric_name} className="insight-stat-card">
+                            <button
+                                key={metric.metric_name}
+                                type="button"
+                                className={`insight-stat-card metric-button ${activeMetricName === metric.metric_name ? 'metric-button-active' : ''}`}
+                                onMouseEnter={() => setActiveMetricName(metric.metric_name)}
+                                onFocus={() => setActiveMetricName(metric.metric_name)}
+                                onClick={() => setActiveMetricName(metric.metric_name)}
+                            >
                                 <div className="insight-stat-label">{metric.metric_name.replaceAll('_', ' ')}</div>
                                 <div className="insight-stat-value">{metric.value}</div>
                                 <div className="insight-stat-sub">Confidence: {metric.confidence}</div>
-                            </div>
+                            </button>
                         ))}
+                    </div>
+                )}
+
+                {activeContext && (
+                    <div className="metric-hover-panel">
+                        <div className="metric-hover-title">{activeContext.label}</div>
+                        <div className="metric-hover-line"><strong>Current Value:</strong> {activeContext.value}</div>
+                        <div className="metric-hover-line"><strong>Formula:</strong> {activeContext.formula}</div>
+                        <div className="metric-hover-line"><strong>Meaning:</strong> {activeContext.explanation}</div>
+                        <div className="metric-hover-line"><strong>Confidence:</strong> {activeContext.confidence} - {confidenceMeaning[activeContext.confidence] || 'Data confidence from sample quality.'}</div>
                     </div>
                 )}
 
@@ -442,31 +571,12 @@ const AttendanceHistoryPage = () => {
         );
     };
 
-    const renderMetricDictionary = () => {
-        if (!summaryMetrics.length) return null;
-        return (
-            <div className="insight-panel">
-                <div className="insight-section-title">Metric Legend and Formula Guide</div>
-                <div className="metric-dictionary-grid">
-                    {summaryMetrics.map((metric) => {
-                        const dict = metricDictionary[metric.metric_name] || {
-                            label: metric.metric_name.replaceAll('_', ' '),
-                            explanation: metric.explanation || 'Derived from report window records.',
-                            formula: metric.formula || 'N/A',
-                        };
-                        return (
-                            <div key={metric.metric_name} className="metric-dictionary-card">
-                                <div className="metric-dictionary-title">{dict.label}</div>
-                                <div className="metric-dictionary-value">Current: {metric.value}</div>
-                                <div className="metric-dictionary-line"><strong>Formula:</strong> {dict.formula}</div>
-                                <div className="metric-dictionary-line"><strong>Meaning:</strong> {dict.explanation}</div>
-                                <div className="metric-dictionary-line"><strong>Confidence:</strong> {metric.confidence} - {confidenceMeaning[metric.confidence] || 'Data confidence from sample quality.'}</div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
+    const getVisualTrendTitle = () => {
+        if (selectedReportType === 'DAILY_REPORT') return 'Daily Activity Trend';
+        if (selectedReportType === 'WEEKLY_SUMMARY') return 'Weekly Activity Trend';
+        if (selectedReportType === 'MONTHLY_TRENDS') return 'Monthly Activity Trend';
+        if (selectedReportType === 'SEM_REPORT') return 'Semestral Activity Trend';
+        return 'Activity Trend';
     };
 
     const renderVisualSummary = () => {
@@ -481,17 +591,24 @@ const AttendanceHistoryPage = () => {
             { label: 'Exited', value: statusDistribution.EXITED, color: '#6c757d' },
         ];
         const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
-        const maxTrend = Math.max(...dailyTrend.map((item) => item.total), 1);
+        const statusKeys = ['ENTERED', 'LATE', 'ABSENT', 'BREAK_OUT', 'BREAK_IN', 'EXITED'];
+        const groupedRows = groupedSubjectActivity.map((row) => {
+            const values = selectedVisualStatus === 'ALL'
+                ? statusKeys.reduce((acc, key) => ({ ...acc, [key]: row[key] }), {})
+                : { [selectedVisualStatus]: row[selectedVisualStatus] || 0 };
+            const total = Object.values(values).reduce((acc, value) => acc + value, 0);
+            return { subject: row.subject, values, total };
+        });
 
-        const trendItemWidth = 42;
-        const trendHeight = 110;
-        const trendWidth = Math.max(dailyTrend.length * trendItemWidth, 320);
-        const totalLinePoints = dailyTrend.map((item, index) => {
-            const x = (index * trendItemWidth) + (trendItemWidth / 2);
-            const y = trendHeight - ((item.total / maxTrend) * trendHeight);
-            return `${x},${y}`;
-        }).join(' ');
-        const trendLabelStep = dailyTrend.length > 42 ? 7 : dailyTrend.length > 21 ? 3 : 1;
+        const maxTrend = Math.max(...groupedRows.map((item) => item.total), 1);
+        const statusStyle = {
+            ENTERED: '#2e7d32',
+            LATE: '#e65100',
+            ABSENT: '#c62828',
+            BREAK_OUT: '#1565c0',
+            BREAK_IN: '#00897b',
+            EXITED: '#6c757d',
+        };
 
         return (
             <div className="insight-panel">
@@ -513,55 +630,79 @@ const AttendanceHistoryPage = () => {
                         ))}
                     </div>
                     <div className="visual-card">
-                        <div className="visual-title">Semestral Daily Activity Trend</div>
-                        <div className="trend-chart-scroll-wrap">
-                            <div className="trend-chart-track" style={{ width: `${trendWidth}px` }}>
-                                <svg className="trend-line-svg" viewBox={`0 0 ${trendWidth} ${trendHeight}`} preserveAspectRatio="none">
-                                    <polyline
-                                        points={totalLinePoints}
-                                        fill="none"
-                                        stroke="#0d47a1"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
-                                <div className="trend-bar-grid" style={{ width: `${trendWidth}px` }}>
-                                    {dailyTrend.map((item, index) => (
-                                        <div key={item.day} className="trend-bar-item" style={{ width: `${trendItemWidth}px` }}>
-                                            <div className="trend-group-track" style={{ height: `${trendHeight}px` }}>
+                        <div className="visual-title">{getVisualTrendTitle()}</div>
+                        {selectedReportType === 'SEM_REPORT' && (
+                            <div className="visual-filter-row">
+                                <label>Status Distribution:</label>
+                                <select
+                                    className="app-select"
+                                    value={selectedVisualStatus}
+                                    onChange={(event) => setSelectedVisualStatus(event.target.value)}
+                                >
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="ENTERED">Entered</option>
+                                    <option value="LATE">Late</option>
+                                    <option value="ABSENT">Absent</option>
+                                    <option value="BREAK_OUT">Break Out</option>
+                                    <option value="BREAK_IN">Break In</option>
+                                    <option value="EXITED">Exited</option>
+                                </select>
+                            </div>
+                        )}
+                        <div className="grouped-cluster-scroll-wrap">
+                            <div className="grouped-cluster-chart">
+                                {groupedRows.map((item) => (
+                                    <div key={item.subject} className="grouped-cluster-item">
+                                        <div className="grouped-cluster-track">
+                                            {Object.entries(item.values).map(([key, value]) => (
                                                 <div
-                                                    className="trend-bar entered"
-                                                    style={{ height: `${(item.entered / maxTrend) * 100}%` }}
-                                                    title={`Entered: ${item.entered}`}
-                                                />
-                                                <div
-                                                    className="trend-bar late"
-                                                    style={{ height: `${(item.late / maxTrend) * 100}%` }}
-                                                    title={`Late: ${item.late}`}
-                                                />
-                                            </div>
-                                            <div className="mini-column-value">{item.total}</div>
-                                            <div className="mini-column-label">
-                                                {index % trendLabelStep === 0
-                                                    ? new Date(item.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                                    : ''}
-                                            </div>
+                                                    key={`${item.subject}-${key}`}
+                                                    className="grouped-cluster-bar"
+                                                    style={{
+                                                        height: `${maxTrend === 0 ? 0 : (value / maxTrend) * 100}%`,
+                                                        backgroundColor: statusStyle[key],
+                                                    }}
+                                                    title={`${item.subject} • ${key.replace('_', ' ')}: ${value}`}
+                                                >
+                                                    <span className="grouped-cluster-value">{value}</span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                        <div className="grouped-cluster-label" title={item.subject}>{item.subject}</div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                         <div className="trend-legend-row">
-                            <span className="trend-legend-item"><span className="trend-legend-dot entered" />Entered</span>
-                            <span className="trend-legend-item"><span className="trend-legend-dot late" />Late</span>
-                            <span className="trend-legend-item"><span className="trend-legend-line" />Total activity</span>
+                            {Object.entries(statusStyle)
+                                .filter(([key]) => selectedVisualStatus === 'ALL' || key === selectedVisualStatus)
+                                .map(([key, color]) => (
+                                    <span key={key} className="trend-legend-item">
+                                        <span className="trend-legend-dot" style={{ background: color }} />
+                                        {key.replace('_', ' ')}
+                                    </span>
+                                ))}
                         </div>
                         <div className="trend-note">
                             Range: {dailyTrend[0]?.day || 'N/A'} to {dailyTrend[dailyTrend.length - 1]?.day || 'N/A'}
                         </div>
                     </div>
                 </div>
+            </div>
+        );
+    };
+
+    const renderConsistencyGuide = () => {
+        if (selectedReportType !== 'CONSISTENCY') return null;
+        const { dateFrom, dateTo } = resolveDateWindow();
+        return (
+            <div className="insight-panel">
+                <div className="insight-section-title">Consistency Index Guide</div>
+                <div className="metric-dictionary-line"><strong>What it measures:</strong> Attendance stability in the selected report window, weighted by attendance rate and punctuality behavior.</div>
+                <div className="metric-dictionary-line"><strong>Scoring model:</strong> Consistency Index = real-time attendance rate x 0.7 + punctuality rate x 0.3.</div>
+                <div className="metric-dictionary-line"><strong>Current period:</strong> {dateFrom} to {dateTo}.</div>
+                <div className="metric-dictionary-line"><strong>Previous period used for trend:</strong> The immediately preceding window with the same duration.</div>
+                <div className="metric-dictionary-line"><strong>Confidence:</strong> HIGH means enough sessions for reliable trend comparison, MEDIUM means usable but limited, LOW means small sample size.</div>
             </div>
         );
     };
@@ -600,6 +741,7 @@ const AttendanceHistoryPage = () => {
         if (!action) return { text: '—', isPresent: false };
         const upper = action.toUpperCase();
         if (upper === 'ENTRY') return { text: isLate ? 'LATE' : 'ENTERED', isPresent: !isLate };
+        if (upper === 'ABSENT') return { text: 'ABSENT', isPresent: false };
         if (upper === 'BREAK_OUT') return { text: 'ON BREAK (OUT)', isPresent: false };
         if (upper === 'BREAK_IN') return { text: 'FROM BREAK (IN)', isPresent: true };
         if (upper === 'EXIT') return { text: 'EXITED', isPresent: false };
@@ -608,6 +750,17 @@ const AttendanceHistoryPage = () => {
 
     const displayData = getFilteredData();
     const currentDesc = reportTypes.find(r => r.id === selectedReportType)?.desc;
+    const isWeeklySummary = selectedReportType === 'WEEKLY_SUMMARY';
+    const insightEnabledReports = new Set([
+        'WEEKLY_SUMMARY',
+        'MONTHLY_TRENDS',
+        'SEM_REPORT',
+        'ABSENT_LOG',
+        'LATE_REPORT',
+        'BREAK_LOG',
+        'CONSISTENCY',
+    ]);
+    const shouldShowAnalytics = insightEnabledReports.has(selectedReportType);
 
     // --- GENERATE DATE RANGE STRING ---
     const getDateRangeString = () => {
@@ -619,15 +772,15 @@ const AttendanceHistoryPage = () => {
                 return d.toLocaleDateString('en-US', options);
             case 'LATE_REPORT':
             case 'BREAK_LOG':
-                return `All available records up to ${new Date().toLocaleDateString('en-US', options)}`;
+                return `${selectedSemester === '1ST' ? '1st' : (selectedSemester === '2ND' ? '2nd' : 'Summer')} Semester ${academicYear}-${parseInt(academicYear, 10) + 1}`;
             case 'WEEKLY_SUMMARY':
-                const weekEnd = new Date(d);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                return `${d.toLocaleDateString('en-US', options)} - ${weekEnd.toLocaleDateString('en-US', options)}`;
-            case 'HISTORY_30D':
-                const last30 = new Date(d);
-                last30.setDate(last30.getDate() - 30);
-                return `${last30.toLocaleDateString('en-US', options)} - ${d.toLocaleDateString('en-US', options)}`;
+                const weekRanges = getWeekRangesForMonth();
+                const selectedWeek = weekRanges.find((item) => item.value === selectedWeekNumber) || weekRanges[0];
+                return selectedWeek
+                    ? `${selectedWeek.start.toLocaleDateString('en-US', options)} - ${selectedWeek.end.toLocaleDateString('en-US', options)}`
+                    : d.toLocaleDateString('en-US', options);
+            case 'ABSENT_LOG':
+                return `${selectedSemester === '1ST' ? '1st' : (selectedSemester === '2ND' ? '2nd' : 'Summer')} Semester ${academicYear}-${parseInt(academicYear, 10) + 1}`;
 
             case 'MONTHLY_TRENDS':
                 return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
@@ -643,7 +796,7 @@ const AttendanceHistoryPage = () => {
     const renderDateFilter = () => {
         const style = { padding: '8px', borderRadius: '4px', border: '1px solid #ccc', minWidth: '160px' };
         
-        // A. Single Date Input (Used for Daily, Weekly Start, History End)
+        // A. Single Date Input
         if (selectedReportType === 'DAILY_REPORT') {
              return (
                  <div className="filter-item">
@@ -652,22 +805,35 @@ const AttendanceHistoryPage = () => {
                  </div>
              );
         }
-        if (selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG') {
-            return null;
-        }
+
         if (selectedReportType === 'WEEKLY_SUMMARY') {
+            const weekOptions = getWeekRangesForMonth();
              return (
-                 <div className="filter-item">
-                     <label>Week Starting:</label>
-                     <input type="date" style={style} value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-                 </div>
-             );
-        }
-        if (selectedReportType === 'HISTORY_30D') {
-             return (
-                 <div className="filter-item">
-                     <label>Reference Date (End):</label>
-                     <input type="date" style={style} value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+                 <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                     <div className="filter-item">
+                         <label>Select Month:</label>
+                         <input
+                             type="month"
+                             style={style}
+                             value={weeklyMonth}
+                             onChange={(e) => {
+                                 setWeeklyMonth(e.target.value);
+                                 setSelectedWeekNumber('1');
+                             }}
+                         />
+                     </div>
+                     <div className="filter-item">
+                         <label>Select Week:</label>
+                         <select
+                             style={style}
+                             value={selectedWeekNumber}
+                             onChange={(e) => setSelectedWeekNumber(e.target.value)}
+                         >
+                             {weekOptions.map((week) => (
+                                 <option key={week.value} value={week.value}>{week.label}</option>
+                             ))}
+                         </select>
+                     </div>
                  </div>
              );
         }
@@ -682,8 +848,8 @@ const AttendanceHistoryPage = () => {
             );
         }
 
-        // Semester Selector (Sem Report)
-        if (selectedReportType === 'SEM_REPORT') {
+        // Semester Selector (Semestral-scoped reports)
+        if (selectedReportType === 'SEM_REPORT' || selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG' || selectedReportType === 'CONSISTENCY' || selectedReportType === 'ABSENT_LOG') {
              return (
                  <div style={{ display: 'flex', gap: '15px' }}>
                      <div className="filter-item">
@@ -783,6 +949,21 @@ const AttendanceHistoryPage = () => {
                         </select>
                     </div>
 
+                    <div className="filter-item" style={{ minWidth: '250px' }}>
+                        <label>Filter Subject:</label>
+                        <select
+                            value={isWeeklySummary ? 'ALL' : selectedSubject}
+                            onChange={(e) => setSelectedSubject(e.target.value)}
+                            className="app-select"
+                            disabled={isWeeklySummary}
+                        >
+                            <option value="ALL">All Enrolled Subjects</option>
+                            {!isWeeklySummary && uniqueSubjects.map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* DYNAMIC DATE FILTER */}
                     <div className="dynamic-date-filter" style={{ marginTop: 0 }}>
                         {renderDateFilter()}
@@ -796,9 +977,9 @@ const AttendanceHistoryPage = () => {
                 {isFetchingReport && <div className="report-refreshing-note">Updating report data...</div>}
             </div>
 
-            {!loading && displayData.length > 0 && renderServerInsightPanel()}
-            {!loading && displayData.length > 0 && renderSessionCountReference()}
-            {!loading && displayData.length > 0 && renderMetricDictionary()}
+            {!loading && displayData.length > 0 && shouldShowAnalytics && renderServerInsightPanel()}
+            {!loading && displayData.length > 0 && shouldShowAnalytics && renderSessionCountReference()}
+            {!loading && displayData.length > 0 && shouldShowAnalytics && renderConsistencyGuide()}
             {!loading && displayData.length > 0 && renderVisualSummary()}
             {!loading && isFetchingReport && (
                 <div className="insight-panel">
@@ -813,18 +994,6 @@ const AttendanceHistoryPage = () => {
                     <h3>Generated Records</h3>
 
                     <div className="recent-reports-filters">
-                        <label>Filter Subject:</label>
-                        <select
-                            value={selectedSubject}
-                            onChange={(e) => setSelectedSubject(e.target.value)}
-                            className="app-select"
-                        >
-                            <option value="ALL">All Enrolled Subjects</option>
-                            {uniqueSubjects.map(sub => (
-                                <option key={sub} value={sub}>{sub}</option>
-                            ))}
-                        </select>
-
                         <button className="export-all-button" onClick={handleOpenModal}>
                             <i className="fas fa-file-pdf"></i> Generate Official Report
                         </button>
