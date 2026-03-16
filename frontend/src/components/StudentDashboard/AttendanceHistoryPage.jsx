@@ -43,6 +43,8 @@ const AttendanceHistoryPage = () => {
     const [selectedWeekNumber, setSelectedWeekNumber] = useState('1');
     const [selectedVisualStatus, setSelectedVisualStatus] = useState('ALL');
     const [activeMetricName, setActiveMetricName] = useState(null);
+    const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
+    const [showInsightsModal, setShowInsightsModal] = useState(false);
 
     // ... (reportTypes array remains same) ...
     const reportTypes = [
@@ -526,17 +528,33 @@ const AttendanceHistoryPage = () => {
 
         return (
             <div className="insight-panel">
+                <div className="insight-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div className="insight-section-title" style={{ marginBottom: 0 }}>Performance Metrics</div>
+                    {insights.length > 0 && (
+                        <button 
+                            type="button" 
+                            className="insight-action-btn"
+                            onClick={() => setShowInsightsModal(true)}
+                        >
+                            <i className="fas fa-lightbulb" style={{ marginRight: '6px' }}></i> View AI Insights
+                        </button>
+                    )}
+                </div>
+
                 {summaryMetrics.length > 0 && (
                     <div className="insight-stats-row">
                         {summaryMetrics.map((metric) => (
                             <button
                                 key={metric.metric_name}
                                 type="button"
-                                className={`insight-stat-card metric-button ${activeMetricName === metric.metric_name ? 'metric-button-active' : ''}`}
-                                onMouseEnter={() => setActiveMetricName(metric.metric_name)}
-                                onFocus={() => setActiveMetricName(metric.metric_name)}
-                                onClick={() => setActiveMetricName(metric.metric_name)}
+                                className={`insight-stat-card metric-button ${activeMetricName === metric.metric_name && isMetricModalOpen ? 'metric-button-active' : ''}`}
+                                style={{ position: 'relative' }}
+                                onClick={() => {
+                                    setActiveMetricName(metric.metric_name);
+                                    setIsMetricModalOpen(true);
+                                }}
                             >
+                                <i className="fas fa-info-circle stat-card-info-icon" style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '0.82em', color: '#163269', opacity: 0.5 }}></i>
                                 <div className="insight-stat-label">{metric.metric_name.replaceAll('_', ' ')}</div>
                                 <div className="insight-stat-value">{metric.value}</div>
                                 <div className="insight-stat-sub">Confidence: {metric.confidence}</div>
@@ -545,26 +563,35 @@ const AttendanceHistoryPage = () => {
                     </div>
                 )}
 
-                {activeContext && (
-                    <div className="metric-hover-panel">
-                        <div className="metric-hover-title">{activeContext.label}</div>
-                        <div className="metric-hover-line"><strong>Current Value:</strong> {activeContext.value}</div>
-                        <div className="metric-hover-line"><strong>Formula:</strong> {activeContext.formula}</div>
-                        <div className="metric-hover-line"><strong>Meaning:</strong> {activeContext.explanation}</div>
-                        <div className="metric-hover-line"><strong>Confidence:</strong> {activeContext.confidence} - {confidenceMeaning[activeContext.confidence] || 'Data confidence from sample quality.'}</div>
+                {/* Metric Detail Modal */}
+                {isMetricModalOpen && activeContext && (
+                    <div className="metric-modal-overlay" onClick={() => setIsMetricModalOpen(false)}>
+                        <div className="metric-modal-content" onClick={(e) => e.stopPropagation()}>
+                            <button className="modal-close-btn" onClick={() => setIsMetricModalOpen(false)}>×</button>
+                            <div className="metric-hover-title">{activeContext.label}</div>
+                            <div className="metric-hover-line"><strong>Current Value:</strong> {activeContext.value}</div>
+                            <div className="metric-hover-line"><strong>Formula:</strong> {activeContext.formula}</div>
+                            <div className="metric-hover-line"><strong>Meaning:</strong> {activeContext.explanation}</div>
+                            <div className="metric-hover-line"><strong>Confidence:</strong> {activeContext.confidence} - {confidenceMeaning[activeContext.confidence] || 'Data confidence from sample quality.'}</div>
+                        </div>
                     </div>
                 )}
 
-                {insights.length > 0 && (
-                    <div className="insight-section" style={{ marginTop: '14px' }}>
-                        <div className="insight-section-title">Explainable Insights</div>
-                        <ul style={{ margin: '10px 0 0 0', paddingLeft: '18px' }}>
-                            {insights.map((insight) => (
-                                <li key={insight.insight_code} style={{ marginBottom: '8px' }}>
-                                    <strong>{insight.title}:</strong> {insight.narrative} (Confidence: {insight.confidence})
-                                </li>
-                            ))}
-                        </ul>
+                {/* Insights Detailed Modal */}
+                {showInsightsModal && insights.length > 0 && (
+                    <div className="metric-modal-overlay" onClick={() => setShowInsightsModal(false)}>
+                        <div className="metric-modal-content insight-detailed-modal" onClick={(e) => e.stopPropagation()}>
+                            <button className="modal-close-btn" onClick={() => setShowInsightsModal(false)}>×</button>
+                            <div className="metric-hover-title">Explainable Insights</div>
+                            <ul style={{ margin: '15px 0 0 0', paddingLeft: '18px' }}>
+                                {insights.map((insight) => (
+                                    <li key={insight.insight_code} style={{ marginBottom: '10px', fontSize: '0.9em', color: '#333' }}>
+                                        <strong>{insight.title}:</strong> {insight.narrative} 
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>Confidence: {insight.confidence}</div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
                 )}
             </div>
@@ -592,15 +619,7 @@ const AttendanceHistoryPage = () => {
         ];
         const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
         const statusKeys = ['ENTERED', 'LATE', 'ABSENT', 'BREAK_OUT', 'BREAK_IN', 'EXITED'];
-        const groupedRows = groupedSubjectActivity.map((row) => {
-            const values = selectedVisualStatus === 'ALL'
-                ? statusKeys.reduce((acc, key) => ({ ...acc, [key]: row[key] }), {})
-                : { [selectedVisualStatus]: row[selectedVisualStatus] || 0 };
-            const total = Object.values(values).reduce((acc, value) => acc + value, 0);
-            return { subject: row.subject, values, total };
-        });
-
-        const maxTrend = Math.max(...groupedRows.map((item) => item.total), 1);
+        const maxTrend = Math.max(...dailyTrend.map((item) => item.total), 1);
         const statusStyle = {
             ENTERED: '#2e7d32',
             LATE: '#e65100',
@@ -651,24 +670,32 @@ const AttendanceHistoryPage = () => {
                         )}
                         <div className="grouped-cluster-scroll-wrap">
                             <div className="grouped-cluster-chart">
-                                {groupedRows.map((item) => (
-                                    <div key={item.subject} className="grouped-cluster-item">
+                                {dailyTrend.filter(item => item.total > 0).map((item) => (
+                                    <div key={item.day} className="grouped-cluster-item">
                                         <div className="grouped-cluster-track">
-                                            {Object.entries(item.values).map(([key, value]) => (
-                                                <div
-                                                    key={`${item.subject}-${key}`}
-                                                    className="grouped-cluster-bar"
-                                                    style={{
-                                                        height: `${maxTrend === 0 ? 0 : (value / maxTrend) * 100}%`,
-                                                        backgroundColor: statusStyle[key],
-                                                    }}
-                                                    title={`${item.subject} • ${key.replace('_', ' ')}: ${value}`}
-                                                >
-                                                    <span className="grouped-cluster-value">{value}</span>
-                                                </div>
-                                            ))}
+                                            {['entered', 'late', 'breakOut', 'breakIn', 'exited'].map(actionKey => {
+                                                const value = item[actionKey] || 0;
+                                                if (value === 0) return null;
+                                                const styleKey = actionKey === 'entered' ? 'ENTERED' : actionKey === 'late' ? 'LATE' : actionKey === 'breakOut' ? 'BREAK_OUT' : actionKey === 'breakIn' ? 'BREAK_IN' : 'EXITED';
+                                                
+                                                return (
+                                                    <div
+                                                        key={`${item.day}-${actionKey}`}
+                                                        className="grouped-cluster-bar"
+                                                        style={{
+                                                            height: `${maxTrend === 0 ? 0 : (value / maxTrend) * 140}px`,
+                                                            backgroundColor: statusStyle[styleKey],
+                                                        }}
+                                                        title={`${item.day} • ${actionKey.replace(/([A-Z])/g, ' $1')}: ${value}`}
+                                                    >
+                                                        <span className="grouped-cluster-value">{value}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                        <div className="grouped-cluster-label" title={item.subject}>{item.subject}</div>
+                                        <div className="grouped-cluster-label">
+                                            {new Date(item.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -713,23 +740,24 @@ const AttendanceHistoryPage = () => {
         const wholeSemester = sessionCountReference.whole_semester || {};
 
         return (
-            <div className="insight-panel">
-                <div className="insight-section-title">Session Count Reference</div>
-                <div className="session-reference-grid">
-                    <div className="session-reference-card">
-                        <div className="session-reference-title">Report Window</div>
-                        <div className="session-reference-line">Attended: {reportWindow.attended ?? 0}</div>
-                        <div className="session-reference-line">Conducted: {reportWindow.conducted ?? 0}</div>
-                        <div className="session-reference-line">Expected: {reportWindow.expected ?? 0}</div>
-                    </div>
-                    <div className="session-reference-card">
-                        <div className="session-reference-title">Whole Semester (Department Dates)</div>
-                        <div className="session-reference-sub">
-                            {wholeSemester.semester_start_date || 'N/A'} to {wholeSemester.semester_end_date || 'N/A'}
+            <div className="insight-panel" style={{ marginTop: '16px' }}>
+                <div className="insight-section-title" style={{ marginBottom: '12px' }}>Session Count Reference</div>
+                <div className="session-reference-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Report Window</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{reportWindow.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{reportWindow.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{reportWindow.expected ?? 0}</strong></div>
                         </div>
-                        <div className="session-reference-line">Attended: {wholeSemester.attended ?? 0}</div>
-                        <div className="session-reference-line">Conducted: {wholeSemester.conducted ?? 0}</div>
-                        <div className="session-reference-line">Expected: {wholeSemester.expected ?? 0}</div>
+                    </div>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Whole Semester</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{wholeSemester.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{wholeSemester.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{wholeSemester.expected ?? 0}</strong></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -794,14 +822,11 @@ const AttendanceHistoryPage = () => {
 
     // --- RENDER DYNAMIC DATE FILTER ---
     const renderDateFilter = () => {
-        const style = { padding: '8px', borderRadius: '4px', border: '1px solid #ccc', minWidth: '160px' };
-        
-        // A. Single Date Input
         if (selectedReportType === 'DAILY_REPORT') {
              return (
                  <div className="filter-item">
                      <label>Select Date:</label>
-                     <input type="date" style={style} value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+                     <input type="date" className="app-select big-select" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
                  </div>
              );
         }
@@ -814,7 +839,7 @@ const AttendanceHistoryPage = () => {
                          <label>Select Month:</label>
                          <input
                              type="month"
-                             style={style}
+                             className="app-select big-select"
                              value={weeklyMonth}
                              onChange={(e) => {
                                  setWeeklyMonth(e.target.value);
@@ -825,7 +850,7 @@ const AttendanceHistoryPage = () => {
                      <div className="filter-item">
                          <label>Select Week:</label>
                          <select
-                             style={style}
+                             className="app-select big-select"
                              value={selectedWeekNumber}
                              onChange={(e) => setSelectedWeekNumber(e.target.value)}
                          >
@@ -838,23 +863,21 @@ const AttendanceHistoryPage = () => {
              );
         }
 
-        // B. Month Picker (Monthly Trends)
         if (selectedReportType === 'MONTHLY_TRENDS') {
             return (
                 <div className="filter-item">
                     <label>Select Month:</label>
-                    <input type="month" style={style} value={filterDate.substring(0, 7)} onChange={(e) => setFilterDate(e.target.value + '-01')} />
+                    <input type="month" className="app-select big-select" value={filterDate.substring(0, 7)} onChange={(e) => setFilterDate(e.target.value + '-01')} />
                 </div>
             );
         }
 
-        // Semester Selector (Semestral-scoped reports)
         if (selectedReportType === 'SEM_REPORT' || selectedReportType === 'LATE_REPORT' || selectedReportType === 'BREAK_LOG' || selectedReportType === 'CONSISTENCY' || selectedReportType === 'ABSENT_LOG') {
              return (
                  <div style={{ display: 'flex', gap: '15px' }}>
                      <div className="filter-item">
                          <label>School Year:</label>
-                         <select style={style} value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
+                         <select className="app-select big-select" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
                              {[2023, 2024, 2025, 2026].map(y => (
                                  <option key={y} value={y}>{y} - {y+1}</option>
                              ))}
@@ -862,7 +885,7 @@ const AttendanceHistoryPage = () => {
                      </div>
                      <div className="filter-item">
                          <label>Semester:</label>
-                         <select style={style} value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)}>
+                         <select className="app-select big-select" value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)}>
                              <option value="1ST">1st Semester</option>
                              <option value="2ND">2nd Semester</option>
                              <option value="SUMMER">Summer</option>
@@ -954,7 +977,7 @@ const AttendanceHistoryPage = () => {
                         <select
                             value={isWeeklySummary ? 'ALL' : selectedSubject}
                             onChange={(e) => setSelectedSubject(e.target.value)}
-                            className="app-select"
+                            className="app-select big-select"
                             disabled={isWeeklySummary}
                         >
                             <option value="ALL">All Enrolled Subjects</option>
@@ -991,7 +1014,7 @@ const AttendanceHistoryPage = () => {
             {/* TABLE CARD */}
             <div className="card recent-reports-card">
                 <div className="recent-reports-header">
-                    <h3>Generated Records</h3>
+                    <h3 style={{ margin: 0 }}>Generated Records</h3>
 
                     <div className="recent-reports-filters">
                         <button className="export-all-button" onClick={handleOpenModal}>

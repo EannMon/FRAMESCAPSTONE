@@ -48,32 +48,34 @@
     font-size: 0.9rem;
 }
 
-/* --- Filters Bar --- */
+/* --- Filters Bar (Matched to Student) --- */
 .reports-filters-bar {
     display: flex;
-    align-items: flex-end;
-    gap: 14px;
-    padding: 14px 18px;
+    align-items: center;
+    gap: 30px;
+    padding: 20px 25px;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f1f5f9;
-    margin-bottom: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .filter-group label {
-    font-size: 0.7rem;
+    display: block;
     font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+    color: #475569;
+    margin-bottom: 2px;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .filter-select,
@@ -488,4 +490,494 @@
         width: 100%;
         justify-content: space-between;
     }
+}
+/* ── Clickable Stat Cards ── */
+.insight-stat-card.clickable-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    border: 1.5px solid transparent;
+}
+.insight-stat-card.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    border-color: #1a73e8;
+}
+.stat-card-info-icon {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 0.85rem;
+    color: #1a73e8;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.insight-stat-card.clickable-card:hover .stat-card-info-icon {
+    opacity: 1;
+}
+.insight-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+.faculty-reports-page .reports-unique-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 9991;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeInModalAlt 0.25s ease;
+}
+.faculty-reports-page .reports-unique-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 92%;
+    max-width: 440px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    animation: slideUpModalAlt 0.25s ease-out;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+.faculty-reports-page .insight-detailed-modal {
+    max-width: 780px;
+}
+.metric-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f4f8;
+}
+.metric-modal-header h3 {
+    margin: 0;
+    color: #163269;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+.metric-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #90a4ae;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.15s;
+}
+.metric-modal-close:hover {
+    color: #d32f2f;
+}
+.metric-modal-body p {
+    margin: 0 0 12px 0;
+    font-size: 0.92rem;
+    color: #37474f;
+    line-height: 1.5;
+}
+.metric-modal-body p strong {
+    color: #163269;
+    display: inline-block;
+    min-width: 110px;
+}
+@keyframes fadeInModalAlt { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUpModalAlt { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (max-width: 768px) { .faculty-reports-page .insight-stats-row { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 600px) { .faculty-reports-page .insight-stats-row { grid-template-columns: repeat(2, 1fr) !important; } .faculty-reports-page .reports-unique-modal-content { max-width: 92% !important;  padding: 16px; width: 92%; } }
+
+/* ── Flattened Layout Description Box ── */
+.report-description-box {
+    flex-grow: 1;
+    background-color: #E8F1FC;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #163269;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #163269;
+}
+
+.report-description-box i {
+    font-size: 1.5em;
+    color: #163269;
+}
+
+/* ── Card Wrapping generated records ── */
+.recent-reports-card {
+    padding: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.recent-reports-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: none !important;
+}
+
+.recent-reports-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #163269;
+}
+
+.export-all-button {
+    background-color: #163269;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.recent-reports-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.recent-reports-table th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.82rem;
+}
+
+.recent-reports-table th, .recent-reports-table td {
+    padding: 15px 25px;
+    text-align: left;
+}
+
+.recent-reports-table td {
+    border-bottom: 1px solid #eee;
+    color: #334155;
+    font-size: 0.85rem;
+}
+
+.reports-layout-full {
+    width: 100% !important;
+}
+
+/* â”€â”€ Standard Insight Panel â”€â”€ */
+.insight-panel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 22px 24px;
+    margin-bottom: 20px;
+}
+
+.insight-stats-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 14px !important;
+}
+
+@media (max-width: 900px) {
+    .insight-stats-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* â”€â”€ Session Reference Grid â”€â”€ */
+.session-reference-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+    gap: 14px !important;
+}
+
+.session-reference-card {
+    background: #f8fafe !important;
+    border: 1px solid #e5ebf7 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
+}
+
+.session-reference-title {
+    font-size: 0.88em !important;
+    font-weight: 700 !important;
+    color: #163269 !important;
+    margin-bottom: 8px !important;
+}
+
+.session-reference-sub {
+    font-size: 0.83em !important;
+    color: #546e7a !important;
+    margin-bottom: 4px !important;
+}
+
+/* â”€â”€ Visual Card Support â”€â”€ */
+.visual-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+    gap: 12px !important;
+}
+
+.visual-card {
+    background: #f8fafe !important;
+    border: 1px solid #e5ebf7 !important;
+    border-radius: 10px !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+.visual-title {
+    font-size: 0.86em !important;
+    font-weight: 700 !important;
+    color: #163269 !important;
+    margin-bottom: 10px !important;
+    text-transform: uppercase !important;
+}
+/* â”€â”€ Mobile Responsiveness Filter Match â”€â”€ */
+@media (max-width: 768px) {
+    .reports-header-section {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 15px !important;
+        padding: 15px !important;
+    }
+    
+    .reports-header-section > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 14px !important;
+    }
+
+    .report-selector-group {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .big-select {
+        width: 100% !important;
+        min-width: unset !important;
+    }
+
+    .filter-input {
+        width: 100% !important;
+    }
+    
+    .filter-refresh-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+/* â”€â”€ Performance Metrics card align â”€â”€ */
+.insight-stats-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.insight-stat-card {
+    flex: 1 1 160px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 100px;
+}
+
+.insight-stat-card:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.insight-stat-label {
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 0.75rem !important;
+    color: #64748b !important;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+.insight-stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.insight-stat-sub {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+.metric-button-active {
+    border-color: #163269;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(22, 50, 105, 0.12);
+}
+/* â”€â”€ AI Insights Button â”€â”€ */
+.insight-action-btn {
+    background: #edf2fc !important;
+    color: #163269 !important;
+    border: 1px solid #d0dff9 !important;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.insight-action-btn:hover {
+    background: #dbe6fb !important;
+    border-color: #b8ccf7 !important;
+}
+
+/* â”€â”€ Report Generation Modal â”€â”€ */
+.report-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+    backdrop-filter: blur(4px);
+}
+
+.report-modal-content {
+    background: white;
+    width: 90%;
+    max-width: 480px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+}
+
+.report-modal-header {
+    background-color: #0F172A;
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.report-modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.close-modal-btn {
+    background: none; border: none; color: white;
+    font-size: 1.25rem; cursor: pointer; opacity: 0.8;
+}
+
+.report-modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+}
+
+.config-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.config-row:last-child { border-bottom: none; }
+
+.config-label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+.config-value { font-size: 0.9rem; font-weight: 700; color: #1e293b; text-align: right; }
+
+.format-selection { margin-top: 8px; }
+.format-selection label { display: block; margin-bottom: 8px; font-weight: 700; color: #1e293b; font-size: 0.9rem; }
+.format-options { display: flex; gap: 12px; }
+
+.format-btn {
+    flex: 1; padding: 12px; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-weight: 600; font-size: 0.9rem; transition: all 0.2s;
+    border: 1px solid #e2e8f0; background: white; color: #475569;
+}
+
+.format-btn.active {
+    border: 2px solid #0F172A;
+    background-color: #f1f5f9;
+    color: #0F172A;
+}
+
+.report-modal-footer {
+    display: flex; justify-content: flex-end; gap: 12px;
+    padding: 16px 24px 24px; border-top: 1px solid #e2e8f0;
+}
+
+.btn-cancel { padding: 10px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer; }
+.btn-generate {
+    padding: 10px 20px; background-color: #00A859; color: white;
+    border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+}
+
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* â”€â”€ Popups Mobile Overlaps Constraints â”€â”€ */
+@media (max-width: 768px) {
+    .report-modal-content {
+        width: 92% !important;
+        max-width: 92% !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        margin: 10px auto;
+    }
+    .reports-unique-modal-content { max-width: 92% !important; 
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+}
+/* Ensure Detailed Modals don't overflow rightwards */
+.insight-detailed-modal {
+    width: 92% !important;
+    max-width: 780px !important;
 }

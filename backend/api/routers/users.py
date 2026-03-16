@@ -3,6 +3,8 @@ Users Router - Profile management endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 import bcrypt
 import logging
 
@@ -180,7 +182,7 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
-    if not user.in_app_notifications_enabled:
+    if user.in_app_notifications_enabled is False:
         return []
 
     notifications = []
@@ -227,77 +229,54 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
             "link": link
         })
 
-    # 2. Dept Head Logic (Virtual Notifications)
-    if user.role == UserRole.HEAD:
-        pending = db.query(User).filter(
-            User.verification_status == VerificationStatus.PENDING
-        ).order_by(User.created_at.desc()).limit(5).all()
-        for p in pending:
-            notifications.append({
-                "id": f"v-{p.id}",
-                "icon": "fas fa-user-clock",
-                "text": f"New Registration: {p.first_name} {p.last_name}",
-                "time": "Pending",
-                "timestamp": p.created_at or datetime.now(),
-                "read": False,
-                "link": "/dept-head-dashboard"
-            })
-            
-        logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(5).all()
-        for log in logs:
-            if log.action_type in ["USER_VERIFY", "USER_REJECT"]:
-                continue
-            notifications.append({
-                "id": f"a-{log.id}",
-                "icon": "fas fa-shield-alt",
-                "text": f"System Alert: {log.action_type.replace('_', ' ')}",
-                "time": log.timestamp.strftime("%I:%M %p"),
-                "timestamp": log.timestamp,
-                "read": True,
-                "link": "/dept-head-logs"
-            })
-
-    elif user.role == UserRole.FACULTY:
-        faculty_classes = db.query(Class).filter(Class.faculty_id == user_id).all()
-        class_ids = [c.id for c in faculty_classes]
-        if class_ids:
-            recent_logs = (
-                db.query(AttendanceLog)
-                .options(joinedload(AttendanceLog.user), joinedload(AttendanceLog.class_).joinedload(Class.subject))
-                .filter(AttendanceLog.class_id.in_(class_ids))
-                .order_by(AttendanceLog.timestamp.desc())
-                .limit(10)
-                .all()
-            )
-            for al in recent_logs:
-                notifications.append({
-                    "id": f"att-{al.id}",
-                    "icon": "fas fa-user-check",
-                    "text": f"{al.user.first_name if al.user else 'User'} logged {al.action.value} in {al.class_.subject.code if al.class_ and al.class_.subject else 'Class'}",
-                    "time": al.timestamp.strftime("%I:%M %p"),
-                    "timestamp": al.timestamp,
-                    "read": True,
-                    "link": "/faculty-attendance"
+    # 2. Student Helpers (Welcome & Email Reminder)
+    if user.role == UserRole.STUDENT:
+        # A. Welcome Message (Persistent in DB)
+        # Check if welcome notification already exists
+        welcome_exists = db.query(Notification).filter(
+            Notification.user_id == user_id,
+            Notification.notification_type == NotificationType.GENERAL,
+            Notification.title == "Welcome to FRAMES"
+        ).first()
+        
+        if not welcome_exists:
+            try:
+                new_notif = Notification(
+                    user_id=user_id,
+                    notification_type=NotificationType.GENERAL,
+                    title="Welcome to FRAMES",
+                    message="Welcome to the FRAMES application! We are glad to have you here.",
+                    is_read=False
+                )
+                db.add(new_notif)
+                db.commit()
+                db.refresh(new_notif)
+                
+                notifications.insert(0, {
+                    "id": f"db-{new_notif.id}",
+                    "icon": get_notif_icon(NotificationType.GENERAL),
+                    "text": new_notif.message,
+                    "title": new_notif.title,
+                    "time": "Just now",
+                    "timestamp": datetime.now(),
+                    "read": False,
+                    "link": "/student-dashboard"
                 })
+            except Exception as e:
+                db.rollback()
+                logger.error("Failed to create welcome notification for user %d: %s", user_id, str(e))
 
-    elif user.role == UserRole.STUDENT:
-        personal_logs = (
-            db.query(AttendanceLog)
-            .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
-            .filter(AttendanceLog.user_id == user_id)
-            .order_by(AttendanceLog.timestamp.desc())
-            .limit(10)
-            .all()
-        )
-        for al in personal_logs:
+        # B. Email Reminder (Virtual)
+        if not user.email:
             notifications.append({
-                "id": f"satt-{al.id}",
-                "icon": "fas fa-calendar-check",
-                "text": f"Your {al.action.value} for {al.class_.subject.code if al.class_ and al.class_.subject else 'Class'} was recorded.",
-                "time": al.timestamp.strftime("%I:%M %p"),
-                "timestamp": al.timestamp,
-                "read": True,
-                "link": "/student-dashboard"
+                "id": "v-email-reminder",
+                "icon": "fas fa-envelope",
+                "text": "Please update your email in your profile to receive alerts.",
+                "title": "Email Missing",
+                "time": "Reminder",
+                "timestamp": datetime.now(),
+                "read": False,
+                "link": "/student-profile"
             })
 
     # Sort all by timestamp desc
@@ -309,3 +288,27 @@ def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
             del n['timestamp']
 
     return notifications
+
+class NotificationReadRequest(BaseModel):
+    notification_id: Optional[str] = None  # e.g., "db-11"
+    all: Optional[bool] = False
+
+@router.post("/notifications/{user_id}/read")
+def mark_notifications_read(user_id: int, request: NotificationReadRequest, db: Session = Depends(get_db)):
+    """
+    Mark a single or all notifications as read for a user in the DB.
+    """
+    from models.notification import Notification # Local import to avoid circulars if any
+    
+    if request.all:
+        db.query(Notification).filter(Notification.user_id == user_id).update({Notification.is_read: True})
+    elif request.notification_id:
+        if request.notification_id.startswith("db-"):
+            try:
+                actual_id = int(request.notification_id.replace("db-", ""))
+                db.query(Notification).filter(Notification.id == actual_id, Notification.user_id == user_id).update({Notification.is_read: True})
+            except ValueError:
+                pass # Invalid ID format
+                
+    db.commit()
+    return {"message": "Notifications updated"}

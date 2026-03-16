@@ -167,11 +167,10 @@ body.dark-mode .report-description-box {
 
 /* Filter Section */
 
-.reports-header-section {
+.attendance-history-view .reports-header-section {
     background-color: white;
     padding: 20px 25px;
     border-radius: 12px;
-    /* Soft rounding */
     border: 1px solid rgba(0, 0, 0, 0.04);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     margin-bottom: 20px;
@@ -181,27 +180,19 @@ body.dark-mode .report-description-box {
     flex-wrap: wrap;
 }
 
-.report-selector-group {
+.attendance-history-view .report-selector-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.report-selector-group label {
-    font-weight: 600;
-    color: #555;
-    font-size: 0.9em;
-}
-
-.big-select {
-    min-width: 300px;
+.attendance-history-view .big-select {
+    min-width: 240px;
     padding: 10px;
     font-size: 1em;
-    border: 1px solid #ddd;
-    /* Softer border */
-    border-radius: 8px;
-    font-weight: 600;
-    color: #333;
+    font-family: inherit;
+    height: 42px;
+    box-sizing: border-box;
 }
 
 .big-select:focus {
@@ -241,7 +232,7 @@ body.dark-mode .report-description-box {
     justify-content: space-between;
     align-items: center;
     padding: 20px 25px;
-    border-bottom: 1px solid #eee;
+    border-bottom: none !important;
 }
 
 .recent-reports-header h2 {
@@ -287,6 +278,9 @@ body.dark-mode .report-description-box {
 .recent-reports-table td {
     padding: 15px 25px;
     text-align: left;
+}
+
+.recent-reports-table td {
     border-bottom: 1px solid #eee;
 }
 
@@ -334,14 +328,13 @@ body.dark-mode .report-description-box {
     color: #C62828;
 }
 
-/* Filter Item Layout */
-.filter-item {
+.attendance-history-view .filter-item {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.filter-item label {
+.attendance-history-view .filter-item label {
     font-weight: 600;
     color: #555;
     font-size: 0.9em;
@@ -445,7 +438,7 @@ body.dark-mode .report-description-box {
     margin-bottom: 18px;
 }
 
-.insight-stat-card {
+.attendance-history-view .insight-stat-card {
     flex: 1 1 140px;
     background: #f7f9fb;
     border-radius: 10px;
@@ -648,11 +641,14 @@ body.dark-mode .report-description-box {
 /* ── Responsive ── */
 @media (max-width: 600px) {
     .insight-stats-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
     .insight-stat-card {
-        flex: 1 1 100px;
-        padding: 10px 10px 8px;
+        padding: 12px 10px;
+        width: 100%;
+        box-sizing: border-box;
     }
     .insight-stat-value {
         font-size: 1.3em;
@@ -876,7 +872,7 @@ body.dark-mode .report-description-box {
 
 .grouped-cluster-track {
     width: 100%;
-    min-height: 160px;
+    height: 140px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -1100,4 +1096,141 @@ body.dark-mode .report-description-box {
 @keyframes reportPulse {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+}
+
+/* ── Pop-up Modal Overlays ── */
+.attendance-history-view .metric-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeInModal 0.25s ease;
+}
+
+.attendance-history-view .metric-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 440px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    animation: slideUpModal 0.25s ease-out;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.insight-detailed-modal {
+    max-width: 780px;
+}
+@media (max-width: 768px) {
+    .report-selector-group {
+        width: 100% !important;
+    }
+
+    .dynamic-date-filter,
+    .dynamic-date-filter > div {
+        width: 100% !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    
+    .filter-item {
+        width: 100% !important;
+    }
+    
+    .big-select {
+        width: 100% !important;
+    }
+
+    .metric-modal-content {
+        width: 90%;
+        max-width: 400px;
+        padding: 18px;
+        max-height: 85vh;
+        border-radius: 12px !important;
+    }
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUpModal {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f1f3f5;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+    background: #e9ecef;
+    color: #212529;
+}
+
+.insight-action-btn {
+    background: #edf2fc;
+    color: #163269;
+    border: 1px solid #d0dff9;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.insight-action-btn:hover {
+    background: #dbe6fb;
+    border-color: #b8ccf7;
+}
+
+body.dark-mode .metric-modal-content {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+body.dark-mode .modal-close-btn {
+    background: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .modal-close-btn:hover {
+    background: #475569;
+}
+
+body.dark-mode .insight-action-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #3b82f6;
+}
+
+body.dark-mode .insight-action-btn:hover {
+    background: #334155;
 }

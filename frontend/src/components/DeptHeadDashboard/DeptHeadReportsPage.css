@@ -213,3 +213,14 @@
         justify-content: center;
     }
 }
+/* Ensure Detailed Modals don't overflow rightwards */
+.insight-detailed-modal {
+    width: 92% !important;
+    max-width: 780px !important;
+}
+
+/* --- POPUPS RESPONSIVENESS --- */
+.reports-unique-modal-content {
+    width: 92% !important;
+    max-width: 440px !important;
+}
