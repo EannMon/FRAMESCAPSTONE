@@ -32,8 +32,8 @@ const FacultyReportModal = ({
     };
 
     return (
-        <div className="report-modal-overlay">
-            <div className="report-modal-content">
+        <div className="report-modal-overlay" onClick={onClose}>
+            <div className="report-modal-content" onClick={e => e.stopPropagation()}>
                 
                 {/* Header */}
                 <div className="report-modal-header">

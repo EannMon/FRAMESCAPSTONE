@@ -220,3 +220,57 @@
     cursor: not-allowed;
     box-shadow: none;
 }
+/* --- RESPONSIVE OVERRIDES --- */
+@media (max-width: 480px) {
+    .report-modal-content {
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .report-modal-header {
+        padding: 15px 20px;
+    }
+    
+    .report-modal-body {
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .config-card {
+        padding: 5px 15px;
+    }
+    
+    .config-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 10px 0;
+    }
+    
+    .config-value {
+        text-align: left;
+        font-size: 0.95rem;
+        word-break: break-all;
+    }
+    
+    .format-options {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .format-btn {
+        width: 100%;
+        padding: 10px;
+    }
+    
+    .report-modal-footer {
+        padding: 15px;
+        flex-direction: column-reverse;
+    }
+    
+    .report-modal-footer button {
+        width: 100%;
+        justify-content: center;
+    }
+}

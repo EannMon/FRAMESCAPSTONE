@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
 import './NotificationsPage.css';
 import './Utility.css';
 import Header from './Header';
@@ -28,69 +28,12 @@ const NotificationsPage = ({ isEmbedded = false }) => {
         return stored ? JSON.parse(stored) : null;
     });
 
-    const [notifications, setNotifications] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const { notifications, isLoading, error, isRead, markAsRead, markAllAsRead } = useNotifications();
     const [filter, setFilter] = useState('all'); // 'all' | 'unread'
-
-    // Local read state — persists in localStorage per user
-    const readKey = `notif_read_${user?.id || 0}`;
-    const [readIds, setReadIds] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem(readKey) || '[]');
-        } catch {
-            return [];
-        }
-    });
-
-    const fetchNotifications = useCallback(async (signal) => {
-        if (!user?.id && !user?.user_id) return;
-        setIsLoading(true);
-        setError(null);
-        try {
-            const userId = user.user_id || user.id;
-            const response = await api.get(`/api/users/notifications/${userId}`, { signal });
-            setNotifications(response.data || []);
-        } catch (err) {
-            if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-                console.error('Failed to fetch notifications:', err);
-                setError('Failed to load notifications.');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        fetchNotifications(controller.signal);
-        return () => controller.abort();
-    }, [fetchNotifications]);
-
-    // Persist read IDs to localStorage
-    useEffect(() => {
-        localStorage.setItem(readKey, JSON.stringify(readIds));
-    }, [readIds, readKey]);
-
-    /** Merge backend read status with local read state */
-    const isRead = (notif) => notif.read || readIds.includes(notif.id);
-
-    const markAllAsRead = () => {
-        const allIds = notifications.map(n => n.id);
-        setReadIds(prev => [...new Set([...prev, ...allIds])]);
-    };
-
-    const markAsRead = (notifId) => {
-        if (!readIds.includes(notifId)) {
-            setReadIds(prev => [...prev, notifId]);
-        }
-    };
 
     const handleNotifClick = (notif) => {
         markAsRead(notif.id);
-        if (notif.link) {
-            navigate(notif.link);
-        }
+        // Navigation disabled per user request
     };
 
     const filteredNotifications = filter === 'unread'
@@ -159,14 +102,11 @@ const NotificationsPage = ({ isEmbedded = false }) => {
                                 onClick={() => handleNotifClick(item)}
                                 style={{ cursor: item.link ? 'pointer' : 'default' }}
                             >
-                                <div className={`notification-icon ${isRead(item) ? 'read-icon' : ''}`}>
-                                    <i className={item.icon || 'fas fa-bell'}></i>
-                                </div>
                                 <div className="notification-content">
+                                    {item.title && <h4 className="notification-title">{item.title}</h4>}
                                     <p className="notification-text">{item.text}</p>
                                     <span className="notification-time">{item.time}</span>
                                 </div>
-                                {!isRead(item) && <div className="notification-unread-dot"></div>}
                             </div>
                         ))
                     )}

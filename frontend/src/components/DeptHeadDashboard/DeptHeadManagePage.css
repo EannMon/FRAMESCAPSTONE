@@ -98,7 +98,7 @@
 }
 
 /* CARD STYLE - MATCHING STUDENT MODULE */
-.card {
+.dept-mgmt-container .card {
     background: white;
     border-radius: 12px;
     padding: 24px;
@@ -106,7 +106,7 @@
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
-.card h3 {
+.dept-mgmt-container .card h3 {
     margin: 0 0 20px 0;
     font-size: 1.1rem;
     color: #444;
@@ -884,11 +884,11 @@ body.dark-mode .calendar-legend {
 }
 
 @media (max-width: 480px) {
-    .card {
+    .dept-mgmt-container .card {
         padding: 16px;
     }
 
-    .card h3 {
+    .dept-mgmt-container .card h3 {
         font-size: 1rem;
     }
 

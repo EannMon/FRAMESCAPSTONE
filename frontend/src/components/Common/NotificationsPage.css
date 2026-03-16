@@ -164,6 +164,13 @@
     flex-grow: 1;
 }
 
+.notification-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #0F172A;
+    margin: 0 0 4px 0;
+}
+
 .notification-text {
     font-size: 0.95em;
     color: #333;
@@ -233,6 +240,10 @@ body.dark-mode .notification-item {
 
 body.dark-mode .notification-item:hover {
     background-color: #1e293b;
+}
+
+body.dark-mode .notification-title {
+    color: #f1f5f9;
 }
 
 body.dark-mode .notification-text {
