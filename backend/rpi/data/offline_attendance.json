@@ -1,17 +1,6 @@
 {
-  "queued_at": "2026-03-15T23:09:58.684506",
+  "queued_at": "2026-03-16T12:23:22.328301",
   "records": [
-    {
-      "user_id": 1,
-      "class_id": 15,
-      "device_id": 1,
-      "action": "ENTRY",
-      "verified_by": "FACE",
-      "confidence_score": 0.47592222690582275,
-      "gesture_detected": null,
-      "timestamp": "2026-03-15T23:07:21.574819",
-      "remarks": "[NOT_IN_CLASS] HEAD TEST"
-    },
     {
       "user_id": 1,
       "class_id": 15,
@@ -21,17 +10,6 @@
       "confidence_score": 0.45030248165130615,
       "gesture_detected": null,
       "timestamp": "2026-03-15T23:07:39.687176",
-      "remarks": null
-    },
-    {
-      "user_id": 1,
-      "class_id": 15,
-      "device_id": 1,
-      "action": "ENTRY",
-      "verified_by": "FACE",
-      "confidence_score": 0.4817326068878174,
-      "gesture_detected": null,
-      "timestamp": "2026-03-15T23:07:59.792732",
       "remarks": null
     },
     {
@@ -54,17 +32,6 @@
       "confidence_score": 0.5298564434051514,
       "gesture_detected": null,
       "timestamp": "2026-03-15T23:08:41.114827",
-      "remarks": null
-    },
-    {
-      "user_id": 1,
-      "class_id": 15,
-      "device_id": 1,
-      "action": "ENTRY",
-      "verified_by": "FACE",
-      "confidence_score": 0.5267444849014282,
-      "gesture_detected": null,
-      "timestamp": "2026-03-15T23:09:00.677453",
       "remarks": null
     },
     {
@@ -98,6 +65,28 @@
       "confidence_score": 0.5176013708114624,
       "gesture_detected": null,
       "timestamp": "2026-03-15T23:09:56.314505",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.5835573673248291,
+      "gesture_detected": null,
+      "timestamp": "2026-03-16T12:22:54.009740",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "BREAK_OUT",
+      "verified_by": "FACE+GESTURE",
+      "confidence_score": 0.6150312423706055,
+      "gesture_detected": "PEACE_SIGN",
+      "timestamp": "2026-03-16T12:23:17.303390",
       "remarks": null
     }
   ]

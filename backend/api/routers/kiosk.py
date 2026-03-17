@@ -9,7 +9,9 @@ from sqlalchemy import and_, func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, time as dt_time, timedelta
+from zoneinfo import ZoneInfo
 import logging
+import os
 
 from db.database import get_db
 from models.device import Device
@@ -23,6 +25,21 @@ from core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
+
+APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Manila")
+TZ_INFO = ZoneInfo(APP_TIMEZONE)
+
+
+def _local_now() -> datetime:
+    """Return local wall-clock datetime in configured app timezone (naive)."""
+    return datetime.now(TZ_INFO).replace(tzinfo=None)
+
+
+def _local_day_window(reference_time: Optional[datetime] = None):
+    """Return [start, end) window for the local calendar day."""
+    now = reference_time or _local_now()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, start + timedelta(days=1)
 
 
 # ============================================
@@ -142,7 +159,7 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     # if not device.api_key or device.api_key != x_device_key:
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
-    now = datetime.now()
+    now = _local_now()
     current_day = now.strftime("%A")  # e.g., "Monday"
     current_time = now.time()
     
@@ -326,8 +343,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
 
         # --- Server-side NOT_IN_CLASS duplicate guard ---
         # Only log ONE NOT_IN_CLASS per user per class per day
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
+        today_start, today_end = _local_day_window()
         existing_nic = db.query(AttendanceLog).filter(
             AttendanceLog.user_id == body.user_id,
             AttendanceLog.class_id == body.class_id,
@@ -359,8 +375,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
     # Block ENTRY only if user is currently in an active session (entered, not exited).
     is_not_in_class = not is_faculty and not is_enrolled
     if body.action == "ENTRY" and not is_not_in_class:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
+        today_start, today_end = _local_day_window()
         today_logs = db.query(AttendanceLog).filter(
             AttendanceLog.user_id == body.user_id,
             AttendanceLog.class_id == body.class_id,
@@ -496,9 +511,8 @@ def auto_exit_class(body: AutoExitRequest, db: Session = Depends(get_db)):
     if not device:
         raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
 
-    now = datetime.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    now = _local_now()
+    today_start, today_end = _local_day_window(now)
 
     # Get all attendance logs for this class today
     logs = db.query(AttendanceLog).filter(
@@ -634,8 +648,7 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
     - On break → BREAK_IN (gesture required)
     - Exited → no more actions
     """
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    today_start, today_end = _local_day_window()
 
     logs = db.query(AttendanceLog).filter(
         AttendanceLog.user_id == user_id,
@@ -790,7 +803,7 @@ def download_embeddings(db: Session = Depends(get_db)):
 
     return {
         "version": "1.0",
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": _local_now().isoformat(),
         "model": "insightface_buffalo_sc_v1",
         "embedding_dim": 512,
         "count": len(embeddings),
@@ -812,7 +825,7 @@ def device_heartbeat(device_id: int, db: Session = Depends(get_db), x_device_key
     # if not device.api_key or device.api_key != x_device_key:
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
-    device.last_heartbeat = datetime.now()
+    device.last_heartbeat = _local_now()
     db.commit()
     
     return {"success": True, "message": "Heartbeat updated"}

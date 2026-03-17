@@ -9,12 +9,38 @@ Supports two modes:
 """
 import os
 import platform
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 
 # Set ONNX Runtime thread count BEFORE onnxruntime is imported.
 # RPi4 has 4 cores — using all of them for inference gives ~15-25% speedup.
 os.environ.setdefault("OMP_NUM_THREADS", "4")
+
+
+def _load_env_defaults():
+    """Load env defaults from common kiosk env files without overriding existing vars."""
+    backend_dir = Path(__file__).resolve().parents[1]
+    candidate_files = [
+        backend_dir / ".env",
+        backend_dir / "rpi" / ".env",
+        backend_dir / "rpi" / ".env.rpi",
+    ]
+
+    for env_path in candidate_files:
+        if not env_path.exists():
+            continue
+
+        with open(env_path, encoding="utf-8-sig") as env_file:
+            for line in env_file:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_defaults()
 
 
 def _detect_platform() -> str:
@@ -119,7 +145,9 @@ class KioskConfig:
     # Backend API
     # ===========================================
     BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
-    API_TIMEOUT_SECONDS: int = 3  # Short timeout — fail fast and use cache. Render can be slow on free tier.
+    API_TIMEOUT_SECONDS: int = field(default_factory=lambda: int(os.getenv("API_TIMEOUT_SECONDS", "10")))
+    ACTIVE_CLASS_FAILURE_BACKOFF_SEC: int = field(default_factory=lambda: int(os.getenv("ACTIVE_CLASS_FAILURE_BACKOFF_SEC", "30")))
+    USE_ACTIVE_CLASS_API: bool = field(default_factory=lambda: os.getenv("USE_ACTIVE_CLASS_API", "1") not in ("0", "false", "False", "no"))
     
     # ===========================================
     # Device Identity
