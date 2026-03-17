@@ -180,7 +180,7 @@ const StudentMetricsPanel = ({ metrics }) => {
                 metrics.attendance_rate,
                 metrics.attendance_tier_color,
                 'Attendance Rate',
-                "Shows your record of حضور (presence) across all enrolled courses."
+                "Shows your record of attendance across all enrolled courses."
             )}
             <div className="metrics-detail-row">
                 <span className="metrics-detail-text">
