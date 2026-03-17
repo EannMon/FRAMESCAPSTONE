@@ -108,7 +108,8 @@ class KioskConfig:
     # When False: InsightFace runs every processed frame (fine for laptop)
     USE_GATED_DETECTION: bool = field(default=None)  # Auto-set in __post_init__
     # Minimum face size (pixels) from MediaPipe gate before triggering InsightFace
-    MIN_FACE_SIZE_PX: int = 80
+    # NOTE: Raised from 80 to 100 — ensures face crop quality before running InsightFace
+    MIN_FACE_SIZE_PX: int = 100
     # On RPi, skip N frames between recognition attempts to save CPU
     RECOGNITION_FRAME_SKIP: int = field(default=None)  # Auto-set in __post_init__
     
@@ -118,7 +119,8 @@ class KioskConfig:
     # Cosine similarity thresholds (InsightFace same-model embeddings: 0.25-0.50)
     # With matching models (buffalo_sc ↔ buffalo_sc), genuine pairs typically score 0.3-0.6
     # buffalo_sc thresholds are slightly lower than buffalo_l due to MobileNet backbone.
-    MATCH_THRESHOLD: float = 0.30  # Balanced: catches most genuine matches
+    # NOTE: 0.30 was too permissive and caused wrong-user matches during testing.
+    MATCH_THRESHOLD: float = 0.40  # Raised from 0.30 — prevents cross-user false matches
     MATCH_THRESHOLD_STRICT: float = 0.45  # For high-security scenarios
     
     # ===========================================
