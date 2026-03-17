@@ -35,5 +35,6 @@ recognition_results/
 
 #pictures
 images/
+!frontend/src/assets/images/
 # Documentation images
 documentation/images/

@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/Common/ToastProvider';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import './components/Common/Toast.css';
 import LandingPage from './components/LandingPage/LandingPage';
@@ -59,7 +60,8 @@ function App() {
 
     return (
         <AuthProvider>
-            <ToastProvider>
+            <NotificationProviderWrapper>
+                <ToastProvider>
                 <Router>
                     <div className="App">
                         <Routes>
@@ -139,8 +141,18 @@ function App() {
                         </Routes>
                     </div>
                 </Router>
-            </ToastProvider>
+                </ToastProvider>
+            </NotificationProviderWrapper>
         </AuthProvider>
+    );
+}
+
+function NotificationProviderWrapper({ children }) {
+    const { user } = useAuth();
+    return (
+        <NotificationProvider user={user}>
+            {children}
+        </NotificationProvider>
     );
 }
 

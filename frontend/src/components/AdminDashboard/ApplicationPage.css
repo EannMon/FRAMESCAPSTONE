@@ -100,6 +100,62 @@
     /* Force scroll on small screens */
 }
 
+.admin-empty-state {
+    text-align: center;
+    padding: 20px;
+}
+
+.empty-state-text {
+    color: #888;
+}
+
+.error-text {
+    color: #dc3545;
+}
+
+/* Dark Mode */
+body.dark-mode .admin-empty-state {
+    color: #94a3b8;
+}
+
+body.dark-mode .empty-state-text {
+    color: #94a3b8;
+}
+
+body.dark-mode .error-text {
+    color: #ef4444;
+}
+
+body.dark-mode .app-filter-select,
+body.dark-mode .app-search-bar {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+body.dark-mode .app-search-bar input {
+    color: #f1f5f9;
+}
+
+body.dark-mode .app-list-header {
+    border-bottom: 1px solid #334155;
+}
+
+body.dark-mode .app-list-header p {
+    color: #94a3b8;
+}
+
+body.dark-mode .app-table th {
+    background-color: #1e293b;
+    color: #94a3b8;
+    border-bottom: 1px solid #334155;
+}
+
+body.dark-mode .app-table td {
+    border-bottom: 1px solid #334155;
+    color: #e2e8f0;
+}
+
 .app-table th,
 .app-table td {
     padding: 15px 25px;
@@ -277,6 +333,25 @@
     position: relative;
 }
 
+body.dark-mode .modal-content {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+}
+
+body.dark-mode .modal-content h3 {
+    border-bottom-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .modal-content p {
+    color: #cbd5e1;
+}
+
+body.dark-mode .modal-content strong {
+    color: #94a3b8;
+}
+
 .modal-content h3 {
     margin-top: 0;
     font-size: 1.5em;
@@ -297,7 +372,7 @@
     display: inline-block;
 }
 
-.modal-content button {
+.application-modal button {
     display: block;
     width: 100%;
     padding: 10px;
@@ -312,7 +387,7 @@
     transition: background-color 0.2s;
 }
 
-.modal-content button:hover {
+.application-modal button:hover {
     background-color: #b02a37;
 }
 

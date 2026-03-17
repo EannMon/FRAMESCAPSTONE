@@ -393,50 +393,46 @@ const DeptHeadUserManagementPage = () => {
                 <div className="tab-content-verification">
 
                     {/* INLINE INVITE SECTION */}
-                    <div className="card invite-section-card" style={{ marginBottom: '24px', padding: '24px 28px', backgroundColor: '#f4f9ff', border: '1px solid #bfdbfe', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '30px', flexWrap: 'wrap' }}>
-                            <div style={{ flex: '1 1 500px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', gap: '10px' }}>
-                                    <div style={{ backgroundColor: '#eff6ff', color: '#163269', width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', border: '1px solid #bfdbfe' }}>
+                    <div className="card invite-section-card">
+                        <div className="invite-section-content">
+                            <div className="invite-section-left">
+                                <div className="invite-header-row">
+                                    <div className="invite-icon-box">
                                         <i className="fas fa-envelope"></i>
                                     </div>
-                                    <h3 style={{ fontSize: '1.4rem', color: '#163269', margin: 0, fontWeight: '700', letterSpacing: '0.01em' }}>Invite Faculty Members</h3>
+                                    <h3 className="invite-title">Invite Faculty Members</h3>
                                 </div>
-                                <p style={{ color: '#475569', fontSize: '0.95rem', marginBottom: '16px', lineHeight: '1.6' }}>
+                                <p className="invite-desc">
                                     Send out unique registration links to faculty members via email to fast-track their onboarding process. Enter email addresses separated by commas or new lines.
                                 </p>
                                 <textarea
+                                    className="invite-textarea"
                                     value={inviteEmails}
                                     onChange={(e) => setInviteEmails(e.target.value)}
                                     placeholder="e.g., faculty1@tup.edu.ph, faculty2@tup.edu.ph"
                                     rows={3}
-                                    style={{ width: '100%', padding: '14px', border: '1px solid #93c5fd', borderRadius: '8px', resize: 'vertical', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', backgroundColor: '#ffffff', color: '#334155' }}
                                     disabled={isSendingInvite}
-                                    onFocus={(e) => e.target.style.borderColor = '#163269'}
-                                    onBlur={(e) => e.target.style.borderColor = '#93c5fd'}
                                 />
-                                {inviteError && <div style={{ color: '#dc2626', marginTop: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#fee2e2', padding: '8px 12px', borderRadius: '6px' }}><i className="fas fa-exclamation-circle"></i>{inviteError}</div>}
+                                {inviteError && <div className="invite-message error"><i className="fas fa-exclamation-circle"></i>{inviteError}</div>}
                                 {inviteResult && (
-                                    <div style={{ marginTop: '16px', fontSize: '0.95rem', padding: '16px', borderRadius: '8px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                        {inviteResult.sent.length > 0 && <div style={{ color: '#059669', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><i className="fas fa-check-circle"></i><strong>Successfully Sent To:</strong> <span style={{ color: '#334155' }}>{inviteResult.sent.join(', ')}</span></div>}
+                                    <div className="invite-result-box">
+                                        {inviteResult.sent.length > 0 && <div className="invite-success-text"><i className="fas fa-check-circle"></i><strong>Successfully Sent To:</strong> <span>{inviteResult.sent.join(', ')}</span></div>}
                                         {inviteResult.failed.length > 0 && (
-                                            <div style={{ color: '#dc2626' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><i className="fas fa-times-circle"></i><strong>Failed:</strong></div>
-                                                <ul style={{ margin: '8px 0 0 24px', padding: 0, color: '#475569' }}>
-                                                    {inviteResult.failed.map((f, i) => <li key={i}><strong>{f.email}</strong> <span style={{ color: '#64748b' }}>- {f.reason}</span></li>)}
+                                            <div className="invite-error-text">
+                                                <div className="invite-error-header"><i className="fas fa-times-circle"></i><strong>Failed:</strong></div>
+                                                <ul className="invite-error-list">
+                                                    {inviteResult.failed.map((f, i) => <li key={i}><strong>{f.email}</strong> <span>- {f.reason}</span></li>)}
                                                 </ul>
                                             </div>
                                         )}
                                     </div>
                                 )}
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '180px', marginTop: '10px' }}>
+                            <div className="invite-section-right">
                                 <button
+                                    className="invite-submit-btn"
                                     onClick={handleSendInvites}
                                     disabled={isSendingInvite || inviteEmails.trim() === ''}
-                                    style={{ padding: '12px 20px', background: '#163269', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1rem', fontWeight: '500', transition: 'background-color 0.2s, opacity 0.2s', opacity: (isSendingInvite || inviteEmails.trim() === '') ? 0.6 : 1, boxShadow: '0 4px 6px -1px rgba(22, 50, 105, 0.1)' }}
-                                    onMouseEnter={(e) => { if (!isSendingInvite && inviteEmails.trim() !== '') e.target.style.background = '#1e3a8a' }}
-                                    onMouseLeave={(e) => { if (!isSendingInvite && inviteEmails.trim() !== '') e.target.style.background = '#163269' }}
                                 >
                                     <i className={isSendingInvite ? "fas fa-circle-notch fa-spin" : "fas fa-paper-plane"}></i>
                                     {isSendingInvite ? 'Sending...' : 'Send Invites'}
@@ -465,10 +461,9 @@ const DeptHeadUserManagementPage = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button
+                                className="add-user-btn"
                                 onClick={() => setShowAddUserModal(true)}
-                                style={{ padding: '8px 16px', background: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', fontWeight: '500', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
-                                onMouseEnter={(e) => { e.target.style.background = '#f8fafc'; e.target.style.borderColor = '#94a3b8'; }}
-                                onMouseLeave={(e) => { e.target.style.background = '#ffffff'; e.target.style.borderColor = '#cbd5e1'; }}
+                                style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', fontWeight: '500', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
                             >
                                 <i className="fas fa-user-plus"></i> Manual Add
                             </button>
@@ -510,18 +505,13 @@ const DeptHeadUserManagementPage = () => {
                                                     <div className="user-info-cell">
                                                         <div className="user-table-avatar">{(app.role && app.role[0]) ? app.role[0].toUpperCase() : '?'}</div>
                                                         <div>
-                                                            <span className="user-table-name" style={{ fontWeight: app.isInvite ? 'normal' : '500', fontStyle: app.isInvite ? 'italic' : 'normal', color: app.name === 'Invited User' ? '#64748b' : 'inherit' }}>{app.name}</span>
+                                                            <span className={`user-table-name ${app.isInvite ? 'invite-name' : ''}`}>{app.name}</span>
                                                             <span className="user-table-email">{app.email}</span>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span style={{
-                                                        backgroundColor: app.isInvite ? '#f0f9ff' : '#f8fafc',
-                                                        color: app.isInvite ? '#0284c7' : '#64748b',
-                                                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '500', border: `1px solid ${app.isInvite ? '#bae6fd' : '#cbd5e1'}`,
-                                                        display: 'inline-flex', alignItems: 'center', gap: '4px'
-                                                    }}>
+                                                    <span className={`method-tag ${app.isInvite ? 'invite-method' : 'manual-method'}`}>
                                                         <i className={app.isInvite ? "fas fa-envelope" : "fas fa-user-plus"}></i>
                                                         {app.method}
                                                     </span>
@@ -532,7 +522,7 @@ const DeptHeadUserManagementPage = () => {
                                                 <td className="actions-cell">
                                                     <div className="dropdown-container">
                                                         <button
-                                                            className="action-button"
+                                                            className="action-button invite-action-btn"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 // Don't show dropdown for invites, only full users
@@ -541,7 +531,6 @@ const DeptHeadUserManagementPage = () => {
                                                                 }
                                                             }}
                                                             disabled={app.isInvite}
-                                                            style={{ opacity: app.isInvite ? 0.3 : 1, cursor: app.isInvite ? 'default' : 'pointer' }}
                                                         >
                                                             <i className={app.isInvite ? "fas fa-clock" : "fas fa-ellipsis-h"}></i>
                                                         </button>
@@ -556,7 +545,7 @@ const DeptHeadUserManagementPage = () => {
                                                 </td>
                                             </tr>
                                         ))}
-                                        {filteredVerificationUsers.length === 0 && <tr><td colSpan="6" className="td-empty-state" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No requests or invitations found.</td></tr>}
+                                    <td colSpan="6" className="td-empty-state">No requests or invitations found.</td>
                                     </tbody>
                                 </table>
                             </div>
@@ -661,7 +650,7 @@ const DeptHeadUserManagementPage = () => {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#888" }}>No users found.</td></tr>
+                                        <tr><td colSpan="6" className="td-empty-state">No users found.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -770,29 +759,26 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
     };
 
     return (
-        <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1050 }}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-                {/* HEADER ROW */}
-                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px', boxSizing: 'border-box' }}>
-                    <h3 style={{ margin: 0, paddingBottom: 0, borderBottom: 'none', color: '#1e293b', flex: 1, whiteSpace: 'nowrap' }}>Register New User</h3>
-                    <div style={{ padding: '0', margin: '0', display: 'flex', alignItems: 'flex-start' }}>
-                        <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', outline: 'none', padding: '0', margin: '0' }} title="Close">
-                            <i className="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
+        <div className="modal-backdrop user-registration-modal">
+            <div className="modal-content">
+                        <div className="add-user-modal-header">
+                            <h3 className="add-user-modal-title">Register New User</h3>
+                            <button type="button" onClick={onClose} className="add-user-modal-close" title="Close">
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
 
-                {/* Step Indicator */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '8px' }}>
-                    <div style={{ flex: 1, height: '4px', backgroundColor: '#163269', borderRadius: '4px' }}></div>
-                    <div style={{ flex: 1, height: '4px', backgroundColor: step === 2 ? '#163269' : '#e2e8f0', borderRadius: '4px', transition: 'background-color 0.3s' }}></div>
-                </div>
+                        {/* Step Indicator */}
+                        <div className="modal-step-indicator-container">
+                            <div className="modal-step-line active"></div>
+                            <div className={`modal-step-line ${step === 2 ? 'active' : ''}`}></div>
+                        </div>
 
                 <form onSubmit={handleSubmit} className="add-user-form">
 
                     {step === 1 && (
                         <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                            <label>Role <span style={{ color: '#163269' }}>*</span></label>
+                            <label>Role <span>*</span></label>
                             <select name="role" value={newUser.role} onChange={handleInputChange}>
                                 <option value="FACULTY">Faculty</option>
                                 <option value="STUDENT">Student</option>
@@ -800,7 +786,7 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                 <div>
-                                    <label>First Name <span style={{ color: '#163269' }}>*</span></label>
+                                    <label>First Name <span>*</span></label>
                                     <input type="text" name="first_name" placeholder="First Name" value={newUser.first_name} onChange={handleInputChange} required />
                                 </div>
                                 <div>
@@ -809,17 +795,17 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
                                 </div>
                             </div>
 
-                            <label>Last Name <span style={{ color: '#163269' }}>*</span></label>
+                            <label>Last Name <span>*</span></label>
                             <input type="text" name="last_name" placeholder="Last Name" value={newUser.last_name} onChange={handleInputChange} required />
 
                             {newUser.role === 'STUDENT' ? (
                                 <>
-                                    <label>TUP-M ID <span style={{ color: '#163269' }}>*</span></label>
+                                    <label>TUP-M ID <span>*</span></label>
                                     <input type="text" name="tupm_id" placeholder="e.g. TUPM-21-1234" value={newUser.tupm_id} onChange={handleInputChange} required />
                                 </>
                             ) : (
                                 <>
-                                    <label>Employee ID <span style={{ color: '#163269' }}>*</span></label>
+                                    <label>Employee ID <span>*</span></label>
                                     <input type="text" name="employee_id" placeholder="Employee ID" value={newUser.employee_id} onChange={handleInputChange} required />
                                 </>
                             )}
@@ -827,8 +813,8 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
                             <label>Email ID</label>
                             <input type="email" name="email" placeholder="user@tup.edu.ph" value={newUser.email} onChange={handleInputChange} />
 
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                                <button type="button" onClick={handleNext} style={{ flex: 1, padding: '12px', background: '#163269', color: 'white', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#1e3a8a'} onMouseLeave={(e) => e.target.style.background = '#163269'}>Next Step <i className="fas fa-arrow-right" style={{ marginLeft: '6px' }}></i></button>
+                            <div className="modal-step-actions">
+                                <button type="button" className="btn-primary step-btn" onClick={handleNext}>Next Step <i className="fas fa-arrow-right"></i></button>
                             </div>
                         </div>
                     )}
@@ -837,7 +823,7 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
                         <div style={{ animation: 'fadeIn 0.3s ease' }}>
                             {programs.length > 0 && newUser.role === 'STUDENT' && (
                                 <>
-                                    <label>Program <span style={{ color: '#163269' }}>*</span></label>
+                                    <label>Program <span>*</span></label>
                                     <select name="program_id" value={newUser.program_id} onChange={handleInputChange} required>
                                         <option value="">-- Select Program --</option>
                                         {programs.map(p => (
@@ -847,15 +833,15 @@ const AddUserModal = ({ newUser, handleInputChange, handleAddUser, onClose, depa
                                 </>
                             )}
 
-                            <label>Password <span style={{ color: '#163269' }}>*</span></label>
+                            <label>Password <span>*</span></label>
                             <input type="password" name="password" placeholder="Min. 6 characters" value={newUser.password} onChange={handleInputChange} required />
 
-                            <label>Confirm Password <span style={{ color: '#163269' }}>*</span></label>
+                            <label>Confirm Password <span>*</span></label>
                             <input type="password" name="confirmPassword" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={handleInputChange} required />
 
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                                <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '12px', background: 'transparent', color: '#163269', border: '1px solid #163269', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = 'rgba(22, 50, 105, 0.05)'} onMouseLeave={(e) => e.target.style.background = 'transparent'}><i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i> Back</button>
-                                <button type="submit" style={{ flex: 1, padding: '12px', background: '#163269', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#1e3a8a'} onMouseLeave={(e) => e.target.style.background = '#163269'}>Confirm <i className="fas fa-check" style={{ marginLeft: '6px' }}></i></button>
+                            <div className="modal-step-actions">
+                                <button type="button" className="btn-outline step-btn" onClick={() => setStep(1)}><i className="fas fa-arrow-left"></i> Back</button>
+                                <button type="submit" className="btn-primary step-btn">Confirm <i className="fas fa-check"></i></button>
                             </div>
                         </div>
                     )}
