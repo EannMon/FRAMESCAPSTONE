@@ -480,6 +480,18 @@ class StreamingAttendanceKiosk:
 
                 # Handle class loading
                 if active_class.class_id != last_class_id:
+                    # If we jumped directly from one class to another, auto-exit the previous class.
+                    if (
+                        last_class_id is not None
+                        and last_class_id not in self._auto_exit_done_for
+                    ):
+                        logger.info(
+                            "AUTO_EXIT | class %d switched to class %d, triggering auto-exit for previous class",
+                            last_class_id,
+                            active_class.class_id,
+                        )
+                        self._trigger_auto_exit(last_class_id)
+
                     self._fetch_class_enrollment(active_class.class_id)
                     if self._enrollment_loaded:
                         last_class_id = active_class.class_id
@@ -609,12 +621,17 @@ class StreamingAttendanceKiosk:
                     and (time.time() - self._last_recognized[match.user_id])
                     < self.config.COOLDOWN_SECONDS
                 ):
+                    cache_key = f"{match.user_id}_{active_class.class_id}"
+                    state_cache = self._user_attendance_state.get(cache_key, {})
+                    label_text = f"{match.name} (cooldown)"
+                    if state_cache.get("has_exited"):
+                        label_text = f"{match.name} (Session Closed)"
                     # Show cooldown overlay in yellow
                     if bbox is not None:
                         with self._overlay_lock:
                             self._overlay = {
                                 "bbox": bbox,
-                                "label": f"{match.name} (cooldown)",
+                                "label": label_text,
                                 "color": (0, 255, 255),
                                 "expires_at": time.time() + 1.0,
                             }
@@ -650,6 +667,29 @@ class StreamingAttendanceKiosk:
                 allowed = state.get("allowed_actions", ["ENTRY"])
 
                 if not allowed:
+                    cache_key = f"{match.user_id}_{active_class.class_id}"
+                    if state.get("has_exited"):
+                        self._user_attendance_state[cache_key] = {
+                            "has_entered": state.get("has_entered", True),
+                            "is_on_break": False,
+                            "has_exited": True,
+                            "last_action": state.get("last_action") or "EXIT",
+                            "allowed_actions": [],
+                        }
+                        if bbox is not None:
+                            with self._overlay_lock:
+                                self._overlay = {
+                                    "bbox": bbox,
+                                    "label": f"{match.name} (Session Closed)",
+                                    "color": (0, 165, 255),
+                                    "expires_at": time.time() + 2.0,
+                                }
+                        self.broadcast_state({
+                            "recognized_user": match.name,
+                            "greeting_type": None,
+                            "required_gestures": [],
+                            "message": "Session closed for this class (already exited)",
+                        })
                     self._last_recognized[match.user_id] = time.time()
                     continue
 
