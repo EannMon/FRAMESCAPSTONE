@@ -28,6 +28,9 @@ router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
 
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Manila")
 TZ_INFO = ZoneInfo(APP_TIMEZONE)
+ALLOW_REENTRY_AFTER_EXIT = os.getenv("KIOSK_ALLOW_REENTRY_AFTER_EXIT", "0").strip().lower() in {"1", "true", "yes"}
+EARLY_ENTRY_MINUTES = int(os.getenv("EARLY_ENTRY_MINUTES", "10"))
+POST_SESSION_GRACE_MINUTES = int(os.getenv("POST_SESSION_GRACE_MINUTES", "180"))
 
 
 def _local_now() -> datetime:
@@ -40,6 +43,27 @@ def _local_day_window(reference_time: Optional[datetime] = None):
     now = reference_time or _local_now()
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return start, start + timedelta(days=1)
+
+
+def _class_session_window(class_obj: Class, reference_time: Optional[datetime] = None):
+    """Return [start, end) bounds for the current class session window."""
+    now = reference_time or _local_now()
+
+    start = class_obj.start_time
+    end = class_obj.end_time
+    if isinstance(start, str):
+        start = datetime.strptime(start, "%H:%M:%S").time()
+    if isinstance(end, str):
+        end = datetime.strptime(end, "%H:%M:%S").time()
+
+    start_dt = datetime.combine(now.date(), start)
+    end_dt = datetime.combine(now.date(), end)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+
+    window_start = start_dt - timedelta(minutes=max(EARLY_ENTRY_MINUTES, 0))
+    window_end = end_dt + timedelta(minutes=max(POST_SESSION_GRACE_MINUTES, 0))
+    return window_start, window_end
 
 
 # ============================================
@@ -215,7 +239,7 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
                     "start_time": start.strftime("%H:%M:%S") if hasattr(start, 'strftime') else str(start),
                     "end_time": end.strftime("%H:%M:%S") if hasattr(end, 'strftime') else str(end),
                     "room": device.room,
-                    "late_threshold_minutes": cls.late_threshold_minutes or 15
+                    "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
                 }
                 break
 
@@ -286,7 +310,7 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
             room=device.room,
             semester=cls.semester or "",
             academic_year=cls.academic_year or "",
-            late_threshold_minutes=cls.late_threshold_minutes or 15
+            late_threshold_minutes=cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
         ))
     
     return ScheduleResponse(
@@ -409,7 +433,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
     # Determine if late (only for ENTRY action)
     is_late = False
     if body.action == "ENTRY" and class_.start_time:
-        late_threshold = class_.late_threshold_minutes or 15
+        late_threshold = class_.late_threshold_minutes if class_.late_threshold_minutes is not None else 15
         start = class_.start_time
         if isinstance(start, str):
             start = datetime.strptime(start, "%H:%M:%S").time()
@@ -648,13 +672,17 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
     - On break → BREAK_IN (gesture required)
     - Exited → no more actions
     """
-    today_start, today_end = _local_day_window()
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    window_start, window_end = _class_session_window(class_obj)
 
     logs = db.query(AttendanceLog).filter(
         AttendanceLog.user_id == user_id,
         AttendanceLog.class_id == class_id,
-        AttendanceLog.timestamp >= today_start,
-        AttendanceLog.timestamp < today_end
+        AttendanceLog.timestamp >= window_start,
+        AttendanceLog.timestamp < window_end
     ).order_by(AttendanceLog.timestamp.asc()).all()
 
     has_entered = False
@@ -685,17 +713,15 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
         if isinstance(last_action, AttendanceAction):
             last_action = last_action.value
 
-    # State machine: determine allowed actions
-    # After EXIT, the session is CLOSED — no re-entry allowed.
-    # If a user accidentally exits, an admin/faculty must manually adjust the record.
-    # This prevents confusing data with multiple ENTRY/EXIT cycles per class session.
+    # State machine: determine allowed actions.
+    # Production default blocks re-entry after EXIT for the same session.
+    # For testing-only, set KIOSK_ALLOW_REENTRY_AFTER_EXIT=1.
     allowed_actions = []
     if not has_entered:
         allowed_actions.append("ENTRY")
     elif has_exited:
-        # Session is done — no more actions allowed for this class today.
-        # Re-entry after exit is intentionally blocked.
-        pass
+        if ALLOW_REENTRY_AFTER_EXIT:
+            allowed_actions.append("ENTRY")
     elif is_on_break:
         allowed_actions.append("BREAK_IN")
     else:

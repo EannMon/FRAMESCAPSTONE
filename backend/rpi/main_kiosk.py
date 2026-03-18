@@ -479,6 +479,18 @@ class AttendanceKiosk:
 
                 # 2. Load enrollment when class changes (or retry if previous fetch failed)
                 if active_class.class_id != last_class_id:
+                    # If we jumped directly from one class to another, auto-exit the previous class.
+                    if (
+                        last_class_id is not None
+                        and last_class_id not in self._auto_exit_done_for
+                    ):
+                        logger.info(
+                            "AUTO_EXIT | class %d switched to class %d, triggering auto-exit for previous class",
+                            last_class_id,
+                            active_class.class_id,
+                        )
+                        self._trigger_auto_exit(last_class_id)
+
                     self._fetch_class_enrollment(active_class.class_id)
                     if self._enrollment_loaded:
                         last_class_id = active_class.class_id
