@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import './SettingsPage.css';
 import './Utility.css';
 import Header from './Header';
 import Footer from './Footer';
+import PasswordModal from './PasswordModal';
 
 // --- Theme Definition ---
 const navyTheme = {
@@ -36,6 +37,8 @@ const SettingsPage = ({ isEmbedded = false }) => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
     });
+
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     // Notification Toggles
     const [notifications, setNotifications] = useState({
@@ -105,7 +108,7 @@ const SettingsPage = ({ isEmbedded = false }) => {
                     <div className="card settings-card">
                         <h3>Account</h3>
                         <p>Manage your account and security settings.</p>
-                        
+
                         <div className="account-info-section">
                             <div className="account-info-item">
                                 <label>Email Address</label>
@@ -114,8 +117,8 @@ const SettingsPage = ({ isEmbedded = false }) => {
                             <div className="account-info-item">
                                 <label>Full Name</label>
                                 <span className="account-info-value">
-                                    {user?.first_name && user?.last_name 
-                                        ? `${user.first_name} ${user.last_name}` 
+                                    {user?.first_name && user?.last_name
+                                        ? `${user.first_name} ${user.last_name}`
                                         : 'Not set'}
                                 </span>
                             </div>
@@ -128,28 +131,18 @@ const SettingsPage = ({ isEmbedded = false }) => {
                         </div>
 
                         <div className="account-actions">
-                            <button className="settings-action-button">
+                            <button className="settings-action-button" onClick={() => setIsPasswordModalOpen(true)}>
                                 <i className="fas fa-key"></i>
                                 <span>Change Password</span>
-                                <i className="fas fa-chevron-right" style={{ marginLeft: 'auto' }}></i>
-                            </button>
-                            <button className="settings-action-button">
-                                <i className="fas fa-envelope"></i>
-                                <span>Change Email</span>
-                                <i className="fas fa-chevron-right" style={{ marginLeft: 'auto' }}></i>
-                            </button>
-                            <button className="settings-action-button">
-                                <i className="fas fa-shield-alt"></i>
-                                <span>Security Settings</span>
                                 <i className="fas fa-chevron-right" style={{ marginLeft: 'auto' }}></i>
                             </button>
                         </div>
                     </div>
 
-                    {/* Notification Settings Card */}
+                    {/* Preferences Card (consolidated Notifications + Theme) */}
                     <div className="card settings-card">
-                        <h3>Notifications</h3>
-                        <p>Control how you receive notifications.</p>
+                        <h3>Preferences</h3>
+                        <p>Notifications and appearance settings.</p>
                         <ToggleSwitch
                             label="Email Notifications"
                             isToggled={notifications.email}
@@ -160,12 +153,7 @@ const SettingsPage = ({ isEmbedded = false }) => {
                             isToggled={notifications.push}
                             onToggle={() => handleToggle('push')}
                         />
-                    </div>
-
-                    {/* Theme Settings Card - with functional dark mode */}
-                    <div className="card settings-card">
-                        <h3>Theme & Appearance</h3>
-                        <p>Customize the look and feel of the app.</p>
+                        <div style={{ borderTop: '1px solid #e2e8f0', margin: '12px 0' }}></div>
                         <ToggleSwitch
                             label="Dark Mode"
                             isToggled={darkMode}
@@ -177,6 +165,13 @@ const SettingsPage = ({ isEmbedded = false }) => {
             </div>
 
             {!isEmbedded && <Footer />}
+
+            {/* Password Modal */}
+            <PasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
+                userId={user?.user_id || user?.id}
+            />
         </>
     );
 };
