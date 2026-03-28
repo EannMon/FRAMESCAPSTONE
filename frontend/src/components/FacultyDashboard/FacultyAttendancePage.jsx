@@ -91,12 +91,35 @@ const FacultyAttendancePage = () => {
         setSelectedClassId(clsId);
         const cls = myClasses.find(c => c.id.toString() === clsId) || null;
         setSelectedClass(cls);
-        await fetchClassDetails(clsId, filterDate);
+        
+        let targetDate = filterDate;
+        if (cls && cls.day_of_week) {
+            // Find the most recent date that matches this day_of_week
+            const targetDay = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(cls.day_of_week);
+            if (targetDay !== -1) {
+                const now = new Date();
+                const currentDay = now.getDay();
+                let diff = currentDay - targetDay;
+                if (diff < 0) diff += 7; // Go back to the previous week's occurrence
+                now.setDate(now.getDate() - diff);
+                targetDate = now.toISOString().split('T')[0];
+                setFilterDate(targetDate);
+            }
+        }
+        
+        await fetchClassDetails(clsId, targetDate);
     };
 
     // Re-fetch when date changes with backend filtering
     const handleDateChange = (e) => {
         const newDate = e.target.value;
+        if (selectedClass) {
+            const selectedDayStr = new Date(newDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+            if (selectedDayStr !== selectedClass.day_of_week) {
+                toast.warning(`Invalid date. ${selectedClass.subject_code} meets on ${selectedClass.day_of_week}s.`);
+                return;
+            }
+        }
         setFilterDate(newDate);
         if (selectedClassId) {
             fetchClassDetails(selectedClassId, newDate);
@@ -225,23 +248,25 @@ const FacultyAttendancePage = () => {
                             <option value="">-- Choose a Class --</option>
                             {myClasses.map(cls => (
                                 <option key={cls.id} value={cls.id}>
-                                    {cls.subject_title} ({cls.subject_code}) — {cls.section}
+                                    {cls.subject_title} ({cls.subject_code}) — {cls.section} ({cls.day_of_week})
                                 </option>
                             ))}
                         </select>
                     </div>
 
                     {/* Date Filter */}
-                    <div className="filter-item" style={{ flex: '0 0 auto' }}>
-                        <label>Session Date:</label>
-                        <input
-                            type="date"
-                            style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.95em' }}
-                            value={filterDate}
-                            onChange={handleDateChange}
-                            max={new Date().toISOString().split('T')[0]}
-                        />
-                    </div>
+                    {selectedClassId && (
+                        <div className="filter-item" style={{ flex: '0 0 auto' }}>
+                            <label>Session Date:</label>
+                            <input
+                                type="date"
+                                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.95em' }}
+                                value={filterDate}
+                                onChange={handleDateChange}
+                                max={new Date().toISOString().split('T')[0]}
+                            />
+                        </div>
+                    )}
 
                     {/* Search */}
                     {selectedClass && (
@@ -314,7 +339,6 @@ const FacultyAttendancePage = () => {
                                         <th>Time In</th>
                                         <th>Time Out</th>
                                         <th>Status</th>
-                                        <th>Remarks</th>
                                         <th style={{ width: '60px', textAlign: 'center' }}>Edit</th>
                                     </tr>
                                 </thead>
@@ -329,9 +353,6 @@ const FacultyAttendancePage = () => {
                                             <td>{student.timeOut || '--'}</td>
                                             <td>
                                                 <StatusBadge status={student.status || 'Absent'} />
-                                            </td>
-                                            <td className={`td-remarks ${student.remarks === 'Late' ? 'late' : ''}`}>
-                                                {student.remarks || '-'}
                                             </td>
                                             <td className="td-actions">
                                                 {student.entry_log_id ? (
@@ -350,7 +371,7 @@ const FacultyAttendancePage = () => {
                                     ))}
                                     {displayStudents.length === 0 && (
                                         <tr>
-                                            <td colSpan="7" className="td-empty-state">
+                                            <td colSpan="6" className="td-empty-state">
                                                 No attendance records found for this date.
                                             </td>
                                         </tr>
@@ -376,62 +397,70 @@ const FacultyAttendancePage = () => {
                 </div>
             )}
 
-            {/* ── EDIT ATTENDANCE MODAL ── */}
+            {/* ── PREMIUM EDIT ATTENDANCE MODAL ── */}
             {editModalOpen && editingStudent && (
-                <div className="modal-overlay edit-attendance-overlay">
-                    <div className="edit-modal-content">
-                        <h3 className="edit-modal-title">
-                            <i className="fas fa-pen btn-icon" />Edit Attendance
-                        </h3>
-
-                        {/* Non-editable fields */}
-                        <div className="edit-modal-info-box">
-                            <div><strong>Student:</strong> {editingStudent.lastName}, {editingStudent.firstName}</div>
-                            <div><strong>ID:</strong> {editingStudent.tupm_id}</div>
+                <div className="modal-overlay edit-attendance-overlay" onClick={() => setEditModalOpen(false)}>
+                    <div className="edit-modal-content premium-modal" onClick={e => e.stopPropagation()}>
+                        <div className="edit-modal-header">
+                            <h3 className="edit-modal-title">
+                                <i className="fas fa-edit-user btn-icon" style={{ marginRight: '10px' }} />
+                                Edit Student Attendance
+                            </h3>
+                            <button className="close-modal-btn" onClick={() => setEditModalOpen(false)}>&times;</button>
                         </div>
 
-                        {/* Editable: Time In */}
-                        <div className="edit-modal-field">
-                            <label className="edit-modal-label">
-                                Time In (override)
-                            </label>
-                            <input
-                                type="time"
-                                value={editTime}
-                                onChange={e => setEditTime(e.target.value)}
-                                className="edit-modal-input"
-                            />
-                            <p className="edit-modal-hint">
-                                Status will auto-update based on class start time.
-                            </p>
+                        <div className="edit-modal-body">
+                            <div className="edit-modal-info-card">
+                                <div className="info-item">
+                                    <span className="info-label">Student</span>
+                                    <span className="info-value">{editingStudent.lastName}, {editingStudent.firstName}</span>
+                                </div>
+                                <div className="info-item">
+                                    <span className="info-label">TUPM ID</span>
+                                    <span className="info-value">{editingStudent.tupm_id}</span>
+                                </div>
+                            </div>
+
+                            <div className="edit-form-section">
+                                <div className="edit-modal-field">
+                                    <label className="edit-modal-label">Manual Time Entry</label>
+                                    <div className="input-with-icon">
+                                        <i className="fas fa-clock" />
+                                        <input
+                                            type="time"
+                                            value={editTime}
+                                            onChange={e => setEditTime(e.target.value)}
+                                            className="premium-input"
+                                        />
+                                    </div>
+                                    <p className="edit-modal-hint">
+                                        Adjusting the time will automatically recalculate the attendance status (Late/On-Time).
+                                    </p>
+                                </div>
+
+                                <div className="edit-modal-field">
+                                    <label className="edit-modal-label">Reason for Adjustment</label>
+                                    <textarea
+                                        placeholder="e.g., Kiosk system error, Student late due to valid reason..."
+                                        className="premium-textarea"
+                                        rows="3"
+                                        style={{ width: '100%', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px', fontSize: '0.9rem' }}
+                                    ></textarea>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Editable: Remarks */}
-                        <div className="edit-modal-field edit-modal-field-lg">
-                            <label className="edit-modal-label">
-                                Remarks
-                            </label>
-                            <input
-                                type="text"
-                                value={editRemarks}
-                                onChange={e => setEditRemarks(e.target.value)}
-                                placeholder="Optional remark..."
-                                className="edit-modal-input"
-                            />
-                        </div>
-
-                        {/* Buttons */}
                         <div className="edit-modal-actions">
                             <button
                                 onClick={() => setEditModalOpen(false)}
-                                className="edit-modal-cancel-btn"
-                            >Cancel</button>
+                                className="premium-btn-secondary"
+                            >Discard Changes</button>
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
-                                className={`edit-modal-save-btn ${saving ? 'saving' : ''}`}
+                                className={`premium-btn-primary ${saving ? 'loading' : ''}`}
                             >
-                                {saving ? 'Saving...' : 'Save Changes'}
+                                {saving ? <><i className="fas fa-spinner fa-spin" /> Saving...</> : 'Confirm & Save'}
                             </button>
                         </div>
                     </div>

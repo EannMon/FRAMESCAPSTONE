@@ -40,6 +40,7 @@ const SchedulePage = () => {
       rawData.forEach(cls => {
         if (newSchedule[cls.day_of_week]) {
           newSchedule[cls.day_of_week].push({
+            startSortValue: cls.start_time || '99:99:99',
             time: `${formatTo12Hr(cls.start_time)} - ${formatTo12Hr(cls.end_time)}`,
             title: cls.subject_title || 'Unknown Subject',
             subjectCode: cls.subject_code || '—',
@@ -48,6 +49,10 @@ const SchedulePage = () => {
             section: cls.section || null,
           });
         }
+      });
+
+      Object.keys(newSchedule).forEach((day) => {
+        newSchedule[day].sort((a, b) => a.startSortValue.localeCompare(b.startSortValue));
       });
 
       setWeekSchedule(newSchedule);

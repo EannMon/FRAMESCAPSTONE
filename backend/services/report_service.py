@@ -17,13 +17,18 @@ from models.user import User, UserRole
 from models.enrollment import Enrollment
 from models.subject import Subject
 from models.device import Device
+from models.session_exception import SessionException, ExceptionType
 from services.report_metric_service import (
     build_student_summary_metrics,
     compute_student_session_count_reference,
     compute_student_core_metrics,
     resolve_student_scoped_class_ids,
 )
-from services.report_insight_service import generate_student_insights
+from services.role_based_analytics_service import (
+    generate_student_role_insights,
+    generate_faculty_role_insights,
+    generate_department_role_insights,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +38,62 @@ _STUDENT_REPORT_CACHE_TTL_SECONDS = 15
 _STUDENT_REPORT_CACHE_MAX_ENTRIES = 256
 _student_report_cache = {}
 _student_report_cache_lock = threading.Lock()
+
+
+def _normalize_room(room: str):
+    if not room:
+        return None
+    normalized = room.strip().lower()
+    return normalized or None
+
+
+def _apply_room_filter(query, room_column, room: str):
+    normalized = _normalize_room(room)
+    if not normalized:
+        return query
+    return query.filter(func.lower(func.trim(room_column)) == normalized)
+
+
+def _department_faculty_ids(db: Session, dept_id: int):
+    if not dept_id:
+        return []
+    rows = (
+        db.query(User.id)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+        )
+        .all()
+    )
+    return [row[0] for row in rows]
+
+
+def _build_row_session_reference(rows, window_from: str, window_to: str):
+    total_rows = len(rows)
+    attended = 0
+    for row in rows:
+        status = str(row.get("status", "")).strip().lower()
+        if any(token in status for token in ["present", "entered", "entry", "on time", "good", "excellent", "active", "peak", "late"]):
+            attended += 1
+
+    report_window = {
+        "attended": attended,
+        "conducted": total_rows,
+        "expected": total_rows,
+        "date_from": window_from,
+        "date_to": window_to,
+    }
+
+    return {
+        "report_window": report_window,
+        "whole_semester": {
+            "attended": attended,
+            "conducted": total_rows,
+            "expected": total_rows,
+            "semester_start_date": window_from,
+            "semester_end_date": window_to,
+        },
+    }
 
 
 def _make_student_report_cache_key(
@@ -100,6 +161,7 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
+        .outerjoin(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.timestamp >= date_from,
@@ -116,17 +178,20 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
             status = "LATE"
         rows.append({
             "id": i,
+            "entry_log_id": log.id,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
+            "section": log.class_.section if log.class_ else "N/A",
             "status": status,
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "date_of_entry": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
         })
     return rows
 
 
 def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Students enrolled but with no ENTRY log in date range — likely absent."""
+    cls = db.query(Class).filter(Class.id == class_id).first()
     enrolled = (
         db.query(Enrollment, User)
         .join(User, Enrollment.student_id == User.id)
@@ -151,9 +216,10 @@ def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: s
                 "id": i,
                 "col1": user.full_name,
                 "col2": user.tupm_id or "—",
+                "section": cls.section if cls else "N/A",
                 "status": "ABSENT",
                 "col3": "No entry recorded",
-                "remarks": f"Enrolled but no attendance in range",
+                "date_of_entry": date_from,
             })
     return rows
 
@@ -163,6 +229,7 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
+        .outerjoin(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -178,11 +245,13 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
     for i, (log, user) in enumerate(logs, 1):
         rows.append({
             "id": i,
+            "entry_log_id": log.id,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
+            "section": log.class_.section if log.class_ else "N/A",
             "status": "LATE",
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "date_of_entry": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
         })
     return rows
 
@@ -235,10 +304,10 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
         rows.append({
             "id": i,
             "col1": user.full_name,
-            "col2": f"Entries: {entries}",
+            "col2": user.tupm_id or "—",
             "status": status,
             "col3": f"On-time: {on_time} | Late: {lates}",
-            "remarks": user.tupm_id or "—",
+            "date_of_entry": "Semester",
         })
     return rows
 
@@ -859,7 +928,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
         return []
 
     faculty_ids = [f.id for f in faculty]
-    entry_counts = dict(
+    entry_query = (
         db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
@@ -867,10 +936,16 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id)
-        .all()
     )
-    late_counts = dict(
+    if room:
+        entry_query = _apply_room_filter(
+            entry_query.join(Class, AttendanceLog.class_id == Class.id),
+            Class.room,
+            room,
+        )
+    entry_counts = dict(entry_query.group_by(AttendanceLog.user_id).all())
+
+    late_query = (
         db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
@@ -879,9 +954,14 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id)
-        .all()
     )
+    if room:
+        late_query = _apply_room_filter(
+            late_query.join(Class, AttendanceLog.class_id == Class.id),
+            Class.room,
+            room,
+        )
+    late_counts = dict(late_query.group_by(AttendanceLog.user_id).all())
 
     rows = []
     for i, fac in enumerate(faculty, 1):
@@ -917,7 +997,11 @@ def _faculty_late_report(db: Session, dept_id: int, date_from: str, date_to: str
         )
     )
     if room:
-        query = query.join(Class, AttendanceLog.class_id == Class.id).filter(Class.room == room)
+        query = _apply_room_filter(
+            query.join(Class, AttendanceLog.class_id == Class.id),
+            Class.room,
+            room,
+        )
     logs = query.order_by(AttendanceLog.timestamp.desc()).limit(500).all()
 
     rows = []
@@ -938,14 +1022,16 @@ def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: s
     query = (
         db.query(Class.room, func.count(AttendanceLog.id))
         .join(AttendanceLog, AttendanceLog.class_id == Class.id)
+        .join(User, Class.faculty_id == User.id)
         .filter(
+            User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
     )
     if room:
-        query = query.filter(Class.room == room)
+        query = _apply_room_filter(query, Class.room, room)
     results = query.group_by(Class.room).all()
 
     rows = []
@@ -964,9 +1050,16 @@ def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: s
 def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Room utilization — compares actual attendance against scheduled class sessions."""
     # Get scheduled classes per room
-    query = db.query(Class).filter(Class.faculty_id.isnot(None))
+    query = (
+        db.query(Class)
+        .join(User, Class.faculty_id == User.id)
+        .filter(
+            Class.faculty_id.isnot(None),
+            User.department_id == dept_id,
+        )
+    )
     if room:
-        query = query.filter(Class.room == room)
+        query = _apply_room_filter(query, Class.room, room)
     classes = query.all()
 
     if not classes:
@@ -1009,14 +1102,16 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
             func.concat(AttendanceLog.user_id, '-', func.date_trunc('day', AttendanceLog.timestamp))
         )))
         .join(AttendanceLog, AttendanceLog.class_id == Class.id)
+        .join(User, Class.faculty_id == User.id)
         .filter(
+            User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
     )
     if room:
-        entry_query = entry_query.filter(Class.room == room)
+        entry_query = _apply_room_filter(entry_query, Class.room, room)
     actual_counts = dict(entry_query.group_by(Class.room).all())
 
     rows = []
@@ -1044,14 +1139,16 @@ def _peak_usage_report(db: Session, dept_id: int, date_from: str, date_to: str, 
             func.count(AttendanceLog.id),
         )
         .join(AttendanceLog, AttendanceLog.class_id == Class.id)
+        .join(User, Class.faculty_id == User.id)
         .filter(
+            User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
     )
     if room:
-        query = query.filter(Class.room == room)
+        query = _apply_room_filter(query, Class.room, room)
 
     results = query.group_by(Class.room, 'hour').order_by(Class.room, func.count(AttendanceLog.id).desc()).all()
 
@@ -1094,19 +1191,25 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
             func.count(AttendanceLog.id).label('entry_count'),
         )
         .join(AttendanceLog, AttendanceLog.class_id == Class.id)
+        .join(User, Class.faculty_id == User.id)
         .filter(
+            User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
     )
     if room:
-        query = query.filter(Class.room == room)
+        query = _apply_room_filter(query, Class.room, room)
 
     daily_counts = query.group_by(Class.room, 'day').all()
 
     # Get room capacities from devices
-    devices = {d.room: d.room_capacity for d in db.query(Device).all()}
+    devices = {
+        (d.room or "").strip().lower(): d.room_capacity
+        for d in db.query(Device).all()
+        if d.room
+    }
 
     # Aggregate: max entries per room across all days
     room_max = {}
@@ -1119,7 +1222,7 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
 
     rows = []
     for i, (rm, max_count) in enumerate(sorted(room_max.items()), 1):
-        capacity = devices.get(rm, 50)
+        capacity = devices.get((rm or "").strip().lower(), 50)
         peak_date = room_max_date.get(rm)
         overcrowded = max_count > capacity
         rows.append({
@@ -1246,7 +1349,7 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
     """Department-wide activity overview."""
     from models.user import VerificationStatus
     # Count entries by role
-    results = (
+    query = (
         db.query(User.role, func.count(AttendanceLog.id))
         .join(AttendanceLog, AttendanceLog.user_id == User.id)
         .filter(
@@ -1255,9 +1358,14 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
             AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to + " 23:59:59",
         )
-        .group_by(User.role)
-        .all()
     )
+    if room:
+        query = _apply_room_filter(
+            query.join(Class, AttendanceLog.class_id == Class.id),
+            Class.room,
+            room,
+        )
+    results = query.group_by(User.role).all()
     rows = []
     for i, (role, count) in enumerate(results, 1):
         rows.append({
@@ -1323,18 +1431,43 @@ DEPT_REPORTS = {
 
 def get_faculty_report(db: Session, user_id: int, report_type: str,
                        class_id: int = None, date_from: str = None, date_to: str = None):
-    """Dispatch to the correct faculty report generator."""
-    if report_type in FACULTY_CLASS_REPORTS:
-        if not class_id:
-            return []
-        handler = FACULTY_CLASS_REPORTS[report_type]
-        return handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
-    elif report_type in FACULTY_PERSONAL_REPORTS:
-        handler = FACULTY_PERSONAL_REPORTS[report_type]
-        return handler(db, user_id, date_from or "2020-01-01", date_to or "2099-12-31")
-    else:
+    """Dispatch faculty report requests to inner sub-generators."""
+    handler = FACULTY_CLASS_REPORTS.get(report_type)
+    if not handler:
+        if report_type in FACULTY_PERSONAL_REPORTS:
+             handler = FACULTY_PERSONAL_REPORTS[report_type]
+             return handler(db, user_id, date_from or "2020-01-01", date_to or "2099-12-31")
         logger.warning("Unknown faculty report type: %s", report_type)
         return []
+
+    # Handle "All Classes" selection (class_id=None or 0)
+    if not class_id or class_id == 0 or class_id == "0":
+        # Fetch all classes for this faculty
+        classes = db.query(Class).filter(Class.faculty_id == int(user_id)).all()
+        
+        # Sort classes by schedule: Monday first, then Tuesday, etc.
+        day_order = {
+            'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3,
+            'Friday': 4, 'Saturday': 5, 'Sunday': 6, 'TBA': 7
+        }
+        # Use simple sort by day and then start_time
+        from datetime import time as dt_time
+        classes.sort(key=lambda c: (day_order.get(c.day_of_week, 7), c.start_time or dt_time(0,0)))
+        
+        all_rows = []
+        logger.info("[DEBUG_RPT] Found %d classes for faculty ID %s", len(classes), user_id)
+        for cls in classes:
+            class_rows = handler(db, cls.id, date_from or "2020-01-01", date_to or "2099-12-31")
+            logger.info("[DEBUG_RPT] Class ID %s returned %d rows", cls.id, len(class_rows))
+            all_rows.extend(class_rows)
+        
+        # Re-index IDs for the combined list
+        for idx, row in enumerate(all_rows, 1):
+            row["id"] = idx
+        return all_rows
+
+    # Single class mode
+    return handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
 
 
 def get_dept_report(db: Session, dept_id: int, report_type: str,
@@ -1523,7 +1656,12 @@ def get_faculty_report_envelope(
             "query_metrics": {"execution_ms": elapsed_ms},
         },
         "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
-        "insights": _build_insights_from_rows(all_rows, report_type),
+        "insights": generate_faculty_role_insights(
+            rows=all_rows,
+            summary_metrics=_build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+            report_code=report_type,
+        ),
+        "session_count_reference": _build_row_session_reference(all_rows, window_from, window_to),
         "rows": rows,
     }
 
@@ -1566,7 +1704,12 @@ def get_dept_report_envelope(
             "query_metrics": {"execution_ms": elapsed_ms},
         },
         "summary_metrics": _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
-        "insights": _build_insights_from_rows(all_rows, report_type),
+        "insights": generate_department_role_insights(
+            rows=all_rows,
+            summary_metrics=_build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to),
+            report_code=report_type,
+        ),
+        "session_count_reference": _build_row_session_reference(all_rows, window_from, window_to),
         "rows": rows,
     }
 
@@ -1622,6 +1765,165 @@ def _build_student_rows(logs):
                 "class_id": log.class_id,
             }
         )
+    return rows
+
+
+def _build_student_absent_rows(
+    db: Session,
+    user_id: int,
+    scoped_class_ids,
+    date_from: datetime,
+    date_to: datetime,
+):
+    """Build synthetic ABSENT rows for conducted sessions where the student has no ENTRY."""
+    if not scoped_class_ids:
+        return []
+
+    classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.id.in_(scoped_class_ids))
+        .all()
+    )
+    class_map = {cls.id: cls for cls in classes}
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+
+    exception_rows = (
+        db.query(SessionException.class_id, SessionException.session_date, SessionException.exception_type)
+        .filter(
+            SessionException.class_id.in_(scoped_class_ids),
+            SessionException.session_date >= date_from.date(),
+            SessionException.session_date <= date_to.date(),
+        )
+        .all()
+    )
+    exception_map = {
+        (class_id, str(session_date)): exception_type
+        for class_id, session_date, exception_type in exception_rows
+    }
+
+    conducted_pairs = set(
+        (class_id, str(log_day))
+        for class_id, log_day in db.query(
+            AttendanceLog.class_id,
+            func.date(AttendanceLog.timestamp),
+        )
+        .filter(
+            AttendanceLog.class_id.in_(scoped_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp <= date_to,
+        )
+        .distinct()
+        .all()
+    )
+
+    student_entry_pairs = set(
+        (class_id, str(log_day))
+        for class_id, log_day in db.query(
+            AttendanceLog.class_id,
+            func.date(AttendanceLog.timestamp),
+        )
+        .filter(
+            AttendanceLog.user_id == user_id,
+            AttendanceLog.class_id.in_(scoped_class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp <= date_to,
+        )
+        .distinct()
+        .all()
+    )
+
+    schedule_aligned_conducted_pairs = set()
+    for class_id, log_day in conducted_pairs:
+        cls = class_map.get(class_id)
+        if not cls:
+            continue
+
+        try:
+            day_date = datetime.fromisoformat(str(log_day)).date()
+        except ValueError:
+            continue
+
+        exception_type = exception_map.get((class_id, str(day_date)))
+        if exception_type in {ExceptionType.CANCELLED, ExceptionType.HOLIDAY, ExceptionType.ONLINE}:
+            continue
+
+        if exception_type == ExceptionType.ONSITE:
+            schedule_aligned_conducted_pairs.add((class_id, str(day_date)))
+            continue
+
+        day_name = (cls.day_of_week or "").strip().lower()
+        target_day = day_map.get(day_name)
+        if target_day is None:
+            continue
+
+        if day_date.weekday() == target_day:
+            schedule_aligned_conducted_pairs.add((class_id, str(day_date)))
+
+    absent_pairs = sorted(schedule_aligned_conducted_pairs - student_entry_pairs, key=lambda item: item[1], reverse=True)
+    rows = []
+
+    for idx, (class_id, log_day) in enumerate(absent_pairs, 1):
+        cls = class_map.get(class_id)
+        subject = cls.subject if cls else None
+        faculty = cls.faculty if cls else None
+
+        try:
+            day_date = datetime.fromisoformat(log_day).date()
+        except ValueError:
+            day_date = date_from.date()
+
+        scheduled_time = None
+        if cls and cls.start_time:
+            if isinstance(cls.start_time, time):
+                scheduled_time = cls.start_time
+            else:
+                try:
+                    scheduled_time = datetime.strptime(str(cls.start_time), "%H:%M:%S").time()
+                except ValueError:
+                    try:
+                        scheduled_time = datetime.strptime(str(cls.start_time), "%H:%M").time()
+                    except ValueError:
+                        scheduled_time = time(12, 0)
+        else:
+            scheduled_time = time(12, 0)
+
+        absent_dt = datetime.combine(day_date, scheduled_time, tzinfo=date_from.tzinfo)
+
+        rows.append(
+            {
+                "id": idx,
+                "col1": day_date.isoformat(),
+                "col2": f"{subject.code} - {subject.title}" if subject else (cls.room if cls else "—"),
+                "status": "ABSENT",
+                "col3": absent_dt.strftime("%I:%M %p"),
+                "remarks": "Absent",
+                "timestamp": absent_dt.isoformat(),
+                "action": "ABSENT",
+                "is_late": False,
+                "room": cls.room if cls else None,
+                "subject_code": subject.code if subject else None,
+                "subject_title": subject.title if subject else None,
+                "faculty_name": (
+                    f"{faculty.first_name} {faculty.last_name}".strip()
+                    if faculty and (faculty.first_name or faculty.last_name)
+                    else "—"
+                ),
+                "class_id": class_id,
+            }
+        )
+
     return rows
 
 
@@ -1691,16 +1993,41 @@ def get_student_report_envelope(
             AttendanceLog.action.in_([AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN])
         )
 
-    total_rows = base_query.count()
-    logs = (
-        base_query
-        .order_by(AttendanceLog.timestamp.desc())
-        .offset(skip)
-        .limit(min(limit, 100))
-        .all()
-    )
+    page_limit = min(limit, 100)
 
-    rows = _build_student_rows(logs)
+    if report_code in {"DAILY_REPORT", "ABSENT_LOG"}:
+        absent_rows = _build_student_absent_rows(
+            db=db,
+            user_id=user_id,
+            scoped_class_ids=scoped_class_ids,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        if report_code == "ABSENT_LOG":
+            all_rows = absent_rows
+        else:
+            all_logs = (
+                base_query
+                .order_by(AttendanceLog.timestamp.desc())
+                .all()
+            )
+            present_rows = _build_student_rows(all_logs)
+            all_rows = present_rows + absent_rows
+
+        all_rows.sort(key=lambda row: row.get("timestamp") or "", reverse=True)
+        total_rows = len(all_rows)
+        rows = all_rows[max(skip, 0): max(skip, 0) + page_limit]
+    else:
+        total_rows = base_query.count()
+        logs = (
+            base_query
+            .order_by(AttendanceLog.timestamp.desc())
+            .offset(skip)
+            .limit(page_limit)
+            .all()
+        )
+        rows = _build_student_rows(logs)
 
     core_metrics = compute_student_core_metrics(
         db=db,
@@ -1718,7 +2045,7 @@ def get_student_report_envelope(
     prev_from = prev_to - timedelta(seconds=window_seconds)
 
     prev_metrics = {}
-    if report_code in {"WEEKLY_SUMMARY", "MONTHLY_TRENDS", "SEM_REPORT", "HISTORY_30D", "CONSISTENCY"}:
+    if report_code in {"WEEKLY_SUMMARY", "MONTHLY_TRENDS", "SEM_REPORT", "CONSISTENCY", "ABSENT_LOG"}:
         prev_metrics = compute_student_core_metrics(
             db=db,
             user_id=user_id,
@@ -1729,8 +2056,17 @@ def get_student_report_envelope(
             classes=scoped_classes,
         )
 
-    summary_metrics = build_student_summary_metrics(core_metrics, date_from, date_to)
-    insights = generate_student_insights(core_metrics, prev_metrics)
+    summary_metrics = build_student_summary_metrics(
+        core_metrics,
+        date_from,
+        date_to,
+        is_all_subject_scope=(class_id is None),
+    )
+    insights = generate_student_role_insights(
+        core_metrics,
+        report_code=report_code,
+        previous_window_metrics=prev_metrics,
+    )
     session_count_reference = compute_student_session_count_reference(
         db=db,
         user_id=user_id,

@@ -6,6 +6,9 @@ Hierarchy:
 - 1 Faculty Head (Computer Studies Department)
 - 5 Faculty Members (3 are also Program Coordinators for IT, IS, CS)
 - Password for all: their lastname (lowercase)
+
+SAFETY: This script NEVER deletes or alters existing records.
+        It only INSERTs new rows. Existing records are skipped with a notice.
 """
 import sys
 import os
@@ -45,23 +48,17 @@ def seed_all():
         # ============================================
         print("\n📁 Creating Department...")
         
-        # Check if already seeded
-        existing_dept = db.query(Department).first()
-        if existing_dept:
-            print("⚠️  Department already exists. Clearing all data for re-seed...")
-            # Clear in reverse order of dependencies
-            db.query(User).delete()
-            db.query(Program).delete()
-            db.query(Department).delete()
-            db.commit()
-        
-        department = Department(
-            name="Computer Studies Department",
-            code="CSD"
-        )
-        db.add(department)
-        db.flush()
-        print(f"   ✅ Created: {department.name} (ID: {department.id})")
+        department = db.query(Department).filter(Department.code == "CSD").first()
+        if department:
+            print(f"   ℹ️  Department already exists: {department.name} (ID: {department.id}) — skipping")
+        else:
+            department = Department(
+                name="Computer Studies Department",
+                code="CSD"
+            )
+            db.add(department)
+            db.flush()
+            print(f"   ✅ Created: {department.name} (ID: {department.id})")
         
         # ============================================
         # 2. CREATE PROGRAMS
@@ -76,38 +73,47 @@ def seed_all():
         
         programs = {}
         for prog_data in programs_data:
-            program = Program(
-                department_id=department.id,
-                name=prog_data["name"],
-                code=prog_data["code"]
-            )
-            db.add(program)
-            db.flush()
-            programs[prog_data["code"]] = program
-            print(f"   ✅ Created: {prog_data['code']} - {prog_data['name']} (ID: {program.id})")
+            existing_prog = db.query(Program).filter(Program.code == prog_data["code"]).first()
+            if existing_prog:
+                programs[prog_data["code"]] = existing_prog
+                print(f"   ℹ️  Program already exists: {prog_data['code']} (ID: {existing_prog.id}) — skipping")
+            else:
+                program = Program(
+                    department_id=department.id,
+                    name=prog_data["name"],
+                    code=prog_data["code"]
+                )
+                db.add(program)
+                db.flush()
+                programs[prog_data["code"]] = program
+                print(f"   ✅ Created: {prog_data['code']} - {prog_data['name']} (ID: {program.id})")
         
         # ============================================
         # 3. CREATE FACULTY HEAD
         # ============================================
         print("\n👔 Creating Faculty Head...")
         
-        head = User(
-            email="head.santos@tup.edu.ph",
-            password_hash=hash_password("santos"),  # Password: lastname
-            tupm_id="TUPM-20-0001",
-            role=UserRole.HEAD,
-            verification_status=VerificationStatus.VERIFIED,
-            face_registered=False,
-            first_name="Ricardo",
-            last_name="Santos",
-            middle_name="Cruz",
-            department_id=department.id,
-            program_id=None  # Head oversees all programs
-        )
-        db.add(head)
-        db.flush()
-        print(f"   ✅ HEAD: {head.full_name} ({head.email})")
-        print(f"      Password: santos | TUPM ID: {head.tupm_id}")
+        existing_head = db.query(User).filter(User.email == "head.santos@tup.edu.ph").first()
+        if existing_head:
+            print(f"   ℹ️  Faculty Head already exists: {existing_head.full_name} — skipping")
+        else:
+            head = User(
+                email="head.santos@tup.edu.ph",
+                password_hash=hash_password("santos"),  # Password: lastname
+                tupm_id="TUPM-20-0001",
+                role=UserRole.HEAD,
+                verification_status=VerificationStatus.VERIFIED,
+                face_registered=False,
+                first_name="Ricardo",
+                last_name="Santos",
+                middle_name="Cruz",
+                department_id=department.id,
+                program_id=None  # Head oversees all programs
+            )
+            db.add(head)
+            db.flush()
+            print(f"   ✅ HEAD: {head.full_name} ({head.email})")
+            print(f"      Password: santos | TUPM ID: {head.tupm_id}")
         
         # ============================================
         # 4. CREATE FACULTY MEMBERS (5 total)
@@ -168,6 +174,12 @@ def seed_all():
         for fac_data in faculty_data:
             # Password is lastname in lowercase
             password = fac_data["last_name"].lower().replace(" ", "_")
+            
+            existing_fac = db.query(User).filter(User.email == fac_data["email"]).first()
+            if existing_fac:
+                coordinator_label = " 🎯 (Program Coordinator)" if fac_data["is_coordinator"] else ""
+                print(f"   ℹ️  FACULTY already exists: {existing_fac.full_name}{coordinator_label} — skipping")
+                continue
             
             faculty = User(
                 email=fac_data["email"],

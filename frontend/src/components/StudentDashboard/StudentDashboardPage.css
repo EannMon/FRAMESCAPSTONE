@@ -1,674 +1,139 @@
-/* =========================================== */
-/* 3. Student Dashboard View Styles */
-/* =========================================== */
-.student-content-grid {
+/* ============================================
+   Student Dashboard — Overrides
+   Extends FacultyDashboardPage.css (fd-* classes)
+   ============================================ */
+
+/* --- Main Grid (2-column: metrics/live top, chart/activity bottom) --- */
+.sd-main-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 20px;
-    /* padding-left removed - handled by layout */
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
 }
 
-.welcome-banner {
-    grid-column: 1 / -1;
+/* --- Live Status (student-specific, simpler) --- */
+.sd-live-card {
     display: flex;
-    align-items: center;
-    gap: 20px;
+    flex-direction: column;
 }
 
-.welcome-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: #E8F1FC;
-    /* Accent Blue */
-    color: #163269;
-    /* Primary Navy */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8em;
-    flex-shrink: 0;
-}
-
-.welcome-info {
-    flex-grow: 1;
-}
-
-.welcome-info h3 {
-    margin: 0 0 5px 0;
-    font-size: 1.4em;
-}
-
-.welcome-info p {
-    margin: 0;
-    color: #555;
-}
-
-.status-tag.green {
-    background-color: #E6F4EA;
-    color: #2E7D32;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 0.9em;
-    font-weight: 600;
-}
-
-.student-summary-cards-container {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    /* Smaller min-width */
-    gap: 20px;
-    /* Reduced from 30px */
-}
-
-.student-summary-card {
-    text-align: center;
-    padding: 16px;
-    /* Reduced from 20px */
-    border-radius: 12px;
-    /* Soften corners */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.student-summary-card .summary-icon-container {
-    width: 48px;
-    /* Reduced from 60px */
-    height: 48px;
-    /* Reduced from 60px */
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.4em;
-    /* Reduced from 1.8em */
-    margin: 0 auto 10px auto;
-    /* Reduced margin */
-}
-
-/* Icon colors - UPDATED */
-.summary-icon-container.s-attendance-bg {
-    background-color: #E6F4EA;
-    color: #2E7D32;
-}
-
-/* Green */
-.summary-icon-container.s-courses-bg {
-    background-color: #E8F1FC;
-    color: #163269;
-}
-
-/* Navy */
-.summary-icon-container.s-access-bg {
-    background-color: #FFF8E1;
-    color: #F9A825;
-}
-
-/* Amber */
-.summary-icon-container.s-notifications-bg {
-    background-color: #FFEBEE;
-    color: #C62828;
-}
-
-/* Red */
-
-.student-summary-card .summary-value {
-    font-size: 1.8em;
-    /* Reduced from 2.2em */
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 4px;
-}
-
-.student-summary-card .summary-title {
-    font-size: 0.9em;
-    /* Reduced from 1em */
-    color: #777;
-}
-
-/* =========================================== */
-/* 4. NEW LAYOUT: CHART + SIDE PANEL */
-/* =========================================== */
-
-.dashboard-main-layout {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1.7fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 20px;
-    align-items: stretch;
-}
-
-/* --- LIVE STATUS CARD (Right Panel) --- */
-.live-status-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.live-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eee;
-}
-
-.live-header h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: #444;
-}
-
-/* Smaller font */
-
-.live-indicator {
+.sd-live-indicator {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.85em;
-    background: #f8f9fa;
-    padding: 4px 10px;
+    background: #f8fafc;
+    padding: 4px 12px;
     border-radius: 20px;
 }
 
-.blink-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-    animation: blinker 1.5s linear infinite;
+.sd-status-text {
+    font-weight: 700;
+    font-size: 0.85rem;
 }
 
-@keyframes blinker {
-    50% {
-        opacity: 0.5;
-    }
+.sd-live-body {
+    margin-top: 4px;
 }
 
-.live-body {
-    background-color: #fcfcfc;
-    border-radius: 8px;
-    padding: 15px;
-    /* Reduced from 20px */
-    border: 1px dashed #eee;
-}
-
-.room-display {
-    text-align: center;
-}
-
-.room-icon {
-    font-size: 2em;
-    /* Smaller */
-    margin-bottom: 8px;
-    transition: color 0.3s ease;
-}
-
-.room-info h4 {
-    margin: 0;
-    font-size: 1.1em;
-    color: #333;
-}
-
-.room-info p {
-    margin: 4px 0 0;
-    color: #777;
-    font-size: 0.85em;
-}
-
-/* --- RECENT ACTIVITY (Right Panel) --- */
-.student-recent-attendance {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.student-recent-attendance h3 {
-    margin: 0 0 12px 0;
-    font-size: 1rem;
-    color: #444;
-}
-
-.recent-activity-list {
+/* --- Metrics Panel (restyled to match fd-card) --- */
+.sd-metrics-card {
     display: flex;
     flex-direction: column;
-    gap: 0;
 }
 
-.student-attendance-item {
+.sd-bars-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 4px 0;
+}
+
+.sd-bar-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sd-bar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    /* Reduced padding */
-    border-bottom: 1px solid #f5f5f5;
 }
 
-.student-attendance-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.student-attendance-item:first-child {
-    padding-top: 0;
-}
-
-.attendance-day {
-    font-weight: 600;
-    font-size: 0.95em;
-    color: #333;
-}
-
-.attendance-time {
-    font-size: 0.85em;
-    color: #888;
-    display: block;
-    margin-top: 2px;
-}
-
-.attendance-percent {
-    font-size: 0.75em;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    letter-spacing: 0.5px;
-}
-
-/* --- ADVANCED CHART STYLES --- */
-.attendance-trend-chart-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.trend-chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.trend-chart-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-/* Time Filter Pills */
-.filter-pill-group {
-    display: flex;
-    background: #f1f3f5;
-    /* Light gray bg */
-    padding: 4px;
-    border-radius: 8px;
-    gap: 2px;
-}
-
-.filter-pill {
-    background: transparent;
-    border: none;
-    padding: 6px 14px;
-    border-radius: 6px;
+.sd-bar-label {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #666;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    color: #334155;
 }
 
-.filter-pill:hover {
-    color: #333;
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.filter-pill.active {
-    background: white;
-    color: #1a73e8;
-    /* Active Blue */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Type Filter Bar */
-.type-filter-bar {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #f5f5f5;
-}
-
-.type-text-btn {
-    background: none;
-    border: none;
-    font-size: 0.9rem;
-    color: #888;
-    padding: 0 0 5px 0;
-    cursor: pointer;
-    position: relative;
-    font-weight: 500;
-    transition: color 0.2s;
-}
-
-.type-text-btn:hover {
-    color: #555;
-}
-
-.type-text-btn.active-type {
-    color: #333;
-    font-weight: 700;
-}
-
-.type-text-btn.active-type::after {
-    content: '';
-    position: absolute;
-    bottom: -11px;
-    /* Align with border-bottom of container */
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: #333;
-    border-radius: 2px 2px 0 0;
-}
-
-/* SVG Container */
-.svg-chart-container {
-    width: 100%;
-    margin-bottom: 15px;
-    height: 350px !important;
-}
-
-.trend-svg {
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-/* Footer: Insights & Legend */
-.chart-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    margin-top: 10px;
-}
-
-.chart-insight {
-    font-size: 0.95rem;
-    color: #495057;
-    font-weight: 500;
+.sd-bar-right {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.chart-legends {
-    display: flex;
-    gap: 20px;
+.sd-bar-detail {
+    font-size: 0.72rem;
+    color: #94a3b8;
 }
 
-.legend-item {
+.sd-bar-track {
+    position: relative;
+    background: #f1f5f9;
+    border-radius: 12px;
+    height: 22px;
+    overflow: hidden;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: #666;
 }
 
-.dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+.sd-bar-fill {
+    height: 100%;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    min-width: 0;
+    transition: width 0.6s ease;
 }
 
+.sd-bar-pct {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
 
-/* =========================================== */
-/* 5. Media Queries (Responsiveness) */
-/* =========================================== */
+.sd-bar-pct-outside {
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-left: 8px;
+}
+
+.sd-bar-count {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.sd-bar-sub-tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* --- Responsive --- */
 @media (max-width: 1200px) {
-    .student-content-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-main-layout {
+    .sd-main-grid {
         grid-template-columns: 1fr;
     }
 }
-
 
 @media (max-width: 768px) {
-    .student-summary-cards-container {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .welcome-banner {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-
-    .chart-footer {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-}
-
-@media (max-width: 480px) {
-    .student-summary-cards-container {
+    .sd-main-grid {
         grid-template-columns: 1fr;
     }
-
-    .filter-pill {
-        padding: 4px 8px;
-        font-size: 0.75rem;
-    }
-}
-
-/* =========================================== */
-/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
-/* =========================================== */
-@media (max-width: 375px) {
-    .welcome-banner {
-        padding: 14px;
-        gap: 10px;
-    }
-
-    .welcome-avatar {
-        width: 44px;
-        height: 44px;
-        font-size: 1.4em;
-    }
-
-    .welcome-info h3 {
-        font-size: 1.1em;
-    }
-
-    .student-summary-card {
-        padding: 12px;
-    }
-
-    .student-summary-card .summary-value {
-        font-size: 1.4em;
-    }
-
-    .attendance-trend-chart-card {
-        padding: 16px;
-    }
-
-    .trend-chart-header {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
-    }
-
-    .trend-chart-header h3 {
-        font-size: 1rem;
-    }
-
-    .chart-footer {
-        padding: 10px;
-    }
-
-    .chart-legends {
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .type-filter-bar {
-        gap: 8px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .live-status-card,
-    .student-recent-attendance {
-        padding: 12px;
-    }
-}
-
-/* =========================================== */
-/* CSS Custom Properties for Dark Mode Support */
-/* =========================================== */
-:root {
-    --text-primary: #333;
-    --text-secondary: #555;
-    --text-muted: #777;
-    --text-light: #888;
-    --bg-primary: #fff;
-    --bg-secondary: #f8f9fa;
-    --bg-muted: #f0f0f0;
-    --border-color: #eee;
-    --text-success: #388E3C;
-    --text-success-dark: #1a5c2a;
-}
-
-/* Dashboard Loading */
-.dashboard-loading {
-    text-align: center;
-    padding-top: 100px;
-    color: var(--text-muted, #666);
-}
-
-/* Summary Subtitle with dynamic color */
-.summary-subtitle {
-    color: var(--subtitle-color, var(--text-muted));
-    font-weight: 600;
-    font-size: 0.75em;
-    margin-top: 2px;
-}
-
-/* Live Status Text */
-.live-status-text {
-    color: var(--status-color, var(--text-muted));
-    font-weight: bold;
-}
-
-/* Room Icon States */
-.room-icon.active {
-    color: var(--active-color, #2E7D32);
-}
-
-.room-icon.inactive {
-    color: var(--text-muted, #ccc);
-}
-
-.metrics-explanation {
-    font-size: 0.75rem;
-    color: var(--text-muted, #777);
-    margin-top: 6px;
-    line-height: 1.4;
-    font-style: italic;
-}
-
-/* Metrics Panel */
-.metrics-panel {
-    padding: 20px;
-}
-
-.metrics-panel-title {
-    margin: 0 0 14px 0;
-    font-size: 1em;
-    color: var(--text-primary, #333);
-}
-
-.metrics-icon {
-    margin-right: 8px;
-    color: #5c67f2;
-}
-
-.metrics-meter {
-    margin-bottom: 16px;
-}
-
-.metrics-meter-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-
-.metrics-label {
-    font-size: 0.85em;
-    font-weight: 600;
-    color: var(--text-secondary, #444);
-}
-
-.metrics-value {
-    font-size: 0.85em;
-    font-weight: 700;
-    color: var(--meter-color, var(--text-primary));
-}
-
-.metrics-bar-bg {
-    background: var(--bg-muted, #f0f0f0);
-    border-radius: 6px;
-    height: 8px;
-    overflow: hidden;
-}
-
-.metrics-bar-fill {
-    height: 100%;
-    border-radius: 6px;
-    background: var(--bar-color, #5c67f2);
-    transition: width 0.5s ease;
-}
-
-.metrics-detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-}
-
-.metrics-detail-last {
-    margin-bottom: 4px;
-}
-
-.metrics-detail-text {
-    font-size: 0.78em;
-    color: var(--text-muted, #666);
-}
-
-.tier-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 12px;
-    font-size: 0.72em;
-    font-weight: 700;
-    color: #fff;
-    background: var(--badge-bg, #888);
 }

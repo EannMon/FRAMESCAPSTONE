@@ -787,9 +787,9 @@ const FacultyMyClassesPage = () => {
                                             </div>
                                         ) : (
                                             <div className="student-row-actions">
-                                                <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
-                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
-                                                <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
+                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Delete">
+                                                    <i className="fas fa-trash-alt" style={{ color: "red" }}></i>
+                                                </button>
                                             </div>
                                         )}
                                     </td>

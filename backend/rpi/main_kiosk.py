@@ -27,7 +27,7 @@ import signal
 import sys
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Set, Any
 
 # Add parent directory for imports
@@ -122,6 +122,7 @@ class AttendanceKiosk:
             api_timeout=self.config.API_TIMEOUT_SECONDS,
             failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 300),
             use_api=getattr(self.config, "USE_ACTIVE_CLASS_API", True),
+            early_entry_minutes=self.config.EARLY_ENTRY_MINUTES,
         )
 
         logger.info("Initializing attendance logger...")
@@ -142,6 +143,7 @@ class AttendanceKiosk:
         self._current_class_id: Optional[int] = None
         self._not_in_class_logged: Set[int] = set()  # user_ids already logged as NOT_IN_CLASS this session
         self._enrollment_loaded: bool = False  # True only after successful enrollment fetch
+        self._auto_exit_done_for: Set[int] = set()  # class_ids that have already been auto-exited
         self._frame_count: int = 0
         self._last_cache_refresh: Optional[float] = None  # timestamp of last embedding cache refresh
         self._metrics = KioskMetricsCollector(
@@ -348,6 +350,43 @@ class AttendanceKiosk:
         """Record recognition timestamp for cooldown."""
         self._last_recognized[user_id] = time.time()
 
+    def _trigger_auto_exit(self, class_id: int):
+        """
+        Call the backend auto-exit endpoint to bulk-log EXIT for users
+        who forgot to exit at class end time.
+        """
+        if class_id in self._auto_exit_done_for:
+            return  # Already triggered for this class
+
+        if not self.config.AUTO_EXIT_ENABLED:
+            return
+
+        try:
+            url = f"{self.config.BACKEND_URL}/api/kiosk/attendance/auto-exit"
+            response = requests.post(
+                url,
+                json={"class_id": class_id, "device_id": self.config.DEVICE_ID},
+                timeout=self.config.API_TIMEOUT_SECONDS
+            )
+
+            if response.status_code in (200, 201):
+                data = response.json()
+                count = data.get("auto_exited_count", 0)
+                logger.info(
+                    "AUTO_EXIT | class=%d: auto-exited %d users",
+                    class_id, count
+                )
+            else:
+                logger.warning(
+                    "AUTO_EXIT | API returned %d for class=%d",
+                    response.status_code, class_id
+                )
+
+        except requests.exceptions.RequestException as e:
+            logger.warning("AUTO_EXIT | request failed for class=%d: %s", class_id, str(e))
+
+        self._auto_exit_done_for.add(class_id)
+
     def run(self):
         """Main kiosk loop with full attendance state machine."""
         # Register SIGTERM handler for systemd graceful shutdown
@@ -429,10 +468,29 @@ class AttendanceKiosk:
                     self._metrics.maybe_report(cache_size=self.embedding_cache.count)
 
                     time.sleep(getattr(self.config, "IDLE_NO_CLASS_SLEEP_SECONDS", 0.1))
+
+                    # Auto-exit check: when a class just ended (active_class went from
+                    # something to None), trigger auto-exit for the previous class.
+                    if last_class_id is not None and last_class_id not in self._auto_exit_done_for:
+                        logger.info("AUTO_EXIT | class %d ended, triggering auto-exit", last_class_id)
+                        self._trigger_auto_exit(last_class_id)
+
                     continue
 
                 # 2. Load enrollment when class changes (or retry if previous fetch failed)
                 if active_class.class_id != last_class_id:
+                    # If we jumped directly from one class to another, auto-exit the previous class.
+                    if (
+                        last_class_id is not None
+                        and last_class_id not in self._auto_exit_done_for
+                    ):
+                        logger.info(
+                            "AUTO_EXIT | class %d switched to class %d, triggering auto-exit for previous class",
+                            last_class_id,
+                            active_class.class_id,
+                        )
+                        self._trigger_auto_exit(last_class_id)
+
                     self._fetch_class_enrollment(active_class.class_id)
                     if self._enrollment_loaded:
                         last_class_id = active_class.class_id

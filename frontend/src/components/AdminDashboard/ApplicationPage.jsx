@@ -137,11 +137,11 @@ const ApplicationPage = () => {
 
     // --- LOADING AND ERROR HANDLING RENDERING ---
     if (loading) {
-        return <div className="application-container"><div className="loading-spinner">Loading Applications...</div></div>;
+        return <div className="application-container"><div className="admin-empty-state">Loading Applications...</div></div>;
     }
 
     if (error) {
-        return <div className="application-container"><div className="error-message">{error}</div></div>;
+        return <div className="application-container"><div className="admin-empty-state error-text">{error}</div></div>;
     }
     // 
 
@@ -275,7 +275,7 @@ const ApplicationPage = () => {
 
                             {filteredApps.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" style={{ textAlign: "center", padding: 20, color: "#888" }}>
+                                    <td colSpan="6" className="admin-empty-state">
                                         No results found.
                                     </td>
                                 </tr>
@@ -289,7 +289,7 @@ const ApplicationPage = () => {
             {/* User Details Modal (Para ipakita ang lahat ng data) */}
             {modalUser && (
                 <div className="modal-backdrop" onClick={() => setModalUser(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content application-modal" onClick={(e) => e.stopPropagation()}>
                         <h3>User Details: {modalUser.name}</h3>
                         <div className="modal-body">
                             <p><strong>Status:</strong> <span className={`status-tag ${modalUser.statusColor}`}>{modalUser.status}</span></p>

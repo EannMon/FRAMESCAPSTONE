@@ -6,42 +6,41 @@ import '../Common/Utility.css';
 
 // --- COMPONENTS ---
 
-const WelcomeBanner = ({ facultyName, facultyId, faceRegistered }) => (
-    <div className="card welcome-banner">
-        <div className="welcome-avatar">
-            <i className="fas fa-chalkboard-teacher"></i>
-        </div>
-        <div className="welcome-info">
-            <h3>Welcome back, {facultyName}!</h3>
-            <p>Employee ID: {facultyId}</p>
-        </div>
-        <div className="welcome-status">
-            <span className={`face-status ${faceRegistered ? 'registered' : 'not-registered'}`}>
-                <i className={`fas ${faceRegistered ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
-                {faceRegistered ? 'Face Registered' : 'Face Not Registered'}
-            </span>
-        </div>
-    </div>
-);
+const WelcomeBanner = ({ facultyName, facultyId, faceRegistered, todayName, todayDate }) => (
+    <div className="fd-hero-banner">
+        {/* Decorative shapes */}
+        <div className="fd-hero-shape fd-hero-shape-1"></div>
+        <div className="fd-hero-shape fd-hero-shape-2"></div>
+        <div className="fd-hero-shape fd-hero-shape-3"></div>
 
-const FacultySummaryCard = ({ iconClass, title, value, subValue, subValueColor, iconBgClass, badge }) => (
-    <div className="summary-card premium">
-        <div className="summary-content-left">
-            <div className="summary-title">{title}</div>
-            <div className="summary-value-row">
-                <span className="summary-value">{value}</span>
-                {subValue && <span className="summary-sub" style={{ '--sub-color': subValueColor || 'var(--text-muted)' }}>{subValue}</span>}
+        <div className="fd-hero-content">
+            <div className="fd-hero-left">
+                <div className="fd-hero-text">
+                    <p className="fd-hero-greeting">Welcome back,</p>
+                    <h2 className="fd-hero-name">{facultyName}</h2>
+                    <p className="fd-hero-id">Employee ID: {facultyId}</p>
+                </div>
+            </div>
+            <div className="fd-hero-right">
+                <span className={`fd-face-badge ${faceRegistered ? 'registered' : 'not-registered'}`}>
+                    <i className={`fas ${faceRegistered ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
+                    {faceRegistered ? 'Face Registered' : 'Face Not Registered'}
+                </span>
             </div>
         </div>
-        <div className={`summary-icon-circle ${iconBgClass || ''}`}>
-            <i className={iconClass}></i>
-            {badge && <span className="summary-badge">{badge}</span>}
-        </div>
     </div>
 );
 
-// --- SVG LINE CHART (Student-style) ---
-const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView }) => {
+const FacultyStatItem = ({ title, value, subValue, subValueColor }) => (
+    <div className="fd-ribbon-item">
+        <span className="fd-ribbon-label">{title}</span>
+        <span className="fd-ribbon-value">{value}</span>
+        {subValue && <span className="fd-ribbon-sub" style={{ color: subValueColor || '#64748b' }}>{subValue}</span>}
+    </div>
+);
+
+// --- SVG LINE CHART ---
+const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView, ayDates }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL');
 
@@ -89,16 +88,29 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                 });
             });
         } else {
-            // Semestral — show months within the semester period
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const currentYear = now.getFullYear();
-            months.forEach((m, idx) => {
+            let start = new Date(now.getFullYear(), 0, 1);
+            let end = new Date(now.getFullYear(), 11, 31);
+            if (ayDates?.start && ayDates?.end) {
+                start = new Date(ayDates.start + 'T00:00:00');
+                end = new Date(ayDates.end + 'T00:00:00');
+            }
+            
+            const monthsList = [];
+            let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+            while (curr <= end) {
+                monthsList.push(new Date(curr));
+                curr.setMonth(curr.getMonth() + 1);
+            }
+            
+            monthsList.forEach(mDate => {
+                const monthName = mDate.toLocaleDateString('en-US', { month: 'short' });
+                const mYear = mDate.getFullYear();
                 const mLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
-                    return d.getFullYear() === currentYear && d.getMonth() === idx;
+                    return d.getFullYear() === mYear && d.getMonth() === mDate.getMonth() && d >= start && d <= new Date(end.getTime() + 86400000);
                 });
                 dataPoints.push({
-                    label: m,
+                    label: monthsList.length > 6 ? monthName : `${monthName} '${mYear.toString().slice(2)}`,
                     present: mLogs.filter(l => !l.is_late && (l.event_type === 'entry' || l.event_type === 'attendance_in')).length,
                     late: mLogs.filter(l => l.is_late).length,
                     break: mLogs.filter(l => l.event_type && l.event_type.includes('break')).length,
@@ -107,7 +119,6 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
             });
         }
 
-        // Return real data (zeros if no logs exist — never show fake data)
         return dataPoints;
     }, [logs, filter]);
 
@@ -140,38 +151,38 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
     const colors = { present: '#2E7D32', late: '#C62828', break: '#F9A825' };
 
     return (
-        <div className="card attendance-trend-chart-card">
-            <div className="trend-chart-header">
-                <h3><i className="fas fa-chart-line"></i> Attendance Trends</h3>
-                <div className="chart-filters-group">
+        <div className="fd-card fd-chart-card">
+            <div className="fd-card-header">
+                <h3>Attendance Trends</h3>
+                <div className="fd-chart-controls">
                     <select
                         value={trendView}
                         onChange={(e) => setTrendView(e.target.value)}
-                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '0.85rem', marginRight: '8px', cursor: 'pointer' }}
+                        className="fd-select"
                     >
                         <option value="personal">Personal</option>
                         <option value="classroom">Classroom</option>
                     </select>
-                    <div className="filter-pill-group">
+                    <div className="fd-pill-group">
                         {['weekly', 'monthly', 'semestral'].map(t => (
-                            <button key={t} className={`filter-pill ${filter === t ? 'active' : ''}`} onClick={() => setFilter(t)}>
-                                {t.toUpperCase()}
+                            <button key={t} className={`fd-pill ${filter === t ? 'active' : ''}`} onClick={() => setFilter(t)}>
+                                {t.charAt(0).toUpperCase() + t.slice(1)}
                             </button>
                         ))}
                     </div>
                 </div>
             </div>
 
-            <div className="type-filter-bar">
+            <div className="fd-type-filter-bar">
                 {['ALL', 'PRESENT', 'LATE', 'BREAK'].map(t => (
-                    <button key={t} className={`type-text-btn ${typeFilter === t ? 'active-type' : ''}`} onClick={() => setTypeFilter(t)}>
-                        {t}
+                    <button key={t} className={`fd-type-btn ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
+                        {t === 'ALL' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
                     </button>
                 ))}
             </div>
 
-            <div className="svg-chart-container" style={{ height: '220px' }}>
-                <svg viewBox={`0 0 ${width} ${height}`} className="trend-svg">
+            <div className="fd-svg-container">
+                <svg viewBox={`0 0 ${width} ${height}`} className="fd-trend-svg">
                     <defs>
                         <linearGradient id="fGradPresent" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stopColor={colors.present} stopOpacity="0.4" />
@@ -198,14 +209,12 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                         const y = height - padding - (t * (height - 2 * padding));
                         return (
                             <React.Fragment key={i}>
-                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--chart-grid)" strokeDasharray="5,5" />
-                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="var(--chart-text)" fontWeight="500">{val}</text>
+                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--chart-grid, #e2e8f0)" strokeDasharray="5,5" />
+                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="var(--chart-text, #64748b)" fontWeight="500">{val}</text>
                             </React.Fragment>
                         );
-
                     })}
-                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--chart-axis)" strokeWidth="2" strokeLinecap="round" />
-
+                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--chart-axis, #cbd5e1)" strokeWidth="2" strokeLinecap="round" />
 
                     {(typeFilter === 'ALL' || typeFilter === 'LATE') &&
                         <path d={`${makePath('late')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#fGradLate)" stroke="none" />}
@@ -228,62 +237,51 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                         return (
                             <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                                 <rect x={xp - (width / chartData.length / 2)} y={0} width={width / chartData.length} height={height} fill="transparent" />
-                                <text x={xp} y={height - 15} textAnchor="middle" fill="var(--chart-text)" fontSize="12" fontWeight="500">{d.label}</text>
+                                <text x={xp} y={height - 15} textAnchor="middle" fill="var(--chart-text, #64748b)" fontSize="12" fontWeight="500">{d.label}</text>
 
                                 {(typeFilter === 'ALL' || typeFilter === 'PRESENT') && <circle cx={xp} cy={yp} r="4" fill={colors.present} stroke="#fff" strokeWidth="2" />}
                                 {(typeFilter === 'ALL' || typeFilter === 'LATE') && <circle cx={xl} cy={yl} r="4" fill={colors.late} stroke="#fff" strokeWidth="2" />}
                                 {(typeFilter === 'ALL' || typeFilter === 'BREAK') && <circle cx={xb} cy={yb} r="4" fill={colors.break} stroke="#fff" strokeWidth="2" />}
                                 {hoveredIndex === i && (
                                     <g transform={`translate(${xp}, 20)`}>
-                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="var(--chart-tooltip-bg)" filter="url(#fTooltipShadow)" stroke="var(--chart-tooltip-border)" />
-                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="var(--chart-tooltip-text)">{d.label}</text>
+                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="var(--chart-tooltip-bg, white)" filter="url(#fTooltipShadow)" stroke="var(--chart-tooltip-border, #e2e8f0)" />
+                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="var(--chart-tooltip-text, #0F172A)">{d.label}</text>
                                         <rect x="-50" y="18" width="8" height="8" rx="2" fill={colors.present} />
-                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Present: {d.present}</text>
+                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Present: {d.present}</text>
                                         <rect x="10" y="18" width="8" height="8" rx="2" fill={colors.late} />
-                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Late: {d.late}</text>
+                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Late: {d.late}</text>
                                         <rect x="-50" y="32" width="8" height="8" rx="2" fill={colors.break} />
-                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="var(--chart-text)">Break: {d.break}</text>
+                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Break: {d.break}</text>
                                     </g>
                                 )}
-
                             </g>
                         );
                     })}
                 </svg>
             </div>
 
-            <div className="chart-footer">
-                <div className="chart-insight"><i className="fas fa-lightbulb"></i> {insightText}</div>
-                <div className="chart-legends">
-                    <div className="legend-item"><span className="dot" style={{ background: colors.present }}></span> Present</div>
-                    <div className="legend-item"><span className="dot" style={{ background: colors.late }}></span> Late</div>
-                    <div className="legend-item"><span className="dot" style={{ background: colors.break }}></span> Break</div>
+            <div className="fd-chart-footer">
+                <div className="fd-chart-insight">{insightText}</div>
+                <div className="fd-chart-legends">
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.present }}></span> Present</div>
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.late }}></span> Late</div>
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.break }}></span> Break</div>
                 </div>
             </div>
         </div>
     );
 };
 
-
-
-
-
-
-
-
-
-
 // --- LIVE STATUS WITH DOTS ---
 const LiveRoomStatus = ({ rooms, personalStatus }) => {
-    const [viewMode, setViewMode] = useState('wide'); // 'wide' or 'single'
+    const [viewMode, setViewMode] = useState('wide');
     const [selectedRoom, setSelectedRoom] = useState(null);
-    const [statusView, setStatusView] = useState('classroom'); // 'personal' or 'classroom'
+    const [statusView, setStatusView] = useState('classroom');
 
     const displayRooms = viewMode === 'single' && selectedRoom
         ? rooms.filter(r => r.room === selectedRoom)
         : rooms;
 
-    // Personal live status view (like student module)
     const renderPersonalStatus = () => {
         const ps = personalStatus || {};
         const status = ps.status || 'IDLE';
@@ -292,29 +290,27 @@ const LiveRoomStatus = ({ rooms, personalStatus }) => {
         const roomName = ps.room || '---';
 
         return (
-            <div className="personal-live-status-body">
-                <div className="live-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <div className="live-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="blink-dot" style={{ 
-                            width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block',
-                            backgroundColor: statusColor, animation: status !== 'IDLE' && status !== 'EXITED' ? 'blink 1.5s infinite' : 'none' 
-                        }}></span>
-                        <span className="live-status-label" style={{ '--status-color': statusColor }}>{status}</span>
-                    </div>
+            <div className="fd-personal-status">
+                <div className="fd-personal-indicator">
+                    <span className="fd-blink-dot" style={{
+                        backgroundColor: statusColor,
+                        animation: status !== 'IDLE' && status !== 'EXITED' ? 'blink 1.5s infinite' : 'none'
+                    }}></span>
+                    <span className="fd-status-label" style={{ color: statusColor }}>{status}</span>
                 </div>
-                <div className={`room-display room-display-${status.toLowerCase()}`}>
-                    <i className={`fas fa-chalkboard-teacher room-icon-large ${status === 'PRESENT' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
-                    <div className="room-details">
-                        <h4 className="room-name">{roomName}</h4>
-                        <p className="room-status-text">{statusText}</p>
+                <div className={`fd-room-display fd-room-${status.toLowerCase()}`}>
+                    <i className={`fas fa-chalkboard-teacher fd-room-icon ${status === 'PRESENT' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
+                    <div className="fd-room-details">
+                        <h4>{roomName}</h4>
+                        <p className="fd-room-status-text">{statusText}</p>
                         {ps.subject_code && (
-                            <p className="room-subject-info">
+                            <p className="fd-room-subject">
                                 <i className="fas fa-book"></i>
                                 {ps.subject_code}{ps.subject_title ? ` — ${ps.subject_title}` : ''}
                             </p>
                         )}
                         {ps.last_timestamp && (
-                            <p className="room-timestamp">
+                            <p className="fd-room-time">
                                 <i className="fas fa-clock"></i>
                                 Last: {new Date(ps.last_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -326,52 +322,34 @@ const LiveRoomStatus = ({ rooms, personalStatus }) => {
     };
 
     return (
-        <div className="card dh-live-status-card">
-            <div className="live-status-header">
-                <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
-                <div className="dh-live-controls">
-                    <select
-                        className="status-view-dropdown"
-                        value={statusView}
-                        onChange={(e) => setStatusView(e.target.value)}
-                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '0.85rem', marginRight: '8px', cursor: 'pointer' }}
-                    >
+        <div className="fd-card fd-live-card">
+            <div className="fd-card-header">
+                <h3>Live Status</h3>
+                <div className="fd-live-controls">
+                    <select className="fd-select" value={statusView} onChange={(e) => setStatusView(e.target.value)}>
                         <option value="personal">Personal</option>
                         <option value="classroom">Classroom</option>
                     </select>
-                    <span className="live-pulse-badge">
-                        <span className="live-pulse-dot"></span> LIVE
+                    <span className="fd-live-badge">
+                        <span className="fd-live-pulse"></span> LIVE
                     </span>
                     {statusView === 'classroom' && (
                         <>
-                            <div className="dh-view-toggle">
-                                <button
-                                    className={`dh-view-btn ${viewMode === 'wide' ? 'active' : ''}`}
-                                    onClick={() => { setViewMode('wide'); setSelectedRoom(null); }}
-                                    title="Wide View"
-                                >
+                            <div className="fd-view-toggle">
+                                <button className={`fd-view-btn ${viewMode === 'wide' ? 'active' : ''}`} onClick={() => { setViewMode('wide'); setSelectedRoom(null); }} title="Wide View">
                                     <i className="fas fa-th"></i>
                                 </button>
-                                <button
-                                    className={`dh-view-btn ${viewMode === 'single' ? 'active' : ''}`}
-                                    onClick={() => setViewMode('single')}
-                                    title="Single View"
-                                >
+                                <button className={`fd-view-btn ${viewMode === 'single' ? 'active' : ''}`} onClick={() => setViewMode('single')} title="Single View">
                                     <i className="fas fa-square"></i>
                                 </button>
                             </div>
                             {viewMode === 'single' && (
-                                <div className="dh-room-selector">
-                                    <select
-                                        value={selectedRoom || ''}
-                                        onChange={(e) => setSelectedRoom(e.target.value)}
-                                    >
-                                        <option value="">Select a classroom...</option>
-                                        {rooms.map((r, idx) => (
-                                            <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <select className="fd-select" value={selectedRoom || ''} onChange={(e) => setSelectedRoom(e.target.value)}>
+                                    <option value="">Select a classroom...</option>
+                                    {rooms.map((r, idx) => (
+                                        <option key={idx} value={r.room}>{r.room} — {r.subject_code}</option>
+                                    ))}
+                                </select>
                             )}
                         </>
                     )}
@@ -383,76 +361,57 @@ const LiveRoomStatus = ({ rooms, personalStatus }) => {
             ) : (
                 <>
                     {(!rooms || rooms.length === 0) ? (
-                        <div className="empty-state-mini">
-                            <i className="fas fa-coffee"></i>
+                        <div className="fd-empty-state">
                             <p>No active classrooms right now</p>
                         </div>
                     ) : (
-                        <div className={`dh-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'}`}>
+                        <div className={`fd-rooms-grid ${viewMode === 'single' ? 'single-mode' : 'wide-mode'}`}>
                             {displayRooms.map((room, idx) => (
-                                <div key={idx} className={`dh-room-box ${viewMode === 'single' ? 'dh-room-large' : ''} ${room.is_overcrowded ? 'dh-room-overcrowded' : ''}`}>
-                                    <div className="live-room-label">
+                                <div key={idx} className={`fd-room-box ${viewMode === 'single' ? 'fd-room-large' : ''} ${room.is_overcrowded ? 'fd-room-overcrowded' : ''}`}>
+                                    <div className="fd-room-label">
                                         {room.room}
                                         {room.is_overcrowded && (
-                                            <span className="overcrowding-badge" title={`Capacity: ${room.room_capacity}`}>
+                                            <span className="fd-overcrowd-badge">
                                                 <i className="fas fa-exclamation-triangle"></i> OVERCROWDED
                                             </span>
                                         )}
                                     </div>
-                                    <div className="dh-room-meta">
-                                        <span className="dh-room-subject">{room.subject_code}</span>
+                                    <div className="fd-room-meta">
+                                        <span className="fd-room-subject-tag">{room.subject_code}</span>
                                         {room.faculty_name && (
-                                            <span className="dh-room-faculty">
+                                            <span className="fd-room-faculty">
                                                 <i className="fas fa-chalkboard-teacher"></i> {room.faculty_name}
                                             </span>
                                         )}
                                         {room.start_time && room.end_time && (
-                                            <span className="dh-room-time">
+                                            <span className="fd-room-time-tag">
                                                 <i className="fas fa-clock"></i> {room.start_time} - {room.end_time}
                                             </span>
                                         )}
                                     </div>
-                                    <div className={`live-dots-area ${viewMode === 'single' ? 'dh-dots-large' : ''}`}>
+                                    <div className={`fd-dots-area ${viewMode === 'single' ? 'fd-dots-large' : ''}`}>
                                         {room.present.map((p, i) => (
-                                            <span
-                                                key={`p-${i}`}
-                                                className="live-dot live-dot-green"
-                                                title={`${p.name} (Present)`}
-                                                style={{
-                                                    left: `${8 + ((i * 31 + 7) % 82)}%`,
-                                                    top: `${12 + ((i * 47 + 13) % 65)}%`,
-                                                    animationDelay: `${i * 0.25}s`
-                                                }}
-                                            ></span>
+                                            <span key={`p-${i}`} className="fd-dot fd-dot-green" title={`${p.name} (Present)`}
+                                                style={{ left: `${8 + ((i * 31 + 7) % 82)}%`, top: `${12 + ((i * 47 + 13) % 65)}%`, animationDelay: `${i * 0.25}s` }}></span>
                                         ))}
                                         {room.on_break.map((p, i) => (
-                                            <span
-                                                key={`b-${i}`}
-                                                className="live-dot live-dot-yellow"
-                                                title={`${p.name} (On Break)`}
-                                                style={{
-                                                    left: `${5 + ((i * 41 + 23) % 82)}%`,
-                                                    top: `${8 + ((i * 53 + 17) % 65)}%`,
-                                                    animationDelay: `${i * 0.3 + 0.15}s`
-                                                }}
-                                            ></span>
+                                            <span key={`b-${i}`} className="fd-dot fd-dot-yellow" title={`${p.name} (On Break)`}
+                                                style={{ left: `${5 + ((i * 41 + 23) % 82)}%`, top: `${8 + ((i * 53 + 17) % 65)}%`, animationDelay: `${i * 0.3 + 0.15}s` }}></span>
                                         ))}
                                         {room.present_count === 0 && room.break_count === 0 && (
-                                            <div className="live-dots-empty">No one detected</div>
+                                            <div className="fd-dots-empty">No one detected</div>
                                         )}
                                     </div>
-                                    <div className="live-room-counts">
-                                        <span className="live-count-present">
-                                            <span className="live-dot-inline live-dot-green"></span>
-                                            {room.present_count} Present
+                                    <div className="fd-room-counts">
+                                        <span className="fd-count-present">
+                                            <span className="fd-dot-inline fd-dot-green"></span> {room.present_count} Present
                                         </span>
-                                        <span className="live-count-break">
-                                            <span className="live-dot-inline live-dot-yellow"></span>
-                                            {room.break_count} On Break
+                                        <span className="fd-count-break">
+                                            <span className="fd-dot-inline fd-dot-yellow"></span> {room.break_count} On Break
                                         </span>
-                                        {room.room_capacity && (
-                                            <span className={`live-count-capacity ${room.is_overcrowded ? 'overcrowded' : ''}`}>
-                                                <i className="fas fa-users"></i> {room.present_count}/{room.room_capacity}
+                                        {room.total_students !== undefined && (
+                                            <span className={`fd-count-cap ${room.is_overcrowded ? 'overcrowded' : ''}`}>
+                                                <i className="fas fa-users"></i> {room.present_count}/{room.total_students}
                                             </span>
                                         )}
                                     </div>
@@ -466,22 +425,8 @@ const LiveRoomStatus = ({ rooms, personalStatus }) => {
     );
 };
 
-
-
-// --- RECENT ACTIVITY ---
+// --- RECENT ACTIVITY (TIMELINE STYLE) ---
 const RecentActivity = ({ activities }) => {
-    if (!activities || activities.length === 0) {
-        return (
-            <div className="card recent-activity-card">
-                <h3><i className="fas fa-history"></i> Recent Activity</h3>
-                <div className="empty-state-mini">
-                    <i className="fas fa-inbox"></i>
-                    <p>No recent attendance activity</p>
-                </div>
-            </div>
-        );
-    }
-
     const getEventIcon = (type) => {
         switch (type) {
             case 'entry': return 'fa-sign-in-alt';
@@ -492,53 +437,78 @@ const RecentActivity = ({ activities }) => {
         }
     };
 
+    const getEventColor = (type, isLate) => {
+        if (isLate) return '#ef4444';
+        switch (type) {
+            case 'entry': return '#00A859';
+            case 'exit': return '#64748b';
+            case 'break_out': return '#f59e0b';
+            case 'break_in': return '#3b82f6';
+            default: return '#94a3b8';
+        }
+    };
+
     return (
-        <div className="card recent-activity-card">
-            <h3><i className="fas fa-history"></i> Recent Activity</h3>
-            <div className="activity-list">
-                {activities.map((act, i) => (
-                    <div key={i} className={`activity-item ${act.is_late ? 'late' : ''}`}>
-                        <div className="activity-icon">
-                            <i className={`fas ${getEventIcon(act.event_type)}`}></i>
-                        </div>
-                        <div className="activity-details">
-                            <strong>{act.student_name}</strong>
-                            <span>{act.subject_code} • {act.room_name || 'N/A'}</span>
-                        </div>
-                        <div className="activity-time">
-                            <span>{act.time}</span>
-                            {act.is_late && <span className="late-badge">LATE</span>}
-                        </div>
-                    </div>
-                ))}
+        <div className="fd-card fd-activity-card">
+            <div className="fd-card-header">
+                <h3>Recent Activity</h3>
             </div>
+            {(!activities || activities.length === 0) ? (
+                <div className="fd-empty-state">
+                    <p>No recent attendance activity</p>
+                </div>
+            ) : (
+                <div className="fd-timeline">
+                    {activities.map((act, i) => {
+                        const color = getEventColor(act.event_type, act.is_late);
+                        return (
+                            <div key={i} className="fd-timeline-item">
+                                <div className="fd-timeline-line">
+                                    <div className="fd-timeline-dot" style={{ backgroundColor: color, boxShadow: `0 0 0 4px ${color}22` }}>
+                                        <i className={`fas ${getEventIcon(act.event_type)}`}></i>
+                                    </div>
+                                    {i < activities.length - 1 && <div className="fd-timeline-connector"></div>}
+                                </div>
+                                <div className="fd-timeline-content">
+                                    <div className="fd-timeline-top">
+                                        <strong>{act.student_name}</strong>
+                                        <span className="fd-timeline-time">{act.time}</span>
+                                    </div>
+                                    <span className="fd-timeline-meta">{act.subject_code} • {act.room_name || 'N/A'}</span>
+                                    {act.is_late && <span className="fd-late-tag">LATE</span>}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };
 
 
-// --- QUICK ACTIONS ---
+// --- QUICK ACTIONS (GRADIENT TILES) ---
 const QuickActions = ({ navigate }) => {
+    const actions = [
+        { label: 'Download Reports', icon: 'fas fa-file-pdf', gradient: 'linear-gradient(135deg, #00A859 0%, #34d399 100%)', path: '/faculty-reports' },
+        { label: 'My Classes', icon: 'fas fa-chalkboard', gradient: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', path: '/faculty-classes' },
+        { label: 'View Attendance', icon: 'fas fa-clipboard-list', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)', path: '/faculty-attendance' },
+    ];
+
     return (
-        <div className="card quick-actions-card">
-            <h3><i className="fas fa-bolt"></i> Quick Actions</h3>
-            <div className="quick-action-item" onClick={() => navigate('/faculty-reports')}>
-                <div className="quick-action-icon quick-action-green">
-                    <i className="fas fa-file-pdf"></i>
-                </div>
-                <div className="quick-action-text">Download Reports</div>
+        <div className="fd-card fd-actions-card">
+            <div className="fd-card-header">
+                <h3>Quick Actions</h3>
             </div>
-            <div className="quick-action-item" onClick={() => navigate('/faculty-classes')}>
-                <div className="quick-action-icon quick-action-blue">
-                    <i className="fas fa-chalkboard"></i>
-                </div>
-                <div className="quick-action-text">My Classes</div>
-            </div>
-            <div className="quick-action-item" onClick={() => navigate('/faculty-attendance')}>
-                <div className="quick-action-icon quick-action-purple">
-                    <i className="fas fa-clipboard-list"></i>
-                </div>
-                <div className="quick-action-text">View Attendance</div>
+            <div className="fd-actions-grid">
+                {actions.map((a, i) => (
+                    <div key={i} className="fd-action-tile" onClick={() => navigate(a.path)}>
+                        <div className="fd-action-icon-wrap" style={{ background: a.gradient }}>
+                            <i className={a.icon}></i>
+                        </div>
+                        <span className="fd-action-label">{a.label}</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -556,25 +526,23 @@ const FacultyDashboardPage = () => {
     const [personalStatus, setPersonalStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [chartFilter, setChartFilter] = useState('weekly');
-    const [trendView, setTrendView] = useState('classroom'); // 'personal' or 'classroom'
+    const [trendView, setTrendView] = useState('classroom');
 
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
         return stored ? JSON.parse(stored) : null;
     }, []);
 
-    // Live face_registered check from API
     const [faceRegistered, setFaceRegistered] = useState(user?.face_registered || false);
+    const [ayDates, setAyDates] = useState({ start: null, end: null });
 
     useEffect(() => {
         if (!user?.id) return;
         const controller = new AbortController();
 
-        // Refresh face_registered from DB
         api.get(`/api/users/${user.id}`, { signal: controller.signal }).then(res => {
             const fresh = res.data?.face_registered ?? false;
             setFaceRegistered(fresh);
-            // Update localStorage too
             if (fresh !== user.face_registered) {
                 const updated = { ...user, face_registered: fresh };
                 localStorage.setItem('currentUser', JSON.stringify(updated));
@@ -587,13 +555,27 @@ const FacultyDashboardPage = () => {
 
         const fetchData = async () => {
             try {
-                const [statsRes, schedRes] = await Promise.all([
+                // Fetch academic year bound dates
+                const pAy = user.department_id 
+                    ? api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal }).catch(() => null)
+                    : Promise.resolve(null);
+                    
+                const [statsRes, schedRes, ayRes] = await Promise.all([
                     api.get(`/api/faculty/dashboard-stats/${user.id}`, { signal: controller.signal }),
                     api.get(`/api/faculty/schedule/${user.id}`, { signal: controller.signal }).catch((err) => {
                         if (err.name === 'AbortError' || err.name === 'CanceledError') throw err;
                         return { data: [] };
-                    })
+                    }),
+                    pAy
                 ]);
+                
+                if (ayRes?.data) {
+                    setAyDates({
+                        start: ayRes.data.semester_start_date,
+                        end: ayRes.data.semester_end_date
+                    });
+                }
+                
                 setStats(statsRes.data);
                 setSchedule(schedRes.data || []);
             } catch (err) {
@@ -608,7 +590,6 @@ const FacultyDashboardPage = () => {
         };
         fetchData();
 
-        // Live room status + personal status polling
         const fetchLiveData = async () => {
             try {
                 const [roomRes, personalRes] = await Promise.all([
@@ -624,7 +605,7 @@ const FacultyDashboardPage = () => {
             }
         };
         fetchLiveData();
-        const liveInterval = setInterval(fetchLiveData, 10000); // Poll every 10s
+        const liveInterval = setInterval(fetchLiveData, 10000);
 
         return () => {
             controller.abort();
@@ -634,60 +615,61 @@ const FacultyDashboardPage = () => {
 
     if (loading) {
         return (
-            <div className="faculty-dashboard-loading">
-                <div className="loading-spinner"></div>
+            <div className="fd-loading">
+                <div className="fd-spinner"></div>
                 <p>Loading dashboard...</p>
             </div>
         );
     }
 
     const displayName = user ? `${user.first_name} ${user.last_name}` : 'Faculty';
-    const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const now = new Date();
+    const todayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const todayDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     return (
-        <div className="faculty-dashboard-page">
-            {/* Welcome Banner */}
-            <WelcomeBanner
-                facultyName={displayName}
-                facultyId={user?.employee_id || 'N/A'}
-                faceRegistered={faceRegistered}
-            />
+        <div className="fd-page">
+            {/* ===== HERO SECTION ===== */}
+            <div className="fd-hero-section">
+                <WelcomeBanner
+                    facultyName={displayName}
+                    facultyId={user?.employee_id || 'N/A'}
+                    faceRegistered={faceRegistered}
+                    todayName={todayName}
+                    todayDate={todayDate}
+                />
 
-            {/* Summary Cards */}
-            <div className="summary-cards-row">
-                <FacultySummaryCard
-                    iconClass="fas fa-calendar-day"
-                    title="Today's Classes"
-                    value={stats?.todays_classes ?? 0}
-                    subValue={todayName}
-                    iconBgClass="icon-bg-blue"
-                />
-                <FacultySummaryCard
-                    iconClass="fas fa-percentage"
-                    title="Avg Attendance"
-                    value={`${stats?.average_attendance ?? 0}%`}
-                    subValue={stats?.average_attendance >= 80 ? '↑ Good' : stats?.average_attendance > 0 ? '↓ Needs Improvement' : 'No Data'}
-                    subValueColor={stats?.average_attendance >= 80 ? '#00A859' : '#ef4444'}
-                    iconBgClass="icon-bg-green"
-                />
-                <FacultySummaryCard
-                    iconClass="fas fa-chalkboard"
-                    title="Active Classes"
-                    value={stats?.total_classes ?? 0}
-                    subValue="This Semester"
-                    iconBgClass="icon-bg-purple"
-                />
-                <FacultySummaryCard
-                    iconClass="fas fa-user-graduate"
-                    title="Total Students"
-                    value={stats?.total_students ?? 0}
-                    subValue="Enrolled"
-                    iconBgClass="icon-bg-orange"
-                />
+                {/* Inline Ribbon Stats */}
+                <div className="fd-stats-ribbon">
+                    <FacultyStatItem
+                        title="Today's Classes"
+                        value={stats?.todays_classes ?? 0}
+                        subValue={todayName}
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <FacultyStatItem
+                        title="Avg Attendance"
+                        value={`${stats?.average_attendance ?? 0}%`}
+                        subValue={stats?.average_attendance >= 80 ? '↑ Good' : stats?.average_attendance > 0 ? '↓ Needs Improvement' : 'No Data'}
+                        subValueColor={stats?.average_attendance >= 80 ? '#00A859' : '#ef4444'}
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <FacultyStatItem
+                        title="Active Classes"
+                        value={stats?.total_classes ?? 0}
+                        subValue="This Semester"
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <FacultyStatItem
+                        title="Total Students"
+                        value={stats?.total_students ?? 0}
+                        subValue="Enrolled"
+                    />
+                </div>
             </div>
 
-            {/* Two Column Layout: Live Status (left) + Chart (right) */}
-            <div className="dashboard-two-col">
+            {/* ===== MAIN CONTENT ===== */}
+            <div className="fd-main-grid">
                 <LiveRoomStatus rooms={liveRooms} personalStatus={personalStatus} />
                 <AttendanceTrendChart
                     logs={stats?.all_logs || []}
@@ -695,11 +677,11 @@ const FacultyDashboardPage = () => {
                     setFilter={setChartFilter}
                     trendView={trendView}
                     setTrendView={setTrendView}
+                    ayDates={ayDates}
                 />
             </div>
 
-            {/* Bottom Row: Recent Activity (left) + Quick Actions (right) */}
-            <div className="dashboard-two-col" style={{ marginTop: '20px' }}>
+            <div className="fd-bottom-grid">
                 <RecentActivity activities={stats?.recent_attendance || []} />
                 <QuickActions navigate={navigate} />
             </div>

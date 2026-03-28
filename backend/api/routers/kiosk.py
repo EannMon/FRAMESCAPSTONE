@@ -9,7 +9,9 @@ from sqlalchemy import and_, func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, time as dt_time, timedelta
+from zoneinfo import ZoneInfo
 import logging
+import os
 
 from db.database import get_db
 from models.device import Device
@@ -24,6 +26,45 @@ from core.limiter import limiter
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
 
+APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Manila")
+TZ_INFO = ZoneInfo(APP_TIMEZONE)
+ALLOW_REENTRY_AFTER_EXIT = os.getenv("KIOSK_ALLOW_REENTRY_AFTER_EXIT", "0").strip().lower() in {"1", "true", "yes"}
+EARLY_ENTRY_MINUTES = int(os.getenv("EARLY_ENTRY_MINUTES", "10"))
+POST_SESSION_GRACE_MINUTES = int(os.getenv("POST_SESSION_GRACE_MINUTES", "180"))
+
+
+def _local_now() -> datetime:
+    """Return local wall-clock datetime in configured app timezone (naive)."""
+    return datetime.now(TZ_INFO).replace(tzinfo=None)
+
+
+def _local_day_window(reference_time: Optional[datetime] = None):
+    """Return [start, end) window for the local calendar day."""
+    now = reference_time or _local_now()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, start + timedelta(days=1)
+
+
+def _class_session_window(class_obj: Class, reference_time: Optional[datetime] = None):
+    """Return [start, end) bounds for the current class session window."""
+    now = reference_time or _local_now()
+
+    start = class_obj.start_time
+    end = class_obj.end_time
+    if isinstance(start, str):
+        start = datetime.strptime(start, "%H:%M:%S").time()
+    if isinstance(end, str):
+        end = datetime.strptime(end, "%H:%M:%S").time()
+
+    start_dt = datetime.combine(now.date(), start)
+    end_dt = datetime.combine(now.date(), end)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+
+    window_start = start_dt - timedelta(minutes=max(EARLY_ENTRY_MINUTES, 0))
+    window_end = end_dt + timedelta(minutes=max(POST_SESSION_GRACE_MINUTES, 0))
+    return window_start, window_end
+
 
 # ============================================
 # Schemas
@@ -35,6 +76,7 @@ class ActiveClassResponse(BaseModel):
     active_class: Optional[dict] = None
     device_room: Optional[str] = None
     current_time: str
+    is_early_entry: bool = False  # True if within early entry window but before official start
 
 
 class ScheduleEntryResponse(BaseModel):
@@ -141,7 +183,7 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     # if not device.api_key or device.api_key != x_device_key:
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
-    now = datetime.now()
+    now = _local_now()
     current_day = now.strftime("%A")  # e.g., "Monday"
     current_time = now.time()
     
@@ -149,15 +191,21 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     active_class = None
 
     # Query classes in this room on current day, eagerly load subject + faculty
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(
-            Class.room == device.room,
+            func.lower(func.trim(Class.room)) == normalized_room,
             Class.day_of_week == current_day
         )
         .all()
     )
+
+    # Early entry window: allow recognition N minutes before class starts
+    early_entry_minutes = 10
+    is_early_entry = False
 
     for cls in classes:
         try:
@@ -169,10 +217,17 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
             if isinstance(end, str):
                 end = datetime.strptime(end, "%H:%M:%S").time()
 
-            if start <= current_time <= end:
+            # Compute early start time (N minutes before official start)
+            start_dt = datetime.combine(now.date(), start)
+            early_start = (start_dt - timedelta(minutes=early_entry_minutes)).time()
+
+            if early_start <= current_time <= end:
                 # Access eagerly-loaded relationships — no extra queries
                 subject = cls.subject
                 faculty = cls.faculty
+
+                # Flag whether we're in the early window (before official start)
+                is_early_entry = current_time < start
 
                 active_class = {
                     "class_id": cls.id,
@@ -184,7 +239,7 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
                     "start_time": start.strftime("%H:%M:%S") if hasattr(start, 'strftime') else str(start),
                     "end_time": end.strftime("%H:%M:%S") if hasattr(end, 'strftime') else str(end),
                     "room": device.room,
-                    "late_threshold_minutes": cls.late_threshold_minutes or 15
+                    "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
                 }
                 break
 
@@ -196,7 +251,8 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
         has_active_class=active_class is not None,
         active_class=active_class,
         device_room=device.room,
-        current_time=now.isoformat()
+        current_time=now.isoformat(),
+        is_early_entry=is_early_entry
     )
 
 
@@ -218,10 +274,12 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
+    normalized_room = device.room.strip().lower()
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
-        .filter(Class.room == device.room)
+        .filter(func.lower(func.trim(Class.room)) == normalized_room)
         .all()
     )
 
@@ -252,7 +310,7 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
             room=device.room,
             semester=cls.semester or "",
             academic_year=cls.academic_year or "",
-            late_threshold_minutes=cls.late_threshold_minutes or 15
+            late_threshold_minutes=cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
         ))
     
     return ScheduleResponse(
@@ -309,8 +367,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
 
         # --- Server-side NOT_IN_CLASS duplicate guard ---
         # Only log ONE NOT_IN_CLASS per user per class per day
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
+        today_start, today_end = _local_day_window()
         existing_nic = db.query(AttendanceLog).filter(
             AttendanceLog.user_id == body.user_id,
             AttendanceLog.class_id == body.class_id,
@@ -342,8 +399,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
     # Block ENTRY only if user is currently in an active session (entered, not exited).
     is_not_in_class = not is_faculty and not is_enrolled
     if body.action == "ENTRY" and not is_not_in_class:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = today_start + timedelta(days=1)
+        today_start, today_end = _local_day_window()
         today_logs = db.query(AttendanceLog).filter(
             AttendanceLog.user_id == body.user_id,
             AttendanceLog.class_id == body.class_id,
@@ -377,7 +433,7 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
     # Determine if late (only for ENTRY action)
     is_late = False
     if body.action == "ENTRY" and class_.start_time:
-        late_threshold = class_.late_threshold_minutes or 15
+        late_threshold = class_.late_threshold_minutes if class_.late_threshold_minutes is not None else 15
         start = class_.start_time
         if isinstance(start, str):
             start = datetime.strptime(start, "%H:%M:%S").time()
@@ -451,6 +507,109 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
         raise api_error(500, "INTERNAL_ERROR", "An unexpected error occurred while logging attendance")
 
 
+class AutoExitRequest(BaseModel):
+    """Request to trigger auto-exit for a class."""
+    class_id: int
+    device_id: int
+
+
+class AutoExitResponse(BaseModel):
+    """Response after auto-exit processing."""
+    success: bool
+    auto_exited_count: int
+    message: str
+
+
+@router.post("/attendance/auto-exit", response_model=AutoExitResponse)
+def auto_exit_class(body: AutoExitRequest, db: Session = Depends(get_db)):
+    """
+    Auto-exit all users who are still present in a class.
+    Called by the kiosk when the class end_time is reached.
+    Bulk-inserts EXIT logs with verified_by=AUTO_TIMEOUT.
+    """
+    class_ = db.query(Class).filter(Class.id == body.class_id).first()
+    if not class_:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    device = db.query(Device).filter(Device.id == body.device_id).first()
+    if not device:
+        raise api_error(404, "DEVICE_NOT_FOUND", "Device not found")
+
+    now = _local_now()
+    today_start, today_end = _local_day_window(now)
+
+    # Get all attendance logs for this class today
+    logs = db.query(AttendanceLog).filter(
+        AttendanceLog.class_id == body.class_id,
+        AttendanceLog.timestamp >= today_start,
+        AttendanceLog.timestamp < today_end
+    ).order_by(AttendanceLog.timestamp.asc()).all()
+
+    # Walk logs per user to find who is still present (entered but not exited)
+    user_states = {}  # user_id -> last relevant action
+    for log in logs:
+        action_val = log.action.value if isinstance(log.action, AttendanceAction) else log.action
+        uid = log.user_id
+        if action_val == "ENTRY":
+            user_states[uid] = "PRESENT"
+        elif action_val == "EXIT":
+            user_states[uid] = "EXITED"
+        elif action_val == "BREAK_OUT":
+            if user_states.get(uid) == "PRESENT":
+                user_states[uid] = "ON_BREAK"
+        elif action_val == "BREAK_IN":
+            if user_states.get(uid) == "ON_BREAK":
+                user_states[uid] = "PRESENT"
+
+    # Find users still present or on break (not exited)
+    users_to_exit = [
+        uid for uid, state in user_states.items()
+        if state in ("PRESENT", "ON_BREAK")
+    ]
+
+    if not users_to_exit:
+        return AutoExitResponse(
+            success=True,
+            auto_exited_count=0,
+            message="No users needed auto-exit"
+        )
+
+    # Bulk insert EXIT logs
+    auto_exit_count = 0
+    try:
+        for uid in users_to_exit:
+            log = AttendanceLog(
+                user_id=uid,
+                class_id=body.class_id,
+                device_id=body.device_id,
+                action=AttendanceAction.EXIT,
+                verified_by=VerifiedBy.AUTO_TIMEOUT,
+                confidence_score=0.0,
+                is_late=False,
+                timestamp=now,
+                remarks="[AUTO_EXIT] System auto-exit at class end time"
+            )
+            db.add(log)
+            auto_exit_count += 1
+
+        db.commit()
+        logger.info(
+            "AUTO_EXIT | class=%d: auto-exited %d users",
+            body.class_id, auto_exit_count
+        )
+
+        return AutoExitResponse(
+            success=True,
+            auto_exited_count=auto_exit_count,
+            message=f"Auto-exited {auto_exit_count} users"
+        )
+
+    except Exception as e:
+        db.rollback()
+        logger.exception("AUTO_EXIT | failed for class=%d", body.class_id)
+        raise api_error(500, "INTERNAL_ERROR", "Failed to process auto-exit")
+
+
 @router.get("/class/{class_id}/enrolled", response_model=ClassEnrolledResponse)
 def get_class_enrolled_users(class_id: int, db: Session = Depends(get_db)):
     """
@@ -513,14 +672,17 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
     - On break → BREAK_IN (gesture required)
     - Exited → no more actions
     """
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    class_obj = db.query(Class).filter(Class.id == class_id).first()
+    if not class_obj:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    window_start, window_end = _class_session_window(class_obj)
 
     logs = db.query(AttendanceLog).filter(
         AttendanceLog.user_id == user_id,
         AttendanceLog.class_id == class_id,
-        AttendanceLog.timestamp >= today_start,
-        AttendanceLog.timestamp < today_end
+        AttendanceLog.timestamp >= window_start,
+        AttendanceLog.timestamp < window_end
     ).order_by(AttendanceLog.timestamp.asc()).all()
 
     has_entered = False
@@ -551,17 +713,15 @@ def get_user_attendance_state(user_id: int, class_id: int, db: Session = Depends
         if isinstance(last_action, AttendanceAction):
             last_action = last_action.value
 
-    # State machine: determine allowed actions
-    # After EXIT, the session is CLOSED — no re-entry allowed.
-    # If a user accidentally exits, an admin/faculty must manually adjust the record.
-    # This prevents confusing data with multiple ENTRY/EXIT cycles per class session.
+    # State machine: determine allowed actions.
+    # Production default blocks re-entry after EXIT for the same session.
+    # For testing-only, set KIOSK_ALLOW_REENTRY_AFTER_EXIT=1.
     allowed_actions = []
     if not has_entered:
         allowed_actions.append("ENTRY")
     elif has_exited:
-        # Session is done — no more actions allowed for this class today.
-        # Re-entry after exit is intentionally blocked.
-        pass
+        if ALLOW_REENTRY_AFTER_EXIT:
+            allowed_actions.append("ENTRY")
     elif is_on_break:
         allowed_actions.append("BREAK_IN")
     else:
@@ -669,7 +829,7 @@ def download_embeddings(db: Session = Depends(get_db)):
 
     return {
         "version": "1.0",
-        "exported_at": datetime.now().isoformat(),
+        "exported_at": _local_now().isoformat(),
         "model": "insightface_buffalo_sc_v1",
         "embedding_dim": 512,
         "count": len(embeddings),
@@ -691,7 +851,7 @@ def device_heartbeat(device_id: int, db: Session = Depends(get_db), x_device_key
     # if not device.api_key or device.api_key != x_device_key:
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
-    device.last_heartbeat = datetime.now()
+    device.last_heartbeat = _local_now()
     db.commit()
     
     return {"success": True, "message": "Heartbeat updated"}

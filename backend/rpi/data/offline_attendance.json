@@ -1,4 +1,27 @@
 {
-  "queued_at": null,
-  "records": []
+  "queued_at": "2026-03-17T18:02:22.589437",
+  "records": [
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "ENTRY",
+      "verified_by": "FACE",
+      "confidence_score": 0.45030248165130615,
+      "gesture_detected": null,
+      "timestamp": "2026-03-15T23:07:39.687176",
+      "remarks": null
+    },
+    {
+      "user_id": 1,
+      "class_id": 15,
+      "device_id": 1,
+      "action": "BREAK_OUT",
+      "verified_by": "FACE+GESTURE",
+      "confidence_score": 0.6150312423706055,
+      "gesture_detected": "PEACE_SIGN",
+      "timestamp": "2026-03-16T12:23:17.303390",
+      "remarks": null
+    }
+  ]
 }

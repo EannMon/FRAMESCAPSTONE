@@ -289,7 +289,7 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
                 "student_name": f"{student.first_name} {student.last_name}" if student else "Unknown",
                 "subject_code": subject_code,
                 "room_name": room_name,
-                "time": log.timestamp.strftime("%I:%M %p"),
+                "time": log.timestamp.strftime("%I:%M %p (%m/%d/%y)"),
                 "is_late": log.is_late
             })
     
@@ -938,6 +938,18 @@ def confirm_schedule(
                         student_id=student_user.id
                     )
                     db.add(enrollment)
+                    
+                    # Create Notification for Student
+                    from models.notification import Notification, NotificationType
+                    notif = Notification(
+                        user_id=student_user.id,
+                        notification_type=NotificationType.GENERAL,
+                        title="Class Enrollment",
+                        message=f"You have been added to the class {subject.code} - {current_class.section}.",
+                        is_read=False
+                    )
+                    db.add(notif)
+                    
                     existing_enrollments.add(student_user.id)
                     enrolled_count += 1
             
@@ -1040,6 +1052,20 @@ def add_student_to_class(
     
     enrollment = Enrollment(class_id=class_id, student_id=data.student_id)
     db.add(enrollment)
+    
+    # Create Notification for Student
+    from models.notification import Notification, NotificationType
+    subject_code = cls.subject.code if cls.subject else "Class"
+    notif = Notification(
+        user_id=data.student_id,
+        notification_type=NotificationType.GENERAL,
+        title="Class Enrollment",
+        message=f"You have been added to the class {subject_code} - {cls.section}.",
+        is_read=False,
+        reference_id=class_id,
+        reference_type="class"
+    )
+    db.add(notif)
     db.commit()
 
     # Log Audit Entry (Task: Full Activity Tracking)
@@ -1082,7 +1108,23 @@ def remove_student_from_class(
     if not enrollment:
         raise api_error(404, "ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class")
     
+    # Get class info before delete for the notification message
+    cls = enrollment.class_
+    subject_code = cls.subject.code if cls and cls.subject else "Class"
+    section = cls.section if cls else "TBA"
+
     db.delete(enrollment)
+    
+    # Create Notification for Student
+    from models.notification import Notification, NotificationType
+    notif = Notification(
+        user_id=student_id,
+        notification_type=NotificationType.GENERAL,
+        title="Class Update",
+        message=f"You have been removed from the class {subject_code} - {section}.",
+        is_read=False
+    )
+    db.add(notif)
     db.commit()
 
     # Log Audit Entry (Task: Full Activity Tracking)
@@ -1566,6 +1608,16 @@ def _build_room_status(db: Session, classes, today_start):
         if key not in latest_by_user:
             latest_by_user[key] = log
 
+    # Build a class -> total_students map 
+    from sqlalchemy import func
+    from models.enrollment import Enrollment
+    enrollment_counts = dict(
+        db.query(Enrollment.class_id, func.count(Enrollment.id))
+        .filter(Enrollment.class_id.in_(class_ids))
+        .group_by(Enrollment.class_id)
+        .all()
+    )
+
     # Build a room -> capacity map from devices for overcrowding detection
     room_names = set(cls.room for cls in classes if cls.room)
     device_capacities = {}
@@ -1600,6 +1652,7 @@ def _build_room_status(db: Session, classes, today_start):
 
         room_capacity = device_capacities.get(cls.room, 50)
         present_count = len(present)
+        total_students = enrollment_counts.get(cls.id, 0)
 
         rooms.append({
             "room": cls.room or "N/A",
@@ -1614,6 +1667,7 @@ def _build_room_status(db: Session, classes, today_start):
             "present_count": present_count,
             "break_count": len(on_break),
             "room_capacity": room_capacity,
+            "total_students": total_students,
             "is_overcrowded": present_count > room_capacity,
         })
 

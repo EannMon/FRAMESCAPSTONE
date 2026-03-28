@@ -107,6 +107,7 @@ class StreamingAttendanceKiosk:
             api_timeout=self.config.API_TIMEOUT_SECONDS,
             failure_backoff_sec=getattr(self.config, "ACTIVE_CLASS_FAILURE_BACKOFF_SEC", 60),
             use_api=getattr(self.config, "USE_ACTIVE_CLASS_API", True),
+            early_entry_minutes=self.config.EARLY_ENTRY_MINUTES,
         )
 
         self.attendance_logger = AttendanceLogger(
@@ -122,6 +123,7 @@ class StreamingAttendanceKiosk:
         self._current_class_id: Optional[int] = None
         self._not_in_class_logged: Set[int] = set()
         self._enrollment_loaded: bool = False
+        self._auto_exit_done_for: Set[int] = set()  # class_ids already auto-exited
         self._last_cache_refresh: Optional[float] = None
         self._metrics = KioskMetricsCollector(
             report_interval_sec=getattr(self.config, "METRICS_REPORT_INTERVAL_SEC", 60),
@@ -204,6 +206,31 @@ class StreamingAttendanceKiosk:
         if overrides:
             self.current_state.update(overrides)
         push_state_update(self.current_state.copy())
+
+    def _trigger_auto_exit(self, class_id: int):
+        """Call backend auto-exit endpoint for users who forgot to exit."""
+        if class_id in self._auto_exit_done_for:
+            return
+        if not self.config.AUTO_EXIT_ENABLED:
+            return
+
+        try:
+            url = f"{self.config.BACKEND_URL}/api/kiosk/attendance/auto-exit"
+            response = requests.post(
+                url,
+                json={"class_id": class_id, "device_id": self.config.DEVICE_ID},
+                timeout=self.config.API_TIMEOUT_SECONDS
+            )
+            if response.status_code in (200, 201):
+                data = response.json()
+                count = data.get("auto_exited_count", 0)
+                logger.info("AUTO_EXIT | class=%d: auto-exited %d users", class_id, count)
+            else:
+                logger.warning("AUTO_EXIT | API returned %d for class=%d", response.status_code, class_id)
+        except requests.exceptions.RequestException as e:
+            logger.warning("AUTO_EXIT | request failed for class=%d: %s", class_id, str(e))
+
+        self._auto_exit_done_for.add(class_id)
 
     def run(self):
         """
@@ -434,6 +461,12 @@ class StreamingAttendanceKiosk:
                     self._metrics.record_frame(frame_elapsed, num_faces=0)
                     self._metrics.maybe_report(cache_size=self.embedding_cache.count)
                     time.sleep(0.1)
+
+                    # Auto-exit check: when a class just ended, trigger auto-exit
+                    if last_class_id is not None and last_class_id not in self._auto_exit_done_for:
+                        logger.info("AUTO_EXIT | class %d ended, triggering auto-exit", last_class_id)
+                        self._trigger_auto_exit(last_class_id)
+
                     continue
 
                 # Update class info in state
@@ -447,6 +480,18 @@ class StreamingAttendanceKiosk:
 
                 # Handle class loading
                 if active_class.class_id != last_class_id:
+                    # If we jumped directly from one class to another, auto-exit the previous class.
+                    if (
+                        last_class_id is not None
+                        and last_class_id not in self._auto_exit_done_for
+                    ):
+                        logger.info(
+                            "AUTO_EXIT | class %d switched to class %d, triggering auto-exit for previous class",
+                            last_class_id,
+                            active_class.class_id,
+                        )
+                        self._trigger_auto_exit(last_class_id)
+
                     self._fetch_class_enrollment(active_class.class_id)
                     if self._enrollment_loaded:
                         last_class_id = active_class.class_id
@@ -576,12 +621,17 @@ class StreamingAttendanceKiosk:
                     and (time.time() - self._last_recognized[match.user_id])
                     < self.config.COOLDOWN_SECONDS
                 ):
+                    cache_key = f"{match.user_id}_{active_class.class_id}"
+                    state_cache = self._user_attendance_state.get(cache_key, {})
+                    label_text = f"{match.name} (cooldown)"
+                    if state_cache.get("has_exited"):
+                        label_text = f"{match.name} (Session Closed)"
                     # Show cooldown overlay in yellow
                     if bbox is not None:
                         with self._overlay_lock:
                             self._overlay = {
                                 "bbox": bbox,
-                                "label": f"{match.name} (cooldown)",
+                                "label": label_text,
                                 "color": (0, 255, 255),
                                 "expires_at": time.time() + 1.0,
                             }
@@ -617,6 +667,29 @@ class StreamingAttendanceKiosk:
                 allowed = state.get("allowed_actions", ["ENTRY"])
 
                 if not allowed:
+                    cache_key = f"{match.user_id}_{active_class.class_id}"
+                    if state.get("has_exited"):
+                        self._user_attendance_state[cache_key] = {
+                            "has_entered": state.get("has_entered", True),
+                            "is_on_break": False,
+                            "has_exited": True,
+                            "last_action": state.get("last_action") or "EXIT",
+                            "allowed_actions": [],
+                        }
+                        if bbox is not None:
+                            with self._overlay_lock:
+                                self._overlay = {
+                                    "bbox": bbox,
+                                    "label": f"{match.name} (Session Closed)",
+                                    "color": (0, 165, 255),
+                                    "expires_at": time.time() + 2.0,
+                                }
+                        self.broadcast_state({
+                            "recognized_user": match.name,
+                            "greeting_type": None,
+                            "required_gestures": [],
+                            "message": "Session closed for this class (already exited)",
+                        })
                     self._last_recognized[match.user_id] = time.time()
                     continue
 

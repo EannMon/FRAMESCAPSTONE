@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../Common/Logo';
 import './FaceEnrollmentPage.css';
 
 const FaceEnrollmentPage = () => {
@@ -136,12 +137,12 @@ const FaceEnrollmentPage = () => {
 
         if (errorCode === 'QUALITY_TOO_LOW') {
             const qualityPct = typeof errorDetails.quality_score === 'number'
-                ? Math.round(errorDetails.quality_score * 100)
+                ? (errorDetails.quality_score * 100).toFixed(2)
                 : null;
             return {
                 message: qualityPct !== null
-                    ? `Face not registered: quality is ${qualityPct}%, below the required 80%.`
-                    : 'Face not registered: captured quality is below the required 80%.',
+                    ? `Face not registered: quality is ${qualityPct}%, it must be above 75.00%.`
+                    : 'Face not registered: captured quality must be above 75.00%.',
                 status: 'Improve lighting, keep your whole face centered, and avoid blur before retaking.',
             };
         }
@@ -237,7 +238,7 @@ const FaceEnrollmentPage = () => {
             clearTimeout(phaseTimeout);
 
             if (response.data.success) {
-                const qualityPct = (response.data.quality_score * 100).toFixed(0);
+                const qualityPct = (response.data.quality_score * 100).toFixed(2);
 
                 setEnrollProgress(100);
                 setStatus(`Face enrolled successfully. Enrollment quality: ${qualityPct}%`);
@@ -291,9 +292,13 @@ const FaceEnrollmentPage = () => {
     return (
         <div className="face-enrollment-page">
             <div className="enrollment-container">
+                <div className="enrollment-branding">
+                    <Logo size={40} colorShift={true} />
+                    <span>FRAMES</span>
+                </div>
                 <div className="enrollment-header">
-                    <h1><i className="fas fa-user-shield" style={{ marginRight: '10px' }}></i>Face Enrollment</h1>
-                    <p>Please register your face to access the system</p>
+                    <h1>Face Enrollment</h1>
+                    <p>Register your face to enable secure biometric access</p>
                 </div>
 
                 <div className="camera-section">
@@ -376,7 +381,7 @@ const FaceEnrollmentPage = () => {
                 </div>
 
                 <div className="tips-section">
-                    <h3>Tips for best results:</h3>
+                    <h3><i className="fas fa-lightbulb"></i> Tips for best results:</h3>
                     <ul>
                         <li>Ensure good lighting on your face</li>
                         <li>Look directly at the camera</li>

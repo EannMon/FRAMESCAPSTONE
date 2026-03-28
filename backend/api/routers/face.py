@@ -16,7 +16,7 @@ from models.facial_profile import FacialProfile
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/face", tags=["Face"])
 
-MINIMUM_ENROLLMENT_QUALITY = 0.80
+MINIMUM_ENROLLMENT_QUALITY = 0.75
 MINIMUM_VALID_SAMPLES = 5
 
 
@@ -123,7 +123,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
         # Reject enrollment if average quality is below threshold.
         # Backend enforcement ensures no low-quality embedding can be stored
         # even if frontend checks are bypassed.
-        if avg_quality < MINIMUM_ENROLLMENT_QUALITY:
+        if avg_quality <= MINIMUM_ENROLLMENT_QUALITY:
             logger.warning(
                 "Enrollment rejected for user %d: quality=%.4f below threshold=%.2f",
                 body.user_id, avg_quality, MINIMUM_ENROLLMENT_QUALITY,
@@ -131,7 +131,7 @@ async def enroll_face(request: Request, body: EnrollmentRequest, db: Session = D
             raise api_error(
                 400,
                 "QUALITY_TOO_LOW",
-                f"Enrollment quality ({avg_quality * 100:.1f}%) is below the required 80%. "
+                f"Enrollment quality ({avg_quality * 100:.2f}%) must be above {MINIMUM_ENROLLMENT_QUALITY * 100:.2f}%. "
                 "Please retry in better lighting with your face clearly visible.",
                 {
                     "quality_score": round(avg_quality, 4),

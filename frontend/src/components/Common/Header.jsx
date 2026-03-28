@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import './Header.css';
@@ -8,34 +9,15 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
     const navigate = useNavigate();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-    const [notifications, setNotifications] = useState([]);
 
     const profileRef = useRef(null);
     const notificationRef = useRef(null);
 
-    useEffect(() => {
-        const controller = new AbortController();
+    const { notifications, isRead, markAllAsRead, markAsRead, fetchNotifications } = useNotifications();
 
-        const fetchNotifications = async () => {
-            if (!user?.id) return;
-            try {
-                const response = await api.get(`/api/users/notifications/${user.id}`, { signal: controller.signal });
-                setNotifications(response.data || []);
-            } catch (error) {
-                if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
-                    console.error("Error fetching notifications:", error);
-                }
-            }
-        };
-
-        fetchNotifications();
-        // Optional: Poll for new notifications
-        const interval = setInterval(fetchNotifications, 60000);
-        return () => {
-            controller.abort();
-            clearInterval(interval);
-        };
-    }, [user]);
+    const handleMarkAllAsRead = () => {
+        markAllAsRead();
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('currentUser');
@@ -46,7 +28,13 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
     };
 
     const toggleProfile = () => { setIsProfileOpen(!isProfileOpen); setIsNotificationOpen(false); };
-    const toggleNotifications = () => { setIsNotificationOpen(!isNotificationOpen); setIsProfileOpen(false); };
+    const toggleNotifications = () => { 
+        if (!isNotificationOpen) {
+            fetchNotifications(); // Fetch fresh on open
+        }
+        setIsNotificationOpen(!isNotificationOpen); 
+        setIsProfileOpen(false); 
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -105,6 +93,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
         if (path.includes('/dept-head-settings')) return 'Settings';
         if (path.includes('/dept-head-help')) return 'Help & Support';
         if (path.includes('/dept-head-profile')) return 'My Profile';
+        if (path.includes('notifications')) return 'Notifications';
 
         return '';
     };
@@ -117,11 +106,14 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
         day: 'numeric'
     });
 
-    const handleNotificationClick = (link) => {
-        if (link) {
-            navigate(link);
-            setIsNotificationOpen(false);
+    const handleNotificationClick = (notif) => {
+        if (!isRead(notif)) {
+            const updatedIds = [...new Set([...readIds, notif.id])];
+            setReadIds(updatedIds);
+            localStorage.setItem(readKey, JSON.stringify(updatedIds));
+            window.dispatchEvent(new Event('notifReadUpdate')); // Sycn with same-tab listener
         }
+        setIsNotificationOpen(false);
     };
 
     return (
@@ -153,9 +145,9 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                         <div className="notification-bell-container" ref={notificationRef}>
                             <button className="icon-button notification-trigger" onClick={toggleNotifications}>
                                 <i className="far fa-bell"></i>
-                                {user.in_app_notifications_enabled !== false && notifications.some(n => !n.read) && (
+                                {user.in_app_notifications_enabled !== false && notifications.some(n => !isRead(n)) && (
                                     <span className="notification-count-text">
-                                        {notifications.filter(n => !n.read).length}
+                                        {notifications.filter(n => !isRead(n)).length}
                                     </span>
                                 )}
                             </button>
@@ -164,20 +156,17 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                                 <div className="notification-dropdown-menu">
                                     <div className="notification-dropdown-header">
                                         <h3>Notifications</h3>
-                                        <span className="mark-as-read">Mark all as read</span>
+                                        <span className="mark-as-read" onClick={handleMarkAllAsRead} style={{ cursor: 'pointer' }}>Mark all as read</span>
                                     </div>
                                     <div className="notification-list">
                                         {notifications.length > 0 ? (
                                             notifications.map(notif => (
                                                 <div
                                                     key={notif.id}
-                                                    className={`notification-item ${notif.read ? 'read' : 'unread'}`}
-                                                    onClick={() => handleNotificationClick(notif.link)}
+                                                    className={`notification-item ${isRead(notif) ? 'read' : 'unread'}`}
+                                                    onClick={() => handleNotificationClick(notif)}
                                                     style={{ cursor: 'pointer' }}
                                                 >
-                                                    <div className="notification-icon-bg">
-                                                        <i className={notif.icon}></i>
-                                                    </div>
                                                     <div className="notification-content">
                                                         <p className="notification-text">{notif.text}</p>
                                                         <span className="notification-time">{notif.time}</span>
@@ -185,7 +174,7 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="notification-item" style={{ justifyContent: 'center', color: '#94a3b8' }}>
+                                            <div className="notification-item notification-empty-state">
                                                 No new notifications
                                             </div>
                                         )}
@@ -193,9 +182,10 @@ const Header = ({ user, setPanel, onAboutClick, theme, showLogo = true, toggleSi
                                     <div className="notification-dropdown-footer">
                                         <Link to={
                                             user?.role?.toLowerCase() === 'student' ? '/student-notifications' :
-                                                (user?.role?.toLowerCase() === 'faculty' || user?.role?.toLowerCase() === 'head' || user?.role?.toLowerCase() === 'dept_head') ? '/dept-head-logs' :
-                                                    '/notifications'
-                                        }>View All Logs</Link>
+                                                user?.role?.toLowerCase() === 'faculty' ? '/faculty-notifications' :
+                                                    (user?.role?.toLowerCase() === 'head' || user?.role?.toLowerCase() === 'dept_head') ? '/dept-head-notifications' :
+                                                        '/notifications'
+                                        }>View All Notifications</Link>
                                     </div>
                                 </div>
                             )}

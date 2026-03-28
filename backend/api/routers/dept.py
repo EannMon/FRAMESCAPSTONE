@@ -259,6 +259,18 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
                 timestamp=datetime.now(timezone.utc)
             )
             db.add(audit_entry)
+            
+            # Create Notification for Faculty
+            from models.notification import Notification, NotificationType
+            notif = Notification(
+                user_id=faculty.id,
+                notification_type=NotificationType.GENERAL,
+                title="Class Assignment",
+                message=f"You have been assigned to teach {subject.code} - {cls.section}.",
+                is_read=False
+            )
+            db.add(notif)
+            
             db.commit()
 
             return {"message": "Faculty assigned to existing class"}
@@ -270,6 +282,17 @@ def assign_faculty(req: AssignFacultyRequest, db: Session = Depends(get_db)):
         section="TBA" # Default section
     )
     db.add(new_class)
+    
+    # Create Notification for Faculty
+    from models.notification import Notification, NotificationType
+    notif = Notification(
+        user_id=faculty.id,
+        notification_type=NotificationType.GENERAL,
+        title="Class Assignment",
+        message=f"You have been assigned to teach {subject.code}.",
+        is_read=False
+    )
+    db.add(notif)
     db.commit()
     return {"message": "New class created and faculty assigned"}
 
@@ -298,6 +321,19 @@ def assign_room(req: AssignRoomRequest, db: Session = Depends(get_db)):
             cls.start_time = start_t
             cls.end_time = end_t
             db.commit()
+            
+            # Create Notification for Faculty
+            if cls.faculty_id:
+                from models.notification import Notification, NotificationType
+                notif = Notification(
+                    user_id=cls.faculty_id,
+                    notification_type=NotificationType.GENERAL,
+                    title="Room Assignment",
+                    message=f"Room {req.room_name} assigned to {subject.code} on {req.day}.",
+                    is_read=False
+                )
+                db.add(notif)
+                db.commit()
             return {"message": "Room assigned to existing class"}
             
     # Workaround: Check if there's any faculty, or assign to a default "TBA" placeholder if needed.
@@ -409,6 +445,25 @@ def update_academic_year(req: AcademicYearUpdate, db: Session = Depends(get_db))
         timestamp=datetime.now(timezone.utc)
     )
     db.add(audit_entry)
+    
+    # Create Notification for all Faculty in the department
+    from models.user import UserRole
+    from models.notification import Notification, NotificationType
+    faculty_list = db.query(User).filter(
+        User.department_id == dept.id,
+        User.role == UserRole.FACULTY
+    ).all()
+    
+    for f in faculty_list:
+        notif = Notification(
+            user_id=f.id,
+            notification_type=NotificationType.GENERAL,
+            title="Academic Year Updated",
+            message=f"Academic Year updated to {req.academic_year} - {req.semester}.",
+            is_read=False
+        )
+        db.add(notif)
+        
     db.commit()
     
     logger.info("Academic year updated to %s %s for department %s", req.academic_year, req.semester, dept.name)

@@ -1,0 +1,13 @@
+{
+  "seed_tag": "[SEED-FACULTY-RPT]",
+  "student_id_prefix": "SEED-FAC-RPT",
+  "first_log_id": 148,
+  "last_log_id": 1083,
+  "log_count": 240,
+  "subject_code": "IT-SRP401",
+  "monday_class_id": 34,
+  "saturday_class_id": 35,
+  "device_id": 6,
+  "seeded_at": "2026-03-28T14:00:15.911177",
+  "date_range": "2026-01-19 to 2026-03-28"
+}
