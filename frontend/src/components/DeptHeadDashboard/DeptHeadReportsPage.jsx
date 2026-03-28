@@ -60,8 +60,11 @@ const getColumnConfig = (reportId) => {
         };
     }
     if (report?.type === 'CLASS') {
+        const isPunctuality = reportId === 'CLASS_PUNCTUALITY_INDEX';
         return {
-            headers: ['ID', 'Name', 'TUP-M ID', 'Status', 'Time', 'Remarks'],
+            headers: isPunctuality 
+                ? ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary']
+                : ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary'],
             keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
         };
     }
@@ -228,16 +231,51 @@ const DeptHeadReportsPage = () => {
         setError(null);
         try {
             const report = reportOptions.find(r => r.id === reportId);
+            if (!report) {
+                setLoading(false);
+                return;
+            }
 
-            if (report?.type === 'CLASS' || report?.type === 'PERSONAL') {
+            if (report.type === 'CLASS' || report.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
-                if (!user?.id) return;
-                const resolvedClassId = report?.type === 'CLASS'
-                    ? (selectedClass && selectedClass !== 'undefined' ? selectedClass : (classes[0]?.class_id ?? null))
-                    : null;
+                if (!user?.id) {
+                    setLoading(false);
+                    return;
+                }
+                
+                // For CLASS reports, we must have a class_id
+                let targetId = null;
+                if (report.type === 'CLASS') {
+                    // Normalize the selected value or default to first class
+                    const rawValue = selectedClass || (classes.length > 0 ? (classes[0].class_id || classes[0].id) : null);
+                    if (!rawValue) {
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
 
-                const params = { report_type: reportId };
-                if (resolvedClassId != null && resolvedClassId !== '' && resolvedClassId !== 'undefined') params.class_id = resolvedClassId;
+                    const stringVal = String(rawValue);
+                    // Match against the classes list to get the numeric primary key
+                    const found = classes.find(c => 
+                        String(c.class_id) === stringVal || 
+                        String(c.id) === stringVal ||
+                        c.subject_code === stringVal ||
+                        `${c.subject_code} - ${c.section}` === stringVal ||
+                        stringVal.startsWith(c.subject_code)
+                    );
+                    
+                    targetId = found ? (found.class_id || found.id) : (parseInt(stringVal.split(' ')[0]) || null);
+                    
+                    if (!targetId) {
+                        console.error('Could not resolve class_id for:', stringVal);
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                const params = { report_type: reportId, legacy: false };
+                if (targetId) params.class_id = targetId;
                 if (dateFrom) params.date_from = dateFrom;
                 if (dateTo) params.date_to = dateTo;
                 params.limit = 200;
@@ -509,15 +547,18 @@ const DeptHeadReportsPage = () => {
                         <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Select Report Type:</label>
                         <select
                             value={selectedReport?.id || ''}
-                            onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
+                            onChange={e => {
+                                const opt = reportOptions.find(o => o.id === e.target.value);
+                                if (opt) handleSelectReport(opt);
+                            }}
                             className="app-select big-select"
                             style={{ minWidth: '240px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
                         >
                             <option value="" disabled>-- Select a Report --</option>
                             {Object.entries(groupedReports).map(([category, options]) => (
                                 <optgroup key={category} label={category}>
-                                    {options.map(opt => (
-                                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    {options.map((opt, optIdx) => (
+                                        <option key={`${category}-${opt.id}-${optIdx}`} value={opt.id}>{opt.label}</option>
                                     ))}
                                 </optgroup>
                             ))}
@@ -528,12 +569,25 @@ const DeptHeadReportsPage = () => {
                     {selectedReport?.type === 'CLASS' && (
                         <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
-                            <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="app-select big-select" style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
-                                <option value="">All Classes</option>
-                                {classes.map(c => (
-                                    <option key={c.class_id} value={c.class_id}>{c.subject_code} - {c.section || 'N/A'}</option>
-                                ))}
-                            </select>
+                            <select 
+                            value={selectedClass} 
+                            onChange={e => {
+                                console.log("[Debug] User selected class dropdown value:", e.target.value);
+                                setSelectedClass(e.target.value);
+                            }} 
+                            className="app-select big-select" 
+                            style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
+                        >
+                            <option value="">Select a Class</option>
+                            {classes.map((c, idx) => {
+                                const idToUse = c.class_id || c.id || "";
+                                return (
+                                    <option key={`class-id-${idToUse}-${idx}`} value={idToUse}>
+                                        {c.subject_code || 'No Code'} - {c.section || 'N/A'}
+                                    </option>
+                                );
+                            })}
+                        </select>
                         </div>
                     )}
 
@@ -543,7 +597,13 @@ const DeptHeadReportsPage = () => {
                             <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Room:</label>
                             <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select" style={{ minWidth: '180px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
                                 <option value="">All Rooms</option>
-                                {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
+                                <option value="Online">Online</option>
+                                {rooms
+                                    .filter(r => r.room_name && /^\d+$/.test(r.room_name.replace(/room\s+/gi, '').trim()))
+                                    .map((r, i) => {
+                                        const cleanRoom = r.room_name.replace(/room\s+/gi, '').trim();
+                                        return <option key={`room-${cleanRoom}-${i}`} value={r.room_name}>{cleanRoom}</option>;
+                                    })}
                             </select>
                         </div>
                     )}
@@ -652,6 +712,12 @@ const DeptHeadReportsPage = () => {
                         </div>
                         {reportData.length > 0 && (
                             <div className="report-footer" style={{ marginTop: '10px' }}><span>{reportData.length} record(s) found</span></div>
+                        )}
+                        {reportData.length === 0 && !loading && (
+                            <div className="report-footer" style={{ marginTop: '10px', textAlign: 'center', color: '#64748b' }}>
+                                <i className="fas fa-info-circle" style={{ marginRight: '6px' }}></i>
+                                No report data found for the selected {selectedReport?.type === 'CLASS' ? 'class' : 'filters'} and date range.
+                            </div>
                         )}
                     </div>
                 </>

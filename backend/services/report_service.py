@@ -12,7 +12,7 @@ from copy import deepcopy
 from datetime import datetime, date, time, timezone, timedelta
 from datetime import datetime as dt
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, case, and_, extract
+from sqlalchemy import func, case, and_, or_, extract
 
 from models.attendance_log import AttendanceLog, AttendanceAction
 from models.class_ import Class
@@ -47,7 +47,9 @@ _student_report_cache_lock = threading.Lock()
 def _normalize_room(room: str):
     if not room:
         return None
-    normalized = room.strip().lower()
+    # Convert 'Room 123' or 'room 123' to just '123'
+    # Then lowercase and strip for consistent database comparison
+    normalized = room.lower().replace("room", "").strip()
     return normalized or None
 
 
@@ -55,7 +57,14 @@ def _apply_room_filter(query, room_column, room: str):
     normalized = _normalize_room(room)
     if not normalized:
         return query
-    return query.filter(func.lower(func.trim(room_column)) == normalized)
+    # Check for direct match or numeric-only version in DB
+    # Handles both '123' and 'Room 123' in the database records
+    return query.filter(
+        or_(
+            func.lower(func.trim(room_column)) == normalized,
+            func.lower(func.trim(room_column)) == f"room {normalized}"
+        )
+    )
 
 
 def _department_faculty_ids(db: Session, dept_id: int):
@@ -238,13 +247,14 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
         status = log.action.value if log.action else "UNKNOWN"
         if log.is_late and log.action == AttendanceAction.ENTRY:
             status = "LATE"
+            
         rows.append({
             "id": i,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
             "status": status,
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "",
         })
     return rows
 
@@ -291,9 +301,9 @@ def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: s
                 "id": i,
                 "col1": user.full_name,
                 "col2": user.tupm_id or "—",
-                "status": "ABSENT",
+                "status": "Absent",
                 "col3": "No entry recorded",
-                "remarks": f"Enrolled but no attendance in range",
+                "remarks": "",
             })
     return rows
 
@@ -332,7 +342,7 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
     )
     rows = []
     seen = set()
-    for log, user in logs:
+    for i, (log, user) in enumerate(logs, 1):
         # Aggressive deduplication: User + Room + Subject + Date + Action
         cls = log.class_
         raw_rm = cls.room if cls else "Unknown"
@@ -345,14 +355,13 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
         if log_key in seen: continue
         seen.add(log_key)
         
-        i = len(rows) + 1
         rows.append({
             "id": i,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
-            "status": "LATE",
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "status": "Late",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "", # Revert to actual remarks
         })
     return rows
 
@@ -385,46 +394,82 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
     if not student_ids:
         return []
 
-    # Batch: count entries and late entries per student
-    entry_counts = dict(
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+    logs = (
+        db.query(AttendanceLog, User)
+        .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp >= str(d_from),
             AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id)
-        .all()
-    )
-    late_counts = dict(
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
-        .filter(
-            AttendanceLog.class_id == class_id,
-            AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.is_late == True,
-            AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= str(date_from),
-            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
-        )
-        .group_by(AttendanceLog.user_id)
         .all()
     )
 
+    # Aggressive deduplication: User + Room + Subject + Date + Action
+    seen = set()
+    cleaned_logs = []
+    for log, user in logs:
+        cls = log.class_
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (user.id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        cleaned_logs.append((log, user))
+
+    # Batch: count entries and late entries per student using deduplicated set
+    entry_counts = defaultdict(int)
+    late_counts = defaultdict(int)
+    
+    for log, user in cleaned_logs:
+        if log.action == AttendanceAction.ENTRY:
+            entry_counts[user.id] += 1
+            if log.is_late:
+                late_counts[user.id] += 1
+
     rows = []
     for i, (enrl, user) in enumerate(enrolled, 1):
-        entries = entry_counts.get(user.id, 0)
-        lates = late_counts.get(user.id, 0)
+        entries = entry_counts[user.id]
+        lates = late_counts[user.id]
         on_time = entries - lates
+        
+        # Calculate Mock Score and Avg
+        score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
+        avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
+        
         status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+        
+        # Check for any 'not in class' remarks in logs for this student
+        not_in_class_flag = False
+        other_remarks = []
+        for log, _ in cleaned_logs:
+            if log.user_id == user.id:
+                if log.remarks:
+                    if "not in class" in log.remarks.lower():
+                        not_in_class_flag = True
+                    # Always include the full remark for context
+                    other_remarks.append(log.remarks)
+
+        final_remarks = ""
+        if not_in_class_flag and not any("not in class" in r.lower() for r in other_remarks):
+             # This case shouldn't happen with the logic above, but for safety:
+             other_remarks.insert(0, "Not in Class")
+             
+        final_remarks = ", ".join(dict.fromkeys(other_remarks)) # deduplicate while preserving order
+
         rows.append({
             "id": i,
             "col1": user.full_name,
-            "col2": f"Entries: {entries}",
+            "col2": user.tupm_id or "—",
             "status": status,
-            "col3": f"On-time: {on_time} | Late: {lates}",
-            "remarks": user.tupm_id or "—",
+            "col3": f"Score: {score}/100 | Entries: {entries}",
+            "remarks": final_remarks,
         })
     return rows
 
@@ -457,59 +502,53 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
     if not student_ids:
         return []
 
-    # Batch: count entries per student per month
-    entry_month_counts = (
-        db.query(
-            AttendanceLog.user_id,
-            extract('year', AttendanceLog.timestamp).label('yr'),
-            extract('month', AttendanceLog.timestamp).label('mo'),
-            func.count(AttendanceLog.id),
-        )
+    logs = (
+        db.query(AttendanceLog, User)
+        .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp >= str(d_from),
             AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id, 'yr', 'mo')
         .all()
     )
 
-    # Batch: count late entries per student per month
-    late_month_counts = (
-        db.query(
-            AttendanceLog.user_id,
-            extract('year', AttendanceLog.timestamp).label('yr'),
-            extract('month', AttendanceLog.timestamp).label('mo'),
-            func.count(AttendanceLog.id),
-        )
-        .filter(
-            AttendanceLog.class_id == class_id,
-            AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.is_late == True,
-            AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= str(date_from),
-            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
-        )
-        .group_by(AttendanceLog.user_id, 'yr', 'mo')
-        .all()
-    )
+    # Aggressive deduplication: User + Room + Subject + Date + Action
+    seen = set()
+    cleaned_logs = []
+    for log, user in logs:
+        cls = log.class_
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (user.id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        cleaned_logs.append((log, user))
 
     # Build lookup dicts keyed by (user_id, year, month)
-    entry_lookup = {}
-    for uid, yr, mo, cnt in entry_month_counts:
-        entry_lookup[(uid, int(yr), int(mo))] = cnt
+    entry_lookup = defaultdict(int)
+    late_lookup = defaultdict(int)
+    all_months = set()
 
-    late_lookup = {}
-    for uid, yr, mo, cnt in late_month_counts:
-        late_lookup[(uid, int(yr), int(mo))] = cnt
+    for log, user in cleaned_logs:
+        yr = log.timestamp.year
+        mo = log.timestamp.month
+        all_months.add((yr, mo))
+        
+        key = (user.id, yr, mo)
+        entry_lookup[key] += 1
+        if log.is_late:
+            late_lookup[key] += 1
 
-    # Collect all unique months present
-    all_months = sorted(set(
-        (int(yr), int(mo)) for _, yr, mo, _ in entry_month_counts
-    ))
-    if not all_months:
+    # Sorted list of unique months
+    sorted_months = sorted(list(all_months))
+    if not sorted_months:
         return []
 
     MONTH_NAMES = [
@@ -519,7 +558,7 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
 
     rows = []
     row_id = 1
-    for yr, mo in all_months:
+    for yr, mo in sorted_months:
         month_label = f"{MONTH_NAMES[mo]} {yr}"
         for enrl, user in enrolled:
             entries = entry_lookup.get((user.id, yr, mo), 0)
@@ -527,14 +566,33 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
                 continue  # Skip students with no entries in this month
             lates = late_lookup.get((user.id, yr, mo), 0)
             on_time = entries - lates
+            
+            score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
+            avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
+            
             status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+            
+            # Check for any 'not in class' remarks in logs for this student/month
+            not_in_class_flag = False
+            other_remarks = []
+            for log, _ in cleaned_logs:
+                if log.user_id == user.id:
+                    yr_log = log.timestamp.year
+                    mo_log = log.timestamp.month
+                    if yr_log == yr and mo_log == mo and log.remarks:
+                        if "not in class" in log.remarks.lower():
+                            not_in_class_flag = True
+                        other_remarks.append(log.remarks)
+
+            final_remarks = ", ".join(dict.fromkeys(other_remarks)) if other_remarks else ""
+
             rows.append({
                 "id": row_id,
                 "col1": user.full_name,
-                "col2": month_label,
+                "col2": user.tupm_id or "—",
                 "status": status,
-                "col3": f"On-time: {on_time} | Late: {lates} | Total: {entries}",
-                "remarks": user.tupm_id or "—",
+                "col3": f"Score: {score}/100 | Entries: {entries}",
+                "remarks": final_remarks,
             })
             row_id += 1
     return rows
@@ -575,35 +633,63 @@ def _break_duration_report(db: Session, class_id: int, date_from: str, date_to: 
     from itertools import groupby
     rows = []
     row_id = 1
-    for user_id, user_logs in groupby(logs, key=lambda x: x[0].user_id):
+    # Sort logs locally to ensure strictly chronological pairing per user
+    log_list = sorted(list(logs), key=lambda x: (x[0].user_id, x[0].timestamp))
+    
+    for user_id, user_logs in groupby(log_list, key=lambda x: x[0].user_id):
         pending_out = None
         for log, user in user_logs:
             if log.action == AttendanceAction.BREAK_OUT:
+                # If we already have a pending out, report it as 'No Return' before taking new one
+                if pending_out:
+                    po_log, po_user = pending_out
+                    rows.append({
+                        "id": row_id,
+                        "col1": po_user.full_name,
+                        "col2": po_user.tupm_id or "—",
+                        "status": "No Return",
+                        "col3": f"Left at {po_log.timestamp.strftime('%I:%M %p')}, did not return",
+                        "remarks": "—",
+                    })
+                    row_id += 1
                 pending_out = (log, user)
-            elif log.action == AttendanceAction.BREAK_IN and pending_out:
-                out_log, out_user = pending_out
-                duration_min = (log.timestamp - out_log.timestamp).total_seconds() / 60
-                status = "Extended" if duration_min > 15 else "Normal"
-                rows.append({
-                    "id": row_id,
-                    "col1": user.full_name,
-                    "col2": out_log.timestamp.strftime("%Y-%m-%d %I:%M %p"),
-                    "status": status,
-                    "col3": f"{duration_min:.0f} min",
-                    "remarks": f"Out: {out_log.timestamp.strftime('%I:%M %p')} → In: {log.timestamp.strftime('%I:%M %p')}",
-                })
-                row_id += 1
-                pending_out = None
-        # Unpaired BREAK_OUT (never returned)
+            elif log.action == AttendanceAction.BREAK_IN:
+                if pending_out:
+                    out_log, out_user = pending_out
+                    duration_min = (log.timestamp - out_log.timestamp).total_seconds() / 60
+                    status = "Extended" if duration_min > 15 else "Normal"
+                    rows.append({
+                        "id": row_id,
+                        "col1": user.full_name,
+                        "col2": user.tupm_id or "—",
+                        "status": status,
+                        "col3": f"{duration_min:.0f} min",
+                        "remarks": f"Out: {out_log.timestamp.strftime('%I:%M %p')} → In: {log.timestamp.strftime('%I:%M %p')}",
+                    })
+                    row_id += 1
+                    pending_out = None
+                else:
+                    # BREAK_IN with no preceding BREAK_OUT
+                    rows.append({
+                        "id": row_id,
+                        "col1": user.full_name,
+                        "col2": user.tupm_id or "—",
+                        "status": "Incomplete",
+                        "col3": "—",
+                        "remarks": f"Returned at {log.timestamp.strftime('%I:%M %p')} (no record of leaving)",
+                    })
+                    row_id += 1
+        
+        # Unpaired BREAK_OUT at end of user's log stream
         if pending_out:
             out_log, out_user = pending_out
             rows.append({
                 "id": row_id,
                 "col1": out_user.full_name,
-                "col2": out_log.timestamp.strftime("%Y-%m-%d %I:%M %p"),
+                "col2": out_user.tupm_id or "—",
                 "status": "No Return",
-                "col3": "—",
-                "remarks": f"Left at {out_log.timestamp.strftime('%I:%M %p')}, did not return",
+                "col3": f"Left at {out_log.timestamp.strftime('%I:%M %p')}, did not return",
+                "remarks": "—",
             })
             row_id += 1
     return rows
@@ -844,27 +930,27 @@ def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_t
         rows.append({
             "id": 0,
             "col1": user.full_name,
-            "col2": f"Avg: {avg_offset:+.1f} min",
+            "col2": user.tupm_id or "—", # TUPM-ID column
             "status": "On Time" if avg_offset <= 0 else ("Slightly Late" if avg_offset <= 10 else "Late"),
-            "col3": f"Score: {score}/100 | Entries: {entries}",
-            "remarks": user.tupm_id or "—",
+            "col3": f"Avg: {avg_offset:+.1f} min", # Time column
+            "remarks": f"Score: {score}/100 | Entries: {entries}", # Summary column
         })
 
     # Add students with no entries
     present_ids = set(offsets.keys())
-    for e, user in enrolled:
+    for enrl, user in enrolled:
         if user.id not in present_ids:
             rows.append({
                 "id": 0,
                 "col1": user.full_name,
-                "col2": "No entries",
+                "col2": user.tupm_id or "—",
                 "status": "Absent",
-                "col3": "Score: 0/100 | Entries: 0",
-                "remarks": user.tupm_id or "—",
+                "col3": "No entries",
+                "remarks": "Score: 0/100 | Entries: 0",
             })
 
-    # Sort by score descending (extract from col3)
-    rows.sort(key=lambda r: float(r['col3'].split('Score: ')[1].split('/')[0]), reverse=True)
+    # Sort by score descending (extract from remarks instead of col3)
+    rows.sort(key=lambda r: float(r['remarks'].split('Score: ')[1].split('/')[0]), reverse=True)
     for i, row in enumerate(rows, 1):
         row['id'] = i
     return rows
@@ -1347,6 +1433,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
     faculty_ids = [f.id for f in faculty]
     entry_query = (
         db.query(AttendanceLog.user_id, func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))))
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -1356,7 +1443,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
     )
     if room:
         entry_query = _apply_room_filter(
-            entry_query.join(Class, AttendanceLog.class_id == Class.id),
+            entry_query,
             Class.room,
             room,
         )
@@ -1364,6 +1451,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
 
     late_query = (
         db.query(AttendanceLog.user_id, func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))))
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -1374,7 +1462,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
     )
     if room:
         late_query = _apply_room_filter(
-            late_query.join(Class, AttendanceLog.class_id == Class.id),
+            late_query,
             Class.room,
             room,
         )
@@ -1387,13 +1475,28 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
         status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 3 else "Present")
         if entries == 0:
             status = "No Data"
+            
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
             "col1": fac.full_name,
             "col2": f"Entries: {entries}",
             "status": status,
             "col3": f"On-time: {entries - lates} | Late: {lates}",
-            "remarks": fac.email or "—",
+            "remarks": final_remarks,
         })
     return rows
 
@@ -1584,15 +1687,36 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
     rows = []
     for i, (rm, expected) in enumerate(sorted(room_expected.items()), 1):
         actual = actual_counts.get(rm, 0)
-        utilization = round((actual / max(expected, 1)) * 100, 1)
-        status = "Overcrowded" if actual >= 50 else ("High" if utilization > 75 else ("Moderate" if utilization > 40 else "Low"))
+        # Ratio of actual vs expected sessions
+        util_ratio = (actual / max(expected, 1)) * 100
+        # Cap at 100 for proper percentage display
+        utilization = round(min(util_ratio, 100), 1)
+        
+        status = "High" if utilization > 75 else ("Moderate" if utilization > 40 else "Low")
+        
+        # Strip "Room" or prefix for clean numeric display if desired
+        display_name = rm.lower().replace("room", "").strip().title() if rm else "Unknown"
+
+        # Get all unique remarks for this room in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).join(User, Class.faculty_id == User.id).filter(
+            User.department_id == dept_id,
+            Class.room == rm,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        ).distinct().all()
+        
+        remarks_list = [r[0] for r in all_remarks]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
-            "col1": rm,
+            "col1": display_name,
             "col2": f"Scheduled: {expected} sessions",
             "status": status,
-            "col3": f"Actual: {actual} | Util: {utilization}%",
-            "remarks": f"{room_class_count.get(rm, 0)} classes in room",
+            "col3": f"{utilization}% Utilization",
+            "remarks": final_remarks,
         })
     return rows
 
@@ -1855,13 +1979,27 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
         else:
             status = "At Risk" if entries > 0 else "No Data"
 
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
             "col1": fac.full_name,
             "col2": f"Score: {consistency_score}/100",
             "status": status,
             "col3": f"Entries: {entries} | Late: {lates} | Weeks: {len(weeks)}",
-            "remarks": fac.email or "—",
+            "remarks": final_remarks,
         })
     return rows
 
@@ -1887,6 +2025,7 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
     query = (
         db.query(User.role, func.count(AttendanceLog.id))
         .join(AttendanceLog, AttendanceLog.user_id == User.id)
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -1896,7 +2035,7 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
     )
     if room:
         query = _apply_room_filter(
-            query.join(Class, AttendanceLog.class_id == Class.id),
+            query,
             Class.room,
             room,
         )
@@ -2000,6 +2139,7 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
             AttendanceLog.user_id,
             func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))),
         )
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -2009,7 +2149,7 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
     )
     if room:
         entry_query = _apply_room_filter(
-            entry_query.join(Class, AttendanceLog.class_id == Class.id),
+            entry_query,
             Class.room,
             room,
         )
@@ -2021,6 +2161,7 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
             AttendanceLog.user_id, 
             func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
         )
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
@@ -2031,7 +2172,7 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
     )
     if room:
         late_query = _apply_room_filter(
-            late_query.join(Class, AttendanceLog.class_id == Class.id),
+            late_query,
             Class.room,
             room,
         )
@@ -2056,13 +2197,27 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
         else:
             status = "At Risk"
 
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
             "col1": fac.full_name,
             "col2": f"Rate: {rate}% ({actual}/{expected})",
             "status": status,
             "col3": f"On-time: {actual - lates} | Late: {lates} | Classes: {classes_count}",
-            "remarks": fac.email or "—",
+            "remarks": final_remarks,
         })
 
     rows.sort(key=lambda r: float(r['col2'].split('%')[0].split(': ')[1]), reverse=False)
@@ -2120,20 +2275,25 @@ def _faculty_absence_report(db: Session, dept_id: int, date_from: str, date_to: 
     all_classes = class_query.all()
 
     # Get all faculty entry dates
-    entry_pairs = set(
-        (uid, str(log_day))
-        for uid, log_day in db.query(
+    log_query = (
+        db.query(
             AttendanceLog.user_id,
             func.date(AttendanceLog.timestamp),
         )
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.timestamp >= str(d_from),
             AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .distinct()
-        .all()
+    )
+    if room:
+        log_query = _apply_room_filter(log_query, Class.room, room)
+    
+    entry_pairs = set(
+        (uid, str(log_day))
+        for uid, log_day in log_query.distinct().all()
     )
 
     # Build scheduled sessions and find absences
@@ -2238,8 +2398,9 @@ def _faculty_punctuality_report(db: Session, dept_id: int, date_from: str, date_
     class_ids = list(class_map.keys())
 
     # Get all ENTRY logs for these classes by faculty
-    raw_entry_logs = (
+    raw_query = (
         db.query(AttendanceLog.user_id, AttendanceLog.class_id, AttendanceLog.timestamp)
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.class_id.in_(class_ids),
@@ -2247,8 +2408,11 @@ def _faculty_punctuality_report(db: Session, dept_id: int, date_from: str, date_
             AttendanceLog.timestamp >= str(d_from),
             AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .all()
     )
+    if room:
+        raw_query = _apply_room_filter(raw_query, Class.room, room)
+    
+    raw_entry_logs = raw_query.all()
 
     # Robust deduplication
     entry_logs = []
@@ -2300,8 +2464,27 @@ def _faculty_punctuality_report(db: Session, dept_id: int, date_from: str, date_
             "col2": f"Avg: {avg_offset:+.1f} min" if entries > 0 else "No entries",
             "status": status,
             "col3": f"Score: {score}/100 | Entries: {entries}",
-            "remarks": fac.email or "—",
+            "remarks": "—",
         })
+
+    # Get all unique remarks for faculty in this department/date range to populate rows
+    # This report is ranked, so we fetch remarks per faculty
+    for row in rows:
+        fac_name = row['col1']
+        fac_obj = next((f for f in faculty if f.full_name == fac_name), None)
+        if fac_obj:
+            all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+                AttendanceLog.user_id == fac_obj.id,
+                AttendanceLog.timestamp >= str(d_from),
+                AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+                AttendanceLog.remarks != None,
+                AttendanceLog.remarks != ""
+            )
+            if room:
+                all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+            
+            remarks_list = [r[0] for r in all_remarks.distinct().all()]
+            row['remarks'] = ", ".join(remarks_list) if remarks_list else "—"
 
     rows.sort(key=lambda r: float(r['col3'].split('Score: ')[1].split('/')[0]), reverse=True)
     for i, row in enumerate(rows, 1):
@@ -2418,7 +2601,7 @@ def _faculty_teaching_load_report(db: Session, dept_id: int, date_from: str, dat
             "col2": f"Classes: {num_classes} | Sections: {num_sections} | Students: {total_students}",
             "status": status,
             "col3": f"Entries: {entries} | Late: {lates}",
-            "remarks": fac.email or "—",
+            "remarks": "—",
         })
 
     rows.sort(key=lambda r: int(r['col2'].split('Classes: ')[1].split(' |')[0]), reverse=True)
@@ -2483,7 +2666,16 @@ def get_faculty_report(db: Session, user_id: int, report_type: str,
         if not class_id:
             return []
         handler = FACULTY_CLASS_REPORTS[report_type]
-        return handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
+        rows = handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
+        
+        # Filter Break Abuse to only show 'Extended' status
+        if report_type == "BREAK_ABUSE":
+            rows = [r for r in rows if r.get("status") == "Extended"]
+            # Re-index because we filtered the list
+            for i, r in enumerate(rows, 1):
+                r["id"] = i
+                
+        return rows
     elif report_type in FACULTY_PERSONAL_REPORTS:
         handler = FACULTY_PERSONAL_REPORTS[report_type]
         return handler(db, user_id, date_from or "2020-01-01", date_to or "2099-12-31")
@@ -2764,10 +2956,10 @@ def _build_student_rows(logs):
         rows.append({
             "id": i,
             "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
-            "col2": f"{log.class_.subject.code if (log.class_ and log.class_.subject) else '—'} ({log.class_.room if log.class_ else '—'})",
+            "col2": f"{log.class_.room or '—'} | {log.class_.subject.code if (log.class_ and log.class_.subject) else '—'}" if log.class_ else "—",
             "status": status,
             "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "remarks": log.remarks or "",
         })
     return rows
 def _build_student_absent_rows(

@@ -16,14 +16,30 @@ const DeptHeadStatItem = ({ title, value, subValue, onClick }) => (
 );
 
 // --- SVG LINE CHART ---
-const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView }) => {
+const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView, user, rooms }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL');
+    const [selectedClassId, setSelectedClassId] = useState('');
 
     const chartData = useMemo(() => {
         const safeLogs = logs || [];
         const now = new Date();
         const dataPoints = [];
+
+        // Filter logs based on trendView
+        const filteredLogs = safeLogs.filter(l => {
+            if (trendView === 'personal') {
+                return l.user_id === user?.id;
+            }
+            if (trendView === 'classroom') {
+                if (!selectedClassId) return true; // Show all if none selected
+                return l.class_id === parseInt(selectedClassId);
+            }
+            if (trendView === 'faculty') {
+                return true; 
+            }
+            return true;
+        });
 
         if (filter === 'weekly') {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -32,7 +48,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                 d.setDate(d.getDate() - i);
                 const dayStr = days[d.getDay()];
                 const dateStr = d.toLocaleDateString();
-                const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
+                const dayLogs = filteredLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
                 dataPoints.push({
                     label: dayStr,
                     present: dayLogs.filter(l => !l.is_late && (l.event_type === 'entry' || l.event_type === 'attendance_in')).length,
@@ -81,7 +97,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
             });
         }
         return dataPoints;
-    }, [logs, filter]);
+    }, [logs, filter, trendView, user, selectedClassId]);
 
     const viewLabels = { department: 'Department', faculty: 'Faculty', personal: 'Personal', classroom: 'Classroom' };
     const trendLabel = viewLabels[trendView] || 'Department';
@@ -123,6 +139,18 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                         <option value="personal">Personal</option>
                         <option value="classroom">Classroom</option>
                     </select>
+                    {trendView === 'classroom' && (
+                        <select 
+                            value={selectedClassId} 
+                            onChange={(e) => setSelectedClassId(e.target.value)} 
+                            className="fd-select"
+                        >
+                            <option value="">All Rooms</option>
+                            {(rooms || []).map((r, idx) => (
+                                <option key={idx} value={r.class_id}>{r.room} - {r.subject_code}</option>
+                            ))}
+                        </select>
+                    )}
                     <div className="fd-pill-group">
                         {['weekly', 'monthly', 'semestral'].map(t => (
                             <button key={t} className={`fd-pill ${filter === t ? 'active' : ''}`} onClick={() => setFilter(t)}>
@@ -630,7 +658,7 @@ const DeptHeadDashboardPage = () => {
             {/* ===== MAIN CONTENT ===== */}
             <div className="fd-main-grid">
                 <DeptHeadLiveStatus rooms={liveRooms} personalStatus={personalStatus} />
-                <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} />
+                <AttendanceTrendChart logs={allLogs} filter={chartFilter} setFilter={setChartFilter} trendView={trendView} setTrendView={setTrendView} user={user} />
             </div>
 
             <div className="dh-bottom-section">
