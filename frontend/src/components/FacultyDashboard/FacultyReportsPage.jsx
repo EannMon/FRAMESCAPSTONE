@@ -33,6 +33,18 @@ const reportOptions = [
 
 // Column configurations per report type
 const getColumnConfig = (reportType) => {
+    if (reportType === 'PERSONAL_CONSISTENCY' || reportType === 'PERSONAL_SEMESTER') {
+        return {
+            headers: ['ID', 'Date Coverage', 'Subject / Room', 'Status', 'Session Summary', 'Contact / Remarks'],
+            keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
+        };
+    }
+    if (reportType === 'PARTICIPATION_INSIGHT') {
+        return {
+            headers: ['ID', 'Student Name', 'Performance Score', 'Stability Status', 'Attendance Summary', 'Student ID'],
+            keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
+        };
+    }
     const isPersonal = reportType.startsWith('PERSONAL') || reportType === 'HISTORY_30D' || reportType === 'INSTRUCTOR_DELAY';
     if (isPersonal) {
         return {

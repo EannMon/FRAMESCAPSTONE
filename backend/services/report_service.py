@@ -6,13 +6,17 @@ that the frontend report pages expect.
 """
 import logging
 import threading
+import math
+from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime, date, time, timezone, timedelta
+from datetime import datetime as dt
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, case, and_, extract
+from sqlalchemy import func, case, and_, or_, extract
 
 from models.attendance_log import AttendanceLog, AttendanceAction
 from models.class_ import Class
+from models.department import Department
 from models.user import User, UserRole
 from models.enrollment import Enrollment
 from models.subject import Subject
@@ -43,7 +47,9 @@ _student_report_cache_lock = threading.Lock()
 def _normalize_room(room: str):
     if not room:
         return None
-    normalized = room.strip().lower()
+    # Convert 'Room 123' or 'room 123' to just '123'
+    # Then lowercase and strip for consistent database comparison
+    normalized = room.lower().replace("room", "").strip()
     return normalized or None
 
 
@@ -51,7 +57,14 @@ def _apply_room_filter(query, room_column, room: str):
     normalized = _normalize_room(room)
     if not normalized:
         return query
-    return query.filter(func.lower(func.trim(room_column)) == normalized)
+    # Check for direct match or numeric-only version in DB
+    # Handles both '123' and 'Room 123' in the database records
+    return query.filter(
+        or_(
+            func.lower(func.trim(room_column)) == normalized,
+            func.lower(func.trim(room_column)) == f"room {normalized}"
+        )
+    )
 
 
 def _department_faculty_ids(db: Session, dept_id: int):
@@ -69,17 +82,32 @@ def _department_faculty_ids(db: Session, dept_id: int):
 
 
 def _build_row_session_reference(rows, window_from: str, window_to: str):
+    """
+    Build session counts and activity references directly from the filtered report rows.
+    Ensures that Session Count Reference and trends update every time the report filter changes.
+    """
     total_rows = len(rows)
+    # Define success tokens for consistent calculation across all report types
+    success_tokens = [
+        "present", "entered", "entry", "on time", "good", "excellent", 
+        "active", "peak", "late", "normal", "high", "moderate"
+    ]
+    
     attended = 0
+    late_count = 0
     for row in rows:
         status = str(row.get("status", "")).strip().lower()
-        if any(token in status for token in ["present", "entered", "entry", "on time", "good", "excellent", "active", "peak", "late"]):
+        if any(token in status for token in success_tokens):
             attended += 1
+        if "late" in status:
+            late_count += 1
 
     report_window = {
         "attended": attended,
         "conducted": total_rows,
         "expected": total_rows,
+        "late_count": late_count,
+        "punctuality_rate": round(((attended - late_count) / max(attended, 1)) * 100, 1) if attended > 0 else 0,
         "date_from": window_from,
         "date_to": window_to,
     }
@@ -93,6 +121,12 @@ def _build_row_session_reference(rows, window_from: str, window_to: str):
             "semester_start_date": window_from,
             "semester_end_date": window_to,
         },
+        "activity_trend": {
+            "total_records": total_rows,
+            "success_rate": round((attended / max(total_rows, 1)) * 100, 1),
+            "is_stale": False,
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        }
     }
 
 
@@ -158,36 +192,91 @@ def _set_cached_student_report(cache_key: str, value: dict):
 
 def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Daily attendance entries for a specific class within date range."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(500)
         .all()
     )
     rows = []
-    for i, (log, user) in enumerate(logs, 1):
+    seen = set()
+    for log, user in logs:
+        # Deduplication to catch same-day duplicate entries
+        log_dt = log.timestamp.date() if (hasattr(log, 'timestamp') and log.timestamp) else None
+        log_id_user = getattr(log, 'user_id', None)
+        log_id_class = getattr(log, 'class_id', None)
+        log_id_action = getattr(log, 'action', None)
+        log_key = (log_id_user, log_id_class, log_dt, log_id_action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        i = len(rows) + 1
+        # Aggressive deduplication by user, room, subject, and date
+        cls = getattr(log, 'class_', None)
+        raw_rm = getattr(cls, 'room', 'Unknown')
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = getattr(cls, 'subject_id', None)
+        log_dt = log.timestamp.date() if (hasattr(log, 'timestamp') and log.timestamp) else None
+        
+        # Unique key for (User + Room + Subject + Date + Action)
+        log_key = (getattr(log, 'user_id', None), rm, subj_id, log_dt, getattr(log, 'action', None))
+        if log_key in seen: continue
+        seen.add(log_key)
+        i = len(rows) + 1
         status = log.action.value if log.action else "UNKNOWN"
         if log.is_late and log.action == AttendanceAction.ENTRY:
             status = "LATE"
+            
         rows.append({
             "id": i,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
             "status": status,
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "",
         })
     return rows
 
 
 def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Students enrolled but with no ENTRY log in date range — likely absent."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     enrolled = (
         db.query(Enrollment, User)
         .join(User, Enrollment.student_id == User.id)
@@ -199,8 +288,8 @@ def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: s
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .distinct()
         .all()
@@ -212,15 +301,31 @@ def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: s
                 "id": i,
                 "col1": user.full_name,
                 "col2": user.tupm_id or "—",
-                "status": "ABSENT",
+                "status": "Absent",
                 "col3": "No entry recorded",
-                "remarks": f"Enrolled but no attendance in range",
+                "remarks": "",
             })
     return rows
 
 
 def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Students who had late entries."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
@@ -228,28 +333,57 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(500)
         .all()
     )
     rows = []
+    seen = set()
     for i, (log, user) in enumerate(logs, 1):
+        # Aggressive deduplication: User + Room + Subject + Date + Action
+        cls = log.class_
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (user.id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        
         rows.append({
             "id": i,
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
-            "status": "LATE",
-            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "status": "Late",
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "", # Revert to actual remarks
         })
     return rows
 
 
 def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Per-student semester summary: total entries, late count, attendance rate."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     enrolled = (
         db.query(Enrollment, User)
         .join(User, Enrollment.student_id == User.id)
@@ -260,65 +394,236 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
     if not student_ids:
         return []
 
-    # Batch: count entries and late entries per student
-    entry_counts = dict(
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+    logs = (
+        db.query(AttendanceLog, User)
+        .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id)
-        .all()
-    )
-    late_counts = dict(
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
-        .filter(
-            AttendanceLog.class_id == class_id,
-            AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.is_late == True,
-            AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
-        )
-        .group_by(AttendanceLog.user_id)
         .all()
     )
 
+    # Aggressive deduplication: User + Room + Subject + Date + Action
+    seen = set()
+    cleaned_logs = []
+    for log, user in logs:
+        cls = log.class_
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (user.id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        cleaned_logs.append((log, user))
+
+    # Batch: count entries and late entries per student using deduplicated set
+    entry_counts = defaultdict(int)
+    late_counts = defaultdict(int)
+    
+    for log, user in cleaned_logs:
+        if log.action == AttendanceAction.ENTRY:
+            entry_counts[user.id] += 1
+            if log.is_late:
+                late_counts[user.id] += 1
+
     rows = []
     for i, (enrl, user) in enumerate(enrolled, 1):
-        entries = entry_counts.get(user.id, 0)
-        lates = late_counts.get(user.id, 0)
+        entries = entry_counts[user.id]
+        lates = late_counts[user.id]
         on_time = entries - lates
+        
+        # Calculate Mock Score and Avg
+        score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
+        avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
+        
         status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+        
+        # Check for any 'not in class' remarks in logs for this student
+        not_in_class_flag = False
+        other_remarks = []
+        for log, _ in cleaned_logs:
+            if log.user_id == user.id:
+                if log.remarks:
+                    if "not in class" in log.remarks.lower():
+                        not_in_class_flag = True
+                    # Always include the full remark for context
+                    other_remarks.append(log.remarks)
+
+        final_remarks = ""
+        if not_in_class_flag and not any("not in class" in r.lower() for r in other_remarks):
+             # This case shouldn't happen with the logic above, but for safety:
+             other_remarks.insert(0, "Not in Class")
+             
+        final_remarks = ", ".join(dict.fromkeys(other_remarks)) # deduplicate while preserving order
+
         rows.append({
             "id": i,
             "col1": user.full_name,
-            "col2": f"Entries: {entries}",
+            "col2": user.tupm_id or "—",
             "status": status,
-            "col3": f"On-time: {on_time} | Late: {lates}",
-            "remarks": user.tupm_id or "—",
+            "col3": f"Score: {score}/100 | Entries: {entries}",
+            "remarks": final_remarks,
         })
     return rows
 
 
 def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: str):
-    """Monthly aggregation — same as semester but labeled monthly."""
-    return _class_semester_report(db, class_id, date_from, date_to)
+    """Monthly aggregation — per-student attendance grouped by calendar month."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
+    enrolled = (
+        db.query(Enrollment, User)
+        .join(User, Enrollment.student_id == User.id)
+        .filter(Enrollment.class_id == class_id)
+        .all()
+    )
+    student_ids = [e.student_id for e, _ in enrolled]
+    if not student_ids:
+        return []
+
+    logs = (
+        db.query(AttendanceLog, User)
+        .join(User, AttendanceLog.user_id == User.id)
+        .filter(
+            AttendanceLog.class_id == class_id,
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.user_id.in_(student_ids),
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+        .all()
+    )
+
+    # Aggressive deduplication: User + Room + Subject + Date + Action
+    seen = set()
+    cleaned_logs = []
+    for log, user in logs:
+        cls = log.class_
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (user.id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        cleaned_logs.append((log, user))
+
+    # Build lookup dicts keyed by (user_id, year, month)
+    entry_lookup = defaultdict(int)
+    late_lookup = defaultdict(int)
+    all_months = set()
+
+    for log, user in cleaned_logs:
+        yr = log.timestamp.year
+        mo = log.timestamp.month
+        all_months.add((yr, mo))
+        
+        key = (user.id, yr, mo)
+        entry_lookup[key] += 1
+        if log.is_late:
+            late_lookup[key] += 1
+
+    # Sorted list of unique months
+    sorted_months = sorted(list(all_months))
+    if not sorted_months:
+        return []
+
+    MONTH_NAMES = [
+        "", "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ]
+
+    rows = []
+    row_id = 1
+    for yr, mo in sorted_months:
+        month_label = f"{MONTH_NAMES[mo]} {yr}"
+        for enrl, user in enrolled:
+            entries = entry_lookup.get((user.id, yr, mo), 0)
+            if entries == 0:
+                continue  # Skip students with no entries in this month
+            lates = late_lookup.get((user.id, yr, mo), 0)
+            on_time = entries - lates
+            
+            score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
+            avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
+            
+            status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+            
+            # Check for any 'not in class' remarks in logs for this student/month
+            not_in_class_flag = False
+            other_remarks = []
+            for log, _ in cleaned_logs:
+                if log.user_id == user.id:
+                    yr_log = log.timestamp.year
+                    mo_log = log.timestamp.month
+                    if yr_log == yr and mo_log == mo and log.remarks:
+                        if "not in class" in log.remarks.lower():
+                            not_in_class_flag = True
+                        other_remarks.append(log.remarks)
+
+            final_remarks = ", ".join(dict.fromkeys(other_remarks)) if other_remarks else ""
+
+            rows.append({
+                "id": row_id,
+                "col1": user.full_name,
+                "col2": user.tupm_id or "—",
+                "status": status,
+                "col3": f"Score: {score}/100 | Entries: {entries}",
+                "remarks": final_remarks,
+            })
+            row_id += 1
+    return rows
 
 
 def _break_duration_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Break analysis — pairs BREAK_OUT→BREAK_IN to compute duration per break."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action.in_([AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN]),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.user_id, AttendanceLog.timestamp)
         .all()
@@ -328,35 +633,63 @@ def _break_duration_report(db: Session, class_id: int, date_from: str, date_to: 
     from itertools import groupby
     rows = []
     row_id = 1
-    for user_id, user_logs in groupby(logs, key=lambda x: x[0].user_id):
+    # Sort logs locally to ensure strictly chronological pairing per user
+    log_list = sorted(list(logs), key=lambda x: (x[0].user_id, x[0].timestamp))
+    
+    for user_id, user_logs in groupby(log_list, key=lambda x: x[0].user_id):
         pending_out = None
         for log, user in user_logs:
             if log.action == AttendanceAction.BREAK_OUT:
+                # If we already have a pending out, report it as 'No Return' before taking new one
+                if pending_out:
+                    po_log, po_user = pending_out
+                    rows.append({
+                        "id": row_id,
+                        "col1": po_user.full_name,
+                        "col2": po_user.tupm_id or "—",
+                        "status": "No Return",
+                        "col3": f"Left at {po_log.timestamp.strftime('%I:%M %p')}, did not return",
+                        "remarks": "—",
+                    })
+                    row_id += 1
                 pending_out = (log, user)
-            elif log.action == AttendanceAction.BREAK_IN and pending_out:
-                out_log, out_user = pending_out
-                duration_min = (log.timestamp - out_log.timestamp).total_seconds() / 60
-                status = "Extended" if duration_min > 15 else "Normal"
-                rows.append({
-                    "id": row_id,
-                    "col1": user.full_name,
-                    "col2": out_log.timestamp.strftime("%Y-%m-%d %I:%M %p"),
-                    "status": status,
-                    "col3": f"{duration_min:.0f} min",
-                    "remarks": f"Out: {out_log.timestamp.strftime('%I:%M %p')} → In: {log.timestamp.strftime('%I:%M %p')}",
-                })
-                row_id += 1
-                pending_out = None
-        # Unpaired BREAK_OUT (never returned)
+            elif log.action == AttendanceAction.BREAK_IN:
+                if pending_out:
+                    out_log, out_user = pending_out
+                    duration_min = (log.timestamp - out_log.timestamp).total_seconds() / 60
+                    status = "Extended" if duration_min > 15 else "Normal"
+                    rows.append({
+                        "id": row_id,
+                        "col1": user.full_name,
+                        "col2": user.tupm_id or "—",
+                        "status": status,
+                        "col3": f"{duration_min:.0f} min",
+                        "remarks": f"Out: {out_log.timestamp.strftime('%I:%M %p')} → In: {log.timestamp.strftime('%I:%M %p')}",
+                    })
+                    row_id += 1
+                    pending_out = None
+                else:
+                    # BREAK_IN with no preceding BREAK_OUT
+                    rows.append({
+                        "id": row_id,
+                        "col1": user.full_name,
+                        "col2": user.tupm_id or "—",
+                        "status": "Incomplete",
+                        "col3": "—",
+                        "remarks": f"Returned at {log.timestamp.strftime('%I:%M %p')} (no record of leaving)",
+                    })
+                    row_id += 1
+        
+        # Unpaired BREAK_OUT at end of user's log stream
         if pending_out:
             out_log, out_user = pending_out
             rows.append({
                 "id": row_id,
                 "col1": out_user.full_name,
-                "col2": out_log.timestamp.strftime("%Y-%m-%d %I:%M %p"),
+                "col2": out_user.tupm_id or "—",
                 "status": "No Return",
-                "col3": "—",
-                "remarks": f"Left at {out_log.timestamp.strftime('%I:%M %p')}, did not return",
+                "col3": f"Left at {out_log.timestamp.strftime('%I:%M %p')}, did not return",
+                "remarks": "—",
             })
             row_id += 1
     return rows
@@ -364,21 +697,44 @@ def _break_duration_report(db: Session, class_id: int, date_from: str, date_to: 
 
 def _early_exits_report(db: Session, class_id: int, date_from: str, date_to: str):
     """EXIT logs for the class — could indicate early departure."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.EXIT,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(500)
         .all()
     )
     rows = []
-    for i, (log, user) in enumerate(logs, 1):
+    seen = set()
+    for log, user in logs:
+        # Deduplication based on date to catch rapid taps
+        log_date = log.timestamp.date() if log.timestamp else None
+        log_key = (log.user_id, log.class_id, log_date, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        i = len(rows) + 1
         rows.append({
             "id": i,
             "col1": user.full_name,
@@ -392,6 +748,22 @@ def _early_exits_report(db: Session, class_id: int, date_from: str, date_to: str
 
 def _participation_insight_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Class participation consistency — per-student stability score (0-100)."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     enrolled = (
         db.query(Enrollment, User)
         .join(User, Enrollment.student_id == User.id)
@@ -413,8 +785,8 @@ def _participation_insight_report(db: Session, class_id: int, date_from: str, da
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .distinct()
         .all()
@@ -426,8 +798,8 @@ def _participation_insight_report(db: Session, class_id: int, date_from: str, da
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .distinct()
         .all()
@@ -449,8 +821,8 @@ def _participation_insight_report(db: Session, class_id: int, date_from: str, da
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.user_id)
         .all()
@@ -492,6 +864,22 @@ def _participation_insight_report(db: Session, class_id: int, date_from: str, da
 
 def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Punctuality index — ranks students by average arrival time vs class start."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     cls = db.query(Class).filter(Class.id == class_id).first()
     if not cls or not cls.start_time:
         return []
@@ -514,8 +902,8 @@ def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_t
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.user_id.in_(student_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .all()
     )
@@ -542,27 +930,27 @@ def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_t
         rows.append({
             "id": 0,
             "col1": user.full_name,
-            "col2": f"Avg: {avg_offset:+.1f} min",
+            "col2": user.tupm_id or "—", # TUPM-ID column
             "status": "On Time" if avg_offset <= 0 else ("Slightly Late" if avg_offset <= 10 else "Late"),
-            "col3": f"Score: {score}/100 | Entries: {entries}",
-            "remarks": user.tupm_id or "—",
+            "col3": f"Avg: {avg_offset:+.1f} min", # Time column
+            "remarks": f"Score: {score}/100 | Entries: {entries}", # Summary column
         })
 
     # Add students with no entries
     present_ids = set(offsets.keys())
-    for e, user in enrolled:
+    for enrl, user in enrolled:
         if user.id not in present_ids:
             rows.append({
                 "id": 0,
                 "col1": user.full_name,
-                "col2": "No entries",
+                "col2": user.tupm_id or "—",
                 "status": "Absent",
-                "col3": "Score: 0/100 | Entries: 0",
-                "remarks": user.tupm_id or "—",
+                "col3": "No entries",
+                "remarks": "Score: 0/100 | Entries: 0",
             })
 
-    # Sort by score descending (extract from col3)
-    rows.sort(key=lambda r: float(r['col3'].split('Score: ')[1].split('/')[0]), reverse=True)
+    # Sort by score descending (extract from remarks instead of col3)
+    rows.sort(key=lambda r: float(r['remarks'].split('Score: ')[1].split('/')[0]), reverse=True)
     for i, row in enumerate(rows, 1):
         row['id'] = i
     return rows
@@ -570,6 +958,22 @@ def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_t
 
 def _unrecognized_logs_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Logs with low confidence scores — potential unrecognized individuals."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     CONFIDENCE_THRESHOLD = 0.5
     logs = (
         db.query(AttendanceLog, User)
@@ -577,15 +981,22 @@ def _unrecognized_logs_report(db: Session, class_id: int, date_from: str, date_t
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.confidence_score < CONFIDENCE_THRESHOLD,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(500)
         .all()
     )
     rows = []
-    for i, (log, user) in enumerate(logs, 1):
+    seen = set()
+    for log, user in logs:
+        # Deduplication based on date to catch rapid taps
+        log_date = log.timestamp.date() if log.timestamp else None
+        log_key = (log.user_id, log.class_id, log_date, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        i = len(rows) + 1
         rows.append({
             "id": i,
             "col1": user.full_name,
@@ -608,6 +1019,22 @@ def _unrecognized_logs_report(db: Session, class_id: int, date_from: str, date_t
 
 def _attendance_inconsistency_report(db: Session, class_id: int, date_from: str, date_to: str):
     """Students who have BREAK events but no ENTRY on the same day."""
+    cls_obj = db.query(Class).filter(Class.id == class_id).first()
+    dept_id = cls_obj.faculty.department_id if (cls_obj and cls_obj.faculty) else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     # Get all break events with their dates
     break_events = (
         db.query(
@@ -617,8 +1044,8 @@ def _attendance_inconsistency_report(db: Session, class_id: int, date_from: str,
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action.in_([AttendanceAction.BREAK_OUT, AttendanceAction.BREAK_IN]),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .distinct()
         .all()
@@ -633,8 +1060,8 @@ def _attendance_inconsistency_report(db: Session, class_id: int, date_from: str,
         .filter(
             AttendanceLog.class_id == class_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .distinct()
         .all()
@@ -677,6 +1104,22 @@ def _attendance_inconsistency_report(db: Session, class_id: int, date_from: str,
 
 def _personal_consistency_report(db: Session, user_id: int, date_from: str, date_to: str):
     """Personal consistency index — 0-100 score based on attendance regularity."""
+    user_obj = db.query(User).filter(User.id == user_id).first()
+    dept_id = user_obj.department_id if user_obj else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject))
@@ -703,28 +1146,34 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
 
     class_ids = [c.id for c in classes]
 
-    # Get attendance counts per class
+    # Get attendance counts per class (deduplicated by Date/User/Class)
     entry_counts = dict(
-        db.query(AttendanceLog.class_id, func.count(AttendanceLog.id))
+        db.query(
+            AttendanceLog.class_id,
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+        )
         .filter(
             AttendanceLog.user_id == user_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.class_id.in_(class_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.class_id)
         .all()
     )
     late_counts = dict(
-        db.query(AttendanceLog.class_id, func.count(AttendanceLog.id))
+        db.query(
+            AttendanceLog.class_id,
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+        )
         .filter(
             AttendanceLog.user_id == user_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
             AttendanceLog.class_id.in_(class_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.class_id)
         .all()
@@ -739,8 +1188,8 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
         .filter(
             AttendanceLog.class_id.in_(class_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.class_id)
         .all()
@@ -751,8 +1200,12 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
         entries = entry_counts.get(cls.id, 0)
         lates = late_counts.get(cls.id, 0)
         total_sessions = session_counts.get(cls.id, 1)
-        attendance_rate = (entries / max(total_sessions, 1)) * 100
+        # Cap entries at total_sessions to ensure 100% max attendance rate per subject
+        capped_entries = min(entries, total_sessions)
+        
+        attendance_rate = (capped_entries / max(total_sessions, 1)) * 100
         punctuality_rate = ((entries - lates) / max(entries, 1)) * 100
+        
         score = round((attendance_rate * 0.7) + (punctuality_rate * 0.3), 1)
         score = max(0, min(100, score))
         subj = cls.subject
@@ -766,11 +1219,11 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
             status = "At Risk"
         rows.append({
             "id": i,
-            "col1": f"{subj.code} - {subj.title}" if subj else "—",
-            "col2": f"Score: {score}/100",
+            "col1": f"{subj.code if subj else '—'} - {subj.title if subj else '—'}",
+            "col2": cls.room or "—",
             "status": status,
-            "col3": f"Attended: {entries}/{total_sessions} | Late: {lates}",
-            "remarks": cls.room or "—",
+            "col3": f"On-time: {entries - lates} | Late: {lates}",
+            "remarks": f"Entries: {entries}",
         })
     return rows
 
@@ -781,41 +1234,54 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
 
 def _personal_attendance_report(db: Session, user_id: int, date_from: str, date_to: str):
     """Faculty's own attendance logs within date range."""
+    user = db.query(User).filter(User.id == user_id).first()
+    dept = db.query(Department).filter(Department.id == user.department_id).first() if user else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog)
         .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
         .filter(
             AttendanceLog.user_id == user_id,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(500)
         .all()
     )
-    rows = []
-    for i, log in enumerate(logs, 1):
-        subject_name = "—"
-        room = "—"
-        if log.class_ and log.class_.subject:
-            subject_name = f"{log.class_.subject.code} - {log.class_.subject.title}"
-            room = log.class_.room or "—"
-        status = log.action.value if log.action else "UNKNOWN"
-        if log.is_late and log.action == AttendanceAction.ENTRY:
-            status = "LATE"
-        rows.append({
-            "id": i,
-            "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
-            "col2": f"{subject_name} ({room})",
-            "status": status,
-            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
-        })
-    return rows
+    return _build_student_rows(logs)
 
 
 def _personal_semester_report(db: Session, user_id: int, date_from: str, date_to: str):
     """Faculty semester summary — total entries, lates, by class."""
+    user_obj = db.query(User).filter(User.id == user_id).first()
+    dept_id = user_obj.department_id if user_obj else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject))
@@ -827,26 +1293,32 @@ def _personal_semester_report(db: Session, user_id: int, date_from: str, date_to
 
     class_ids = [c.id for c in classes]
     entry_counts = dict(
-        db.query(AttendanceLog.class_id, func.count(AttendanceLog.id))
+        db.query(
+            AttendanceLog.class_id,
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+        )
         .filter(
             AttendanceLog.user_id == user_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.class_id.in_(class_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.class_id)
         .all()
     )
     late_counts = dict(
-        db.query(AttendanceLog.class_id, func.count(AttendanceLog.id))
+        db.query(
+            AttendanceLog.class_id,
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+        )
         .filter(
             AttendanceLog.user_id == user_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
             AttendanceLog.class_id.in_(class_ids),
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.class_id)
         .all()
@@ -860,16 +1332,32 @@ def _personal_semester_report(db: Session, user_id: int, date_from: str, date_to
         rows.append({
             "id": i,
             "col1": f"{subj.code} - {subj.title}" if subj else "—",
-            "col2": f"Entries: {entries}",
+            "col2": cls.room or "—",
             "status": "Good" if lates == 0 else "Warning",
             "col3": f"On-time: {entries - lates} | Late: {lates}",
-            "remarks": cls.room or "—",
+            "remarks": f"Entries: {entries}",
         })
     return rows
 
 
 def _instructor_delay_report(db: Session, user_id: int, date_from: str, date_to: str):
     """Times the instructor arrived late."""
+    user_obj = db.query(User).filter(User.id == user_id).first()
+    dept_id = user_obj.department_id if user_obj else None
+    dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     logs = (
         db.query(AttendanceLog)
         .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
@@ -877,25 +1365,34 @@ def _instructor_delay_report(db: Session, user_id: int, date_from: str, date_to:
             AttendanceLog.user_id == user_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .order_by(AttendanceLog.timestamp.desc())
         .limit(200)
         .all()
     )
     rows = []
-    for i, log in enumerate(logs, 1):
+    seen = set()
+    for log in logs:
+        # Deduplicate: User + Class + Date
+        log_dt = log.timestamp.date() if log.timestamp else None
+        log_key = (log.user_id, log.class_id, log_dt)
+        if log_key in seen: continue
+        seen.add(log_key)
+
         subj = "—"
         if log.class_ and log.class_.subject:
             subj = log.class_.subject.code
+            
+        i = len(rows) + 1
         rows.append({
             "id": i,
             "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
-            "col2": subj,
+            "col2": f"{subj} - {log.class_.room if log.class_ else 'Unknown'}",
             "status": "LATE",
             "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "Late arrival",
+            "remarks": log.remarks or "Arrived Late",
         })
     return rows
 
@@ -906,12 +1403,26 @@ def _instructor_delay_report(db: Session, user_id: int, date_from: str, date_to:
 
 def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Summary of all faculty attendance in the department."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     from models.user import VerificationStatus
     faculty = (
         db.query(User)
         .filter(
             User.department_id == dept_id,
-            User.role == UserRole.FACULTY,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
             User.verification_status == VerificationStatus.VERIFIED,
         )
         .all()
@@ -921,35 +1432,37 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
 
     faculty_ids = [f.id for f in faculty]
     entry_query = (
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+        db.query(AttendanceLog.user_id, func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))))
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
         entry_query = _apply_room_filter(
-            entry_query.join(Class, AttendanceLog.class_id == Class.id),
+            entry_query,
             Class.room,
             room,
         )
     entry_counts = dict(entry_query.group_by(AttendanceLog.user_id).all())
 
     late_query = (
-        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+        db.query(AttendanceLog.user_id, func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))))
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
         late_query = _apply_room_filter(
-            late_query.join(Class, AttendanceLog.class_id == Class.id),
+            late_query,
             Class.room,
             room,
         )
@@ -962,55 +1475,108 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
         status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 3 else "Present")
         if entries == 0:
             status = "No Data"
+            
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
             "col1": fac.full_name,
             "col2": f"Entries: {entries}",
             "status": status,
             "col3": f"On-time: {entries - lates} | Late: {lates}",
-            "remarks": fac.email or "—",
+            "remarks": final_remarks,
         })
     return rows
 
 
 def _faculty_late_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Faculty late entries in department."""
-    from models.user import VerificationStatus
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     query = (
         db.query(AttendanceLog, User)
         .join(User, AttendanceLog.user_id == User.id)
+        .join(Class, AttendanceLog.class_id == Class.id)
+        .options(joinedload(AttendanceLog.class_).joinedload(Class.subject))
         .filter(
             User.department_id == dept_id,
             User.role == UserRole.FACULTY,
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
         query = _apply_room_filter(
-            query.join(Class, AttendanceLog.class_id == Class.id),
+            query,
             Class.room,
             room,
         )
     logs = query.order_by(AttendanceLog.timestamp.desc()).limit(500).all()
 
     rows = []
-    for i, (log, user) in enumerate(logs, 1):
+    seen = set()
+    for log, user in logs:
+        # Aggressive deduplication: User + Class + Date
+        # A person can only be late ONCE per class per day
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME user/class on SAME day
+        log_key = (log.user_id, log.class_id, log_dt)
+        if log_key in seen: continue
+        seen.add(log_key)
+        
+        i = len(rows) + 1
         rows.append({
             "id": i,
-            "col1": user.full_name,
-            "col2": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
+            "col1": f"{user.first_name} {user.last_name}",
+            "col2": f"{log.class_.subject.code} - {log.class_.room}",
             "status": "LATE",
-            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
-            "remarks": log.remarks or "—",
+            "col3": log.timestamp.strftime("%Y-%m-%d %I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "Arrived Late",
         })
     return rows
-
-
 def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Room occupancy — entry count per room."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     query = (
         db.query(Class.room, func.count(AttendanceLog.id))
         .join(AttendanceLog, AttendanceLog.class_id == Class.id)
@@ -1018,8 +1584,8 @@ def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: s
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
@@ -1042,6 +1608,19 @@ def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: s
 def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Room utilization — compares actual attendance against scheduled class sessions."""
     # Get scheduled classes per room
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
     query = (
         db.query(Class)
         .join(User, Class.faculty_id == User.id)
@@ -1058,14 +1637,8 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
         return []
 
     # Calculate expected sessions per room in date range
-    from datetime import datetime as dt
-    try:
-        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
-        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        d_from = date(2020, 1, 1)
-        d_to = date(2099, 12, 31)
-
+    faculty_map = {u.id: u for u in db.query(User).filter(User.department_id == dept_id).all()}
+    
     DAY_MAP = {
         "Monday": 0, "Tuesday": 1, "Wednesday": 2,
         "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6,
@@ -1080,7 +1653,12 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
             continue
         # Count matching days in range
         sessions = 0
-        current = d_from
+        fac = faculty_map.get(cls.faculty_id)
+        if not fac: continue
+        fac_reg = fac.created_at.date() if fac.created_at else d_from
+        effective_start = max(d_from, fac_reg)
+        
+        current = effective_start
         while current <= d_to:
             if current.weekday() == target_day:
                 sessions += 1
@@ -1098,8 +1676,8 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
@@ -1109,21 +1687,56 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
     rows = []
     for i, (rm, expected) in enumerate(sorted(room_expected.items()), 1):
         actual = actual_counts.get(rm, 0)
-        utilization = round((actual / max(expected, 1)) * 100, 1)
+        # Ratio of actual vs expected sessions
+        util_ratio = (actual / max(expected, 1)) * 100
+        # Cap at 100 for proper percentage display
+        utilization = round(min(util_ratio, 100), 1)
+        
         status = "High" if utilization > 75 else ("Moderate" if utilization > 40 else "Low")
+        
+        # Strip "Room" or prefix for clean numeric display if desired
+        display_name = rm.lower().replace("room", "").strip().title() if rm else "Unknown"
+
+        # Get all unique remarks for this room in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).join(User, Class.faculty_id == User.id).filter(
+            User.department_id == dept_id,
+            Class.room == rm,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        ).distinct().all()
+        
+        remarks_list = [r[0] for r in all_remarks]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
-            "col1": rm,
+            "col1": display_name,
             "col2": f"Scheduled: {expected} sessions",
             "status": status,
-            "col3": f"Actual: {actual} | Util: {utilization}%",
-            "remarks": f"{room_class_count.get(rm, 0)} classes in room",
+            "col3": f"{utilization}% Utilization",
+            "remarks": final_remarks,
         })
     return rows
 
 
 def _peak_usage_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Peak usage hours — entry count grouped by hour-of-day per room."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     query = (
         db.query(
             Class.room,
@@ -1135,8 +1748,8 @@ def _peak_usage_report(db: Session, dept_id: int, date_from: str, date_to: str, 
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
@@ -1175,6 +1788,20 @@ def _peak_usage_report(db: Session, dept_id: int, date_from: str, date_to: str, 
 
 def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Overcrowding alerts — compares max concurrent entries against room capacity."""
+    # Handle dates
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     # Get max entries per room per day
     query = (
         db.query(
@@ -1187,8 +1814,8 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
@@ -1214,13 +1841,13 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
 
     rows = []
     for i, (rm, max_count) in enumerate(sorted(room_max.items()), 1):
-        capacity = devices.get((rm or "").strip().lower(), 50)
+        capacity = 50
         peak_date = room_max_date.get(rm)
         overcrowded = max_count > capacity
         rows.append({
             "id": i,
             "col1": rm,
-            "col2": f"Max: {max_count} | Capacity: {capacity}",
+            "col2": f"Max: {max_count} | Threshold: {capacity}",
             "status": "OVERCROWDED" if overcrowded else "Normal",
             "col3": peak_date.strftime("%Y-%m-%d") if peak_date else "—",
             "remarks": f"Exceeded by {max_count - capacity}" if overcrowded else "Within capacity",
@@ -1236,6 +1863,20 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
 
 def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Faculty consistency index — attendance trend and regularity per faculty member."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     from models.user import VerificationStatus
     faculty = (
         db.query(User)
@@ -1251,22 +1892,36 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
 
     faculty_ids = [f.id for f in faculty]
 
-    # Get entry counts per faculty per week
-    weekly_entries = (
+    # Get entry counts per faculty per week (DEDUPLICATED)
+    raw_weekly_entries = (
         db.query(
             AttendanceLog.user_id,
-            func.date_trunc('week', AttendanceLog.timestamp).label('week'),
-            func.count(AttendanceLog.id),
+            AttendanceLog.class_id,
+            AttendanceLog.timestamp,
         )
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
-        .group_by(AttendanceLog.user_id, 'week')
         .all()
     )
+    
+    # Deduplicate in-memory to catch room/subject overlaps not caught by class_id alone
+    seen_consistency = set()
+    weekly_entries_counts = defaultdict(lambda: defaultdict(int))
+    for uid, cid, ts in raw_weekly_entries:
+        cls = db.query(Class).filter(Class.id == cid).first()
+        rm = cls.room.strip().lower() if (cls and cls.room) else "unknown"
+        sid = cls.subject_id if cls else None
+        dt_val = ts.date()
+        key = (uid, rm, sid, dt_val)
+        if key in seen_consistency: continue
+        seen_consistency.add(key)
+        
+        week_start = dt_val - timedelta(days=dt_val.weekday())
+        weekly_entries_counts[uid][week_start] += 1
 
     # Get total entries and lates
     entry_counts = dict(
@@ -1274,8 +1929,8 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
         .filter(
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.user_id)
         .all()
@@ -1286,19 +1941,17 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
             AttendanceLog.user_id.in_(faculty_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
             AttendanceLog.is_late == True,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
         .group_by(AttendanceLog.user_id)
         .all()
     )
 
     # Compute weekly variance per faculty (consistency measure)
-    from collections import defaultdict
-    import math
     faculty_weeks = defaultdict(list)
-    for uid, week, count in weekly_entries:
-        faculty_weeks[uid].append(count)
+    for uid, weeks_dict in weekly_entries_counts.items():
+        faculty_weeks[uid] = list(weeks_dict.values())
 
     rows = []
     for i, fac in enumerate(faculty, 1):
@@ -1326,34 +1979,63 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
         else:
             status = "At Risk" if entries > 0 else "No Data"
 
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
         rows.append({
             "id": i,
             "col1": fac.full_name,
             "col2": f"Score: {consistency_score}/100",
             "status": status,
             "col3": f"Entries: {entries} | Late: {lates} | Weeks: {len(weeks)}",
-            "remarks": fac.email or "—",
+            "remarks": final_remarks,
         })
     return rows
 
 
 def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
     """Department-wide activity overview."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
     from models.user import VerificationStatus
     # Count entries by role
     query = (
         db.query(User.role, func.count(AttendanceLog.id))
         .join(AttendanceLog, AttendanceLog.user_id == User.id)
+        .join(Class, AttendanceLog.class_id == Class.id)
         .filter(
             User.department_id == dept_id,
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
-            AttendanceLog.timestamp <= date_to + " 23:59:59",
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
         )
     )
     if room:
         query = _apply_room_filter(
-            query.join(Class, AttendanceLog.class_id == Class.id),
+            query,
             Class.room,
             room,
         )
@@ -1377,6 +2059,554 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
             "col3": "0",
             "remarks": "No attendance records in date range",
         })
+    return rows
+
+
+def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
+    """Attendance rate per faculty — scheduled sessions vs actual entries."""
+    from models.user import VerificationStatus
+    from datetime import datetime as dt
+    faculty = (
+        db.query(User)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+            User.verification_status == VerificationStatus.VERIFIED,
+        )
+        .all()
+    )
+    if not faculty:
+        return []
+
+    faculty_ids = [f.id for f in faculty]
+
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today # Capped at today
+
+    DAY_MAP = {
+        "Monday": 0, "Tuesday": 1, "Wednesday": 2,
+        "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6,
+    }
+
+    # Get all classes per faculty
+    class_query = db.query(Class).filter(Class.faculty_id.in_(faculty_ids))
+    if room:
+        class_query = _apply_room_filter(class_query, Class.room, room)
+    all_classes = class_query.all()
+
+    # Compute expected sessions per faculty
+    faculty_expected = {}
+    faculty_class_count = {}
+    faculty_map = {f.id: f for f in faculty}
+
+    for cls in all_classes:
+        fac = faculty_map.get(cls.faculty_id)
+        if not fac:
+            continue
+        
+        # Faculty-specific start clipping (registration date)
+        fac_reg_date = fac.created_at.date() if fac.created_at else d_from
+        effective_start = max(d_from, fac_reg_date)
+        
+        target_day = DAY_MAP.get(cls.day_of_week)
+        if target_day is None:
+            continue
+        
+        sessions = 0
+        current = effective_start
+        while current <= d_to:
+            if current.weekday() == target_day:
+                sessions += 1
+            current += timedelta(days=1)
+        
+        faculty_expected[cls.faculty_id] = faculty_expected.get(cls.faculty_id, 0) + sessions
+        faculty_class_count[cls.faculty_id] = faculty_class_count.get(cls.faculty_id, 0) + 1
+
+    # Actual entries per faculty (deduplicated by Date/Class)
+    entry_query = (
+        db.query(
+            AttendanceLog.user_id,
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp)))),
+        )
+        .join(Class, AttendanceLog.class_id == Class.id)
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+    )
+    if room:
+        entry_query = _apply_room_filter(
+            entry_query,
+            Class.room,
+            room,
+        )
+    actual_counts = dict(entry_query.group_by(AttendanceLog.user_id).all())
+
+    # Late counts per faculty (deduplicated by Date/Class)
+    late_query = (
+        db.query(
+            AttendanceLog.user_id, 
+            func.count(func.distinct(func.concat(AttendanceLog.user_id, '-', AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+        )
+        .join(Class, AttendanceLog.class_id == Class.id)
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.is_late == True,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+    )
+    if room:
+        late_query = _apply_room_filter(
+            late_query,
+            Class.room,
+            room,
+        )
+    late_counts = dict(late_query.group_by(AttendanceLog.user_id).all())
+
+    rows = []
+    for i, fac in enumerate(faculty, 1):
+        expected = faculty_expected.get(fac.id, 0)
+        actual = actual_counts.get(fac.id, 0)
+        lates = late_counts.get(fac.id, 0)
+        rate = round((actual / max(expected, 1)) * 100, 1)
+        classes_count = faculty_class_count.get(fac.id, 0)
+
+        if expected == 0:
+            status = "No Schedule"
+        elif rate >= 90:
+            status = "Excellent"
+        elif rate >= 75:
+            status = "Good"
+        elif rate >= 50:
+            status = "Warning"
+        else:
+            status = "At Risk"
+
+        # Get all unique remarks for this faculty member in the date range
+        all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+            AttendanceLog.user_id == fac.id,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+            AttendanceLog.remarks != None,
+            AttendanceLog.remarks != ""
+        )
+        if room:
+            all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+        
+        remarks_list = [r[0] for r in all_remarks.distinct().all()]
+        final_remarks = ", ".join(remarks_list) if remarks_list else "—"
+
+        rows.append({
+            "id": i,
+            "col1": fac.full_name,
+            "col2": f"Rate: {rate}% ({actual}/{expected})",
+            "status": status,
+            "col3": f"On-time: {actual - lates} | Late: {lates} | Classes: {classes_count}",
+            "remarks": final_remarks,
+        })
+
+    rows.sort(key=lambda r: float(r['col2'].split('%')[0].split(': ')[1]), reverse=False)
+    for i, row in enumerate(rows, 1):
+        row['id'] = i
+    return rows
+
+
+def _faculty_absence_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
+    """Faculty who missed scheduled classes — no ENTRY on scheduled days."""
+    from models.user import VerificationStatus
+    from datetime import datetime as dt
+    faculty = (
+        db.query(User)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+            User.verification_status == VerificationStatus.VERIFIED,
+        )
+        .all()
+    )
+    if not faculty:
+        return []
+
+    faculty_map = {f.id: f for f in faculty}
+    faculty_ids = list(faculty_map.keys())
+
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today # Capped at today
+
+    DAY_MAP = {
+        "Monday": 0, "Tuesday": 1, "Wednesday": 2,
+        "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6,
+    }
+
+    # Get faculty classes
+    class_query = (
+        db.query(Class)
+        .options(joinedload(Class.subject))
+        .filter(Class.faculty_id.in_(faculty_ids))
+    )
+    if room:
+        class_query = _apply_room_filter(class_query, Class.room, room)
+    all_classes = class_query.all()
+
+    # Get all faculty entry dates
+    log_query = (
+        db.query(
+            AttendanceLog.user_id,
+            func.date(AttendanceLog.timestamp),
+        )
+        .join(Class, AttendanceLog.class_id == Class.id)
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+    )
+    if room:
+        log_query = _apply_room_filter(log_query, Class.room, room)
+    
+    entry_pairs = set(
+        (uid, str(log_day))
+        for uid, log_day in log_query.distinct().all()
+    )
+
+    # Build scheduled sessions and find absences
+    rows = []
+    row_id = 1
+    for cls in all_classes:
+        target_day = DAY_MAP.get(cls.day_of_week)
+        if target_day is None:
+            continue
+        fac = faculty_map.get(cls.faculty_id)
+        if not fac:
+            continue
+        subj = cls.subject
+        fac_reg = fac.created_at.date() if fac.created_at else d_from
+        effective_start = max(d_from, fac_reg)
+        
+        current = effective_start
+        while current <= d_to:
+            if current.weekday() == target_day:
+                day_str = current.isoformat()
+                # Check if faculty had an entry that day (across any class)
+                if (cls.faculty_id, day_str + " 00:00:00") not in entry_pairs and \
+                   (cls.faculty_id, day_str) not in entry_pairs:
+                    # More precise check: look for date prefix match
+                    had_entry = any(
+                        p[0] == cls.faculty_id and p[1].startswith(day_str)
+                        for p in entry_pairs
+                    )
+                    if not had_entry:
+                        rows.append({
+                            "id": row_id,
+                            "col1": fac.full_name,
+                            "col2": f"{subj.code} - {subj.title}" if subj else "—",
+                            "status": "ABSENT",
+                            "col3": day_str,
+                            "remarks": cls.room or "—",
+                        })
+                        row_id += 1
+            current += timedelta(days=1)
+
+    rows.sort(key=lambda r: r['col3'], reverse=True)
+    for i, row in enumerate(rows, 1):
+        row['id'] = i
+
+    if not rows:
+        rows.append({
+            "id": 1,
+            "col1": "No absences found",
+            "col2": "—",
+            "status": "Clear",
+            "col3": "—",
+            "remarks": "All faculty attended their scheduled sessions",
+        })
+    return rows
+
+
+def _faculty_punctuality_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
+    """Faculty punctuality index — ranks faculty by average arrival offset from class start."""
+    from models.user import VerificationStatus
+    from collections import defaultdict
+    faculty = (
+        db.query(User)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+            User.verification_status == VerificationStatus.VERIFIED,
+        )
+        .all()
+    )
+    if not faculty:
+        return []
+
+    faculty_ids = [f.id for f in faculty]
+    faculty_map = {f.id: f for f in faculty}
+
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
+    # Get classes with start times
+    class_query = db.query(Class).filter(
+        Class.faculty_id.in_(faculty_ids),
+        Class.start_time.isnot(None),
+    )
+    if room:
+        class_query = _apply_room_filter(class_query, Class.room, room)
+    classes = class_query.all()
+    class_map = {c.id: c for c in classes}
+    if not class_map:
+        return []
+
+    class_ids = list(class_map.keys())
+
+    # Get all ENTRY logs for these classes by faculty
+    raw_query = (
+        db.query(AttendanceLog.user_id, AttendanceLog.class_id, AttendanceLog.timestamp)
+        .join(Class, AttendanceLog.class_id == Class.id)
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.class_id.in_(class_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+    )
+    if room:
+        raw_query = _apply_room_filter(raw_query, Class.room, room)
+    
+    raw_entry_logs = raw_query.all()
+
+    # Robust deduplication
+    entry_logs = []
+    seen_punct = set()
+    for uid, cid, ts in raw_entry_logs:
+        cls = class_map.get(cid)
+        rm = cls.room.strip().lower() if (cls and cls.room) else "unknown"
+        sid = cls.subject_id if cls else None
+        dt_val = ts.date()
+        key = (uid, rm, sid, dt_val)
+        if key in seen_punct: continue
+        seen_punct.add(key)
+        entry_logs.append((uid, cid, ts))
+
+    # Compute offsets per faculty
+    offsets = defaultdict(list)
+    for user_id, class_id, ts in entry_logs:
+        cls = class_map.get(class_id)
+        if not cls or not cls.start_time:
+            continue
+        class_start_minutes = cls.start_time.hour * 60 + cls.start_time.minute
+        arrival_minutes = ts.hour * 60 + ts.minute
+        offset = arrival_minutes - class_start_minutes
+        offsets[user_id].append(offset)
+
+    rows = []
+    for fac in faculty:
+        offset_list = offsets.get(fac.id, [])
+        entries = len(offset_list)
+        if entries > 0:
+            avg_offset = sum(offset_list) / entries
+            score = max(0, min(100, round(100 - (avg_offset * 2), 1)))
+            if avg_offset <= 0:
+                status = "On Time"
+            elif avg_offset <= 5:
+                status = "Good"
+            elif avg_offset <= 15:
+                status = "Warning"
+            else:
+                status = "At Risk"
+        else:
+            avg_offset = 0
+            score = 0
+            status = "No Data"
+
+        rows.append({
+            "id": 0,
+            "col1": fac.full_name,
+            "col2": f"Avg: {avg_offset:+.1f} min" if entries > 0 else "No entries",
+            "status": status,
+            "col3": f"Score: {score}/100 | Entries: {entries}",
+            "remarks": "—",
+        })
+
+    # Get all unique remarks for faculty in this department/date range to populate rows
+    # This report is ranked, so we fetch remarks per faculty
+    for row in rows:
+        fac_name = row['col1']
+        fac_obj = next((f for f in faculty if f.full_name == fac_name), None)
+        if fac_obj:
+            all_remarks = db.query(AttendanceLog.remarks).join(Class, AttendanceLog.class_id == Class.id).filter(
+                AttendanceLog.user_id == fac_obj.id,
+                AttendanceLog.timestamp >= str(d_from),
+                AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+                AttendanceLog.remarks != None,
+                AttendanceLog.remarks != ""
+            )
+            if room:
+                all_remarks = _apply_room_filter(all_remarks, Class.room, room)
+            
+            remarks_list = [r[0] for r in all_remarks.distinct().all()]
+            row['remarks'] = ", ".join(remarks_list) if remarks_list else "—"
+
+    rows.sort(key=lambda r: float(r['col3'].split('Score: ')[1].split('/')[0]), reverse=True)
+    for i, row in enumerate(rows, 1):
+        row['id'] = i
+    return rows
+
+
+def _faculty_teaching_load_report(db: Session, dept_id: int, date_from: str, date_to: str, room: str = None):
+    """Faculty teaching load — classes, sections, enrolled students, and attendance per faculty."""
+    from models.user import VerificationStatus
+    faculty = (
+        db.query(User)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+            User.verification_status == VerificationStatus.VERIFIED,
+        )
+        .all()
+    )
+    if not faculty:
+        return []
+
+    faculty_ids = [f.id for f in faculty]
+    faculty_map = {f.id: f for f in faculty}
+
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    dept_start = dept.semester_start_date if dept else None
+    dept_end = dept.semester_end_date if dept else None
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = dt.strptime(date_from, "%Y-%m-%d").date()
+        d_to = dt.strptime(date_to, "%Y-%m-%d").date()
+        if dept_start and d_from < dept_start: d_from = dept_start
+        if dept_end and d_to > dept_end: d_to = dept_end
+        if d_to > today: d_to = today
+    except (ValueError, TypeError):
+        d_from = dept_start or date(2020, 1, 1)
+        d_to = min(today, dept_end) if dept_end else today
+
+    # Get classes per faculty
+    class_query = db.query(Class).filter(Class.faculty_id.in_(faculty_ids))
+    if room:
+        class_query = _apply_room_filter(class_query, Class.room, room)
+    all_classes = class_query.all()
+
+    # Count classes and sections per faculty
+    from collections import defaultdict
+    faculty_classes = defaultdict(int)
+    faculty_sections = defaultdict(set)
+    faculty_class_ids = defaultdict(list)
+    for cls in all_classes:
+        faculty_classes[cls.faculty_id] += 1
+        if cls.section:
+            faculty_sections[cls.faculty_id].add(cls.section)
+        faculty_class_ids[cls.faculty_id].append(cls.id)
+
+    # Count enrolled students per faculty (across their classes)
+    all_class_ids = [cls.id for cls in all_classes]
+    enrollment_counts = {}
+    if all_class_ids:
+        enrollment_counts = dict(
+            db.query(Enrollment.class_id, func.count(Enrollment.id))
+            .filter(Enrollment.class_id.in_(all_class_ids))
+            .group_by(Enrollment.class_id)
+            .all()
+        )
+
+    # Count entries per faculty
+    entry_counts = dict(
+        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+        .group_by(AttendanceLog.user_id)
+        .all()
+    )
+
+    late_counts = dict(
+        db.query(AttendanceLog.user_id, func.count(AttendanceLog.id))
+        .filter(
+            AttendanceLog.user_id.in_(faculty_ids),
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.is_late == True,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+        )
+        .group_by(AttendanceLog.user_id)
+        .all()
+    )
+
+    rows = []
+    for i, fac in enumerate(faculty, 1):
+        num_classes = faculty_classes.get(fac.id, 0)
+        num_sections = len(faculty_sections.get(fac.id, set()))
+        # Sum enrolled students across all faculty's classes
+        total_students = sum(
+            enrollment_counts.get(cid, 0)
+            for cid in faculty_class_ids.get(fac.id, [])
+        )
+        entries = entry_counts.get(fac.id, 0)
+        lates = late_counts.get(fac.id, 0)
+
+        if num_classes == 0:
+            status = "No Classes"
+        else:
+            status = "Active"
+
+        rows.append({
+            "id": i,
+            "col1": fac.full_name,
+            "col2": f"Classes: {num_classes} | Sections: {num_sections} | Students: {total_students}",
+            "status": status,
+            "col3": f"Entries: {entries} | Late: {lates}",
+            "remarks": "—",
+        })
+
+    rows.sort(key=lambda r: int(r['col2'].split('Classes: ')[1].split(' |')[0]), reverse=True)
+    for i, row in enumerate(rows, 1):
+        row['id'] = i
     return rows
 
 
@@ -1413,12 +2643,20 @@ DEPT_REPORTS = {
     "FACULTY_SUMMARY": _faculty_summary_report,
     "FACULTY_LATE": _faculty_late_report,
     "FACULTY_CONSISTENCY": _faculty_consistency_report,
+    "FACULTY_ATTENDANCE_RATE": _faculty_attendance_rate_report,
+    "FACULTY_ABSENCE": _faculty_absence_report,
+    "FACULTY_PUNCTUALITY": _faculty_punctuality_report,
+    "FACULTY_TEACHING_LOAD": _faculty_teaching_load_report,
     "ROOM_OCCUPANCY": _room_occupancy_report,
     "PEAK_USAGE": _peak_usage_report,
     "ROOM_UTILIZATION": _room_utilization_report,
     "OVERCROWDING": _overcrowding_report,
     "DEPT_ACTIVITY": _dept_activity_report,
 }
+
+# Ensure standard types are mapped
+DEPT_REPORTS["SYSTEM"] = _dept_activity_report
+DEPT_REPORTS["DEPT"] = _dept_activity_report
 
 
 def get_faculty_report(db: Session, user_id: int, report_type: str,
@@ -1428,7 +2666,16 @@ def get_faculty_report(db: Session, user_id: int, report_type: str,
         if not class_id:
             return []
         handler = FACULTY_CLASS_REPORTS[report_type]
-        return handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
+        rows = handler(db, class_id, date_from or "2020-01-01", date_to or "2099-12-31")
+        
+        # Filter Break Abuse to only show 'Extended' status
+        if report_type == "BREAK_ABUSE":
+            rows = [r for r in rows if r.get("status") == "Extended"]
+            # Re-index because we filtered the list
+            for i, r in enumerate(rows, 1):
+                r["id"] = i
+                
+        return rows
     elif report_type in FACULTY_PERSONAL_REPORTS:
         handler = FACULTY_PERSONAL_REPORTS[report_type]
         return handler(db, user_id, date_from or "2020-01-01", date_to or "2099-12-31")
@@ -1687,54 +2934,34 @@ def get_dept_report_envelope(
 
 def _build_student_rows(logs):
     rows = []
-    for idx, log in enumerate(logs, 1):
+    seen = set()
+    for log in logs:
+        # Aggressive deduplication: User + Room + Subject + Date + Action
         cls = log.class_
-        subject = cls.subject if cls else None
-        faculty = cls.faculty if cls else None
-
+        raw_rm = cls.room if cls else "Unknown"
+        rm = raw_rm.strip().lower() if raw_rm else "unknown"
+        subj_id = cls.subject_id if cls else None
+        log_dt = log.timestamp.date() if log.timestamp else None
+        
+        # KEY: Collapse duplicates for SAME room/subject session on SAME day
+        log_key = (log.user_id, rm, subj_id, log_dt, log.action)
+        if log_key in seen: continue
+        seen.add(log_key)
+        i = len(rows) + 1
+        
         status = log.action.value if log.action else "UNKNOWN"
         if log.action == AttendanceAction.ENTRY and log.is_late:
             status = "LATE"
-
-        if log.remarks:
-            remark_text = log.remarks
-        elif log.action == AttendanceAction.ENTRY:
-            remark_text = "Late" if log.is_late else "On Time"
-        elif log.action == AttendanceAction.BREAK_OUT:
-            remark_text = "On Break"
-        elif log.action == AttendanceAction.BREAK_IN:
-            remark_text = "Returned From Break"
-        elif log.action == AttendanceAction.EXIT:
-            remark_text = "Session Exit"
-        else:
-            remark_text = "—"
-
-        rows.append(
-            {
-                "id": idx,
-                "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
-                "col2": f"{subject.code} - {subject.title}" if subject else (cls.room if cls else "—"),
-                "status": status,
-                "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
-                "remarks": remark_text,
-                # Raw fields for frontend charting/visualization.
-                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                "action": log.action.value if log.action else None,
-                "is_late": bool(log.is_late),
-                "room": cls.room if cls else None,
-                "subject_code": subject.code if subject else None,
-                "subject_title": subject.title if subject else None,
-                "faculty_name": (
-                    f"{faculty.first_name} {faculty.last_name}".strip()
-                    if faculty and (faculty.first_name or faculty.last_name)
-                    else "—"
-                ),
-                "class_id": log.class_id,
-            }
-        )
+        
+        rows.append({
+            "id": i,
+            "col1": log.timestamp.strftime("%Y-%m-%d") if log.timestamp else "—",
+            "col2": f"{log.class_.room or '—'} | {log.class_.subject.code if (log.class_ and log.class_.subject) else '—'}" if log.class_ else "—",
+            "status": status,
+            "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
+            "remarks": log.remarks or "",
+        })
     return rows
-
-
 def _build_student_absent_rows(
     db: Session,
     user_id: int,
@@ -1787,7 +3014,7 @@ def _build_student_absent_rows(
         .filter(
             AttendanceLog.class_id.in_(scoped_class_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp >= str(date_from),
             AttendanceLog.timestamp <= date_to,
         )
         .distinct()
@@ -1804,7 +3031,7 @@ def _build_student_absent_rows(
             AttendanceLog.user_id == user_id,
             AttendanceLog.class_id.in_(scoped_class_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp >= str(date_from),
             AttendanceLog.timestamp <= date_to,
         )
         .distinct()
@@ -1942,7 +3169,7 @@ def get_student_report_envelope(
         )
         .filter(
             AttendanceLog.user_id == user_id,
-            AttendanceLog.timestamp >= date_from,
+            AttendanceLog.timestamp >= str(date_from),
             AttendanceLog.timestamp <= date_to,
         )
     )

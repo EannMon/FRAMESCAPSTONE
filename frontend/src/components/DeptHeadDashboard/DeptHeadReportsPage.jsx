@@ -9,21 +9,15 @@ import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
 // Includes dept-wide, class-specific, and personal
 // ============================================
 const reportOptions = [
-    // --- Faculty Oversight ---
-    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', type: 'DEPT', category: 'Faculty Oversight' },
-    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', type: 'DEPT', category: 'Faculty Oversight' },
-    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', type: 'DEPT', category: 'Faculty Oversight' },
+    // --- Personal Records (own attendance as dept head) ---
+    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
 
-    // --- Facility & Room Analytics ---
-    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', type: 'DEPT', category: 'Facility & Room Analytics' },
-
-    // --- Departmental Strategy ---
-    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', type: 'DEPT', category: 'Departmental Strategy' },
-
-    // --- Class-Specific Reports (same as Faculty) ---
+    // --- Class-Specific Reports ---
     { id: 'CLASS_DAILY', label: 'Class Daily Attendance', desc: 'Daily attendance entries for a specific class.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_MONTHLY', label: 'Class Monthly Summary', desc: 'Monthly aggregation of attendance per student.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_SEMESTER', label: 'Class Semester Summary', desc: 'Semester-wide per-student summary: entries, lates, rate.', type: 'CLASS', category: 'Class-Specific Reports' },
@@ -37,13 +31,21 @@ const reportOptions = [
     { id: 'EARLY_EXITS', label: 'Early Exits Report', desc: 'Students who exited before class end.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'PARTICIPATION_INSIGHT', label: 'Participation Insight', desc: 'Participation summary per student.', type: 'CLASS', category: 'Class-Specific Reports' },
 
-    // --- Personal Records (own attendance as faculty) ---
-    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
+    // --- Faculty Reports ---
+    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_ATTENDANCE_RATE', label: 'Faculty Attendance Rate', desc: 'Attendance rate per faculty comparing scheduled sessions vs actual entries.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_ABSENCE', label: 'Faculty Absence Report', desc: 'Faculty who missed scheduled classes with no attendance record.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_PUNCTUALITY', label: 'Faculty Punctuality Index', desc: 'Ranks faculty by average arrival time offset from class start.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_TEACHING_LOAD', label: 'Faculty Teaching Load Overview', desc: 'Classes, sections, students, and attendance summary per faculty.', type: 'DEPT', category: 'Faculty Reports' },
+
+    // --- Department Reports ---
+    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', type: 'DEPT', category: 'Department Reports' },
 ];
 
 /**
@@ -58,8 +60,11 @@ const getColumnConfig = (reportId) => {
         };
     }
     if (report?.type === 'CLASS') {
+        const isPunctuality = reportId === 'CLASS_PUNCTUALITY_INDEX';
         return {
-            headers: ['ID', 'Name', 'TUP-M ID', 'Status', 'Time', 'Remarks'],
+            headers: isPunctuality 
+                ? ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary']
+                : ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary'],
             keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
         };
     }
@@ -80,11 +85,11 @@ const ReportDownloadModal = ({ isOpen, onClose, onGenerate }) => {
         <div className="reports-unique-modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
             <div className="reports-unique-modal-content" onClick={e => e.stopPropagation()} style={{ width: '420px', maxWidth: '90%', padding: '20px' }}>
                 <div className="metric-modal-header" style={{ marginBottom: '15px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>Generate Official Report</h3>
-                    <button className="metric-modal-close" onClick={onClose} style={{ fontSize: '1.5rem', color: '#64748b' }}>&times;</button>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Generate Official Report</h3>
+                    <button className="metric-modal-close" onClick={onClose} style={{ fontSize: '1.5rem' }}>&times;</button>
                 </div>
                 <div className="metric-modal-body" style={{ padding: '0 0 20px 0' }}>
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '0.85rem', marginBottom: '16px', lineHeight: 1.5 }}>
                         Select your preferred output format to process the report records.
                     </p>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -93,21 +98,21 @@ const ReportDownloadModal = ({ isOpen, onClose, onGenerate }) => {
                             onClick={() => setFormat('PREVIEW')}
                         >
                             <i className="fas fa-eye" style={{ fontSize: '1.25rem', color: '#163269' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>Preview</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Preview</span>
                         </button>
                         <button 
                             style={{ flex: 1, padding: '12px 6px', borderRadius: '8px', border: format === 'PDF' ? '2px solid #163269' : '1px solid #e2e8f0', background: format === 'PDF' ? '#eff6ff' : 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
                             onClick={() => setFormat('PDF')}
                         >
                             <i className="fas fa-file-pdf" style={{ fontSize: '1.25rem', color: '#ef4444' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>PDF</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>PDF</span>
                         </button>
                         <button 
                             style={{ flex: 1, padding: '12px 6px', borderRadius: '8px', border: format === 'CSV' ? '2px solid #163269' : '1px solid #e2e8f0', background: format === 'CSV' ? '#eff6ff' : 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
                             onClick={() => setFormat('CSV')}
                         >
                             <i className="fas fa-file-csv" style={{ fontSize: '1.25rem', color: '#10b981' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>CSV</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>CSV</span>
                         </button>
                     </div>
                 </div>
@@ -205,12 +210,12 @@ const DeptHeadReportsPage = () => {
         return () => controller.abort();
     }, [user]);
 
-    // Auto-fetch when default report + dates are ready
+    // Auto-fetch when default report + dates + filters are ready
     useEffect(() => {
         if (selectedReport && dateFrom && dateTo) {
             fetchReportData(selectedReport.id);
         }
-    }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dateFrom, dateTo, room, selectedClass, selectedReport]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const groupedReports = useMemo(() => {
         const groups = {};
@@ -226,16 +231,51 @@ const DeptHeadReportsPage = () => {
         setError(null);
         try {
             const report = reportOptions.find(r => r.id === reportId);
+            if (!report) {
+                setLoading(false);
+                return;
+            }
 
-            if (report?.type === 'CLASS' || report?.type === 'PERSONAL') {
+            if (report.type === 'CLASS' || report.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
-                if (!user?.id) return;
-                const resolvedClassId = report?.type === 'CLASS'
-                    ? (selectedClass || classes[0]?.class_id || undefined)
-                    : undefined;
+                if (!user?.id) {
+                    setLoading(false);
+                    return;
+                }
+                
+                // For CLASS reports, we must have a class_id
+                let targetId = null;
+                if (report.type === 'CLASS') {
+                    // Normalize the selected value or default to first class
+                    const rawValue = selectedClass || (classes.length > 0 ? (classes[0].class_id || classes[0].id) : null);
+                    if (!rawValue) {
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
 
-                const params = { report_type: reportId };
-                if (resolvedClassId) params.class_id = resolvedClassId;
+                    const stringVal = String(rawValue);
+                    // Match against the classes list to get the numeric primary key
+                    const found = classes.find(c => 
+                        String(c.class_id) === stringVal || 
+                        String(c.id) === stringVal ||
+                        c.subject_code === stringVal ||
+                        `${c.subject_code} - ${c.section}` === stringVal ||
+                        stringVal.startsWith(c.subject_code)
+                    );
+                    
+                    targetId = found ? (found.class_id || found.id) : (parseInt(stringVal.split(' ')[0]) || null);
+                    
+                    if (!targetId) {
+                        console.error('Could not resolve class_id for:', stringVal);
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                const params = { report_type: reportId, legacy: false };
+                if (targetId) params.class_id = targetId;
                 if (dateFrom) params.date_from = dateFrom;
                 if (dateTo) params.date_to = dateTo;
                 params.limit = 200;
@@ -279,10 +319,10 @@ const DeptHeadReportsPage = () => {
 
     const handleSelectReport = (report) => {
         setSelectedReport(report);
-        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0) {
+        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0 && classes[0].class_id != null) {
             setSelectedClass(String(classes[0].class_id));
         }
-        fetchReportData(report.id);
+        // fetchReportData(report.id); // Removed: useEffect will handle this now
     };
 
     const handleRefresh = () => {
@@ -415,8 +455,9 @@ const DeptHeadReportsPage = () => {
     const handleGenerateReport = (format) => {
         if (format === 'PDF') handleDownloadPDF();
         else if (format === 'CSV') handleDownloadCSV();
+        else if (format === 'PREVIEW') handlePreviewPDF();
         else {
-            handleDownloadPDF(); // fallback
+            handlePreviewPDF(); // fallback to preview
         }
     };
 
@@ -437,7 +478,11 @@ const DeptHeadReportsPage = () => {
             type: reportType,
             category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
+            context: {
+                name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head',
+                id: user?.tupm_id || '',
+                scope: selectedReport.type === 'PERSONAL' ? 'Personal' : selectedReport.type === 'CLASS' ? (selectedClass ? `Class ${selectedClass}` : 'All Classes') : 'Department Wide'
+            }
         };
         await generateFramesPDF(reportInfo, tableData, 'download');
     };
@@ -446,7 +491,13 @@ const DeptHeadReportsPage = () => {
         if (!selectedReport || reportData.length === 0) return;
         const tableData = reportData.map(row => {
             const obj = {};
-            config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
+            config.keys.forEach((key, i) => {
+                let val = row[key] || '';
+                // Clean em-dash and N/A placeholders for CSV
+                if (val === '—' || val === 'N/A') val = '';
+                if (typeof val === 'string') val = val.replace(/—/g, '-');
+                obj[config.headers[i]] = val;
+            });
             return obj;
         });
         generateCSV({ title: selectedReport.label }, tableData);
@@ -469,7 +520,11 @@ const DeptHeadReportsPage = () => {
             type: reportType,
             category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
+            context: {
+                name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head',
+                id: user?.tupm_id || '',
+                scope: selectedReport.type === 'PERSONAL' ? 'Personal' : selectedReport.type === 'CLASS' ? (selectedClass ? `Class ${selectedClass}` : 'All Classes') : 'Department Wide'
+            }
         };
         const url = await generateFramesPDF(reportInfo, tableData, 'view');
         setPreviewUrl(url);
@@ -492,14 +547,18 @@ const DeptHeadReportsPage = () => {
                         <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Select Report Type:</label>
                         <select
                             value={selectedReport?.id || ''}
-                            onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
+                            onChange={e => {
+                                const opt = reportOptions.find(o => o.id === e.target.value);
+                                if (opt) handleSelectReport(opt);
+                            }}
                             className="app-select big-select"
                             style={{ minWidth: '240px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
                         >
+                            <option value="" disabled>-- Select a Report --</option>
                             {Object.entries(groupedReports).map(([category, options]) => (
                                 <optgroup key={category} label={category}>
-                                    {options.map(opt => (
-                                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    {options.map((opt, optIdx) => (
+                                        <option key={`${category}-${opt.id}-${optIdx}`} value={opt.id}>{opt.label}</option>
                                     ))}
                                 </optgroup>
                             ))}
@@ -510,22 +569,41 @@ const DeptHeadReportsPage = () => {
                     {selectedReport?.type === 'CLASS' && (
                         <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
-                            <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="app-select big-select" style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
-                                <option value="">All Classes</option>
-                                {classes.map(c => (
-                                    <option key={c.class_id} value={c.class_id}>{c.subject_code} - {c.section || 'N/A'}</option>
-                                ))}
-                            </select>
+                            <select 
+                            value={selectedClass} 
+                            onChange={e => {
+                                console.log("[Debug] User selected class dropdown value:", e.target.value);
+                                setSelectedClass(e.target.value);
+                            }} 
+                            className="app-select big-select" 
+                            style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
+                        >
+                            <option value="">Select a Class</option>
+                            {classes.map((c, idx) => {
+                                const idToUse = c.class_id || c.id || "";
+                                return (
+                                    <option key={`class-id-${idToUse}-${idx}`} value={idToUse}>
+                                        {c.subject_code || 'No Code'} - {c.section || 'N/A'}
+                                    </option>
+                                );
+                            })}
+                        </select>
                         </div>
                     )}
 
-                    {/* Show Room selector for dept-wide reports */}
-                    {selectedReport?.type === 'DEPT' && (
+                    {/* Show Room selector for room-specific reports */}
+                    {['ROOM_OCCUPANCY', 'PEAK_USAGE', 'ROOM_UTILIZATION', 'OVERCROWDING', 'DEPT_ACTIVITY'].includes(selectedReport?.id) && (
                         <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Room:</label>
                             <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select" style={{ minWidth: '180px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
                                 <option value="">All Rooms</option>
-                                {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
+                                <option value="Online">Online</option>
+                                {rooms
+                                    .filter(r => r.room_name && /^\d+$/.test(r.room_name.replace(/room\s+/gi, '').trim()))
+                                    .map((r, i) => {
+                                        const cleanRoom = r.room_name.replace(/room\s+/gi, '').trim();
+                                        return <option key={`room-${cleanRoom}-${i}`} value={r.room_name}>{cleanRoom}</option>;
+                                    })}
                             </select>
                         </div>
                     )}
@@ -635,6 +713,12 @@ const DeptHeadReportsPage = () => {
                         {reportData.length > 0 && (
                             <div className="report-footer" style={{ marginTop: '10px' }}><span>{reportData.length} record(s) found</span></div>
                         )}
+                        {reportData.length === 0 && !loading && (
+                            <div className="report-footer" style={{ marginTop: '10px', textAlign: 'center', color: '#64748b' }}>
+                                <i className="fas fa-info-circle" style={{ marginRight: '6px' }}></i>
+                                No report data found for the selected {selectedReport?.type === 'CLASS' ? 'class' : 'filters'} and date range.
+                            </div>
+                        )}
                     </div>
                 </>
             )}
@@ -690,7 +774,7 @@ const DeptHeadReportsPage = () => {
                     onClose={() => setModalOpen(false)} 
                     onGenerate={handleGenerateReport}
                     reportTitle={selectedReport?.label}
-                    scope={selectedReport?.type === 'CLASS' ? 'Class Specific' : 'Department Wide'}
+                    scope={selectedReport?.type === 'CLASS' ? 'Class Specific' : selectedReport?.type === 'PERSONAL' ? 'Personal' : 'Department Wide'}
                     dateRange={`${dateFrom} to ${dateTo}`}
                 />
             )}

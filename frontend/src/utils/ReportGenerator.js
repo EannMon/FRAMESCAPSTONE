@@ -196,18 +196,27 @@ export const generateCSV = (reportInfo, tableData) => {
 
     // 1. Create Header Row
     const headers = Object.keys(tableData[0]);
-    const headerRow = headers.join(",");
+    const headerRow = headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",");
 
     // 2. Create Data Rows
     const rows = tableData.map(row => {
         return headers.map(fieldName => {
-            const data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : ''; // Escape double quotes
+            let data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : ''; // Escape double quotes
+            // Sanitize em-dash and placeholder values for CSV/Excel compatibility
+            if (data === '—' || data === 'N/A') data = '';
+            data = data.replace(/—/g, '-');
+            // Force date-like values to be treated as text in Excel
+            // Uses ="value" formula format to prevent auto-conversion to date serial numbers
+            if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+                return `="` + data + `"`;
+            }
             return `"${data}"`; // Wrap in quotes to handle commas/newlines
         }).join(",");
     });
 
-    // 3. Combine
-    const csvContent = [headerRow, ...rows].join("\n");
+    // 3. Combine (with UTF-8 BOM for Excel compatibility)
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [headerRow, ...rows].join("\n");
 
     // 4. Create Blob and Download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

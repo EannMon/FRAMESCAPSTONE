@@ -268,6 +268,8 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
             
         all_logs_formatted.append({
             "id": log.id,
+            "user_id": log.user_id,
+            "class_id": log.class_id,
             "timestamp": log.timestamp.isoformat(),
             "is_late": log.is_late,
             "event_type": event_type
@@ -1687,6 +1689,14 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Filter classes that are currently ongoing based on time
+    ongoing_classes = []
+    current_time_str = now.strftime("%H:%M:%S")
+    for c in classes:
+        if c.start_time and c.end_time:
+            if c.start_time <= current_time_str <= c.end_time:
+                ongoing_classes.append(c)
+
     # Only include classes in rooms that have an active device (camera installed)
     device_rooms = set(
         r[0] for r in db.query(Device.room)
@@ -1694,9 +1704,9 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
         .distinct()
         .all()
     )
-    classes_with_device = [c for c in classes if c.room in device_rooms]
+    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
 
-    rooms = _build_room_status(db, classes_with_device, today_start)
+    rooms = _build_room_status(db, classes_to_show, today_start)
     return {"rooms": rooms}
 
 
@@ -1722,12 +1732,21 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
     if not dept_faculty_ids:
         return {"rooms": []}
 
-    classes = (
+    all_dept_classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(Class.faculty_id.in_(dept_faculty_ids), Class.day_of_week == today)
         .all()
     )
+
+    # Filter classes that are currently ongoing based on time
+    ongoing_classes = []
+    current_time_str = now.strftime("%H:%M:%S")
+    for c in all_dept_classes:
+        if c.start_time and c.end_time:
+            # Simple string comparison works for HH:MM:SS format
+            if c.start_time <= current_time_str <= c.end_time:
+                ongoing_classes.append(c)
 
     # Only include rooms that have an active device
     device_rooms = set(
@@ -1736,9 +1755,9 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
         .distinct()
         .all()
     )
-    classes_with_device = [c for c in classes if c.room in device_rooms]
+    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
 
-    rooms = _build_room_status(db, classes_with_device, today_start)
+    rooms = _build_room_status(db, classes_to_show, today_start)
     return {"rooms": rooms}
 
 
