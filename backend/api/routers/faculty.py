@@ -938,6 +938,18 @@ def confirm_schedule(
                         student_id=student_user.id
                     )
                     db.add(enrollment)
+                    
+                    # Create Notification for Student
+                    from models.notification import Notification, NotificationType
+                    notif = Notification(
+                        user_id=student_user.id,
+                        notification_type=NotificationType.GENERAL,
+                        title="Class Enrollment",
+                        message=f"You have been added to the class {subject.code} - {current_class.section}.",
+                        is_read=False
+                    )
+                    db.add(notif)
+                    
                     existing_enrollments.add(student_user.id)
                     enrolled_count += 1
             
@@ -1040,6 +1052,20 @@ def add_student_to_class(
     
     enrollment = Enrollment(class_id=class_id, student_id=data.student_id)
     db.add(enrollment)
+    
+    # Create Notification for Student
+    from models.notification import Notification, NotificationType
+    subject_code = cls.subject.code if cls.subject else "Class"
+    notif = Notification(
+        user_id=data.student_id,
+        notification_type=NotificationType.GENERAL,
+        title="Class Enrollment",
+        message=f"You have been added to the class {subject_code} - {cls.section}.",
+        is_read=False,
+        reference_id=class_id,
+        reference_type="class"
+    )
+    db.add(notif)
     db.commit()
 
     # Log Audit Entry (Task: Full Activity Tracking)
@@ -1082,7 +1108,23 @@ def remove_student_from_class(
     if not enrollment:
         raise api_error(404, "ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class")
     
+    # Get class info before delete for the notification message
+    cls = enrollment.class_
+    subject_code = cls.subject.code if cls and cls.subject else "Class"
+    section = cls.section if cls else "TBA"
+
     db.delete(enrollment)
+    
+    # Create Notification for Student
+    from models.notification import Notification, NotificationType
+    notif = Notification(
+        user_id=student_id,
+        notification_type=NotificationType.GENERAL,
+        title="Class Update",
+        message=f"You have been removed from the class {subject_code} - {section}.",
+        is_read=False
+    )
+    db.add(notif)
     db.commit()
 
     # Log Audit Entry (Task: Full Activity Tracking)

@@ -72,10 +72,16 @@ def get_invites(department_id: int, db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
     
     for invite in invites:
+        # Ensure expires_at is timezone-aware if naive
+        expires_at = invite.expires_at
+        if expires_at and expires_at.tzinfo is None:
+            # Assume UTC as stored in line 48
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
         # Determine current status
         if invite.used:
             status = "Registered"
-        elif invite.expires_at < now:
+        elif expires_at < now:
             status = "Expired"
         else:
             status = "Pending"

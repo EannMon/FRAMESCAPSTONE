@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 import './SettingsPage.css';
 import './Utility.css';
 import Header from './Header';
 import Footer from './Footer';
+import PasswordModal from './PasswordModal';
 
 // --- Theme Definition ---
 const navyTheme = {
@@ -38,22 +38,13 @@ const SettingsPage = ({ isEmbedded = false }) => {
         return stored ? JSON.parse(stored) : null;
     });
 
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
     // Notification Toggles
     const [notifications, setNotifications] = useState({
-        email: user?.email_notifications_enabled ?? true,
-        inApp: user?.in_app_notifications_enabled ?? true
+        email: true,
+        push: true
     });
-
-    // Update notifications state when user data changes
-    useEffect(() => {
-        if (user) {
-            setNotifications({
-                email: user.email_notifications_enabled ?? true,
-                inApp: user.in_app_notifications_enabled ?? true
-            });
-        }
-    }, [user]);
-
 
     // Dark Mode State - persisted per user in localStorage
     const getDarkModeKey = () => {
@@ -87,33 +78,9 @@ const SettingsPage = ({ isEmbedded = false }) => {
         navigate(-1);
     };
 
-    const handleToggle = async (type) => {
-        const fieldMap = {
-            email: 'email_notifications_enabled',
-            inApp: 'in_app_notifications_enabled'
-        };
-        
-        const newValue = !notifications[type];
-        const fieldName = fieldMap[type];
-
-        try {
-            // Update Backend
-            await api.put(`/api/users/${user.id}`, { [fieldName]: newValue });
-            
-            // Update Local State
-            setNotifications(prev => ({ ...prev, [type]: newValue }));
-            
-            // Update User Object and LocalStorage
-            const updatedUser = { ...user, [fieldName]: newValue };
-            setUser(updatedUser);
-            localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-            
-        } catch (err) {
-            console.error(`Failed to update ${type} notifications:`, err);
-            alert(`Failed to update ${type} notifications. Please try again.`);
-        }
+    const handleToggle = (type) => {
+        setNotifications(prev => ({ ...prev, [type]: !prev[type] }));
     };
-
 
     const role = user?.role?.toLowerCase();
     const isFaculty = role === 'faculty' || role === 'dept_head' || role === 'head';
@@ -135,94 +102,76 @@ const SettingsPage = ({ isEmbedded = false }) => {
                     </div>
                 )}
 
-                <div className="settings-content-wrapper">
-                    {/* Unified Settings Container */}
-                    <div className="settings-main-container">
-                        
-                        {/* Profile Section */}
-                        <section className="settings-section">
-                            <h2 className="section-title">Profile Information</h2>
-                            <div className="settings-item-group">
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Full Name</label>
-                                        <p>
-                                            {user?.first_name && user?.last_name 
-                                                ? `${user.first_name} ${user.last_name}` 
-                                                : 'Not set'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Email Address</label>
-                                        <p>{user?.email || 'Not set'}</p>
-                                    </div>
-                                </div>
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Account Role</label>
-                                        <div className="role-chip">
-                                            {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'Unknown'}
-                                        </div>
-                                    </div>
-                                </div>
+                <div className="settings-grid">
+
+                    {/* Account Settings Card */}
+                    <div className="card settings-card">
+                        <h3>Account</h3>
+                        <p>Manage your account and security settings.</p>
+
+                        <div className="account-info-section">
+                            <div className="account-info-item">
+                                <label>Email Address</label>
+                                <span className="account-info-value">{user?.email || 'Not set'}</span>
                             </div>
-                        </section>
-
-                        <hr className="settings-divider" />
-
-                        {/* Notifications Section */}
-                        <section className="settings-section">
-                            <h2 className="section-title">Notifications</h2>
-                            <div className="settings-item-group">
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Email Alerts</label>
-                                        <p>Receive updates and security alerts via email</p>
-                                    </div>
-                                    <ToggleSwitch
-                                        isToggled={notifications.email}
-                                        onToggle={() => handleToggle('email')}
-                                    />
-                                </div>
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Push Notifications</label>
-                                        <p>Get real-time browser notifications for important events</p>
-                                    </div>
-                                    <ToggleSwitch
-                                        isToggled={notifications.push}
-                                        onToggle={() => handleToggle('push')}
-                                    />
-                                </div>
+                            <div className="account-info-item">
+                                <label>Full Name</label>
+                                <span className="account-info-value">
+                                    {user?.first_name && user?.last_name
+                                        ? `${user.first_name} ${user.last_name}`
+                                        : 'Not set'}
+                                </span>
                             </div>
-                        </section>
-
-                        <hr className="settings-divider" />
-
-                        {/* Appearance Section */}
-                        <section className="settings-section">
-                            <h2 className="section-title">Appearance</h2>
-                            <div className="settings-item-group">
-                                <div className="settings-item">
-                                    <div className="settings-item-info">
-                                        <label>Dark Mode</label>
-                                        <p>Switch between light and dark themes</p>
-                                    </div>
-                                    <ToggleSwitch
-                                        isToggled={darkMode}
-                                        onToggle={() => setDarkMode(!darkMode)}
-                                    />
-                                </div>
+                            <div className="account-info-item">
+                                <label>Account Type</label>
+                                <span className="account-info-value account-role">
+                                    {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || 'Unknown'}
+                                </span>
                             </div>
-                        </section>
+                        </div>
 
+                        <div className="account-actions">
+                            <button className="settings-action-button" onClick={() => setIsPasswordModalOpen(true)}>
+                                <i className="fas fa-key"></i>
+                                <span>Change Password</span>
+                                <i className="fas fa-chevron-right" style={{ marginLeft: 'auto' }}></i>
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Preferences Card (consolidated Notifications + Theme) */}
+                    <div className="card settings-card">
+                        <h3>Preferences</h3>
+                        <p>Notifications and appearance settings.</p>
+                        <ToggleSwitch
+                            label="Email Notifications"
+                            isToggled={notifications.email}
+                            onToggle={() => handleToggle('email')}
+                        />
+                        <ToggleSwitch
+                            label="Push Notifications"
+                            isToggled={notifications.push}
+                            onToggle={() => handleToggle('push')}
+                        />
+                        <div style={{ borderTop: '1px solid #e2e8f0', margin: '12px 0' }}></div>
+                        <ToggleSwitch
+                            label="Dark Mode"
+                            isToggled={darkMode}
+                            onToggle={() => setDarkMode(!darkMode)}
+                        />
+                    </div>
+
                 </div>
             </div>
 
             {!isEmbedded && <Footer />}
+
+            {/* Password Modal */}
+            <PasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
+                userId={user?.user_id || user?.id}
+            />
         </>
     );
 };

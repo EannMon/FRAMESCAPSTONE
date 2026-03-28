@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import api from '../../services/api';
 import './LandingPage.css';
-import landingBg from '../../assets/images/landing_bg.png';
+import landingBg from '../../assets/images/Untitled1005_20260305145507.jpg';
 import Header from '../Common/Header';
 import Footer from '../Common/Footer';
 
@@ -386,7 +386,12 @@ const RoleSelectionModal = ({ isOpen, onClose }) => {
 // === HERO SECTION ===
 const HeroSection = ({ setPanel }) => (
     <section className="hero-section" style={{ backgroundImage: `url(${landingBg})` }}>
-        <div className="hero-content">
+        <div className="scaling-overlay"></div>
+        <div className="scanning-overlay">
+            <div className="scanning-line"></div>
+            <div className="scanning-dots"></div>
+        </div>
+        <div className="hero-content reveal-on-scroll">
             <h1 className="hero-title">FRA<span className="hero-title-accent">MES</span></h1>
             <p className="hero-subtitle">
                 Smart Campus Management System
@@ -404,7 +409,7 @@ const HeroSection = ({ setPanel }) => (
                     <i className="fas fa-chalkboard-teacher"></i> Faculty / Head Login
                 </button>
 
-                <button onClick={() => setPanel('student-login')} className="cta-secondary" style={{ background: '#1e3a5f', color: '#fff', border: 'none' }}>
+                <button onClick={() => setPanel('student-login')} className="cta-secondary">
                     <i className="fas fa-user-graduate"></i> Student Login
                 </button>
             </div>
@@ -415,45 +420,52 @@ const HeroSection = ({ setPanel }) => (
 // ==========================================
 // 4. FEATURES SECTION
 // ==========================================
-const FeatureCard = ({ iconClass, title, description }) => (
-    <div className="feature-card">
-        <div className="icon-container">
-            <i className={iconClass}></i>
+const FeatureCard = ({ title, description, delay }) => (
+    <div className="feature-card reveal-on-scroll" style={{ transitionDelay: `${delay}ms` }}>
+        <div className="tech-corners">
+            <div className="tech-corner top-left"></div>
+            <div className="tech-corner top-right"></div>
+            <div className="tech-corner bottom-left"></div>
+            <div className="tech-corner bottom-right"></div>
         </div>
+        <div className="card-scanning-line"></div>
         <h3>{title}</h3>
         <p>{description}</p>
+        <div className="card-data-point"></div>
     </div>
 );
 
 const FeaturesSection = ({ aboutRef }) => (
     <section className="features-section" ref={aboutRef}>
-        <h2>About FRAMES</h2>
-        <p className="features-subtitle">
-            Advanced Features for Campus Security
-        </p>
+        <div className="reveal-on-scroll">
+            <h2>About FRAMES</h2>
+            <p className="features-subtitle">
+                Advanced Features for Campus Security
+            </p>
+        </div>
         <p className="features-description" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto 40px', color: '#64748b' }}>
             Our comprehensive system combines cutting-edge AI technology with reliable hardware to deliver unparalleled campus monitoring and access control capabilities.
         </p>
         <div className="features-grid">
             <FeatureCard
-                iconClass="fas fa-user-shield"
                 title="Facial Recognition"
                 description="Advanced AI-powered facial recognition for secure access control and automated attendance tracking across campus facilities."
+                delay={0}
             />
             <FeatureCard
-                iconClass="fas fa-hand-paper"
                 title="Gesture Control"
                 description="Intuitive hand gesture controls for contactless interaction with campus systems, enhancing hygiene and user experience."
+                delay={100}
             />
             <FeatureCard
-                iconClass="fas fa-video"
                 title="Real-time Monitoring"
                 description="Continuous surveillance and monitoring of campus activities with instant alerts and comprehensive security coverage."
+                delay={200}
             />
             <FeatureCard
-                iconClass="fas fa-chart-bar"
                 title="Report Generation"
                 description="Comprehensive attendance reports with analytics, trends, and exportable data for students, faculty members, and department heads."
+                delay={300}
             />
         </div>
     </section>
@@ -480,7 +492,7 @@ const WatchDemoModal = ({ isOpen, onClose }) => {
             <div className="role-modal-overlay" onClick={onClose}>
                 <div className="role-modal-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                     {/* Close button */}
-                    <button 
+                    <button
                         className="modal-close-btn"
                         onClick={onClose}
                     >
@@ -494,7 +506,7 @@ const WatchDemoModal = ({ isOpen, onClose }) => {
 
                     <div className="role-modal-grid" style={{ marginTop: '30px' }}>
                         {/* Faculty Demo Card */}
-                        <div 
+                        <div
                             className="role-modal-item faculty"
                             onClick={() => setDemoRole('faculty')}
                             style={{ cursor: 'pointer' }}
@@ -504,7 +516,7 @@ const WatchDemoModal = ({ isOpen, onClose }) => {
                             <p>See how to manage classes and attendance</p>
                         </div>
                         {/* Student Demo Card */}
-                        <div 
+                        <div
                             className="role-modal-item student"
                             onClick={() => setDemoRole('student')}
                             style={{ cursor: 'pointer' }}
@@ -522,15 +534,15 @@ const WatchDemoModal = ({ isOpen, onClose }) => {
     }
 
     // Video demo screen
-    const demoTitle = demoRole === 'faculty' 
-        ? 'Faculty / Department Head Demo' 
+    const demoTitle = demoRole === 'faculty'
+        ? 'Faculty / Department Head Demo'
         : 'Student Portal Demo';
 
     return (
         <div className="role-modal-overlay" onClick={onClose}>
             <div className="login-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', padding: 0 }}>
                 {/* Close button */}
-                <button 
+                <button
                     className="modal-close-btn light"
                     onClick={onClose}
                 >
@@ -561,7 +573,7 @@ const WatchDemoModal = ({ isOpen, onClose }) => {
                         </p>
                     </div>
 
-                    <button 
+                    <button
                         onClick={() => setDemoRole(null)}
                         style={{
                             marginTop: '25px',
@@ -596,6 +608,27 @@ const LandingPage = () => {
     const scrollToAbout = () => {
         aboutRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
+    // Scroll Reveal Logic
+    useEffect(() => {
+        const observerOptions = {
+            threshold: 0.15,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('reveal-visible');
+                }
+            });
+        }, observerOptions);
+
+        const revealElements = document.querySelectorAll('.reveal-on-scroll');
+        revealElements.forEach(el => observer.observe(el));
+
+        return () => observer.disconnect();
+    }, []);
 
     // Safety net: always remove dark mode on landing page
     useEffect(() => {

@@ -1,0 +1,54 @@
+General Comments in Student Reports:
+-Move the `Filter Subject` before the `select date` and after the `select report type`
+-Remove the metric and formula guide, instead when you hover or select the example "real time attendance rate
+100
+Confidence: LOW
+semester progress attendance rate
+100
+Confidence: LOW
+punctuality rate
+0
+Confidence: LOW
+consistency index
+70
+Confidence: LOW"
+
+that will be the time that it will show as information the legend and formula guide of that metric.
+
+1. Daily Attendance Per subject
+-I want you to rename it as `Daily Attendance`.
+-Include the absents. Even if there is an absent or that student did not attend the conducted session, there should still be a metric even though in generated records it is empty and represented by the text 'absent'
+-In the visual summary, instead of `semestral daily acitivity trend`, it should only be `daily activity trend` and shal showcase the grouped bar graph of the selected dates, subject of that dates and status distribution of those subjects. because it is daily attendance
+
+2. Weekly Attendance Summary
+-This should be per week. So the dates selection if it is possible that week 1, week 2, week 3, week 4 of that month or automatic range is selected.
+-This should not have a filtered subject or it is always `All Enrolled Subjects` not filterable for a single subject becuase it targets to generate an attendance report of a user in a whole week despite the variance of subjects.
+-Session count reference should reflect the weekly report window. 
+-In the visual summary, instead of `semestral daily acitivity trend`, it should only be `weekly activity trend` and shall showcase the grouped bar graph of the selected week, conducted subjects in that week and status distribution of those subjects. because it is weekly attendance
+
+3. Monthy Attendance Trends
+-still filterable, all enrolled subjects and different enrolled subjects
+-In the visual summary, instead of `semestral daily acitivity trend`, it should only be `monthly activity trend` and shall showcase the grouped bar graph of the selected month and filter, conducted subjects in that month and status distribution of those subjects. because it is monthly attendance
+
+4. Semestral Report
+-still filterable, all enrolled subjects and different enrolled subjects
+-In the visual summary, even though it is graphs, it should still be filterable according to semestral status distribution
+
+5. Attendance History Log
+-remove this one, i believe it is redundant to others
+
+6. perosnal late arrival report 
+- so is this for semester? all subjets and different subjects]
+-align this correctly with the reports we already have and all. make it implement intelligenty
+
+7. Break Duration Log
+- so is this for semester? all subjets and different subjects]
+-align this correctly with the reports we already have and all. make it implement intelligenty
+
+8. Absent Logs
+-make this report, additional
+
+9. Personal COnsistency index
+-how is it computed? 
+-Also, when is the period being referred? example : Attendance trend is declining: Attendance dropped by 10.4 percentage points compared to the previous period. (Confidence: HIGH)
+-i don't get this report. kindly explain it ot me how it works. and implement this intelligently so that the user can use this section of reports, smartly

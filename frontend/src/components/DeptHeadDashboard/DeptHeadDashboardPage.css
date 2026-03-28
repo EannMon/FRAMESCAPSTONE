@@ -1,321 +1,77 @@
 /* ============================================
-   Dept Head Dashboard Specific Styles
-   Extends FacultyDashboardPage.css
+   Dept Head Dashboard — Overrides
+   Extends FacultyDashboardPage.css (fd-* classes)
    ============================================ */
 
-
-
-/* ---------- 3 Column Summary Layout ---------- */
-.dh-summary-cards-row {
-    grid-template-columns: repeat(3, 1fr) !important;
-}
-
-@media (max-width: 1200px) {
-    .dh-summary-cards-row {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-}
-
-@media (max-width: 576px) {
-    .dh-summary-cards-row {
-        grid-template-columns: 1fr !important;
-    }
-}
-
-/* ---------- DeptHead Live Status View Controls ---------- */
-.dh-live-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.dh-view-toggle {
-    display: flex;
-    background: #f1f5f9;
-    /* Light slate/gray container */
-    padding: 4px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-}
-
-.dh-view-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: #64748b;
+/* --- Clickable ribbon items --- */
+.dh-ribbon-clickable {
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.95rem;
+    border-radius: 12px;
+    transition: background 0.2s ease;
 }
 
-.dh-view-btn:hover {
-    color: #0F172A;
-    background: rgba(15, 23, 42, 0.08);
-    transform: translateY(-1px);
-}
-
-.dh-view-btn.active {
-    background: #FFFFFF;
-    color: #00A859;
-    box-shadow: 0 4px 12px rgba(0, 168, 89, 0.15);
-    font-weight: 600;
-}
-
-/* Room Selector Dropdown */
-.dh-room-selector select {
-    appearance: none;
-    background: #f8fafc url('data:image/svg+xml;utf8,<svg fill="%2364748b" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 8px center;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 8px 32px 8px 12px;
-    font-size: 0.9rem;
-    color: #0F172A;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.2s ease;
-    height: 42px;
-    /* To match the height of the toggle container */
-}
-
-.dh-room-selector select:hover {
-    border-color: #cbd5e1;
-    background-color: #f1f5f9;
-}
-
-.dh-room-selector select:focus {
-    border-color: #94a3b8;
-    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
-}
-
-/* ---------- Responsive ---------- */
-@media (max-width: 576px) {
-    .dh-view-toggle {
-        display: none;
-    }
-}
-
-/* =========================================== */
-/* RESPONSIVE AUDIT FIX — 375px (Mobile)      */
-/* =========================================== */
-@media (max-width: 375px) {
-    .dh-room-selector select {
-        font-size: 0.82rem;
-        padding: 6px 28px 6px 10px;
-        height: 38px;
-    }
-}
-
-/* ============================================
-   New CSS Classes for Dark Mode Support
-   ============================================ */
-
-/* Reports-Style Dropdown for Live Status / Trends */
-.dh-filter-select {
-    padding: 8px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: #0F172A;
+.dh-ribbon-clickable:hover {
     background: #f8fafc;
-    outline: none;
-    transition: all 0.2s;
-    cursor: pointer;
-    font-weight: 500;
 }
 
-.dh-filter-select:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.dh-filter-select:hover {
-    border-color: #cbd5e1;
-}
-/* ---------- 50:50 Lower Dashboard Layout ---------- */
-.dh-lower-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    align-items: stretch; /* Make heights match */
-}
-
-/* 
-   Since align-items is stretch, the left card (Live Status) and the Attendance Trends card
-   will inherently match heights in the first row.
-*/
-
-.dh-live-status-card {
-    grid-column: 1;
-    grid-row: 1;
-    margin-bottom: 0 !important;
-    display: flex;
-    flex-direction: column;
-}
-
-.dh-live-scrollable {
-    flex: 1; /* Let it expand naturally without a scrollbar cut-off */
-}
-
-/* Trends Chart */
-.attendance-trend-chart-card {
-    grid-column: 2;
-    grid-row: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.dh-chart-container {
-    flex: 1;
-    min-height: 150px;
-}
-
-/* Fix Attendance Trend Footer Legends */
-.attendance-trend-chart-card .chart-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #f8fafc;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-top: auto;
-    border: 1px solid #f1f5f9;
-}
-
-.attendance-trend-chart-card .chart-insight {
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    font-size: 0.85rem;
-    color: #475569;
-}
-
-.attendance-trend-chart-card .chart-legends {
-    display: flex;
-    gap: 16px;
-    margin: 0 !important;
-}
-
-.attendance-trend-chart-card .legend-item {
-    font-size: 0.82rem;
-    font-weight: 500;
-}
-
-.dh-recent-activity {
-    grid-column: 1 / -1; /* Span full width */
-    grid-row: 2;
-    margin-bottom: 0 !important;
-    display: flex;
-    flex-direction: column;
-    min-height: 280px; /* Double size approx for 3+ records */
-}
-
-.dh-activity-scrollable {
-    flex: 1; /* Let the list expand naturally */
-    overflow-y: auto;
-    padding-right: 4px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 16px;
-    align-content: start;
-}
-
-@media (max-width: 992px) {
-    .dh-lower-layout {
-        grid-template-columns: 1fr;
-    }
-    .dh-live-status-card,
-    .attendance-trend-chart-card,
-    .dh-recent-activity {
-        grid-column: 1;
-        grid-row: auto;
-    }
-}
-
-/* Live Header Flex */
-.live-header-flex {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-}
-
-.live-indicator-flex {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-
-
-/* Face Registration Warning */
-.face-registration-warning {
+/* --- Face Registration Warning (DH specific) --- */
+.dh-face-warning {
     border-left: 5px solid #dc2626;
-    background: #fef2f2;
-    padding: 24px 28px;
-    margin-bottom: 20px;
+    background: #fef2f2 !important;
     display: flex;
     align-items: center;
     gap: 16px;
+    margin-bottom: 24px;
 }
 
-.face-registration-warning .warning-icon {
-    font-size: 2rem;
-    color: #dc2626;
-}
-
-.face-registration-warning .warning-content {
+.dh-warning-content {
     flex: 1;
 }
 
-.face-registration-warning .warning-title {
-    font-weight: 700;
+.dh-warning-content strong {
+    display: block;
     color: #991b1b;
-    font-size: 1.05rem;
+    font-size: 1rem;
     margin-bottom: 4px;
 }
 
-.face-registration-warning .warning-message {
+.dh-warning-content p {
     margin: 0;
     color: #b91c1c;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     line-height: 1.5;
 }
 
-.warning-action-btn {
+.dh-warning-btn {
     background: #dc2626;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 10px 20px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    transition: background 0.2s;
 }
 
-.warning-action-btn:hover {
+.dh-warning-btn:hover {
     background: #b91c1c;
 }
 
-/* Info Banner */
-.info-banner {
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
+/* --- Recent Activity full-width below main grid --- */
+.dh-bottom-section {
+    margin-top: 24px;
 }
 
-.info-banner i {
-    margin-right: 8px;
+.dh-activity-full {
+    min-height: 280px;
 }
 
-.info-banner.warning {
-    background: #fef9c3;
-    color: #854d0e;
-    border: 1px solid #fde68a;
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .dh-face-warning {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }

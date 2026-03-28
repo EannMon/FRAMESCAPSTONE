@@ -26,6 +26,7 @@ class VerifiedBy(Enum):
     """Verification method (must match backend enum)."""
     FACE = "FACE"
     FACE_GESTURE = "FACE+GESTURE"
+    AUTO_TIMEOUT = "AUTO_TIMEOUT"
 
 
 @dataclass

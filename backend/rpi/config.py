@@ -9,12 +9,38 @@ Supports two modes:
 """
 import os
 import platform
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 
 # Set ONNX Runtime thread count BEFORE onnxruntime is imported.
 # RPi4 has 4 cores — using all of them for inference gives ~15-25% speedup.
 os.environ.setdefault("OMP_NUM_THREADS", "4")
+
+
+def _load_env_defaults():
+    """Load env defaults from common kiosk env files without overriding existing vars."""
+    backend_dir = Path(__file__).resolve().parents[1]
+    candidate_files = [
+        backend_dir / ".env",
+        backend_dir / "rpi" / ".env",
+        backend_dir / "rpi" / ".env.rpi",
+    ]
+
+    for env_path in candidate_files:
+        if not env_path.exists():
+            continue
+
+        with open(env_path, encoding="utf-8-sig") as env_file:
+            for line in env_file:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_defaults()
 
 
 def _detect_platform() -> str:
@@ -82,7 +108,8 @@ class KioskConfig:
     # When False: InsightFace runs every processed frame (fine for laptop)
     USE_GATED_DETECTION: bool = field(default=None)  # Auto-set in __post_init__
     # Minimum face size (pixels) from MediaPipe gate before triggering InsightFace
-    MIN_FACE_SIZE_PX: int = 80
+    # NOTE: Raised from 80 to 100 — ensures face crop quality before running InsightFace
+    MIN_FACE_SIZE_PX: int = 100
     # On RPi, skip N frames between recognition attempts to save CPU
     RECOGNITION_FRAME_SKIP: int = field(default=None)  # Auto-set in __post_init__
     
@@ -92,31 +119,37 @@ class KioskConfig:
     # Cosine similarity thresholds (InsightFace same-model embeddings: 0.25-0.50)
     # With matching models (buffalo_sc ↔ buffalo_sc), genuine pairs typically score 0.3-0.6
     # buffalo_sc thresholds are slightly lower than buffalo_l due to MobileNet backbone.
-    MATCH_THRESHOLD: float = 0.30  # Balanced: catches most genuine matches
+    # NOTE: 0.30 was too permissive and caused wrong-user matches during testing.
+    MATCH_THRESHOLD: float = 0.40  # Raised from 0.30 — prevents cross-user false matches
     MATCH_THRESHOLD_STRICT: float = 0.45  # For high-security scenarios
     
     # ===========================================
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
-    GESTURE_CONFIDENCE: float = 0.35  # Low threshold for reliable hand detection across lighting
+    GESTURE_CONFIDENCE: float = 0.65  # Raised from 0.35 — low threshold caused false-positive gestures
     # ENTRY uses face-only verification (no gesture required).
     # BREAK/EXIT still use specific gestures (peace/thumbs/palm).
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 8.0  # Comfortable window; gesture loop is fast now
-    GESTURE_CONSECUTIVE_FRAMES: int = 1  # Accept first valid gesture detection immediately
+    GESTURE_CONSECUTIVE_FRAMES: int = 3  # Require 3 consecutive matching frames — prevents false triggers
     
     # ===========================================
     # Attendance Rules
     # ===========================================
     COOLDOWN_SECONDS: int = 10  # Prevent duplicate scans
     LATE_THRESHOLD_MINUTES: int = 15  # Mark as late after this
+    EARLY_ENTRY_MINUTES: int = 10  # Allow recognition N minutes before class starts
+    AUTO_EXIT_ENABLED: bool = True  # Auto-log EXIT at class end time for users who forgot
+    AUTO_EXIT_GRACE_MINUTES: int = 0  # Extra minutes after end_time before auto-exit fires
     
     # ===========================================
     # Backend API
     # ===========================================
     BACKEND_URL: str = field(default_factory=lambda: os.getenv("BACKEND_URL", "http://localhost:5000"))
-    API_TIMEOUT_SECONDS: int = 3  # Short timeout — fail fast and use cache. Render can be slow on free tier.
+    API_TIMEOUT_SECONDS: int = field(default_factory=lambda: int(os.getenv("API_TIMEOUT_SECONDS", "10")))
+    ACTIVE_CLASS_FAILURE_BACKOFF_SEC: int = field(default_factory=lambda: int(os.getenv("ACTIVE_CLASS_FAILURE_BACKOFF_SEC", "30")))
+    USE_ACTIVE_CLASS_API: bool = field(default_factory=lambda: os.getenv("USE_ACTIVE_CLASS_API", "1") not in ("0", "false", "False", "no"))
     
     # ===========================================
     # Device Identity

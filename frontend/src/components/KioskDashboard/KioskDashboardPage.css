@@ -253,12 +253,61 @@
 }
 
 .kiosk-checkin-badge {
-  background: #4CAF50;
-  color: white;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+}
+
+.kiosk-checkin-badge[data-status='LATE'] {
+    background-color: #ef4444;
+}
+
+.kiosk-checkin-badge:not([data-status='LATE']) {
+    background-color: #4CAF50;
+}
+
+.kiosk-no-class-text {
+    color: #94a3b8;
+}
+
+.kiosk-no-activity {
+    text-align: center;
+    color: #94a3b8;
+    padding: 20px 0;
+}
+
+/* Dark Mode (If kiosk ever runs in dark mode layout) */
+body.dark-mode .kiosk-sidebar {
+    background: #0f172a;
+    color: #f1f5f9;
+}
+
+body.dark-mode .kiosk-panel {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .kiosk-time-value,
+body.dark-mode .kiosk-date-value,
+body.dark-mode .kiosk-subject-title {
+    color: #f1f5f9;
+}
+
+body.dark-mode .kiosk-room-name,
+body.dark-mode .kiosk-panel h3 {
+    color: #94a3b8;
+}
+
+body.dark-mode .kiosk-checkin-name {
+    color: #f1f5f9;
+}
+
+body.dark-mode .kiosk-checkin-item {
+    background-color: #0f172a;
+    border-bottom: 1px solid #334155;
 }
 
 /* Responsive Styles */

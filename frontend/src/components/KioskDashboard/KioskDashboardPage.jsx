@@ -145,7 +145,7 @@ const KioskDashboardPage = () => {
                             <div className="kiosk-room-name">{kioskState.room || 'Room Unknown'}</div>
                         </>
                     ) : (
-                        <h2 className="kiosk-subject-title" style={{ color: '#94a3b8' }}>No Active Class</h2>
+                        <h2 className="kiosk-subject-title kiosk-no-class-text">No Active Class</h2>
                     )}
                 </div>
 
@@ -181,15 +181,13 @@ const KioskDashboardPage = () => {
                                         <span className="kiosk-checkin-name">{checkin.name}</span>
                                         <span className="kiosk-checkin-time">{checkin.timestamp}</span>
                                     </div>
-                                    <span className="kiosk-checkin-badge" style={{
-                                        backgroundColor: checkin.status === 'LATE' ? '#ef4444' : '#4CAF50'
-                                    }}>
+                                    <span className="kiosk-checkin-badge" data-status={checkin.status}>
                                         {checkin.status}
                                     </span>
                                 </div>
                             ))
                         ) : (
-                            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>
+                            <div className="kiosk-no-activity">
                                 No recent activity
                             </div>
                         )}

@@ -44,6 +44,23 @@ def _to_date_key(class_id: int, day_value) -> Tuple[int, str]:
     return class_id, str(day_value)
 
 
+def _is_valid_session_day(
+    cls: Class,
+    session_date: date,
+    exception_lookup: Dict[Tuple[int, str], ExceptionType],
+) -> bool:
+    ex_type = exception_lookup.get((cls.id, str(session_date)))
+    if ex_type in {ExceptionType.CANCELLED, ExceptionType.HOLIDAY, ExceptionType.ONLINE}:
+        return False
+    if ex_type == ExceptionType.ONSITE:
+        return True
+
+    target_day = _day_name_to_index(cls.day_of_week)
+    if target_day is None:
+        return False
+    return session_date.weekday() == target_day
+
+
 def _compute_expected_sessions(
     classes: List[Class],
     exceptions: List[SessionException],
@@ -148,7 +165,13 @@ def _compute_counts_for_range(
         expected_end,
     )
 
-    conducted_pairs = set(
+    class_lookup = {cls.id: cls for cls in class_list}
+    exception_lookup = {
+        (ex.class_id, str(ex.session_date)): ex.exception_type
+        for ex in exceptions
+    }
+
+    raw_conducted_pairs = [
         _to_date_key(cid, log_date)
         for cid, log_date in db.query(
             AttendanceLog.class_id,
@@ -162,9 +185,21 @@ def _compute_counts_for_range(
         )
         .distinct()
         .all()
-    )
+    ]
 
-    attended_pairs = set(
+    conducted_pairs = set()
+    for cid, log_date in raw_conducted_pairs:
+        cls = class_lookup.get(cid)
+        if not cls:
+            continue
+        try:
+            session_date = datetime.fromisoformat(str(log_date)).date()
+        except ValueError:
+            continue
+        if _is_valid_session_day(cls, session_date, exception_lookup):
+            conducted_pairs.add((cid, str(session_date)))
+
+    raw_attended_pairs = [
         _to_date_key(cid, log_date)
         for cid, log_date in db.query(
             AttendanceLog.class_id,
@@ -179,7 +214,19 @@ def _compute_counts_for_range(
         )
         .distinct()
         .all()
-    )
+    ]
+
+    attended_pairs = set()
+    for cid, log_date in raw_attended_pairs:
+        cls = class_lookup.get(cid)
+        if not cls:
+            continue
+        try:
+            session_date = datetime.fromisoformat(str(log_date)).date()
+        except ValueError:
+            continue
+        if _is_valid_session_day(cls, session_date, exception_lookup):
+            attended_pairs.add((cid, str(session_date)))
 
     return {
         "attended": len(attended_pairs),
@@ -343,8 +390,14 @@ def compute_student_core_metrics(
 
     expected_sessions = _compute_expected_sessions(class_list, exceptions, date_from.date(), date_to.date())
 
+    class_lookup = {cls.id: cls for cls in class_list}
+    exception_lookup = {
+        (ex.class_id, str(ex.session_date)): ex.exception_type
+        for ex in exceptions
+    }
+
     # 4) Conducted sessions: distinct (class_id, date) with at least one ENTRY by anyone.
-    conducted_pairs = set(
+    raw_conducted_pairs = [
         _to_date_key(cid, log_date)
         for cid, log_date in db.query(
             AttendanceLog.class_id,
@@ -358,7 +411,19 @@ def compute_student_core_metrics(
         )
         .distinct()
         .all()
-    )
+    ]
+
+    conducted_pairs = set()
+    for cid, log_date in raw_conducted_pairs:
+        cls = class_lookup.get(cid)
+        if not cls:
+            continue
+        try:
+            session_date = datetime.fromisoformat(str(log_date)).date()
+        except ValueError:
+            continue
+        if _is_valid_session_day(cls, session_date, exception_lookup):
+            conducted_pairs.add((cid, str(session_date)))
     sessions_conducted = len(conducted_pairs)
 
     # 5) Student ENTRY sessions + late/on-time counts.
@@ -379,6 +444,16 @@ def compute_student_core_metrics(
     on_time_entries = 0
     for cid, log_date, is_late in student_entry_rows:
         key = _to_date_key(cid, log_date)
+        cls = class_lookup.get(cid)
+        if not cls:
+            continue
+        try:
+            session_date = datetime.fromisoformat(str(log_date)).date()
+        except ValueError:
+            continue
+        if not _is_valid_session_day(cls, session_date, exception_lookup):
+            continue
+        key = (cid, str(session_date))
         if key in attended_pairs:
             continue
         attended_pairs.add(key)
@@ -513,7 +588,12 @@ def compute_confidence_label(session_count: int, completeness_score: float) -> s
     return "LOW"
 
 
-def build_student_summary_metrics(metrics: Dict[str, float], date_from: datetime, date_to: datetime) -> List[Dict]:
+def build_student_summary_metrics(
+    metrics: Dict[str, float],
+    date_from: datetime,
+    date_to: datetime,
+    is_all_subject_scope: bool = True,
+) -> List[Dict]:
     confidence = compute_confidence_label(
         int(metrics.get("session_count_for_confidence", 0)),
         float(metrics.get("data_completeness_score", 0.0)),
@@ -521,11 +601,13 @@ def build_student_summary_metrics(metrics: Dict[str, float], date_from: datetime
 
     window = f"{date_from.date()}..{date_to.date()}"
 
+    scope_prefix = "all " if is_all_subject_scope else ""
+
     return [
         {
             "metric_name": "real_time_attendance_rate",
             "value": metrics["real_time_attendance_rate"],
-            "formula": "sessions_attended / sessions_conducted * 100",
+            "formula": f"{scope_prefix}sessions_attended / {scope_prefix}sessions_conducted * 100",
             "numerator": metrics["sessions_attended"],
             "denominator": metrics["sessions_conducted"],
             "data_window": window,
@@ -535,7 +617,7 @@ def build_student_summary_metrics(metrics: Dict[str, float], date_from: datetime
         {
             "metric_name": "semester_progress_attendance_rate",
             "value": metrics["semester_progress_attendance_rate"],
-            "formula": "sessions_attended / expected_sessions * 100",
+            "formula": f"{scope_prefix}sessions_attended / {scope_prefix}expected_sessions * 100",
             "numerator": metrics["sessions_attended"],
             "denominator": metrics["expected_sessions"],
             "data_window": window,
@@ -545,7 +627,7 @@ def build_student_summary_metrics(metrics: Dict[str, float], date_from: datetime
         {
             "metric_name": "punctuality_rate",
             "value": metrics["punctuality_rate"],
-            "formula": "on_time_entries / total_entries * 100",
+            "formula": f"{scope_prefix}on_time_entries / {scope_prefix}total_entries * 100",
             "numerator": metrics["on_time_entries"],
             "denominator": metrics["total_entries"],
             "data_window": window,
