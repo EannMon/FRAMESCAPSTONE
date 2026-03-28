@@ -265,7 +265,7 @@ def _select_department_insights_for_report(insights: List[Dict], report_code: Op
 
     code = report_code.upper()
     facility_reports = {"ROOM_OCCUPANCY", "PEAK_USAGE", "ROOM_UTILIZATION", "OVERCROWDING"}
-    faculty_reports = {"FACULTY_SUMMARY", "FACULTY_LATE", "FACULTY_CONSISTENCY", "DEPT_ACTIVITY"}
+    faculty_reports = {"FACULTY_SUMMARY", "FACULTY_LATE", "FACULTY_CONSISTENCY", "FACULTY_ATTENDANCE_RATE", "FACULTY_ABSENCE", "FACULTY_PUNCTUALITY", "FACULTY_TEACHING_LOAD", "DEPT_ACTIVITY"}
 
     facility_codes = {
         "DEPT_CAPACITY_PRESSURE",
