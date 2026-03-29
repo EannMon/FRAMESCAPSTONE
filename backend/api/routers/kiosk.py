@@ -93,7 +93,7 @@ class ScheduleEntryResponse(BaseModel):
     room: str
     semester: str
     academic_year: str
-    late_threshold_minutes: int = 15
+    late_threshold_minutes: int = 0
 
 
 class ScheduleResponse(BaseModel):
@@ -239,7 +239,7 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
                     "start_time": start.strftime("%H:%M:%S") if hasattr(start, 'strftime') else str(start),
                     "end_time": end.strftime("%H:%M:%S") if hasattr(end, 'strftime') else str(end),
                     "room": device.room,
-                    "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
+                    "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 0
                 }
                 break
 
@@ -310,7 +310,7 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
             room=device.room,
             semester=cls.semester or "",
             academic_year=cls.academic_year or "",
-            late_threshold_minutes=cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 15
+            late_threshold_minutes=cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 0
         ))
     
     return ScheduleResponse(
@@ -388,11 +388,12 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
                 is_late=False
             )
 
+    timestamp = _local_now()
     if body.timestamp is not None:
         try:
             timestamp = datetime.fromisoformat(body.timestamp)
         except Exception:
-            pass
+            logger.warning("ATTENDANCE | invalid timestamp '%s', using local now", body.timestamp)
 
     # --- Server-side duplicate ENTRY guard ---
     # Uses same walk-through logic as the state machine for consistency.
@@ -433,18 +434,19 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
     # Determine if late (only for ENTRY action)
     is_late = False
     if body.action == "ENTRY" and class_.start_time:
-        late_threshold = class_.late_threshold_minutes if class_.late_threshold_minutes is not None else 15
+        late_threshold = class_.late_threshold_minutes if class_.late_threshold_minutes is not None else 0
         start = class_.start_time
         if isinstance(start, str):
             start = datetime.strptime(start, "%H:%M:%S").time()
 
-        class_start_dt = datetime.combine(timestamp.date(), start)
-        late_cutoff = class_start_dt + timedelta(minutes=late_threshold)
+        if late_threshold and late_threshold > 0:
+            class_start_dt = datetime.combine(timestamp.date(), start)
+            late_cutoff = class_start_dt + timedelta(minutes=late_threshold)
 
-        if timestamp > late_cutoff:
-            is_late = True
-            minutes_late = int((timestamp - class_start_dt).total_seconds() / 60)
-            body.remarks = (body.remarks or "") + f" [LATE by {minutes_late} min]"
+            if timestamp > late_cutoff:
+                is_late = True
+                minutes_late = int((timestamp - class_start_dt).total_seconds() / 60)
+                body.remarks = (body.remarks or "") + f" [LATE by {minutes_late} min]"
 
     # Create attendance log
     # Convert raw strings to proper enum members (kiosk sends .value strings)
@@ -749,8 +751,8 @@ def update_late_threshold(class_id: int, data: LateThresholdUpdate, db: Session 
     if not cls:
         raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
-    if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
-        raise api_error(400, "INVALID_THRESHOLD", "Late threshold must be between 1 and 120 minutes")
+    if data.late_threshold_minutes < 0 or data.late_threshold_minutes > 120:
+        raise api_error(400, "INVALID_THRESHOLD", "Late threshold must be between 0 and 120 minutes")
 
     cls.late_threshold_minutes = data.late_threshold_minutes
     db.commit()

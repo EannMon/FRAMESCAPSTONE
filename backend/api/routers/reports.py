@@ -144,13 +144,55 @@ def get_system_logs(
         query = query.filter(AttendanceLog.timestamp >= date_from)
     if date_to:
         query = query.filter(AttendanceLog.timestamp <= date_to + " 23:59:59")
+
+    # Apply room filter at SQL level
+    has_class_join = False
     if room:
         normalized_room = room.strip().lower()
         query = (
             query.join(Class, AttendanceLog.class_id == Class.id)
             .filter(func.lower(func.trim(Class.room)) == normalized_room)
         )
+        has_class_join = True
 
+    # Apply level filter at SQL level
+    if level:
+        level_upper = level.strip().upper()
+        if level_upper == "ERROR":
+            query = query.filter(
+                AttendanceLog.confidence_score.isnot(None),
+                AttendanceLog.confidence_score < 0.5,
+            )
+        elif level_upper == "WARN":
+            query = query.filter(
+                AttendanceLog.is_late == True,
+                # Exclude ERROR-level rows (low confidence takes priority)
+                ~(
+                    (AttendanceLog.confidence_score.isnot(None))
+                    & (AttendanceLog.confidence_score < 0.5)
+                ),
+            )
+        elif level_upper == "INFO":
+            query = query.filter(
+                AttendanceLog.is_late != True,
+                ~(
+                    (AttendanceLog.confidence_score.isnot(None))
+                    & (AttendanceLog.confidence_score < 0.5)
+                ),
+            )
+
+    # Apply search filter at SQL level (searches user full name)
+    if search:
+        query = query.join(User, AttendanceLog.user_id == User.id)
+        search_lower = search.strip().lower()
+        search_pattern = f"%{search_lower}%"
+        query = query.filter(
+            func.lower(
+                func.concat(User.first_name, ' ', User.last_name)
+            ).like(search_pattern)
+        )
+
+    # Pagination now applied AFTER all filters
     logs = query.order_by(desc(AttendanceLog.timestamp)).offset(skip).limit(limit).all()
 
     entries = []
@@ -179,13 +221,6 @@ def get_system_logs(
             "source": device_name,
             "timestamp": log.timestamp.isoformat() if log.timestamp else None,
         }
-
-        # Apply filters
-        if level and entry["level"] != level.upper():
-            continue
-        if search and search.lower() not in entry["message"].lower():
-            continue
-
         entries.append(entry)
 
     # Also add device heartbeat events

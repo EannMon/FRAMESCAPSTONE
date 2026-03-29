@@ -8,6 +8,7 @@ import bcrypt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+from core.auth import create_access_token
 
 from db.database import Base, get_db
 from main import app
@@ -137,34 +138,19 @@ def test_student(db_session, test_department):
 @pytest.fixture
 def faculty_auth_headers(client, test_faculty):
     """Return Authorization header with a valid faculty JWT token."""
-    response = client.post("/api/auth/login", json={
-        "identifier": "faculty@test.tupm.edu.ph",
-        "password": "testpassword",
-    })
-    assert response.status_code == 200, f"Login failed: {response.text}"
-    token = response.json()["access_token"]
+    token = create_access_token(test_faculty)
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def student_auth_headers(client, test_student):
     """Return Authorization header with a valid student JWT token."""
-    response = client.post("/api/auth/login", json={
-        "identifier": "student@test.tupm.edu.ph",
-        "password": "testpassword",
-    })
-    assert response.status_code == 200, f"Login failed: {response.text}"
-    token = response.json()["access_token"]
+    token = create_access_token(test_student)
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def admin_auth_headers(client, test_admin):
     """Return Authorization header with a valid admin JWT token."""
-    response = client.post("/api/auth/login", json={
-        "identifier": "admin@test.tupm.edu.ph",
-        "password": "testpassword",
-    })
-    assert response.status_code == 200, f"Login failed: {response.text}"
-    token = response.json()["access_token"]
+    token = create_access_token(test_admin)
     return {"Authorization": f"Bearer {token}"}
