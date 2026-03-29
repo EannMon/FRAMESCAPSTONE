@@ -201,6 +201,37 @@ def generate_student_role_insights(
             )
         )
 
+    # Recognition quality insight (uses confidence_score + verified_by from metrics)
+    avg_conf = float(metrics.get("avg_confidence_score", 0.0))
+    high_conf_pct = float(metrics.get("high_confidence_pct", 0.0))
+    face_verified = int(metrics.get("face_verified_count", 0))
+    manual_overrides = int(metrics.get("manual_override_count", 0))
+    recognition_quality = float(metrics.get("recognition_quality_rate", 0.0))
+
+    if avg_conf > 0 or face_verified > 0:
+        quality_state = "high" if high_conf_pct >= 85 else ("moderate" if high_conf_pct >= 60 else "low")
+        insights.append(
+            _make_insight(
+                "STUDENT_RECOGNITION_QUALITY",
+                "Facial Recognition Quality",
+                (
+                    f"Recognition quality is {quality_state} with a {avg_conf:.0%} average confidence score. "
+                    f"{high_conf_pct:.0f}% of entries achieved high-confidence face matching (≥85%). "
+                    f"{'All entries used automated face verification.' if manual_overrides == 0 else f'{manual_overrides} entries required manual override, which may indicate lighting or positioning issues.'}"
+                ),
+                {
+                    "avg_confidence_score": avg_conf,
+                    "high_confidence_pct": high_conf_pct,
+                    "face_verified_count": face_verified,
+                    "manual_override_count": manual_overrides,
+                    "recognition_quality_rate": recognition_quality,
+                },
+                "Low recognition quality can indicate enrollment photo issues or environmental interference at the kiosk.",
+                confidence,
+                confidence_msg,
+            )
+        )
+
     insights.append(
         _make_insight(
             "STUDENT_EVIDENCE_STRENGTH",

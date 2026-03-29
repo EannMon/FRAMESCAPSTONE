@@ -61,7 +61,7 @@ const StudentReportModal = ({
                 <div className="report-modal-body">
                     <p className="modal-info-text">
                         Please review your report settings before generating. The system will process 
-                        <span className="bold-highlight"> 128-dimensional embedding logs</span> to create this summary.
+                        <span className="bold-highlight"> attendance log processing and facial recognition verification records</span> to create this summary.
                     </p>
 
                     <div className="config-card">

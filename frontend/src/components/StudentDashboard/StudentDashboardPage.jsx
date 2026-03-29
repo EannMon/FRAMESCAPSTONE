@@ -267,11 +267,12 @@ const AttendanceTrendChart = ({ logs }) => {
                 const dateStr = d.toLocaleDateString();
 
                 const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
+                const presentCount = dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
 
                 dataPoints.push({
                     label: dayStr,
-                    present: dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: 0, // will be computed below
                     break: dayLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: dayLogs.length
                 });
@@ -296,11 +297,12 @@ const AttendanceTrendChart = ({ logs }) => {
                         d.getDate() >= q.start &&
                         d.getDate() <= q.end;
                 });
+                const presentCount = qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
 
                 dataPoints.push({
                     label: q.label,
-                    present: qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: 0, // will be computed below
                     break: qLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: qLogs.length
                 });
@@ -315,14 +317,27 @@ const AttendanceTrendChart = ({ logs }) => {
                     const d = new Date(l.timestamp);
                     return d.getFullYear() === currentYear && d.getMonth() === idx;
                 });
+                const presentCount = mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
 
                 dataPoints.push({
                     label: m,
-                    present: mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: 0, // will be computed below
                     break: mLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: mLogs.length
                 });
+            });
+        }
+
+        // Compute absent per period: max present across all periods is the expected baseline.
+        // Absent = baseline - present for each non-zero period (avoids false absent for weekends/holidays).
+        const maxPresent = Math.max(...dataPoints.map(d => d.present), 0);
+        if (maxPresent > 0) {
+            dataPoints.forEach(dp => {
+                // Only compute absent for periods that had at least some activity
+                if (dp.total > 0 || dp.present > 0) {
+                    dp.absent = Math.max(0, maxPresent - dp.present);
+                }
             });
         }
 
