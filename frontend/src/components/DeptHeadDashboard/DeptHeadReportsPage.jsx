@@ -780,33 +780,35 @@ const DeptHeadReportsPage = () => {
 
                     {/* Show Class selector for class-specific reports */}
                     {selectedReport?.type === 'CLASS' && (
-                        <div className="filter-item" style={{ minWidth: '220px' }}>
-                            <label>Subject / Class:</label>
+                        <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
                             <select 
-                                value={selectedClass} 
-                                onChange={e => {
-                                    setSelectedClass(e.target.value);
-                                }} 
-                                className="app-select big-select" 
-                            >
-                                <option value="">Select a Class</option>
-                                {classes.map((c, idx) => {
-                                    const idToUse = c.class_id || c.id || "";
-                                    return (
-                                        <option key={`class-id-${idToUse}-${idx}`} value={idToUse}>
-                                            {c.subject_code || 'No Code'} - {c.section || 'N/A'}
-                                        </option>
-                                    );
-                                })}
-                            </select>
+                            value={selectedClass} 
+                            onChange={e => {
+                                console.log("[Debug] User selected class dropdown value:", e.target.value);
+                                setSelectedClass(e.target.value);
+                            }} 
+                            className="app-select big-select" 
+                            style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
+                        >
+                            <option value="">Select a Class</option>
+                            {classes.map((c, idx) => {
+                                const idToUse = c.class_id || c.id || "";
+                                return (
+                                    <option key={`class-id-${idToUse}-${idx}`} value={idToUse}>
+                                        {c.subject_code || 'No Code'} - {c.section || 'N/A'}
+                                    </option>
+                                );
+                            })}
+                        </select>
                         </div>
                     )}
 
                     {/* Show Room selector for room-specific reports */}
                     {['ROOM_OCCUPANCY', 'PEAK_USAGE', 'ROOM_UTILIZATION', 'OVERCROWDING', 'DEPT_ACTIVITY'].includes(selectedReport?.id) && (
-                        <div className="filter-item" style={{ minWidth: '180px' }}>
-                            <label>Room:</label>
-                            <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select">
+                        <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Room:</label>
+                            <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select" style={{ minWidth: '180px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
                                 <option value="">All Rooms</option>
                                 <option value="Online">Online</option>
                                 {rooms

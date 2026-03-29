@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import '../FacultyDashboard/FacultyDashboardPage.css';
-import '../FacultyDashboard/FacultyDashboardPage.css';
 import './StudentDashboardPage.css';
 
 // --- HERO WELCOME BANNER ---
