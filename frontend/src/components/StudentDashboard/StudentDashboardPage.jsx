@@ -1,96 +1,100 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
+import '../FacultyDashboard/FacultyDashboardPage.css';
 import './StudentDashboardPage.css';
 
-// --- COMPONENTS ---
-
-const WelcomeBanner = ({ studentName, studentId }) => (
-    <div className="card welcome-banner">
-        <div className="welcome-avatar">
-            <i className="fas fa-user"></i>
-        </div>
-        <div className="welcome-info">
-            <h3>Welcome back, {studentName}!</h3>
-            <p>Student ID: {studentId}</p>
-            <p>Face Registration: <span className="status-tag green">Registered</span></p>
-        </div>
-    </div>
-);
-
-const StudentSummaryCard = ({ iconClass, value, title, iconBgClass, subtitle, subtitleColor, hoverExplanation }) => (
-    <div className="card student-summary-card" title={hoverExplanation || ''}>
-        <div className={`summary-icon-container ${iconBgClass}`}>
-            <i className={iconClass}></i>
-        </div>
-        <div className="summary-value">{value}</div>
-        <div className="summary-title">{title}</div>
-        {subtitle && (
-            <div className="summary-subtitle" style={{ '--subtitle-color': subtitleColor || 'var(--text-muted)' }}>
-                {subtitle}
+// --- HERO WELCOME BANNER ---
+const WelcomeBanner = ({ studentName, studentId, todayName, todayDate }) => (
+    <div className="fd-hero-banner">
+        <div className="fd-hero-shape fd-hero-shape-1"></div>
+        <div className="fd-hero-shape fd-hero-shape-2"></div>
+        <div className="fd-hero-shape fd-hero-shape-3"></div>
+        <div className="fd-hero-content">
+            <div className="fd-hero-left">
+                <div className="fd-hero-text">
+                    <p className="fd-hero-greeting">Welcome back,</p>
+                    <h2 className="fd-hero-name">{studentName}</h2>
+                    <p className="fd-hero-id">Student ID: {studentId}</p>
+                </div>
             </div>
-        )}
+            <div className="fd-hero-right">
+                <span className="fd-face-badge registered">
+                    <i className="fas fa-check-circle"></i>
+                    Face Registered
+                </span>
+            </div>
+        </div>
     </div>
 );
 
-const StudentSummaryCards = ({ stats, metrics }) => {
-    const attTier = metrics ? metrics.attendance_tier : null;
-    const puncTier = metrics ? metrics.punctuality_tier : null;
-    const attColor = metrics ? metrics.attendance_tier_color : '#888';
-    const puncColor = metrics ? metrics.punctuality_tier_color : '#888';
-    const attRate = metrics ? `${metrics.attendance_rate}%` : stats.attendanceRate;
-    const puncRate = metrics ? `${metrics.punctuality_rate}%` : '--';
+// --- RIBBON STAT ITEM ---
+const StudentStatItem = ({ title, value, subValue, subValueColor }) => (
+    <div className="fd-ribbon-item">
+        <span className="fd-ribbon-label">{title}</span>
+        <span className="fd-ribbon-value">{value}</span>
+        {subValue && <span className="fd-ribbon-sub" style={{ color: subValueColor || '#64748b' }}>{subValue}</span>}
+    </div>
+);
 
-    const tierGuideText = 'Tier Guide: Compliant (>=95%), Acceptable (85-94%), Warning (75-84%), Probation (<75%).';
-    const attendanceHover = metrics
-        ? [
-            'Attendance Rate = (Sessions Attended / Total Conducted Sessions) x 100.',
-            `Current: ${metrics.sessions_attended} / ${metrics.total_sessions} = ${metrics.attendance_rate}%.`,
-            tierGuideText,
-        ].join('\n')
-        : `Attendance Rate = (Sessions Attended / Total Conducted Sessions) x 100.\n${tierGuideText}`;
-
-    const punctualityHover = metrics
-        ? [
-            'Punctuality Rate = (On-Time Arrivals / Attended Sessions) x 100.',
-            `Current: ${metrics.on_time_arrivals} on-time / ${metrics.sessions_attended} attended = ${metrics.punctuality_rate}%.`,
-            tierGuideText,
-        ].join('\n')
-        : `Punctuality Rate = (On-Time Arrivals / Attended Sessions) x 100.\n${tierGuideText}`;
-
+// --- SESSION BREAKDOWN BAR ---
+const BreakdownBar = ({ label, current, total, color, subLabel }) => {
+    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
     return (
-        <div className="student-summary-cards-container">
-            <StudentSummaryCard
-                iconClass="fas fa-user-check"
-                value={attRate}
-                title="Attendance Rate"
-                iconBgClass="s-attendance-bg"
-                subtitle={attTier}
-                subtitleColor={attColor}
-                hoverExplanation={attendanceHover}
-            />
-            <StudentSummaryCard
-                iconClass="fas fa-book"
-                value={stats.courses}
-                title="Enrolled Courses"
-                iconBgClass="s-courses-bg"
-            />
-            <StudentSummaryCard
-                iconClass="fas fa-clock"
-                value={puncRate}
-                title="Punctuality Rate"
-                iconBgClass="s-access-bg"
-                subtitle={puncTier}
-                subtitleColor={puncColor}
-                hoverExplanation={punctualityHover}
-            />
+        <div className="sd-bar-metric">
+            <div className="sd-bar-top">
+                <span className="sd-bar-label">{label}</span>
+                <div className="sd-bar-right">
+                    <span className="sd-bar-count">{current} / {total}</span>
+                    {subLabel && <span className="sd-bar-sub-tag">{subLabel}</span>}
+                </div>
+            </div>
+            <div className="sd-bar-track">
+                <div className="sd-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }}>
+                    {pct > 8 && <span className="sd-bar-pct">{pct}%</span>}
+                </div>
+                {pct <= 8 && <span className="sd-bar-pct-outside" style={{ color }}>{pct}%</span>}
+            </div>
         </div>
     );
 };
 
-// --- RIGHT PANEL COMPONENTS ---
+// --- SESSION BREAKDOWN PANEL ---
+const SessionBreakdown = ({ metrics }) => {
+    if (!metrics) return null;
 
+    const attended = metrics.sessions_attended || 0;
+    const total = metrics.total_sessions || 0;
+    const missed = total - attended;
+    const onTime = metrics.on_time_arrivals || 0;
+    const late = metrics.late_arrivals || 0;
+
+    return (
+        <div className="fd-card sd-metrics-card">
+            <div className="fd-card-header">
+                <h3>Session Breakdown</h3>
+            </div>
+            <div className="sd-bars-container">
+                <BreakdownBar
+                    label="Sessions Attended"
+                    current={attended}
+                    total={total}
+                    color="#00A859"
+                    subLabel={missed > 0 ? `${missed} missed` : 'Perfect'}
+                />
+                <BreakdownBar
+                    label="On-Time Arrivals"
+                    current={onTime}
+                    total={attended}
+                    color="#3b82f6"
+                    subLabel={late > 0 ? `${late} late` : 'All on time'}
+                />
+            </div>
+        </div>
+    );
+};
+
+// --- LIVE CLASS STATUS ---
 const LiveClassStatus = ({ recentLog }) => {
-    // Determine Status based on latest log
     let status = 'IDLE';
     let statusColor = 'grey';
     let statusText = 'Not currently in any class';
@@ -101,16 +105,15 @@ const LiveClassStatus = ({ recentLog }) => {
         const now = new Date();
         const diffHours = (now - logTime) / 1000 / 60 / 60;
 
-        // If log is within last 4 hours (assumption for class duration)
         if (diffHours < 4) {
             roomName = recentLog.room || 'Unknown Room';
             if (recentLog.action === 'ENTRY' || recentLog.action === 'BREAK_IN') {
                 status = 'ACTIVE';
-                statusColor = '#2E7D32'; // Success Green
+                statusColor = '#2E7D32';
                 statusText = `Currently Detected in ${roomName}`;
             } else if (recentLog.action === 'BREAK_OUT') {
                 status = 'BREAK';
-                statusColor = '#F9A825'; // Warning Amber
+                statusColor = '#F9A825';
                 statusText = `On Break from ${roomName}`;
             } else if (recentLog.event_type === 'attendance_out') {
                 status = 'OUT';
@@ -122,20 +125,20 @@ const LiveClassStatus = ({ recentLog }) => {
     }
 
     return (
-        <div className="card live-status-card">
-            <div className="live-header">
-                <h3><i className="fas fa-satellite-dish"></i> Live Status</h3>
-                <div className="live-indicator">
-                    <span className="blink-dot" style={{ backgroundColor: statusColor }}></span>
-                    <span className="live-status-text" style={{ '--status-color': statusColor }}>{status}</span>
+        <div className="fd-card sd-live-card">
+            <div className="fd-card-header">
+                <h3>Live Status</h3>
+                <div className="sd-live-indicator">
+                    <span className="fd-blink-dot" style={{ backgroundColor: statusColor }}></span>
+                    <span className="sd-status-text" style={{ color: statusColor }}>{status}</span>
                 </div>
             </div>
-            <div className="live-body">
-                <div className="room-display">
-                    <i className={`fas fa-chalkboard-teacher room-icon ${status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
-                    <div className="room-info">
+            <div className="sd-live-body">
+                <div className={`fd-room-display fd-room-${status.toLowerCase()}`}>
+                    <i className={`fas fa-chalkboard-teacher fd-room-icon ${status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
+                    <div className="fd-room-details">
                         <h4>{roomName}</h4>
-                        <p>{statusText}</p>
+                        <p className="fd-room-status-text">{statusText}</p>
                     </div>
                 </div>
             </div>
@@ -143,132 +146,90 @@ const LiveClassStatus = ({ recentLog }) => {
     );
 };
 
-// --- METRICS PANEL COMPONENT ---
-const StudentMetricsPanel = ({ metrics }) => {
-    if (!metrics) return null;
-
-    const renderMeter = (rate, color, label, explanation) => {
-        const pct = Math.min(Math.max(rate, 0), 100);
-        return (
-            <div className="metrics-meter">
-                <div className="metrics-meter-header">
-                    <span className="metrics-label">{label}</span>
-                    <span className="metrics-value" style={{ '--meter-color': color }}>{pct}%</span>
-                </div>
-                <div className="metrics-bar-bg">
-                    <div className="metrics-bar-fill" style={{ width: `${pct}%`, '--bar-color': color }} />
-                </div>
-                {explanation && <p className="metrics-explanation">{explanation}</p>}
-            </div>
-        );
+// --- RECENT ACTIVITY (TIMELINE) ---
+const StudentRecentActivity = ({ logs }) => {
+    const getEventColor = (action) => {
+        switch (action) {
+            case 'ENTRY': case 'BREAK_IN': return '#00A859';
+            case 'BREAK_OUT': return '#f59e0b';
+            case 'EXIT': return '#64748b';
+            default: return '#94a3b8';
+        }
     };
 
-    const renderTierBadge = (tier, color) => (
-        <span className="tier-badge" style={{ '--badge-bg': color }}>
-            {tier}
-        </span>
-    );
+    const getEventIcon = (action) => {
+        switch (action) {
+            case 'ENTRY': return 'fa-sign-in-alt';
+            case 'BREAK_IN': return 'fa-undo';
+            case 'BREAK_OUT': return 'fa-coffee';
+            case 'EXIT': return 'fa-sign-out-alt';
+            default: return 'fa-circle';
+        }
+    };
 
     return (
-        <div className="card metrics-panel">
-            <h3 className="metrics-panel-title">
-                <i className="fas fa-chart-bar metrics-icon"></i>
-                Performance Metrics
-            </h3>
-
-            {renderMeter(
-                metrics.attendance_rate,
-                metrics.attendance_tier_color,
-                'Attendance Rate',
-                "Shows your record of attendance across all enrolled courses."
-            )}
-            <div className="metrics-detail-row">
-                <span className="metrics-detail-text">
-                    {metrics.sessions_attended} / {metrics.total_sessions} sessions
-                </span>
-                {renderTierBadge(metrics.attendance_tier, metrics.attendance_tier_color)}
+        <div className="fd-card fd-activity-card">
+            <div className="fd-card-header">
+                <h3>Recent Activity</h3>
             </div>
-
-            {renderMeter(
-                metrics.punctuality_rate,
-                metrics.punctuality_tier_color,
-                'Punctuality Rate',
-                "Measures how consistently you arrive on time for your classes."
+            {(!logs || logs.length === 0) ? (
+                <div className="fd-empty-state">
+                    <p>No recent records found.</p>
+                </div>
+            ) : (
+                <div className="fd-timeline">
+                    {logs.slice(0, 5).map((log, i) => {
+                        const action = log.action || 'ENTRY';
+                        const color = getEventColor(action);
+                        return (
+                            <div key={i} className="fd-timeline-item">
+                                <div className="fd-timeline-line">
+                                    <div className="fd-timeline-dot" style={{ backgroundColor: color, boxShadow: `0 0 0 4px ${color}22` }}>
+                                        <i className={`fas ${getEventIcon(action)}`}></i>
+                                    </div>
+                                    {i < Math.min(logs.length, 5) - 1 && <div className="fd-timeline-connector"></div>}
+                                </div>
+                                <div className="fd-timeline-content">
+                                    <div className="fd-timeline-top">
+                                        <strong>{action.replace('_', ' ')}</strong>
+                                        <span className="fd-timeline-time">
+                                            {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                    <span className="fd-timeline-meta">
+                                        {new Date(log.timestamp).toLocaleDateString()} • {log.room || 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             )}
-            <div className="metrics-detail-row metrics-detail-last">
-                <span className="metrics-detail-text">
-                    {metrics.on_time_arrivals} on-time / {metrics.late_arrivals} late
-                </span>
-                {renderTierBadge(metrics.punctuality_tier, metrics.punctuality_tier_color)}
-            </div>
         </div>
     );
 };
 
-// ... (Recent Attendance Component skipped as it mostly depends on CSS) ... 
-const StudentRecentAttendance = ({ logs }) => (
-    <div className="card student-recent-attendance">
-        <h3>Recent Activity</h3>
-        <div className="recent-activity-list">
-            {logs.length > 0 ? (
-                logs.slice(0, 5).map((log, index) => {
-                    const action = log.action || 'ENTRY';
-                    const isEntry = action === 'ENTRY' || action === 'BREAK_IN';
-                    const displayType = action.replace('_', ' ');
 
-                    return (
-                        <div key={index} className="student-attendance-item">
-                            <div className="attendance-details">
-                                <span className="attendance-day">{new Date(log.timestamp).toLocaleDateString()}</span>
-                                <span className="attendance-time">
-                                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
-                            <div className="attendance-stats">
-                                <span className="attendance-percent" style={{
-                                    color: isEntry ? '#2E7D32' : '#666',
-                                    fontSize: '0.8em',
-                                    backgroundColor: isEntry ? 'rgba(46, 125, 50, 0.1)' : 'var(--bg-muted, #f0f0f0)'
-                                }}>
-                                    {displayType}
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })
-            ) : (
-                <p className="no-records-message">No recent records found.</p>
-            )}
-        </div>
-    </div>
-);
-
-// --- ADVANCED CHART COMPONENT ---
-
+// --- ATTENDANCE TREND CHART ---
 const AttendanceTrendChart = ({ logs }) => {
-    // 1. Local State for Filters
-    const [timeFilter, setTimeFilter] = useState('MONTHLY'); // 'WEEKLY', 'MONTHLY', 'SEMESTRAL'
-    const [typeFilter, setTypeFilter] = useState('ALL'); // 'ALL', 'PRESENT', 'ABSENT', 'BREAK'
+    const [timeFilter, setTimeFilter] = useState('MONTHLY');
+    const [typeFilter, setTypeFilter] = useState('ALL');
     const [hoveredIndex, setHoveredIndex] = useState(null);
 
-    // 2. Process Data based on Filters (Memoized)
     const chartData = useMemo(() => {
         const safeLogs = logs || [];
         const now = new Date();
         const dataPoints = [];
 
         if (timeFilter === 'WEEKLY') {
-            // Logic: Show days of the current week (or last 7 days). 
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(now);
                 d.setDate(d.getDate() - i);
                 const dayStr = days[d.getDay()];
                 const dateStr = d.toLocaleDateString();
-
                 const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
                 const presentCount = dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
-
                 dataPoints.push({
                     label: dayStr,
                     present: presentCount,
@@ -277,28 +238,21 @@ const AttendanceTrendChart = ({ logs }) => {
                     total: dayLogs.length
                 });
             }
-
         } else if (timeFilter === 'MONTHLY') {
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
-
             const quarters = [
                 { label: 'Week 1', start: 1, end: 7 },
                 { label: 'Week 2', start: 8, end: 14 },
                 { label: 'Week 3', start: 15, end: 21 },
                 { label: 'Week 4', start: 22, end: 31 }
             ];
-
             quarters.forEach(q => {
                 const qLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
-                    return d.getFullYear() === currentYear &&
-                        d.getMonth() === currentMonth &&
-                        d.getDate() >= q.start &&
-                        d.getDate() <= q.end;
+                    return d.getFullYear() === currentYear && d.getMonth() === currentMonth && d.getDate() >= q.start && d.getDate() <= q.end;
                 });
                 const presentCount = qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
-
                 dataPoints.push({
                     label: q.label,
                     present: presentCount,
@@ -307,18 +261,15 @@ const AttendanceTrendChart = ({ logs }) => {
                     total: qLogs.length
                 });
             });
-
         } else if (timeFilter === 'SEMESTRAL') {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const currentYear = now.getFullYear();
-
             months.forEach((m, idx) => {
                 const mLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
                     return d.getFullYear() === currentYear && d.getMonth() === idx;
                 });
                 const presentCount = mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length;
-
                 dataPoints.push({
                     label: m,
                     present: presentCount,
@@ -345,7 +296,6 @@ const AttendanceTrendChart = ({ logs }) => {
         return dataPoints;
     }, [logs, timeFilter]);
 
-    // 3. Determine Insight Text
     const insightText = useMemo(() => {
         const total = chartData.reduce((acc, curr) => acc + curr.present, 0);
         if (timeFilter === 'SEMESTRAL') return `Total ${total} attendances recorded this semester.`;
@@ -353,11 +303,9 @@ const AttendanceTrendChart = ({ logs }) => {
         return `Performance for the last 7 days: ${total} present.`;
     }, [chartData, timeFilter]);
 
-    // 4. Chart Rendering Config
     const height = 300;
     const width = 800;
     const padding = 50;
-
     const rawMax = Math.max(...chartData.map(d => Math.max(d.present, d.break, d.absent)), 5);
     const maxVal = Math.ceil(rawMax / 5) * 5;
 
@@ -372,166 +320,115 @@ const AttendanceTrendChart = ({ logs }) => {
         return (i === 0 ? `M ${x},${y}` : `L ${x},${y}`);
     }).join(' ');
 
-    const colors = {
-        present: '#2E7D32', // Success Green
-        break: '#F9A825',   // Warning Amber
-        absent: '#C62828'   // Danger Red
-    };
+    const colors = { present: '#2E7D32', break: '#F9A825', absent: '#C62828' };
 
     return (
-        <div className="card attendance-trend-chart-card">
-            {/* TOP BAR: Title + Filters */}
-            <div className="trend-chart-header">
-                <h3><i className="fas fa-chart-line"></i> Attendance Trends</h3>
-
-                <div className="chart-filters-group">
-                    <div className="filter-pill-group">
+        <div className="fd-card fd-chart-card">
+            <div className="fd-card-header">
+                <h3>Attendance Trends</h3>
+                <div className="fd-chart-controls">
+                    <div className="fd-pill-group">
                         {['WEEKLY', 'MONTHLY', 'SEMESTRAL'].map(t => (
-                            <button
-                                key={t}
-                                className={`filter-pill ${timeFilter === t ? 'active' : ''}`}
-                                onClick={() => setTimeFilter(t)}
-                            >
-                                {t}
+                            <button key={t} className={`fd-pill ${timeFilter === t ? 'active' : ''}`} onClick={() => setTimeFilter(t)}>
+                                {t.charAt(0) + t.slice(1).toLowerCase()}
                             </button>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* SECONDARY FILTER: TYPE */}
-            <div className="type-filter-bar">
+            <div className="fd-type-filter-bar">
                 {['ALL', 'PRESENT', 'ABSENT', 'BREAK'].map(t => (
-                    <button
-                        key={t}
-                        className={`type-text-btn ${typeFilter === t ? 'active-type' : ''}`}
-                        onClick={() => setTypeFilter(t)}
-                    >
-                        {t}
+                    <button key={t} className={`fd-type-btn ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
+                        {t === 'ALL' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
                     </button>
                 ))}
             </div>
 
-            {/* CHART AREA */}
-            <div className="svg-chart-container" style={{ height: '250px' }}>
-                <svg viewBox={`0 0 ${width} ${height}`} className="trend-svg">
+            <div className="fd-svg-container">
+                <svg viewBox={`0 0 ${width} ${height}`} className="fd-trend-svg">
                     <defs>
-                        {/* Gradients for Area Fills */}
-                        <linearGradient id="gradPresent" x1="0" x2="0" y1="0" y2="1">
+                        <linearGradient id="sGradPresent" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stopColor={colors.present} stopOpacity="0.4" />
                             <stop offset="100%" stopColor={colors.present} stopOpacity="0" />
                         </linearGradient>
-                        <linearGradient id="gradBreak" x1="0" x2="0" y1="0" y2="1">
+                        <linearGradient id="sGradBreak" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stopColor={colors.break} stopOpacity="0.4" />
                             <stop offset="100%" stopColor={colors.break} stopOpacity="0" />
                         </linearGradient>
-                        <linearGradient id="gradAbsent" x1="0" x2="0" y1="0" y2="1">
+                        <linearGradient id="sGradAbsent" x1="0" x2="0" y1="0" y2="1">
                             <stop offset="0%" stopColor={colors.absent} stopOpacity="0.4" />
                             <stop offset="100%" stopColor={colors.absent} stopOpacity="0" />
                         </linearGradient>
-
-                        {/* Drop Shadow for Lines */}
-                        <filter id="lineShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <filter id="sLineShadow" x="-20%" y="-20%" width="140%" height="140%">
                             <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.2" />
+                        </filter>
+                        <filter id="sTooltipShadow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.15" />
                         </filter>
                     </defs>
 
-                    {/* Y-Axis Labels & Horizontal Grid Lines */}
                     {[0, 0.25, 0.5, 0.75, 1].map((t, i) => {
                         const val = Math.round(maxVal * t);
                         const y = height - padding - (t * (height - 2 * padding));
                         return (
-                            <g key={i}>
-                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--chart-grid)" strokeDasharray="5,5" />
-                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="var(--chart-text)" fontWeight="500">{val}</text>
-                            </g>
-
+                            <React.Fragment key={i}>
+                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--chart-grid, #e2e8f0)" strokeDasharray="5,5" />
+                                <text x={padding - 10} y={y + 5} textAnchor="end" fontSize="11" fill="var(--chart-text, #64748b)" fontWeight="500">{val}</text>
+                            </React.Fragment>
                         );
                     })}
+                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--chart-axis, #cbd5e1)" strokeWidth="2" strokeLinecap="round" />
 
-                    {/* Base Axis Line */}
-                    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--chart-axis)" strokeWidth="2" strokeLinecap="round" />
-
-
-                    {/* PATHS - Render Areas First */}
                     {(typeFilter === 'ALL' || typeFilter === 'ABSENT') &&
-                        <path d={`${makePath('absent')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradAbsent)" stroke="none" />
-                    }
+                        <path d={`${makePath('absent')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#sGradAbsent)" stroke="none" />}
                     {(typeFilter === 'ALL' || typeFilter === 'BREAK') &&
-                        <path d={`${makePath('break')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradBreak)" stroke="none" />
-                    }
+                        <path d={`${makePath('break')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#sGradBreak)" stroke="none" />}
                     {(typeFilter === 'ALL' || typeFilter === 'PRESENT') &&
-                        <path d={`${makePath('present')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#gradPresent)" stroke="none" />
-                    }
+                        <path d={`${makePath('present')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#sGradPresent)" stroke="none" />}
 
-                    {/* PATHS - Render Lines on Top */}
                     {(typeFilter === 'ALL' || typeFilter === 'ABSENT') &&
-                        <path d={makePath('absent')} fill="none" stroke={colors.absent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
-                    }
+                        <path d={makePath('absent')} fill="none" stroke={colors.absent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#sLineShadow)" />}
                     {(typeFilter === 'ALL' || typeFilter === 'BREAK') &&
-                        <path d={makePath('break')} fill="none" stroke={colors.break} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6,4" />
-                    }
+                        <path d={makePath('break')} fill="none" stroke={colors.break} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6,4" />}
                     {(typeFilter === 'ALL' || typeFilter === 'PRESENT') &&
-                        <path d={makePath('present')} fill="none" stroke={colors.present} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineShadow)" />
-                    }
+                        <path d={makePath('present')} fill="none" stroke={colors.present} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" filter="url(#sLineShadow)" />}
 
-                    {/* POINTS (Hover Layer) */}
                     {chartData.map((d, i) => {
                         const { x: xp, y: yp } = getCoords(d.present, i);
                         const { x: xb, y: yb } = getCoords(d.break, i);
                         const { x: xa, y: ya } = getCoords(d.absent, i);
-
                         return (
                             <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
-                                {/* Hit Area vertical stripe */}
                                 <rect x={xp - (width / chartData.length / 2)} y={0} width={width / chartData.length} height={height} fill="transparent" />
-
-                                {/* X-Axis Label */}
-                                <text x={xp} y={height - 15} textAnchor="middle" fill="var(--chart-text)" fontSize="12" fontWeight="500">{d.label}</text>
-
-
-                                {/* Visible Dots */}
+                                <text x={xp} y={height - 15} textAnchor="middle" fill="var(--chart-text, #64748b)" fontSize="12" fontWeight="500">{d.label}</text>
                                 {(typeFilter === 'ALL' || typeFilter === 'PRESENT') && <circle cx={xp} cy={yp} r="4" fill={colors.present} stroke="#fff" strokeWidth="2" />}
                                 {(typeFilter === 'ALL' || typeFilter === 'BREAK') && <circle cx={xb} cy={yb} r="4" fill={colors.break} stroke="#fff" strokeWidth="2" />}
                                 {(typeFilter === 'ALL' || typeFilter === 'ABSENT') && <circle cx={xa} cy={ya} r="4" fill={colors.absent} stroke="#fff" strokeWidth="2" />}
-
-                                {/* TOOLTIP */}
                                 {hoveredIndex === i && (
                                     <g transform={`translate(${xp}, 20)`}>
-                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="var(--chart-tooltip-bg)" filter="url(#shadow)" stroke="var(--chart-tooltip-border)" />
-                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="var(--chart-tooltip-text)">{d.label}</text>
+                                        <rect x="-60" y="-10" width="120" height="70" rx="5" fill="var(--chart-tooltip-bg, white)" filter="url(#sTooltipShadow)" stroke="var(--chart-tooltip-border, #e2e8f0)" />
+                                        <text x="0" y="10" textAnchor="middle" fontSize="12" fontWeight="bold" fill="var(--chart-tooltip-text, #0F172A)">{d.label}</text>
                                         <rect x="-50" y="18" width="8" height="8" rx="2" fill={colors.present} />
-                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Present: {d.present}</text>
-
+                                        <text x="-38" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Present: {d.present}</text>
                                         <rect x="10" y="18" width="8" height="8" rx="2" fill={colors.break} />
-                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text)">Break: {d.break}</text>
-
+                                        <text x="22" y="26" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Break: {d.break}</text>
                                         <rect x="-50" y="32" width="8" height="8" rx="2" fill={colors.absent} />
-                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="var(--chart-text)">Absent: {d.absent}</text>
+                                        <text x="-38" y="40" textAnchor="start" fontSize="10" fill="var(--chart-text, #64748b)">Absent: {d.absent}</text>
                                     </g>
                                 )}
-
                             </g>
                         );
                     })}
-
-                    <defs>
-                        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.15" />
-                        </filter>
-                    </defs>
                 </svg>
             </div>
 
-            {/* BOTTOM: INSIGHTS & LEGEND */}
-            <div className="chart-footer">
-                <div className="chart-insight">
-                    <i className="fas fa-lightbulb"></i> {insightText}
-                </div>
-                <div className="chart-legends">
-                    <div className="legend-item"><span className="dot" style={{ background: colors.present }}></span> Present</div>
-                    <div className="legend-item"><span className="dot" style={{ background: colors.break }}></span> Break</div>
-                    <div className="legend-item"><span className="dot" style={{ background: colors.absent }}></span> Absent</div>
+            <div className="fd-chart-footer">
+                <div className="fd-chart-insight">{insightText}</div>
+                <div className="fd-chart-legends">
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.present }}></span> Present</div>
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.break }}></span> Break</div>
+                    <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.absent }}></span> Absent</div>
                 </div>
             </div>
         </div>
@@ -539,7 +436,9 @@ const AttendanceTrendChart = ({ logs }) => {
 };
 
 
-// --- MAIN PAGE COMPONENT ---
+// ============================================
+// MAIN STUDENT DASHBOARD PAGE
+// ============================================
 const StudentDashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState({
@@ -593,31 +492,69 @@ const StudentDashboardPage = () => {
         return () => controller.abort();
     }, []);
 
-    if (loading) return <div style={{ padding: '40px' }}>Loading Dashboard...</div>;
+    if (loading) return (
+        <div className="fd-loading">
+            <div className="fd-spinner"></div>
+            <p>Loading dashboard...</p>
+        </div>
+    );
 
     const latestLog = dashboardData.recent_attendance && dashboardData.recent_attendance.length > 0
         ? dashboardData.recent_attendance[0]
         : null;
 
+    const attRate = metrics ? `${metrics.attendance_rate}%` : (dashboardData.attendance_rate || "0%");
+    const puncRate = metrics ? `${metrics.punctuality_rate}%` : '--';
+    const attTier = metrics ? metrics.attendance_tier : null;
+    const puncTier = metrics ? metrics.punctuality_tier : null;
+    const attColor = metrics ? metrics.attendance_tier_color : '#64748b';
+    const puncColor = metrics ? metrics.punctuality_tier_color : '#64748b';
+
+    const now = new Date();
+    const todayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const todayDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
     return (
-        <div className="student-content-grid">
-            <WelcomeBanner studentName={userData.first_name || userData.firstName} studentId={userData.tupm_id} />
+        <div className="fd-page">
+            {/* ===== HERO SECTION ===== */}
+            <div className="fd-hero-section">
+                <WelcomeBanner
+                    studentName={userData.first_name || userData.firstName}
+                    studentId={userData.tupm_id}
+                    todayName={todayName}
+                    todayDate={todayDate}
+                />
 
-            <StudentSummaryCards
-                stats={{
-                    attendanceRate: dashboardData.attendance_rate || "0%",
-                    courses: dashboardData.enrolled_courses || 0,
-                    notifCount: (dashboardData.notifications || []).filter(n => !n.is_read).length
-                }}
-                metrics={metrics}
-            />
+                {/* Inline Ribbon Stats */}
+                <div className="fd-stats-ribbon">
+                    <StudentStatItem
+                        title="Attendance Rate"
+                        value={attRate}
+                        subValue={attTier}
+                        subValueColor={attColor}
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <StudentStatItem
+                        title="Enrolled Courses"
+                        value={dashboardData.enrolled_courses || 0}
+                        subValue="This Semester"
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <StudentStatItem
+                        title="Punctuality Rate"
+                        value={puncRate}
+                        subValue={puncTier}
+                        subValueColor={puncColor}
+                    />
+                </div>
+            </div>
 
-            {/* REORGANIZED 2-ROW, 2-COLUMN LAYOUT */}
-            <div className="dashboard-main-layout">
-                <StudentMetricsPanel metrics={metrics} />
-                <LiveClassStatus recentLog={latestLog} />
+            {/* ===== MAIN CONTENT ===== */}
+            <div className="sd-main-grid">
                 <AttendanceTrendChart logs={allLogs} />
-                <StudentRecentAttendance logs={dashboardData.recent_attendance} />
+                <LiveClassStatus recentLog={latestLog} />
+                <SessionBreakdown metrics={metrics} />
+                <StudentRecentActivity logs={dashboardData.recent_attendance} />
             </div>
         </div>
     );

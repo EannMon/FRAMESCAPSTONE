@@ -375,7 +375,6 @@ export const generateCSV = (reportInfo, tableData, enrichment = {}) => {
         alert("No data available to export.");
         return;
     }
-
     const csvLines = [];
 
     // Report metadata header
@@ -428,12 +427,21 @@ export const generateCSV = (reportInfo, tableData, enrichment = {}) => {
     // Table data
     csvLines.push('"=== Attendance Records ==="');
     const headers = Object.keys(tableData[0]);
-    csvLines.push(headers.join(","));
+    const headerRow = headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",");
+    csvLines.push(headerRow);
 
     tableData.forEach(row => {
         const rowStr = headers.map(fieldName => {
-            const data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : '';
-            return `"${data}"`;
+            let data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : '';
+            // Sanitize em-dash and placeholder values for CSV/Excel compatibility
+            if (data === '—' || data === 'N/A') data = '';
+            data = data.replace(/—/g, '-');
+            // Force date-like values to be treated as text in Excel
+            // Uses ="value" formula format to prevent auto-conversion to date serial numbers
+            if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+                return `="` + data + `"`;
+            }
+            return `"${data}"`; // Wrap in quotes to handle commas/newlines
         }).join(",");
         csvLines.push(rowStr);
     });
@@ -450,7 +458,8 @@ export const generateCSV = (reportInfo, tableData, enrichment = {}) => {
     }
 
     // Create Blob and Download
-    const csvContent = csvLines.join("\n");
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvLines.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
