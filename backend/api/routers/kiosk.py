@@ -431,10 +431,9 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
             )
 
     # Determine if late (only for ENTRY action)
-    # late_threshold_minutes == 0 or None means late marking is DISABLED for this class.
     is_late = False
-    late_threshold = class_.late_threshold_minutes
-    if body.action == "ENTRY" and class_.start_time and late_threshold:
+    if body.action == "ENTRY" and class_.start_time:
+        late_threshold = class_.late_threshold_minutes if class_.late_threshold_minutes is not None else 15
         start = class_.start_time
         if isinstance(start, str):
             start = datetime.strptime(start, "%H:%M:%S").time()

@@ -556,32 +556,6 @@ def compute_student_core_metrics(
         else 0.0
     )
 
-    # 9) Recognition quality metrics (confidence_score + verified_by).
-    confidence_scores = [
-        log.confidence_score for log in user_logs
-        if log.confidence_score is not None and log.action == AttendanceAction.ENTRY
-    ]
-    avg_confidence_score = round(sum(confidence_scores) / len(confidence_scores), 2) if confidence_scores else 0.0
-    high_confidence_pct = (
-        round(len([s for s in confidence_scores if s >= 0.85]) / len(confidence_scores) * 100, 1)
-        if confidence_scores
-        else 0.0
-    )
-
-    face_verified_count = len([
-        log for log in user_logs
-        if log.action == AttendanceAction.ENTRY and log.verified_by and log.verified_by.value == "FACE"
-    ])
-    manual_override_count = len([
-        log for log in user_logs
-        if log.action == AttendanceAction.ENTRY and log.verified_by and log.verified_by.value == "MANUAL"
-    ])
-    recognition_quality_rate = (
-        round(face_verified_count / total_entries * 100, 1)
-        if total_entries > 0
-        else 0.0
-    )
-
     return {
         "sessions_attended": sessions_attended,
         "sessions_conducted": sessions_conducted,
@@ -603,11 +577,6 @@ def compute_student_core_metrics(
         "consistency_index": consistency_index,
         "data_completeness_score": data_completeness_score,
         "session_count_for_confidence": sessions_conducted,
-        "avg_confidence_score": avg_confidence_score,
-        "high_confidence_pct": high_confidence_pct,
-        "face_verified_count": face_verified_count,
-        "manual_override_count": manual_override_count,
-        "recognition_quality_rate": recognition_quality_rate,
     }
 
 
@@ -674,15 +643,5 @@ def build_student_summary_metrics(
             "data_window": window,
             "confidence": confidence,
             "explanation": "Weighted behavior stability score combining attendance and punctuality.",
-        },
-        {
-            "metric_name": "recognition_quality_rate",
-            "value": metrics.get("recognition_quality_rate", 0.0),
-            "formula": "face_verified_entries / total_entries * 100",
-            "numerator": metrics.get("face_verified_count", 0),
-            "denominator": metrics.get("total_entries", 0),
-            "data_window": window,
-            "confidence": confidence,
-            "explanation": "Share of entries verified via facial recognition (vs manual override).",
         },
     ]

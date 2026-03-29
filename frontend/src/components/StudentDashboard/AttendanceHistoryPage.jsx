@@ -243,11 +243,6 @@ const AttendanceHistoryPage = () => {
             explanation: 'Weighted behavior stability from attendance and punctuality.',
             formula: 'real_time_attendance_rate * 0.7 + punctuality_rate * 0.3',
         },
-        recognition_quality_rate: {
-            label: 'Recognition Quality',
-            explanation: 'Share of entries verified via facial recognition vs manual override.',
-            formula: 'face_verified_entries / total_entries * 100',
-        },
     };
 
     const confidenceMeaning = {
@@ -655,22 +650,24 @@ const AttendanceHistoryPage = () => {
                     </div>
                     <div className="visual-card">
                         <div className="visual-title">{getVisualTrendTitle()}</div>
-                        <div className="visual-filter-row">
-                            <label>Filter Trend:</label>
-                            <select
-                                className="app-select"
-                                value={selectedVisualStatus}
-                                onChange={(event) => setSelectedVisualStatus(event.target.value)}
-                            >
-                                <option value="ALL">All Statuses</option>
-                                <option value="ENTERED">Entered</option>
-                                <option value="LATE">Late</option>
-                                <option value="ABSENT">Absent</option>
-                                <option value="BREAK_OUT">Break Out</option>
-                                <option value="BREAK_IN">Break In</option>
-                                <option value="EXITED">Exited</option>
-                            </select>
-                        </div>
+                        {selectedReportType === 'SEM_REPORT' && (
+                            <div className="visual-filter-row">
+                                <label>Status Distribution:</label>
+                                <select
+                                    className="app-select"
+                                    value={selectedVisualStatus}
+                                    onChange={(event) => setSelectedVisualStatus(event.target.value)}
+                                >
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="ENTERED">Entered</option>
+                                    <option value="LATE">Late</option>
+                                    <option value="ABSENT">Absent</option>
+                                    <option value="BREAK_OUT">Break Out</option>
+                                    <option value="BREAK_IN">Break In</option>
+                                    <option value="EXITED">Exited</option>
+                                </select>
+                            </div>
+                        )}
                         <div className="grouped-cluster-scroll-wrap">
                             <div className="grouped-cluster-chart">
                                 {dailyTrend.filter(item => item.total > 0).map((item) => (
@@ -680,7 +677,6 @@ const AttendanceHistoryPage = () => {
                                                 const value = item[actionKey] || 0;
                                                 if (value === 0) return null;
                                                 const styleKey = actionKey === 'entered' ? 'ENTERED' : actionKey === 'late' ? 'LATE' : actionKey === 'breakOut' ? 'BREAK_OUT' : actionKey === 'breakIn' ? 'BREAK_IN' : 'EXITED';
-                                                if (selectedVisualStatus !== 'ALL' && styleKey !== selectedVisualStatus) return null;
                                                 
                                                 return (
                                                     <div
@@ -719,43 +715,6 @@ const AttendanceHistoryPage = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* Per-Subject Breakdown — visible on SEM_REPORT with ALL subjects */}
-                {selectedReportType === 'SEM_REPORT' && selectedSubject === 'ALL' && groupedSubjectActivity.length > 0 && (
-                    <div className="visual-card" style={{ marginTop: '16px' }}>
-                        <div className="visual-title">Per-Subject Attendance Breakdown</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '8px 0' }}>
-                            {groupedSubjectActivity
-                                .map(subj => {
-                                    const totalEntries = subj.ENTERED + subj.LATE;
-                                    const totalSessions = totalEntries + subj.ABSENT;
-                                    const rate = totalSessions > 0 ? Math.round((totalEntries / totalSessions) * 100) : 0;
-                                    return { ...subj, totalEntries, totalSessions, rate };
-                                })
-                                .sort((a, b) => a.rate - b.rate)
-                                .map(subj => (
-                                    <div key={subj.subject} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span style={{ minWidth: '140px', fontSize: '0.82em', fontWeight: 600, color: '#163269', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                                              title={subj.subject}>
-                                            {subj.subject}
-                                        </span>
-                                        <div style={{ flex: 1, height: '22px', background: '#f0f0f0', borderRadius: '6px', position: 'relative', overflow: 'hidden' }}>
-                                            <div style={{ width: `${subj.rate}%`, height: '100%', background: subj.rate >= 85 ? '#2e7d32' : subj.rate >= 60 ? '#e65100' : '#c62828', borderRadius: '6px', transition: 'width 0.4s ease' }} />
-                                        </div>
-                                        <span style={{ minWidth: '70px', fontSize: '0.78em', color: '#555' }}>
-                                            {subj.rate}% ({subj.totalEntries}/{subj.totalSessions})
-                                        </span>
-                                        <span style={{ fontSize: '0.72em', color: '#888' }} title={`On-time: ${subj.ENTERED} | Late: ${subj.LATE} | Absent: ${subj.ABSENT}`}>
-                                            L:{subj.LATE} A:{subj.ABSENT}
-                                        </span>
-                                    </div>
-                                ))}
-                        </div>
-                        <div style={{ fontSize: '0.72em', color: '#999', marginTop: '6px', textAlign: 'right' }}>
-                            Sorted by attendance rate (lowest first) • Green ≥85% • Orange ≥60% • Red &lt;60%
-                        </div>
-                    </div>
-                )}
             </div>
         );
     };
@@ -971,33 +930,13 @@ const AttendanceHistoryPage = () => {
             dateRange: dateRangeStr
         };
 
-        // Build enrichment data from current state
-        const statusCounts = {};
-        displayData.forEach(log => {
-            const st = getActionStatus(log.action, log.is_late);
-            statusCounts[st.text] = (statusCounts[st.text] || 0) + 1;
-        });
-
-        const enrichment = {
-            summaryMetrics: summaryMetrics || [],
-            insights: insights || [],
-            sessionCountReference: sessionCountReference || null,
-            statusDistribution: statusCounts,
-            filters: {
-                reportType: reportObj?.label || selectedReportType,
-                subject: selectedSubject === 'ALL' ? 'All Subjects' : selectedSubject,
-                semester: selectedSemester ? `${selectedSemester} Semester` : null,
-                totalRows: displayData.length
-            }
-        };
-
         if (format === 'PDF') {
             import('../../utils/ReportGenerator').then(({ generateFramesPDF }) => {
-                generateFramesPDF(reportInfo, tableInput, 'download', enrichment);
+                generateFramesPDF(reportInfo, tableInput);
             });
         } else if (format === 'CSV') {
             import('../../utils/ReportGenerator').then(({ generateCSV }) => {
-                generateCSV(reportInfo, tableInput, enrichment);
+                generateCSV(reportInfo, tableInput);
             });
         }
         

@@ -1974,13 +1974,9 @@ def get_student_report_envelope(
         if report_code == "ABSENT_LOG":
             all_rows = absent_rows
         else:
-            # Cap present-row fetch to prevent unbounded memory usage.
-            # For daily views the typical range is 1 day, so this is rarely hit.
-            # For broader windows, this provides a safety net.
             all_logs = (
                 base_query
                 .order_by(AttendanceLog.timestamp.desc())
-                .limit(1000)
                 .all()
             )
             present_rows = _build_student_rows(all_logs)
