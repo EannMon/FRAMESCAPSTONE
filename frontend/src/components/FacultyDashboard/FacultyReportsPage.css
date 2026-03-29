@@ -48,18 +48,26 @@
     font-size: 0.9rem;
 }
 
-/* --- Filters Bar (Matched to Student) --- */
-.reports-filters-bar {
-    display: flex;
-    align-items: center;
-    gap: 30px;
-    padding: 20px 25px;
-    background: white;
+.reports-header-section {
+    background: #ffffff;
     border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.04);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px;
-    flex-wrap: wrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.report-selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.report-selector-group label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #163269;
+    margin-bottom: 2px;
 }
 
 .filter-group {
@@ -980,4 +988,41 @@
 .insight-detailed-modal {
     width: 92% !important;
     max-width: 780px !important;
+}
+
+/* Log Status Tags - Standard Across Reports (Quiet Luxury) */
+.log-status-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.log-status-tag.success {
+    background-color: #e6f4ea;
+    color: #137333;
+    border: 1px solid rgba(19, 115, 51, 0.1);
+}
+
+.log-status-tag.danger {
+    background-color: #fce8e6;
+    color: #c5221f;
+    border: 1px solid rgba(197, 34, 31, 0.1);
+}
+
+.log-status-tag.warning {
+    background-color: #fef7e0;
+    color: #ea8600;
+    border: 1px solid rgba(234, 134, 0, 0.1);
+}
+
+.log-status-tag.neutral {
+    background-color: #f1f3f4;
+    color: #5f6368;
+    border: 1px solid rgba(95, 99, 104, 0.1);
 }
