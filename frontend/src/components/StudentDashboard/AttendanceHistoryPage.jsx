@@ -20,6 +20,20 @@ const LogStatusTag = ({ text, isPresent, type }) => {
 };
 
 const AttendanceHistoryPage = () => {
+    const now = new Date();
+    const currentMonthValue = now.toISOString().slice(0, 7);
+
+    const getCurrentAcademicContext = () => {
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        if (month >= 8 && month <= 12) return { academicYearStart: year, semesterCode: '1ST' };
+        if (month >= 1 && month <= 5) return { academicYearStart: year - 1, semesterCode: '2ND' };
+        return { academicYearStart: year - 1, semesterCode: 'SUMMER' };
+    };
+
+    const getWeekNumberInMonth = (dateObj) => String(Math.floor((dateObj.getDate() - 1) / 7) + 1);
+    const { academicYearStart, semesterCode } = getCurrentAcademicContext();
+
     // 1. DATA STATE
     const [rawLogs, setRawLogs] = useState([]);
     const [schedule, setSchedule] = useState([]);
@@ -36,11 +50,11 @@ const AttendanceHistoryPage = () => {
     // 2. FILTER STATE
     const [selectedReportType, setSelectedReportType] = useState('DAILY_REPORT'); // Default to first valid item
     const [selectedSubject, setSelectedSubject] = useState('ALL');
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]); // Default Today
-    const [selectedSemester, setSelectedSemester] = useState('1ST'); // 1ST, 2ND, SUMMER
-    const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
-    const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
-    const [selectedWeekNumber, setSelectedWeekNumber] = useState('1');
+    const [filterDate, setFilterDate] = useState(now.toISOString().split('T')[0]); // Default Today
+    const [selectedSemester, setSelectedSemester] = useState(semesterCode); // 1ST, 2ND, SUMMER
+    const [academicYear, setAcademicYear] = useState(academicYearStart);
+    const [weeklyMonth, setWeeklyMonth] = useState(currentMonthValue);
+    const [selectedWeekNumber, setSelectedWeekNumber] = useState(getWeekNumberInMonth(now));
     const [selectedVisualStatus, setSelectedVisualStatus] = useState('ALL');
     const [activeMetricName, setActiveMetricName] = useState(null);
     const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
@@ -160,8 +174,13 @@ const AttendanceHistoryPage = () => {
                         seen.add(item.subject_title);
                         subjects.push(item.subject_title);
                     }
-                    if (item.subject_title && item.class_id && !subjectToClass[item.subject_title]) {
-                        subjectToClass[item.subject_title] = item.class_id;
+                    if (item.subject_title && item.class_id) {
+                        if (!subjectToClass[item.subject_title]) {
+                            subjectToClass[item.subject_title] = [];
+                        }
+                        if (!subjectToClass[item.subject_title].includes(item.class_id)) {
+                            subjectToClass[item.subject_title].push(item.class_id);
+                        }
                     }
                 });
                 setUniqueSubjects(subjects);
@@ -251,7 +270,54 @@ const AttendanceHistoryPage = () => {
         LOW: 'Low reliability: small sample size and/or limited data in this window.',
     };
 
+    const normalizeAttendanceAction = (log) => {
+        const rawAction = String(log.action || '').toUpperCase();
+        const rawStatus = String(log.status || '').toUpperCase();
+
+        if (['ENTRY', 'BREAK_OUT', 'BREAK_IN', 'EXIT', 'ABSENT'].includes(rawAction)) return rawAction;
+        if (['LATE', 'ENTERED', 'PRESENT', 'ON_TIME', 'ON TIME'].includes(rawStatus)) return 'ENTRY';
+        if (rawStatus === 'EXITED') return 'EXIT';
+        if (rawStatus === 'ABSENT') return 'ABSENT';
+        if (rawStatus.includes('BREAK') && rawStatus.includes('OUT')) return 'BREAK_OUT';
+        if (rawStatus.includes('BREAK') && rawStatus.includes('IN')) return 'BREAK_IN';
+
+        return rawAction || rawStatus;
+    };
+
+    const getReportScopedLogs = (logs) => {
+        let scoped = [...logs];
+
+        if (selectedReportType !== 'WEEKLY_SUMMARY' && selectedSubject !== 'ALL') {
+            const selectedClassIds = subjectClassMap[selectedSubject] || [];
+            scoped = scoped.filter((log) => (
+                selectedClassIds.map(Number).includes(Number(log.class_id)) || log.mapped_subject === selectedSubject
+            ));
+        }
+
+        if (selectedReportType === 'BREAK_LOG') {
+            scoped = scoped.filter((log) => {
+                const action = normalizeAttendanceAction(log);
+                return action === 'BREAK_OUT' || action === 'BREAK_IN';
+            });
+        }
+
+        if (selectedReportType === 'LATE_REPORT') {
+            scoped = scoped.filter((log) => {
+                const action = normalizeAttendanceAction(log);
+                return action === 'ENTRY' && !!log.is_late;
+            });
+        }
+
+        if (selectedReportType === 'ABSENT_LOG') {
+            scoped = scoped.filter((log) => normalizeAttendanceAction(log) === 'ABSENT');
+        }
+
+        return scoped;
+    };
+
     const statusDistribution = useMemo(() => {
+        const sourceLogs = getReportScopedLogs(rawLogs);
+
         const buckets = {
             ENTERED: 0,
             LATE: 0,
@@ -261,8 +327,8 @@ const AttendanceHistoryPage = () => {
             EXITED: 0,
         };
 
-        rawLogs.forEach((log) => {
-            const action = (log.action || '').toUpperCase();
+        sourceLogs.forEach((log) => {
+            const action = normalizeAttendanceAction(log);
             if (action === 'ENTRY') {
                 if (log.is_late) buckets.LATE += 1;
                 else buckets.ENTERED += 1;
@@ -277,7 +343,8 @@ const AttendanceHistoryPage = () => {
             }
         });
 
-        if (buckets.ABSENT === 0) {
+        const shouldInjectAbsentFallback = !['BREAK_LOG', 'LATE_REPORT'].includes(selectedReportType);
+        if (shouldInjectAbsentFallback && buckets.ABSENT === 0) {
             const windowStats = sessionCountReference?.report_window || {};
             const attended = Number(windowStats.attended || 0);
             const conducted = Number(windowStats.conducted || 0);
@@ -285,7 +352,7 @@ const AttendanceHistoryPage = () => {
         }
 
         return buckets;
-    }, [rawLogs, sessionCountReference]);
+    }, [rawLogs, selectedReportType, selectedSubject, subjectClassMap, sessionCountReference]);
 
     const groupedSubjectActivity = useMemo(() => {
         const summary = {};
@@ -322,79 +389,99 @@ const AttendanceHistoryPage = () => {
     }, [rawLogs]);
 
     const dailyTrend = useMemo(() => {
-        const parseIsoDate = (value) => {
-            if (!value) return null;
-            const parsed = new Date(value);
-            if (Number.isNaN(parsed.getTime())) return null;
-            parsed.setHours(0, 0, 0, 0);
-            return parsed;
-        };
+        const sourceLogs = getReportScopedLogs(rawLogs);
 
-        const wholeSemester = sessionCountReference?.whole_semester || {};
-        const reportWindow = sessionCountReference?.report_window || {};
+        // All report trends are grouped by subject so repeated sessions accumulate by subject, not by date.
+        const bySubject = {};
+        sourceLogs.forEach((log) => {
+            const subjectLabel = log.subject_code
+                ? `${log.subject_code} - ${log.mapped_subject}`
+                : (log.mapped_subject || 'Unscheduled');
 
-        const fallbackStart = parseIsoDate(rawLogs[0]?.timestamp);
-        const fallbackEnd = parseIsoDate(rawLogs[rawLogs.length - 1]?.timestamp);
-
-        const startDate =
-            parseIsoDate(wholeSemester.semester_start_date) ||
-            parseIsoDate(reportWindow.date_from) ||
-            fallbackStart;
-        const endDate =
-            parseIsoDate(wholeSemester.semester_end_date) ||
-            parseIsoDate(reportWindow.date_to) ||
-            fallbackEnd;
-
-        if (!startDate || !endDate || startDate > endDate) {
-            return [];
-        }
-
-        const groupedByDay = {};
-        rawLogs.forEach((log) => {
-            if (!log.timestamp) return;
-            const key = new Date(log.timestamp).toISOString().split('T')[0];
-            if (!groupedByDay[key]) {
-                groupedByDay[key] = {
+            if (!bySubject[subjectLabel]) {
+                bySubject[subjectLabel] = {
+                    day: subjectLabel,
                     entered: 0,
                     late: 0,
+                    absent: 0,
                     breakOut: 0,
                     breakIn: 0,
                     exited: 0,
                     total: 0,
+                    isSubjectAxis: true,
                 };
             }
-            const action = (log.action || '').toUpperCase();
+
+            const action = normalizeAttendanceAction(log);
             if (action === 'ENTRY') {
-                if (log.is_late) groupedByDay[key].late += 1;
-                else groupedByDay[key].entered += 1;
+                if (log.is_late) bySubject[subjectLabel].late += 1;
+                else bySubject[subjectLabel].entered += 1;
             } else if (action === 'BREAK_OUT') {
-                groupedByDay[key].breakOut += 1;
+                bySubject[subjectLabel].breakOut += 1;
             } else if (action === 'BREAK_IN') {
-                groupedByDay[key].breakIn += 1;
+                bySubject[subjectLabel].breakIn += 1;
             } else if (action === 'EXIT') {
-                groupedByDay[key].exited += 1;
+                bySubject[subjectLabel].exited += 1;
+            } else if (action === 'ABSENT') {
+                bySubject[subjectLabel].absent += 1;
             }
-            groupedByDay[key].total += 1;
+            bySubject[subjectLabel].total += 1;
         });
 
-        const trend = [];
-        const cursor = new Date(startDate);
-        while (cursor <= endDate) {
-            const key = cursor.toISOString().split('T')[0];
-            const value = groupedByDay[key] || {
-                entered: 0,
-                late: 0,
-                breakOut: 0,
-                breakIn: 0,
-                exited: 0,
-                total: 0,
-            };
-            trend.push({ day: key, ...value });
-            cursor.setDate(cursor.getDate() + 1);
-        }
+        return Object.values(bySubject).sort((a, b) => String(a.day).localeCompare(String(b.day)));
+    }, [rawLogs, selectedReportType, selectedSubject, subjectClassMap, sessionCountReference]);
 
-        return trend;
-    }, [rawLogs, sessionCountReference]);
+    const comparativeInsight = useMemo(() => {
+        const scoped = getReportScopedLogs(rawLogs);
+        if (!scoped.length) return null;
+
+        const perSubject = {};
+        scoped.forEach((log) => {
+            const key = log.subject_code
+                ? `${log.subject_code} - ${log.mapped_subject}`
+                : (log.mapped_subject || 'Unscheduled');
+            if (!perSubject[key]) {
+                perSubject[key] = { total: 0, attended: 0, late: 0, absent: 0 };
+            }
+            perSubject[key].total += 1;
+            const action = normalizeAttendanceAction(log);
+            if (action === 'ENTRY') {
+                perSubject[key].attended += 1;
+                if (log.is_late) perSubject[key].late += 1;
+            }
+            if (action === 'ABSENT') perSubject[key].absent += 1;
+        });
+
+        const rows = Object.entries(perSubject).map(([subject, stats]) => ({
+            subject,
+            ...stats,
+            score: stats.total > 0 ? (stats.attended / stats.total) * 100 : 0,
+        }));
+
+        if (rows.length < 2) return null;
+
+        rows.sort((a, b) => b.score - a.score);
+        const best = rows[0];
+        const weakest = rows[rows.length - 1];
+
+        const reportLabel = {
+            DAILY_REPORT: 'Daily Attendance',
+            WEEKLY_SUMMARY: 'Weekly Attendance Summary',
+            MONTHLY_TRENDS: 'Monthly Attendance Trends',
+            SEM_REPORT: 'Semestral Report',
+            LATE_REPORT: 'Personal Late Report',
+            BREAK_LOG: 'Break Duration Log',
+            ABSENT_LOG: 'Absent Logs',
+            CONSISTENCY: 'Consistency Index',
+        }[selectedReportType] || 'Selected Report';
+
+        return {
+            insight_code: `SUBJECT_COMPARISON_${selectedReportType}`,
+            title: `Subject Comparison (${reportLabel})`,
+            narrative: `Best performance is in ${best.subject} (${best.score.toFixed(1)}% attendance coverage) while the weakest is ${weakest.subject} (${weakest.score.toFixed(1)}%). Use this to prioritize intervention or coaching by subject.`,
+            confidence: 'MEDIUM',
+        };
+    }, [rawLogs, selectedReportType, selectedSubject, subjectClassMap]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -402,14 +489,17 @@ const AttendanceHistoryPage = () => {
         const fetchServerReport = async () => {
             const userId = userProfile?.id || userProfile?.user_id;
             if (!userId) return;
-            if (selectedSubject !== 'ALL' && !subjectClassMap[selectedSubject]) return;
+            if (selectedSubject !== 'ALL' && !(subjectClassMap[selectedSubject] || []).length) return;
 
             const { dateFrom, dateTo } = resolveDateWindow();
-            const scopedClassId = selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : 'ALL';
+            const scopedClassIds = selectedSubject !== 'ALL' ? (subjectClassMap[selectedSubject] || []) : [];
+            const scopedClassKey = scopedClassIds.length
+                ? scopedClassIds.slice().sort((a, b) => a - b).join(',')
+                : 'ALL';
             const cacheKey = [
                 userId,
                 selectedReportType,
-                scopedClassId,
+                scopedClassKey,
                 dateFrom,
                 dateTo,
                 selectedSemester,
@@ -442,7 +532,11 @@ const AttendanceHistoryPage = () => {
                         class_id:
                             selectedReportType === 'WEEKLY_SUMMARY'
                                 ? undefined
-                                : (selectedSubject !== 'ALL' ? subjectClassMap[selectedSubject] : undefined),
+                                : (selectedSubject !== 'ALL' && scopedClassIds.length === 1 ? scopedClassIds[0] : undefined),
+                        class_ids:
+                            selectedReportType === 'WEEKLY_SUMMARY'
+                                ? undefined
+                                : (selectedSubject !== 'ALL' && scopedClassIds.length > 1 ? scopedClassIds.join(',') : undefined),
                         limit: 250,
                     },
                 });
@@ -450,13 +544,92 @@ const AttendanceHistoryPage = () => {
                 const payload = res.data || {};
                 const rows = payload.rows || [];
 
+                const resolveSubjectTitle = (row) => {
+                    if (row.subject_title) return row.subject_title;
+                    if (!row.col2) return 'Unscheduled';
+
+                    const col2Text = String(row.col2);
+                    const codeCandidate = col2Text.includes('|')
+                        ? col2Text.split('|').pop().trim()
+                        : col2Text.trim();
+
+                    const matchedSchedule = schedule.find((item) => (
+                        (item.subject_code || '').toUpperCase() === codeCandidate.toUpperCase()
+                    ));
+
+                    return matchedSchedule?.subject_title || row.subject_code || col2Text;
+                };
+
+                const resolveSubjectCode = (row) => {
+                    if (row.subject_code) return row.subject_code;
+                    if (!row.col2) return null;
+                    const col2Text = String(row.col2);
+                    return col2Text.includes('|') ? col2Text.split('|').pop().trim() : null;
+                };
+
+                const resolveRoom = (row) => {
+                    if (row.room) return row.room;
+                    if (row.col2 && String(row.col2).includes('|')) {
+                        return String(row.col2).split('|')[0].trim() || '—';
+                    }
+                    const subjectCode = resolveSubjectCode(row);
+                    if (!subjectCode) return '—';
+                    const matchedSchedule = schedule.find((item) => (
+                        (item.subject_code || '').toUpperCase() === subjectCode.toUpperCase()
+                    ));
+                    return matchedSchedule?.room || '—';
+                };
+
+                const resolveFacultyName = (row) => {
+                    if (row.faculty_name && row.faculty_name !== '—') return row.faculty_name;
+                    const subjectCode = resolveSubjectCode(row);
+                    if (!subjectCode) return '—';
+                    const matchedSchedule = schedule.find((item) => (
+                        (item.subject_code || '').toUpperCase() === subjectCode.toUpperCase()
+                    ));
+                    return matchedSchedule?.faculty_name || '—';
+                };
+
+                const resolveFallbackTimestamp = (row) => {
+                    if (row.timestamp) return row.timestamp;
+                    if (!row.col1) return null;
+
+                    const datePart = String(row.col1).trim();
+                    const timePart = row.col3 ? String(row.col3).trim() : null;
+
+                    if (!timePart) {
+                        return `${datePart}T00:00:00`;
+                    }
+
+                    const match = timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                    if (!match) {
+                        return `${datePart}T00:00:00`;
+                    }
+
+                    let hours = Number(match[1]);
+                    const minutes = Number(match[2]);
+                    const meridiem = match[3].toUpperCase();
+
+                    if (meridiem === 'PM' && hours !== 12) hours += 12;
+                    if (meridiem === 'AM' && hours === 12) hours = 0;
+
+                    const hh = String(hours).padStart(2, '0');
+                    const mm = String(minutes).padStart(2, '0');
+                    return `${datePart}T${hh}:${mm}:00`;
+                };
+
                 const mapped = rows.map((row) => ({
-                    timestamp: row.timestamp,
-                    action: row.action,
-                    is_late: row.is_late,
-                    mapped_subject: row.subject_title || row.col2 || 'Unscheduled',
-                    mapped_room: row.room || '—',
-                    faculty_name: row.faculty_name || '—',
+                    timestamp: resolveFallbackTimestamp(row),
+                    display_date: row.col1 || null,
+                    display_time: row.col3 || null,
+                    action: row.action || row.status,
+                    status: row.status,
+                    is_late: row.is_late || String(row.status || '').toUpperCase() === 'LATE',
+                    class_id: row.class_id,
+                    subject_code: resolveSubjectCode(row),
+                    mapped_subject: resolveSubjectTitle(row),
+                    mapped_room: resolveRoom(row),
+                    faculty_name: resolveFacultyName(row),
                     remarks: row.remarks || '—',
                 }));
 
@@ -492,15 +665,14 @@ const AttendanceHistoryPage = () => {
 
     // --- FILTER LOGIC ---
     const getFilteredData = () => {
-        let filtered = [...rawLogs];
-
-        // 1. Subject Filter
-        if (selectedReportType !== 'WEEKLY_SUMMARY' && selectedSubject !== 'ALL') {
-            filtered = filtered.filter(l => l.mapped_subject === selectedSubject);
-        }
+        let filtered = getReportScopedLogs(rawLogs);
 
         // Server already scopes report windows, so client only sorts for display.
-        return filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        return filtered.sort((a, b) => {
+            const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return aTime - bTime;
+        });
     };
 
     const getMetricContext = (metric) => {
@@ -521,7 +693,10 @@ const AttendanceHistoryPage = () => {
     };
 
     const renderServerInsightPanel = () => {
-        if (!summaryMetrics.length && !insights.length) return null;
+        const confidenceAllowed = new Set(['MEDIUM', 'HIGH']);
+        const modelInsights = (insights || []).filter((insight) => confidenceAllowed.has(String(insight.confidence || '').toUpperCase()));
+        const visibleInsights = comparativeInsight ? [comparativeInsight, ...modelInsights] : modelInsights;
+        if (!summaryMetrics.length && !visibleInsights.length) return null;
 
         const activeMetric = summaryMetrics.find((metric) => metric.metric_name === activeMetricName);
         const activeContext = activeMetric ? getMetricContext(activeMetric) : null;
@@ -530,7 +705,7 @@ const AttendanceHistoryPage = () => {
             <div className="insight-panel">
                 <div className="insight-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div className="insight-section-title" style={{ marginBottom: 0 }}>Performance Metrics</div>
-                    {insights.length > 0 && (
+                    {visibleInsights.length > 0 && (
                         <button 
                             type="button" 
                             className="insight-action-btn"
@@ -578,13 +753,13 @@ const AttendanceHistoryPage = () => {
                 )}
 
                 {/* Insights Detailed Modal */}
-                {showInsightsModal && insights.length > 0 && (
+                {showInsightsModal && visibleInsights.length > 0 && (
                     <div className="metric-modal-overlay" onClick={() => setShowInsightsModal(false)}>
                         <div className="metric-modal-content insight-detailed-modal" onClick={(e) => e.stopPropagation()}>
                             <button className="modal-close-btn" onClick={() => setShowInsightsModal(false)}>×</button>
                             <div className="metric-hover-title">Explainable Insights</div>
                             <ul style={{ margin: '15px 0 0 0', paddingLeft: '18px' }}>
-                                {insights.map((insight) => (
+                                {visibleInsights.map((insight) => (
                                     <li key={insight.insight_code} style={{ marginBottom: '10px', fontSize: '0.9em', color: '#333' }}>
                                         <strong>{insight.title}:</strong> {insight.narrative} 
                                         <div style={{ fontSize: '0.85em', color: '#666', marginTop: '2px' }}>Confidence: {insight.confidence}</div>
@@ -673,10 +848,21 @@ const AttendanceHistoryPage = () => {
                                 {dailyTrend.filter(item => item.total > 0).map((item) => (
                                     <div key={item.day} className="grouped-cluster-item">
                                         <div className="grouped-cluster-track">
-                                            {['entered', 'late', 'breakOut', 'breakIn', 'exited'].map(actionKey => {
+                                            {['entered', 'late', 'absent', 'breakOut', 'breakIn', 'exited'].map(actionKey => {
                                                 const value = item[actionKey] || 0;
                                                 if (value === 0) return null;
-                                                const styleKey = actionKey === 'entered' ? 'ENTERED' : actionKey === 'late' ? 'LATE' : actionKey === 'breakOut' ? 'BREAK_OUT' : actionKey === 'breakIn' ? 'BREAK_IN' : 'EXITED';
+                                                const styleKey = actionKey === 'entered'
+                                                    ? 'ENTERED'
+                                                    : actionKey === 'late'
+                                                        ? 'LATE'
+                                                        : actionKey === 'absent'
+                                                            ? 'ABSENT'
+                                                            : actionKey === 'breakOut'
+                                                                ? 'BREAK_OUT'
+                                                                : actionKey === 'breakIn'
+                                                                    ? 'BREAK_IN'
+                                                                    : 'EXITED';
+                                                if (selectedReportType === 'SEM_REPORT' && selectedVisualStatus !== 'ALL' && selectedVisualStatus !== styleKey) return null;
                                                 
                                                 return (
                                                     <div
@@ -694,7 +880,9 @@ const AttendanceHistoryPage = () => {
                                             })}
                                         </div>
                                         <div className="grouped-cluster-label">
-                                            {new Date(item.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                            {item.isSubjectAxis
+                                                ? item.day
+                                                : new Date(item.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                         </div>
                                     </div>
                                 ))}
@@ -711,7 +899,9 @@ const AttendanceHistoryPage = () => {
                                 ))}
                         </div>
                         <div className="trend-note">
-                            Range: {dailyTrend[0]?.day || 'N/A'} to {dailyTrend[dailyTrend.length - 1]?.day || 'N/A'}
+                            {dailyTrend[0]?.isSubjectAxis
+                                ? 'Grouped by subject for selected report window'
+                                : `Range: ${dailyTrend[0]?.day || 'N/A'} to ${dailyTrend[dailyTrend.length - 1]?.day || 'N/A'}`}
                         </div>
                     </div>
                 </div>
@@ -843,7 +1033,11 @@ const AttendanceHistoryPage = () => {
                              value={weeklyMonth}
                              onChange={(e) => {
                                  setWeeklyMonth(e.target.value);
-                                 setSelectedWeekNumber('1');
+                                const [yearText, monthText] = e.target.value.split('-');
+                                const y = Number(yearText);
+                                const m = Number(monthText);
+                                const isCurrentMonth = y === now.getFullYear() && m === (now.getMonth() + 1);
+                                setSelectedWeekNumber(isCurrentMonth ? getWeekNumberInMonth(now) : '1');
                              }}
                          />
                      </div>
@@ -906,8 +1100,8 @@ const AttendanceHistoryPage = () => {
         const tableInput = displayData.map(log => {
             const status = getActionStatus(log.action, log.is_late);
             return {
-                "Date": new Date(log.timestamp).toLocaleDateString(),
-                "Time": new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                "Date": log.display_date || new Date(log.timestamp).toLocaleDateString(),
+                "Time": log.display_time || new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 "Subject": log.mapped_subject,
                 "Professor": log.faculty_name || 'N/A',
                 "Room": log.mapped_room || 'N/A',
@@ -1039,8 +1233,8 @@ const AttendanceHistoryPage = () => {
                                 displayData.map((log, index) => (
                                     <tr key={index}>
                                         <td>
-                                            <div style={{ fontWeight: '500' }}>{new Date(log.timestamp).toLocaleDateString()}</div>
-                                            <div style={{ fontSize: '0.85em', color: '#888' }}>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            <div style={{ fontWeight: '500' }}>{log.display_date || new Date(log.timestamp).toLocaleDateString()}</div>
+                                            <div style={{ fontSize: '0.85em', color: '#888' }}>{log.display_time || new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                         </td>
                                         <td style={{ fontWeight: '600', color: '#333' }}>
                                             {log.mapped_subject}

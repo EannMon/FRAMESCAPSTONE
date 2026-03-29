@@ -114,19 +114,32 @@ def _pair_breaks_and_compute(user_logs: List[AttendanceLog], limit_minutes: int 
     return round(total_break_minutes, 1), extended_break_count
 
 
-def _resolve_scoped_class_ids(db: Session, user_id: int, class_id: Optional[int]) -> List[int]:
+def _resolve_scoped_class_ids(
+    db: Session,
+    user_id: int,
+    class_id: Optional[int],
+    class_ids: Optional[List[int]] = None,
+) -> List[int]:
     enrolled_class_ids = [
         cid
         for (cid,) in db.query(Enrollment.class_id).filter(Enrollment.student_id == user_id).all()
     ]
+    if class_ids:
+        enrolled_set = set(enrolled_class_ids)
+        return [cid for cid in class_ids if cid in enrolled_set]
     if class_id:
         return [class_id] if class_id in enrolled_class_ids else []
     return enrolled_class_ids
 
 
-def resolve_student_scoped_class_ids(db: Session, user_id: int, class_id: Optional[int] = None) -> List[int]:
+def resolve_student_scoped_class_ids(
+    db: Session,
+    user_id: int,
+    class_id: Optional[int] = None,
+    class_ids: Optional[List[int]] = None,
+) -> List[int]:
     """Public wrapper for report service orchestration to avoid duplicate enrollment queries."""
-    return _resolve_scoped_class_ids(db, user_id, class_id)
+    return _resolve_scoped_class_ids(db, user_id, class_id, class_ids)
 
 
 def _compute_counts_for_range(

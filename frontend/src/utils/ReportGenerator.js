@@ -13,14 +13,42 @@ const COLORS = {
     white: [255, 255, 255]
 };
 
+// ===========================================
+// HELPER: Draw a section heading
+// ===========================================
+const _drawSectionHeading = (doc, y, title, pageWidth) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...COLORS.primary);
+    doc.text(title, 14, y);
+    // Draw a thin line under the heading
+    doc.setDrawColor(...COLORS.primary);
+    doc.setLineWidth(0.3);
+    doc.line(14, y + 1.5, pageWidth - 14, y + 1.5);
+    return y + 6;
+};
+
+// ===========================================
+// HELPER: Check if we need a page break
+// ===========================================
+const _ensureSpace = (doc, y, neededHeight) => {
+    const pageHeight = doc.internal.pageSize.height;
+    if (y + neededHeight > pageHeight - 20) {
+        doc.addPage();
+        return 20; // top margin of new page
+    }
+    return y;
+};
+
 /**
  * Generates a branded PDF report for the FRAMES system.
  * 
  * @param {Object} reportInfo - Metadata about the report
  * @param {Array} tableData - Array of objects for the table
  * @param {string} action - 'download' (default) or 'view' (returns blob URL)
+ * @param {Object} enrichment - Optional enrichment data { summaryMetrics, insights, sessionCountReference, statusDistribution, filters }
  */
-export const generateFramesPDF = async (reportInfo, tableData, action = 'download') => {
+export const generateFramesPDF = async (reportInfo, tableData, action = 'download', enrichment = {}) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -121,9 +149,117 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
     drawRow(dateLabel, dateValue, boxTop + 10);
     drawRow(genLabel, genValue, boxTop + 18);
 
+    let currentY = boxTop + boxHeight + 8;
+
+    // --- FILTER METADATA (4.3) ---
+    if (enrichment.filters) {
+        const f = enrichment.filters;
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        const filterParts = [];
+        if (f.reportType) filterParts.push(`Report: ${f.reportType}`);
+        if (f.subject) filterParts.push(`Subject: ${f.subject}`);
+        if (f.semester) filterParts.push(`Semester: ${f.semester}`);
+        if (f.totalRows != null) filterParts.push(`Records: ${f.totalRows}`);
+        if (filterParts.length > 0) {
+            doc.text(`Filters: ${filterParts.join(' | ')}`, 14, currentY);
+            currentY += 5;
+        }
+    }
+
+    // --- SUMMARY METRICS SECTION (1.3) ---
+    const { summaryMetrics, sessionCountReference, insights, statusDistribution } = enrichment;
+
+    if (summaryMetrics && summaryMetrics.length > 0) {
+        currentY = _ensureSpace(doc, currentY, 35);
+        currentY = _drawSectionHeading(doc, currentY, 'Performance Metrics', pageWidth);
+
+        // Draw metric cards as a compact grid (2 columns)
+        doc.setFontSize(9);
+        const colWidth = (pageWidth - 28) / 2;
+
+        summaryMetrics.forEach((metric, i) => {
+            const col = i % 2;
+            if (i > 0 && col === 0) currentY += 14;
+            currentY = _ensureSpace(doc, currentY, 14);
+            
+            const x = 14 + col * colWidth;
+            const label = metric.label || metric.name || '';
+            const value = metric.display_value || `${parseFloat(metric.value || 0).toFixed(1)}%`;
+
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...COLORS.text);
+            doc.text(`${label}:`, x, currentY);
+            const labelW = doc.getTextWidth(`${label}: `);
+
+            // Color code the value
+            const numVal = parseFloat(metric.value || 0);
+            if (numVal >= 85) doc.setTextColor(...COLORS.secondary);
+            else if (numVal >= 70) doc.setTextColor(249, 168, 37); // amber
+            else doc.setTextColor(...COLORS.accent);
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(value, x + labelW, currentY);
+
+            // Formula/explanation in small text
+            if (metric.formula) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(metric.formula, x, currentY + 4);
+                doc.setFontSize(9);
+            }
+        });
+
+        currentY += 18;
+    }
+
+    // --- SESSION COUNT REFERENCE ---
+    if (sessionCountReference) {
+        currentY = _ensureSpace(doc, currentY, 20);
+        currentY = _drawSectionHeading(doc, currentY, 'Session Count Reference', pageWidth);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.text);
+
+        const ref = sessionCountReference;
+        const refLines = [];
+        if (ref.report_window) {
+            const rw = ref.report_window;
+            refLines.push(`Report Window — Attended: ${rw.attended || 0} | Conducted: ${rw.conducted || 0} | Expected: ${rw.expected || 0}`);
+        }
+        if (ref.semester) {
+            const sm = ref.semester;
+            refLines.push(`Semester — Attended: ${sm.attended || 0} | Conducted: ${sm.conducted || 0} | Expected: ${sm.expected || 0}`);
+        }
+        refLines.forEach(line => {
+            currentY = _ensureSpace(doc, currentY, 6);
+            doc.text(line, 14, currentY);
+            currentY += 5;
+        });
+        currentY += 4;
+    }
+
+    // --- STATUS DISTRIBUTION ---
+    if (statusDistribution && Object.keys(statusDistribution).length > 0) {
+        currentY = _ensureSpace(doc, currentY, 20);
+        currentY = _drawSectionHeading(doc, currentY, 'Status Distribution', pageWidth);
+
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.text);
+        doc.setFont("helvetica", "normal");
+
+        const statusEntries = Object.entries(statusDistribution);
+        const statusText = statusEntries.map(([k, v]) => `${k}: ${v}`).join('  |  ');
+        doc.text(statusText, 14, currentY);
+        currentY += 8;
+    }
 
     // --- TABLE ---
     if (tableData && tableData.length > 0) {
+        currentY = _ensureSpace(doc, currentY, 30);
+
         // Dynamic Headers
         const columns = Object.keys(tableData[0]).map(key => ({
             header: key.replace(/_/g, ' ').toUpperCase(),
@@ -133,7 +269,7 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
         autoTable(doc, {
             columns: columns,
             body: tableData,
-            startY: boxTop + boxHeight + 10,
+            startY: currentY,
             theme: 'grid',
             headStyles: {
                 fillColor: COLORS.primary,
@@ -162,9 +298,54 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
                 }
             }
         });
+
+        currentY = doc.lastAutoTable.finalY + 8;
     } else {
         doc.setTextColor(...COLORS.accent);
-        doc.text("No data available for this report.", 105, boxTop + boxHeight + 20, { align: 'center' });
+        doc.text("No data available for this report.", 105, currentY + 10, { align: 'center' });
+        currentY += 20;
+    }
+
+    // --- INSIGHTS SECTION (1.3) ---
+    if (insights && insights.length > 0) {
+        currentY = _ensureSpace(doc, currentY, 30);
+        currentY = _drawSectionHeading(doc, currentY, 'AI-Generated Insights', pageWidth);
+
+        doc.setFontSize(8);
+
+        insights.forEach((insight, idx) => {
+            currentY = _ensureSpace(doc, currentY, 18);
+            const title = insight.title || insight.type || `Insight ${idx + 1}`;
+
+            // Title
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...COLORS.primary);
+            doc.text(`${idx + 1}. ${title}`, 14, currentY);
+            currentY += 4;
+
+            // Analysis text (wrapped)
+            const analysisText = insight.analysis || insight.description || '';
+            if (analysisText) {
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(...COLORS.text);
+                const lines = doc.splitTextToSize(analysisText, pageWidth - 32);
+                lines.forEach(line => {
+                    currentY = _ensureSpace(doc, currentY, 5);
+                    doc.text(line, 18, currentY);
+                    currentY += 3.5;
+                });
+            }
+
+            // Confidence level
+            if (insight.confidence) {
+                doc.setFont("helvetica", "italic");
+                doc.setTextColor(150);
+                doc.text(`Confidence: ${insight.confidence}`, 18, currentY + 1);
+                currentY += 4;
+            }
+
+            currentY += 3;
+        });
     }
 
     // --- FOOTER ---
@@ -183,33 +364,102 @@ export const generateFramesPDF = async (reportInfo, tableData, action = 'downloa
 };
 
 /**
- * Generates a clean CSV report.
+ * Generates a clean CSV report with optional enrichment data.
  * 
  * @param {Object} reportInfo - Metadata about the report
  * @param {Array} tableData - Array of objects for the table
+ * @param {Object} enrichment - Optional enrichment data { summaryMetrics, insights, sessionCountReference, statusDistribution, filters }
  */
-export const generateCSV = (reportInfo, tableData) => {
+export const generateCSV = (reportInfo, tableData, enrichment = {}) => {
     if (!tableData || tableData.length === 0) {
         alert("No data available to export.");
         return;
     }
+    const csvLines = [];
 
-    // 1. Create Header Row
+    // Report metadata header
+    csvLines.push(`"FRAMES Report: ${reportInfo.title}"`);
+    csvLines.push(`"Generated: ${new Date().toLocaleString()}"`);
+    csvLines.push(`"Date Range: ${reportInfo.dateRange}"`);
+    if (enrichment.filters) {
+        const f = enrichment.filters;
+        if (f.reportType) csvLines.push(`"Report Type: ${f.reportType}"`);
+        if (f.subject) csvLines.push(`"Subject: ${f.subject}"`);
+        if (f.semester) csvLines.push(`"Semester: ${f.semester}"`);
+    }
+    csvLines.push(''); // blank line
+
+    // Summary metrics
+    const { summaryMetrics, sessionCountReference, insights, statusDistribution } = enrichment;
+    if (summaryMetrics && summaryMetrics.length > 0) {
+        csvLines.push('"=== Performance Metrics ==="');
+        summaryMetrics.forEach(m => {
+            const label = m.label || m.name || '';
+            const value = m.display_value || `${parseFloat(m.value || 0).toFixed(1)}%`;
+            csvLines.push(`"${label}","${value}"`);
+        });
+        csvLines.push('');
+    }
+
+    // Session count reference
+    if (sessionCountReference) {
+        csvLines.push('"=== Session Count Reference ==="');
+        if (sessionCountReference.report_window) {
+            const rw = sessionCountReference.report_window;
+            csvLines.push(`"Report Window","Attended: ${rw.attended || 0}","Conducted: ${rw.conducted || 0}","Expected: ${rw.expected || 0}"`);
+        }
+        if (sessionCountReference.semester) {
+            const sm = sessionCountReference.semester;
+            csvLines.push(`"Semester","Attended: ${sm.attended || 0}","Conducted: ${sm.conducted || 0}","Expected: ${sm.expected || 0}"`);
+        }
+        csvLines.push('');
+    }
+
+    // Status distribution
+    if (statusDistribution && Object.keys(statusDistribution).length > 0) {
+        csvLines.push('"=== Status Distribution ==="');
+        Object.entries(statusDistribution).forEach(([k, v]) => {
+            csvLines.push(`"${k}","${v}"`);
+        });
+        csvLines.push('');
+    }
+
+    // Table data
+    csvLines.push('"=== Attendance Records ==="');
     const headers = Object.keys(tableData[0]);
-    const headerRow = headers.join(",");
+    const headerRow = headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",");
+    csvLines.push(headerRow);
 
-    // 2. Create Data Rows
-    const rows = tableData.map(row => {
-        return headers.map(fieldName => {
-            const data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : ''; // Escape double quotes
+    tableData.forEach(row => {
+        const rowStr = headers.map(fieldName => {
+            let data = row[fieldName] ? row[fieldName].toString().replace(/"/g, '""') : '';
+            // Sanitize em-dash and placeholder values for CSV/Excel compatibility
+            if (data === '—' || data === 'N/A') data = '';
+            data = data.replace(/—/g, '-');
+            // Force date-like values to be treated as text in Excel
+            // Uses ="value" formula format to prevent auto-conversion to date serial numbers
+            if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+                return `="` + data + `"`;
+            }
             return `"${data}"`; // Wrap in quotes to handle commas/newlines
         }).join(",");
+        csvLines.push(rowStr);
     });
 
-    // 3. Combine
-    const csvContent = [headerRow, ...rows].join("\n");
+    // Insights
+    if (insights && insights.length > 0) {
+        csvLines.push('');
+        csvLines.push('"=== AI-Generated Insights ==="');
+        insights.forEach((insight, idx) => {
+            const title = insight.title || insight.type || `Insight ${idx + 1}`;
+            const analysis = (insight.analysis || '').replace(/"/g, '""');
+            csvLines.push(`"${idx + 1}. ${title}","${analysis}"`);
+        });
+    }
 
-    // 4. Create Blob and Download
+    // Create Blob and Download
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvLines.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);

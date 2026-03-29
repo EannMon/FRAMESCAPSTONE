@@ -1,29 +1,39 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import '../FacultyDashboard/FacultyReportsPage.css';
+import './DeptHeadReportsPage.css'; // Will create this or ensure it exists
 import FacultyReportModal from '../FacultyDashboard/FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
+
+const LogStatusTag = ({ text, isPresent, type }) => {
+    let statusClass = 'neutral';
+    if (isPresent) statusClass = 'success';
+    else if (type === 'ABSENT') statusClass = 'danger';
+    else if (type === 'BREAK_OUT') statusClass = 'warning';
+    else if (type === 'EXIT') statusClass = 'neutral';
+    else statusClass = 'neutral';
+
+    return (
+        <span className={`log-status-tag ${statusClass}`}>
+            {text}
+        </span>
+    );
+};
 
 // ============================================
 // DEPARTMENT HEAD REPORT OPTIONS
 // Includes dept-wide, class-specific, and personal
 // ============================================
 const reportOptions = [
-    // --- Faculty Oversight ---
-    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', type: 'DEPT', category: 'Faculty Oversight' },
-    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', type: 'DEPT', category: 'Faculty Oversight' },
-    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', type: 'DEPT', category: 'Faculty Oversight' },
+    // --- Personal Records (own attendance as dept head) ---
+    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
 
-    // --- Facility & Room Analytics ---
-    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', type: 'DEPT', category: 'Facility & Room Analytics' },
-    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', type: 'DEPT', category: 'Facility & Room Analytics' },
-
-    // --- Departmental Strategy ---
-    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', type: 'DEPT', category: 'Departmental Strategy' },
-
-    // --- Class-Specific Reports (same as Faculty) ---
+    // --- Class-Specific Reports ---
     { id: 'CLASS_DAILY', label: 'Class Daily Attendance', desc: 'Daily attendance entries for a specific class.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_MONTHLY', label: 'Class Monthly Summary', desc: 'Monthly aggregation of attendance per student.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'CLASS_SEMESTER', label: 'Class Semester Summary', desc: 'Semester-wide per-student summary: entries, lates, rate.', type: 'CLASS', category: 'Class-Specific Reports' },
@@ -37,13 +47,21 @@ const reportOptions = [
     { id: 'EARLY_EXITS', label: 'Early Exits Report', desc: 'Students who exited before class end.', type: 'CLASS', category: 'Class-Specific Reports' },
     { id: 'PARTICIPATION_INSIGHT', label: 'Participation Insight', desc: 'Participation summary per student.', type: 'CLASS', category: 'Class-Specific Reports' },
 
-    // --- Personal Records (own attendance as faculty) ---
-    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
+    // --- Faculty Reports ---
+    { id: 'FACULTY_SUMMARY', label: 'Faculty Performance Summary', desc: 'Overview of all faculty attendance punctuality.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_LATE', label: 'Faculty Late Arrivals Report', desc: 'Reports on faculty who arrive late to classes.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_CONSISTENCY', label: 'Faculty Consistency Index', desc: 'AI-computed metric of attendance regularity per faculty.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_ATTENDANCE_RATE', label: 'Faculty Attendance Rate', desc: 'Attendance rate per faculty comparing scheduled sessions vs actual entries.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_ABSENCE', label: 'Faculty Absence Report', desc: 'Faculty who missed scheduled classes with no attendance record.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_PUNCTUALITY', label: 'Faculty Punctuality Index', desc: 'Ranks faculty by average arrival time offset from class start.', type: 'DEPT', category: 'Faculty Reports' },
+    { id: 'FACULTY_TEACHING_LOAD', label: 'Faculty Teaching Load Overview', desc: 'Classes, sections, students, and attendance summary per faculty.', type: 'DEPT', category: 'Faculty Reports' },
+
+    // --- Department Reports ---
+    { id: 'ROOM_OCCUPANCY', label: 'Room Occupancy Report', desc: 'Usage metrics per room based on attendance data.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'PEAK_USAGE', label: 'Peak Hour / Room Usage', desc: 'Identifies peak attendance times per room.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'ROOM_UTILIZATION', label: 'Room Utilization Rate', desc: 'How efficiently rooms are scheduled vs. used.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'OVERCROWDING', label: 'Overcrowding Alerts', desc: 'Rooms exceeding capacity thresholds.', type: 'DEPT', category: 'Department Reports' },
+    { id: 'DEPT_ACTIVITY', label: 'Department-Wide Activity', desc: 'Cross-course attendance and engagement overview.', type: 'DEPT', category: 'Department Reports' },
 ];
 
 /**
@@ -58,8 +76,11 @@ const getColumnConfig = (reportId) => {
         };
     }
     if (report?.type === 'CLASS') {
+        const isPunctuality = reportId === 'CLASS_PUNCTUALITY_INDEX';
         return {
-            headers: ['ID', 'Name', 'TUP-M ID', 'Status', 'Time', 'Remarks'],
+            headers: isPunctuality 
+                ? ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary']
+                : ['ID', 'Name', 'TUPM-ID', 'Status', 'Time', 'Summary'],
             keys: ['id', 'col1', 'col2', 'status', 'col3', 'remarks']
         };
     }
@@ -80,11 +101,11 @@ const ReportDownloadModal = ({ isOpen, onClose, onGenerate }) => {
         <div className="reports-unique-modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
             <div className="reports-unique-modal-content" onClick={e => e.stopPropagation()} style={{ width: '420px', maxWidth: '90%', padding: '20px' }}>
                 <div className="metric-modal-header" style={{ marginBottom: '15px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>Generate Official Report</h3>
-                    <button className="metric-modal-close" onClick={onClose} style={{ fontSize: '1.5rem', color: '#64748b' }}>&times;</button>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Generate Official Report</h3>
+                    <button className="metric-modal-close" onClick={onClose} style={{ fontSize: '1.5rem' }}>&times;</button>
                 </div>
                 <div className="metric-modal-body" style={{ padding: '0 0 20px 0' }}>
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '0.85rem', marginBottom: '16px', lineHeight: 1.5 }}>
                         Select your preferred output format to process the report records.
                     </p>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -93,21 +114,21 @@ const ReportDownloadModal = ({ isOpen, onClose, onGenerate }) => {
                             onClick={() => setFormat('PREVIEW')}
                         >
                             <i className="fas fa-eye" style={{ fontSize: '1.25rem', color: '#163269' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>Preview</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Preview</span>
                         </button>
                         <button 
                             style={{ flex: 1, padding: '12px 6px', borderRadius: '8px', border: format === 'PDF' ? '2px solid #163269' : '1px solid #e2e8f0', background: format === 'PDF' ? '#eff6ff' : 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
                             onClick={() => setFormat('PDF')}
                         >
                             <i className="fas fa-file-pdf" style={{ fontSize: '1.25rem', color: '#ef4444' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>PDF</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>PDF</span>
                         </button>
                         <button 
                             style={{ flex: 1, padding: '12px 6px', borderRadius: '8px', border: format === 'CSV' ? '2px solid #163269' : '1px solid #e2e8f0', background: format === 'CSV' ? '#eff6ff' : 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
                             onClick={() => setFormat('CSV')}
                         >
                             <i className="fas fa-file-csv" style={{ fontSize: '1.25rem', color: '#10b981' }}></i>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>CSV</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>CSV</span>
                         </button>
                     </div>
                 </div>
@@ -193,9 +214,9 @@ const DeptHeadReportsPage = () => {
         if (user?.department_id) {
             api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
-                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
-                    if (res.data.semester_start_date) setDateFrom(res.data.semester_start_date);
-                    if (res.data.semester_end_date) setDateTo(res.data.semester_end_date);
+                    if (res.data?.academic_year) setAcademicYear(res.data.academic_year);
+                    if (res.data?.semester_start_date) setDateFrom(res.data.semester_start_date);
+                    if (res.data?.semester_end_date) setDateTo(res.data.semester_end_date);
                 }).catch((err) => {
                     if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                         // silently ignore
@@ -205,12 +226,12 @@ const DeptHeadReportsPage = () => {
         return () => controller.abort();
     }, [user]);
 
-    // Auto-fetch when default report + dates are ready
+    // Auto-fetch when default report + dates + filters are ready
     useEffect(() => {
         if (selectedReport && dateFrom && dateTo) {
             fetchReportData(selectedReport.id);
         }
-    }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dateFrom, dateTo, room, selectedClass, selectedReport]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const groupedReports = useMemo(() => {
         const groups = {};
@@ -226,16 +247,51 @@ const DeptHeadReportsPage = () => {
         setError(null);
         try {
             const report = reportOptions.find(r => r.id === reportId);
+            if (!report) {
+                setLoading(false);
+                return;
+            }
 
-            if (report?.type === 'CLASS' || report?.type === 'PERSONAL') {
+            if (report.type === 'CLASS' || report.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
-                if (!user?.id) return;
-                const resolvedClassId = report?.type === 'CLASS'
-                    ? (selectedClass || classes[0]?.class_id || undefined)
-                    : undefined;
+                if (!user?.id) {
+                    setLoading(false);
+                    return;
+                }
+                
+                // For CLASS reports, we must have a class_id
+                let targetId = null;
+                if (report.type === 'CLASS') {
+                    // Normalize the selected value or default to first class
+                    const rawValue = selectedClass || (classes.length > 0 ? (classes[0].class_id || classes[0].id) : null);
+                    if (!rawValue) {
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
 
-                const params = { report_type: reportId };
-                if (resolvedClassId) params.class_id = resolvedClassId;
+                    const stringVal = String(rawValue);
+                    // Match against the classes list to get the numeric primary key
+                    const found = classes.find(c => 
+                        String(c.class_id) === stringVal || 
+                        String(c.id) === stringVal ||
+                        c.subject_code === stringVal ||
+                        `${c.subject_code} - ${c.section}` === stringVal ||
+                        stringVal.startsWith(c.subject_code)
+                    );
+                    
+                    targetId = found ? (found.class_id || found.id) : (parseInt(stringVal.split(' ')[0]) || null);
+                    
+                    if (!targetId) {
+                        console.error('Could not resolve class_id for:', stringVal);
+                        setReportData([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                const params = { report_type: reportId, legacy: false };
+                if (targetId) params.class_id = targetId;
                 if (dateFrom) params.date_from = dateFrom;
                 if (dateTo) params.date_to = dateTo;
                 params.limit = 200;
@@ -259,7 +315,36 @@ const DeptHeadReportsPage = () => {
                 const res = await api.get('/api/dept/reports/data', { params });
                 const payload = res.data || {};
                 const rows = Array.isArray(payload) ? payload : (payload.rows || []);
-                setReportData(rows);
+                
+                // --- MAP DATA TO MATCH STUDENT STRUCTURE FOR TRENDS ---
+                const mapped = rows.map(row => {
+                    const col1Text = String(row.col1 || '').trim();
+                    const col3Text = String(row.col3 || '').trim();
+                    let timestamp = row.timestamp;
+                    
+                    if (!timestamp && col1Text) {
+                        const datePart = col1Text;
+                        const timePart = col3Text;
+                        if (timePart && timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)) {
+                            let [_, h, m, meridiem] = timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                            let hours = Number(h);
+                            if (meridiem === 'PM' && hours !== 12) hours += 12;
+                            if (meridiem === 'AM' && hours === 12) hours = 0;
+                            timestamp = `${datePart}T${String(hours).padStart(2, '0')}:${m}:00`;
+                        } else {
+                            timestamp = `${datePart}T00:00:00`;
+                        }
+                    }
+
+                    return {
+                        ...row,
+                        timestamp: timestamp,
+                        action: row.action || row.status,
+                        is_late: row.is_late || String(row.status || '').toUpperCase() === 'LATE'
+                    };
+                });
+
+                setReportData(mapped);
                 setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
                 setInsights(Array.isArray(payload.insights) ? payload.insights : []);
                 setSessionCountReference(payload.session_count_reference || null);
@@ -279,10 +364,10 @@ const DeptHeadReportsPage = () => {
 
     const handleSelectReport = (report) => {
         setSelectedReport(report);
-        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0) {
+        if (report?.type === 'CLASS' && !selectedClass && classes.length > 0 && classes[0].class_id != null) {
             setSelectedClass(String(classes[0].class_id));
         }
-        fetchReportData(report.id);
+        // fetchReportData(report.id); // Removed: useEffect will handle this now
     };
 
     const handleRefresh = () => {
@@ -340,71 +425,188 @@ const DeptHeadReportsPage = () => {
         const wholeSemester = sessionCountReference.whole_semester || {};
 
         return (
-            <div className="insight-panel">
+            <div className="insight-panel" style={{ marginTop: '16px' }}>
                 <div className="insight-section-title" style={{ marginBottom: '12px' }}>Session Count Reference</div>
-                <div className="session-reference-grid">
-                    <div className="session-reference-card">
-                        <div className="session-reference-title">Report Window</div>
-                        <div className="session-reference-sub">Attended: <strong>{reportWindow.attended ?? 0}</strong></div>
-                        <div className="session-reference-sub">Conducted: <strong>{reportWindow.conducted ?? 0}</strong></div>
-                        <div className="session-reference-sub">Expected: <strong>{reportWindow.expected ?? 0}</strong></div>
+                <div className="session-reference-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Report Window</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{reportWindow.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{reportWindow.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{reportWindow.expected ?? 0}</strong></div>
+                        </div>
                     </div>
-                    <div className="session-reference-card">
-                        <div className="session-reference-title">Reference Window (Semester)</div>
-                        <div className="session-reference-sub">Attended: <strong>{wholeSemester.attended ?? 0}</strong></div>
-                        <div className="session-reference-sub">Conducted: <strong>{wholeSemester.conducted ?? 0}</strong></div>
-                        <div className="session-reference-sub">Expected: <strong>{wholeSemester.expected ?? 0}</strong></div>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Whole Semester</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{wholeSemester.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{wholeSemester.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{wholeSemester.expected ?? 0}</strong></div>
+                        </div>
                     </div>
                 </div>
             </div>
         );
     };
 
+    const statusDistribution = useMemo(() => {
+        const buckets = {
+            ENTERED: 0,
+            LATE: 0,
+            ABSENT: 0,
+            BREAK_OUT: 0,
+            BREAK_IN: 0,
+            EXITED: 0,
+        };
+
+        reportData.forEach((row) => {
+            const status = String(row.status || '').toUpperCase();
+            if (status === 'ENTERED' || status === 'ON TIME' || status === 'PRESENT') {
+                if (row.is_late) buckets.LATE += 1;
+                else buckets.ENTERED += 1;
+            } else if (status === 'ABSENT') {
+                buckets.ABSENT += 1;
+            } else if (status === 'BREAK_OUT') {
+                buckets.BREAK_OUT += 1;
+            } else if (status === 'BREAK_IN') {
+                buckets.BREAK_IN += 1;
+            } else if (status === 'EXITED') {
+                buckets.EXITED += 1;
+            }
+        });
+
+        if (buckets.ABSENT === 0 && sessionCountReference?.report_window) {
+            const { attended, conducted } = sessionCountReference.report_window;
+            buckets.ABSENT = Math.max((conducted || 0) - (attended || 0), 0);
+        }
+
+        return buckets;
+    }, [reportData, sessionCountReference]);
+
+    const dailyTrend = useMemo(() => {
+        const byDate = {};
+        reportData.forEach((row) => {
+            const dateStr = row.display_date || row.col1 || (row.timestamp ? row.timestamp.split('T')[0] : null);
+            if (!dateStr) return;
+
+            if (!byDate[dateStr]) {
+                byDate[dateStr] = {
+                    day: dateStr,
+                    entered: 0,
+                    late: 0,
+                    absent: 0,
+                    breakOut: 0,
+                    breakIn: 0,
+                    exited: 0,
+                    total: 0
+                };
+            }
+
+            const status = String(row.status || '').toUpperCase();
+            if (status === 'ENTERED' || status === 'ON TIME' || status === 'PRESENT') {
+                if (row.is_late) byDate[dateStr].late += 1;
+                else byDate[dateStr].entered += 1;
+            } else if (status === 'ABSENT') {
+                byDate[dateStr].absent += 1;
+            } else if (status === 'BREAK_OUT') {
+                byDate[dateStr].breakOut += 1;
+            } else if (status === 'BREAK_IN') {
+                byDate[dateStr].breakIn += 1;
+            } else if (status === 'EXITED') {
+                byDate[dateStr].exited += 1;
+            }
+            byDate[dateStr].total += 1;
+        });
+
+        return Object.values(byDate).sort((a, b) => a.day.localeCompare(b.day));
+    }, [reportData]);
+
     const renderVisualSummary = () => {
         if (!reportData.length) return null;
 
-        const statusCounts = reportData.reduce((acc, row) => {
-            const key = String(row.status || 'UNKNOWN').toUpperCase();
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-        }, {});
+        const statusItems = [
+            { label: 'Entered', value: statusDistribution.ENTERED, color: '#2e7d32' },
+            { label: 'Late', value: statusDistribution.LATE, color: '#e65100' },
+            { label: 'Absent', value: statusDistribution.ABSENT, color: '#c62828' },
+            { label: 'On Break (Out)', value: statusDistribution.BREAK_OUT, color: '#1565c0' },
+            { label: 'From Break (In)', value: statusDistribution.BREAK_IN, color: '#00897b' },
+            { label: 'Exited', value: statusDistribution.EXITED, color: '#6c757d' },
+        ];
 
-        const sorted = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
-        const maxCount = Math.max(...sorted.map((item) => item[1]), 1);
+        const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
+        const maxTrend = Math.max(...dailyTrend.map((item) => item.total), 1);
 
-        const statusColors = {
-            'ENTERED': '#10b981',
-            'LATE': '#f59e0b',
-            'ABSENT': '#ef4444',
-            'BREAK_OUT': '#3b82f6',
-            'BREAK_IN': '#8b5cf6',
-            'EXITED': '#64748b'
+        const statusStyle = {
+            ENTERED: '#2e7d32',
+            LATE: '#e65100',
+            ABSENT: '#c62828',
+            BREAK_OUT: '#1565c0',
+            BREAK_IN: '#00897b',
+            EXITED: '#6c757d',
         };
 
         return (
             <div className="insight-panel">
-                <div className="insight-section-title" style={{ marginBottom: '12px' }}>Visual Summary</div>
+                <div className="insight-section-title">Visual Summary</div>
                 <div className="visual-grid">
                     <div className="visual-card">
-                        <div className="visual-title">Overall Status Distribution</div>
-                        <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
-                            {sorted.map(([status, count]) => (
-                                <div key={status} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 30px', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#475569' }}>{status.replaceAll('_', ' ')}</div>
-                                    <div style={{ background: '#f1f5f9', height: '14px', borderRadius: '6px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${(count / maxCount) * 100}%`, height: '100%', background: statusColors[status] || '#94a3b8', borderRadius: '4px' }}></div>
-                                    </div>
-                                    <div style={{ fontSize: '0.82rem', fontWeight: 700, textAlign: 'right', color: '#1e293b' }}>{count}</div>
+                        <div className="visual-title">Status Distribution</div>
+                        {statusItems.map((item) => (
+                            <div key={item.label} className="visual-bar-row">
+                                <span className="visual-label">{item.label}</span>
+                                <div className="visual-bar-track">
+                                    <div
+                                        className="visual-bar-fill"
+                                        style={{ width: `${(item.value / maxStatus) * 100}%`, backgroundColor: item.color }}
+                                    />
                                 </div>
-                            ))}
-                        </div>
+                                <span className="visual-value">{item.value}</span>
+                            </div>
+                        ))}
                     </div>
-
                     <div className="visual-card">
                         <div className="visual-title">Activity Trend</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '180px', color: '#94a3b8', fontSize: '0.85rem', gap: '8px' }}>
-                            <i className="fas fa-chart-bar" style={{ fontSize: '2rem', color: '#cbd5e1' }}></i>
-                            <span>Activity data distribution for selected range</span>
+                        <div className="grouped-cluster-scroll-wrap">
+                            <div className="grouped-cluster-chart">
+                                {dailyTrend.filter(item => item.total > 0).map((item) => (
+                                    <div key={item.day} className="grouped-cluster-item">
+                                        <div className="grouped-cluster-track">
+                                            {['entered', 'late', 'absent', 'breakOut', 'breakIn', 'exited'].map(actionKey => {
+                                                const value = item[actionKey] || 0;
+                                                if (value === 0) return null;
+                                                const styleKey = actionKey.toUpperCase().replace('BREAKOUT', 'BREAK_OUT').replace('BREAKIN', 'BREAK_IN');
+                                                // Quick fix for key mapping
+                                                const finalStyleKey = styleKey === 'BREAKOUT' ? 'BREAK_OUT' : (styleKey === 'BREAKIN' ? 'BREAK_IN' : styleKey);
+                                                
+                                                return (
+                                                    <div
+                                                        key={`${item.day}-${actionKey}`}
+                                                        className="grouped-cluster-bar"
+                                                        style={{
+                                                            height: `${(value / maxTrend) * 100}%`,
+                                                            backgroundColor: statusStyle[finalStyleKey] || '#ccc',
+                                                        }}
+                                                        title={`${item.day} • ${actionKey.replace(/([A-Z])/g, ' $1')}: ${value}`}
+                                                    >
+                                                        <span className="grouped-cluster-value">{value}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="grouped-cluster-label">
+                                            {new Date(item.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="trend-legend-row" style={{ marginTop: '15px' }}>
+                            {Object.entries(statusStyle).map(([key, color]) => (
+                                <span key={key} className="trend-legend-item">
+                                    <span className="trend-legend-dot" style={{ background: color }} />
+                                    {key.replace('_', ' ')}
+                                </span>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -415,8 +617,9 @@ const DeptHeadReportsPage = () => {
     const handleGenerateReport = (format) => {
         if (format === 'PDF') handleDownloadPDF();
         else if (format === 'CSV') handleDownloadCSV();
+        else if (format === 'PREVIEW') handlePreviewPDF();
         else {
-            handleDownloadPDF(); // fallback
+            handlePreviewPDF(); // fallback to preview
         }
     };
 
@@ -437,19 +640,66 @@ const DeptHeadReportsPage = () => {
             type: reportType,
             category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
+            context: {
+                name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head',
+                id: user?.tupm_id || '',
+                scope: selectedReport.type === 'PERSONAL' ? 'Personal' : selectedReport.type === 'CLASS' ? (selectedClass ? `Class ${selectedClass}` : 'All Classes') : 'Department Wide'
+            }
         };
-        await generateFramesPDF(reportInfo, tableData, 'download');
+        const enrichment = {
+            summaryMetrics,
+            insights,
+            sessionCountReference,
+            statusDistribution: reportData.reduce((acc, row) => {
+                const status = row.status || 'Unknown';
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {}),
+            filters: {
+                reportType: selectedReport.label,
+                subject: selectedClass || 'All Classes',
+                semester: academicYear || 'Current'
+            }
+        };
+
+        await generateFramesPDF(reportInfo, tableData, 'download', enrichment);
     };
 
     const handleDownloadCSV = () => {
         if (!selectedReport || reportData.length === 0) return;
         const tableData = reportData.map(row => {
             const obj = {};
-            config.keys.forEach((key, i) => { obj[config.headers[i]] = row[key] || 'N/A'; });
+            config.keys.forEach((key, i) => {
+                let val = row[key] || '';
+                // Clean em-dash and N/A placeholders for CSV
+                if (val === '—' || val === 'N/A') val = '';
+                if (typeof val === 'string') val = val.replace(/—/g, '-');
+                obj[config.headers[i]] = val;
+            });
             return obj;
         });
-        generateCSV({ title: selectedReport.label }, tableData);
+        const reportInfo = { 
+            title: selectedReport.label,
+            dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`
+        };
+
+        const enrichment = {
+            summaryMetrics,
+            insights,
+            sessionCountReference,
+            statusDistribution: reportData.reduce((acc, row) => {
+                const status = row.status || 'Unknown';
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {}),
+            filters: {
+                reportType: selectedReport.label,
+                subject: selectedClass || 'All Classes',
+                semester: academicYear || 'Current'
+            }
+        };
+
+        generateCSV(reportInfo, tableData, enrichment);
     };
 
     const handlePreviewPDF = async () => {
@@ -469,9 +719,29 @@ const DeptHeadReportsPage = () => {
             type: reportType,
             category: selectedReport.type === 'PERSONAL' ? 'personal' : selectedReport.type === 'CLASS' ? 'class' : 'dept',
             dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`,
-            context: { name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head', id: user?.tupm_id || '' }
+            context: {
+                name: user ? `${user.first_name} ${user.last_name}` : 'Dept Head',
+                id: user?.tupm_id || '',
+                scope: selectedReport.type === 'PERSONAL' ? 'Personal' : selectedReport.type === 'CLASS' ? (selectedClass ? `Class ${selectedClass}` : 'All Classes') : 'Department Wide'
+            }
         };
-        const url = await generateFramesPDF(reportInfo, tableData, 'view');
+        const enrichment = {
+            summaryMetrics,
+            insights,
+            sessionCountReference,
+            statusDistribution: reportData.reduce((acc, row) => {
+                const status = row.status || 'Unknown';
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {}),
+            filters: {
+                reportType: selectedReport.label,
+                subject: selectedClass || 'All Classes',
+                semester: academicYear || 'Current'
+            }
+        };
+
+        const url = await generateFramesPDF(reportInfo, tableData, 'view', enrichment);
         setPreviewUrl(url);
         setModalOpen(true);
     };
@@ -485,21 +755,23 @@ const DeptHeadReportsPage = () => {
             </div>
 
             {/* MATCHING STUDENT FILTERS HEADER SECTION */}
-            <div className="reports-header-section" style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', alignItems: 'flex-end', justifyContent: 'flex-start', marginBottom: '20px', background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid rgba(0, 0, 0, 0.04)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
-                    
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Select Report Type:</label>
+            <div className="reports-header-section">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', marginBottom: '10px' }}>
+                    <div className="report-selector-group" style={{ marginBottom: 0 }}>
+                        <label>Select Report Type:</label>
                         <select
                             value={selectedReport?.id || ''}
-                            onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
+                            onChange={e => {
+                                const opt = reportOptions.find(o => o.id === e.target.value);
+                                if (opt) handleSelectReport(opt);
+                            }}
                             className="app-select big-select"
-                            style={{ minWidth: '240px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
                         >
+                            <option value="" disabled>-- Select a Report --</option>
                             {Object.entries(groupedReports).map(([category, options]) => (
                                 <optgroup key={category} label={category}>
-                                    {options.map(opt => (
-                                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                                    {options.map((opt, optIdx) => (
+                                        <option key={`${category}-${opt.id}-${optIdx}`} value={opt.id}>{opt.label}</option>
                                     ))}
                                 </optgroup>
                             ))}
@@ -508,42 +780,59 @@ const DeptHeadReportsPage = () => {
 
                     {/* Show Class selector for class-specific reports */}
                     {selectedReport?.type === 'CLASS' && (
-                        <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
-                            <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="app-select big-select" style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
-                                <option value="">All Classes</option>
-                                {classes.map(c => (
-                                    <option key={c.class_id} value={c.class_id}>{c.subject_code} - {c.section || 'N/A'}</option>
-                                ))}
+                        <div className="filter-item" style={{ minWidth: '220px' }}>
+                            <label>Subject / Class:</label>
+                            <select 
+                                value={selectedClass} 
+                                onChange={e => {
+                                    setSelectedClass(e.target.value);
+                                }} 
+                                className="app-select big-select" 
+                            >
+                                <option value="">Select a Class</option>
+                                {classes.map((c, idx) => {
+                                    const idToUse = c.class_id || c.id || "";
+                                    return (
+                                        <option key={`class-id-${idToUse}-${idx}`} value={idToUse}>
+                                            {c.subject_code || 'No Code'} - {c.section || 'N/A'}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     )}
 
-                    {/* Show Room selector for dept-wide reports */}
-                    {selectedReport?.type === 'DEPT' && (
-                        <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Room:</label>
-                            <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select" style={{ minWidth: '180px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
+                    {/* Show Room selector for room-specific reports */}
+                    {['ROOM_OCCUPANCY', 'PEAK_USAGE', 'ROOM_UTILIZATION', 'OVERCROWDING', 'DEPT_ACTIVITY'].includes(selectedReport?.id) && (
+                        <div className="filter-item" style={{ minWidth: '180px' }}>
+                            <label>Room:</label>
+                            <select value={room} onChange={e => setRoom(e.target.value)} className="app-select big-select">
                                 <option value="">All Rooms</option>
-                                {rooms.map((r, i) => <option key={i} value={r.room_name}>{r.room_name}</option>)}
+                                <option value="Online">Online</option>
+                                {rooms
+                                    .filter(r => r.room_name && /^\d+$/.test(r.room_name.replace(/room\s+/gi, '').trim()))
+                                    .map((r, i) => {
+                                        const cleanRoom = r.room_name.replace(/room\s+/gi, '').trim();
+                                        return <option key={`room-${cleanRoom}-${i}`} value={r.room_name}>{cleanRoom}</option>;
+                                    })}
                             </select>
                         </div>
                     )}
 
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>From:</label>
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="filter-input" style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }} />
+                    <div className="filter-item">
+                        <label>From:</label>
+                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="app-select big-select" />
                     </div>
                     
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>To:</label>
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="filter-input" style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }} />
+                    <div className="filter-item">
+                        <label>To:</label>
+                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="app-select big-select" />
                     </div>
                 </div>
 
-                {/* Description Box MOVED INSIDE */}
+                {/* Description Box */}
                 {selectedReport && selectedReport.desc && (
-                    <div className="report-description-box" style={{ marginTop: '0px', flexGrow: 1, minWidth: '300px' }}>
+                    <div className="report-description-box" style={{ marginTop: '0px' }}>
                         <i className="fas fa-info-circle"></i>
                         <span>{selectedReport.desc}</span>
                     </div>
@@ -600,7 +889,7 @@ const DeptHeadReportsPage = () => {
                                         {reportData.map((row, i) => (
                                             <tr key={i}>
                                                 {config.keys.map(key => {
-                                                    const value = row[key] || 'N/A';
+                                                    const value = row[key] || '—';
                                                     let cellContent = value;
                                                     
                                                     // Subline formatting for Date columns if text contains spaced timestamp
@@ -610,18 +899,29 @@ const DeptHeadReportsPage = () => {
                                                             cellContent = (
                                                                 <div>
                                                                     <div style={{ fontWeight: '500' }}>{parts[0]}</div>
-                                                                    <div style={{ fontSize: '0.82em', color: '#64748b', marginTop: '2px' }}>{parts[1]}</div>
+                                                                    <div style={{ fontSize: '0.85em', color: '#888' }}>{parts[1]}</div>
                                                                 </div>
                                                             );
                                                         }
                                                     }
                                                     
                                                     if (key === 'col2' || key === 'status') {
-                                                        cellContent = <span style={{ fontWeight: '600', color: '#334155' }}>{value}</span>;
+                                                        if (key === 'status') {
+                                                            const isPresent = ['ENTERED', 'ON TIME', 'PRESENT', 'BREAK_IN'].includes(String(value).toUpperCase());
+                                                            cellContent = (
+                                                                <LogStatusTag 
+                                                                    text={String(value).toUpperCase()} 
+                                                                    isPresent={isPresent}
+                                                                    type={String(value).toUpperCase()}
+                                                                />
+                                                            );
+                                                        } else {
+                                                            cellContent = <span style={{ fontWeight: '600', color: '#333' }}>{value}</span>;
+                                                        }
                                                     }
                                                     
                                                     return (
-                                                         <td key={key} className={key === 'status' ? `status-cell status-${(row[key] || '').toLowerCase().replace(/\s+/g, '-')}` : ''}>
+                                                         <td key={key}>
                                                              {cellContent}
                                                          </td>
                                                     );
@@ -634,6 +934,12 @@ const DeptHeadReportsPage = () => {
                         </div>
                         {reportData.length > 0 && (
                             <div className="report-footer" style={{ marginTop: '10px' }}><span>{reportData.length} record(s) found</span></div>
+                        )}
+                        {reportData.length === 0 && !loading && (
+                            <div className="report-footer" style={{ marginTop: '10px', textAlign: 'center', color: '#64748b' }}>
+                                <i className="fas fa-info-circle" style={{ marginRight: '6px' }}></i>
+                                No report data found for the selected {selectedReport?.type === 'CLASS' ? 'class' : 'filters'} and date range.
+                            </div>
                         )}
                     </div>
                 </>
@@ -690,7 +996,7 @@ const DeptHeadReportsPage = () => {
                     onClose={() => setModalOpen(false)} 
                     onGenerate={handleGenerateReport}
                     reportTitle={selectedReport?.label}
-                    scope={selectedReport?.type === 'CLASS' ? 'Class Specific' : 'Department Wide'}
+                    scope={selectedReport?.type === 'CLASS' ? 'Class Specific' : selectedReport?.type === 'PERSONAL' ? 'Personal' : 'Department Wide'}
                     dateRange={`${dateFrom} to ${dateTo}`}
                 />
             )}

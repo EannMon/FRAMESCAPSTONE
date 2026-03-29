@@ -268,6 +268,8 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
             
         all_logs_formatted.append({
             "id": log.id,
+            "user_id": log.user_id,
+            "class_id": log.class_id,
             "timestamp": log.timestamp.isoformat(),
             "is_late": log.is_late,
             "event_type": event_type
@@ -1348,15 +1350,20 @@ def update_attendance_time(
     log.timestamp = new_timestamp
 
     # Auto-recompute is_late for ENTRY logs
+    # late_threshold_minutes == 0 or None means late marking is DISABLED.
     if log.action == AttendanceAction.ENTRY and cls.start_time:
-        try:
-            class_start = datetime.strptime(cls.start_time, "%H:%M").time()
-            threshold = cls.late_threshold_minutes or 0
-            from datetime import timedelta as td
-            grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
-            log.is_late = new_time > grace_limit
-        except (ValueError, TypeError):
-            logger.warning("Could not parse class start_time '%s' for late computation", cls.start_time)
+        threshold = cls.late_threshold_minutes
+        if not threshold:
+            # Late marking disabled for this class — always on-time
+            log.is_late = False
+        else:
+            try:
+                class_start = datetime.strptime(cls.start_time, "%H:%M").time()
+                from datetime import timedelta as td
+                grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
+                log.is_late = new_time > grace_limit
+            except (ValueError, TypeError):
+                logger.warning("Could not parse class start_time '%s' for late computation", cls.start_time)
 
     # Update remarks if provided
     if data.remarks is not None:
@@ -1541,11 +1548,11 @@ def update_class_late_threshold(
     if not cls:
         raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
-    if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
+    if data.late_threshold_minutes < 0 or data.late_threshold_minutes > 120:
         raise api_error(
             status_code=400,
             code="INVALID_THRESHOLD",
-            message="Late threshold must be between 1 and 120 minutes"
+            message="Late threshold must be between 0 and 120 minutes"
         )
 
     cls.late_threshold_minutes = data.late_threshold_minutes
@@ -1568,7 +1575,7 @@ def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
 
     return {
         "class_id": class_id,
-        "late_threshold_minutes": cls.late_threshold_minutes or 15
+        "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 0
     }
 
 
@@ -1687,6 +1694,14 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Filter classes that are currently ongoing based on time
+    ongoing_classes = []
+    current_time_str = now.strftime("%H:%M:%S")
+    for c in classes:
+        if c.start_time and c.end_time:
+            if c.start_time <= current_time_str <= c.end_time:
+                ongoing_classes.append(c)
+
     # Only include classes in rooms that have an active device (camera installed)
     device_rooms = set(
         r[0] for r in db.query(Device.room)
@@ -1694,9 +1709,9 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
         .distinct()
         .all()
     )
-    classes_with_device = [c for c in classes if c.room in device_rooms]
+    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
 
-    rooms = _build_room_status(db, classes_with_device, today_start)
+    rooms = _build_room_status(db, classes_to_show, today_start)
     return {"rooms": rooms}
 
 
@@ -1722,12 +1737,21 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
     if not dept_faculty_ids:
         return {"rooms": []}
 
-    classes = (
+    all_dept_classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(Class.faculty_id.in_(dept_faculty_ids), Class.day_of_week == today)
         .all()
     )
+
+    # Filter classes that are currently ongoing based on time
+    ongoing_classes = []
+    current_time_str = now.strftime("%H:%M:%S")
+    for c in all_dept_classes:
+        if c.start_time and c.end_time:
+            # Simple string comparison works for HH:MM:SS format
+            if c.start_time <= current_time_str <= c.end_time:
+                ongoing_classes.append(c)
 
     # Only include rooms that have an active device
     device_rooms = set(
@@ -1736,9 +1760,9 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
         .distinct()
         .all()
     )
-    classes_with_device = [c for c in classes if c.room in device_rooms]
+    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
 
-    rooms = _build_room_status(db, classes_with_device, today_start)
+    rooms = _build_room_status(db, classes_to_show, today_start)
     return {"rooms": rooms}
 
 
