@@ -616,6 +616,7 @@ def get_student_report_data(
     user_id: int,
     report_type: str,
     class_id: Optional[int] = None,
+    class_ids: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     skip: int = 0,
@@ -637,6 +638,20 @@ def get_student_report_data(
 
     window_from, window_to = _parse_report_window(report_type, date_from, date_to)
 
+    parsed_class_ids = None
+    if class_ids:
+        parsed_class_ids = []
+        for token in class_ids.split(','):
+            token = token.strip()
+            if not token:
+                continue
+            try:
+                parsed_class_ids.append(int(token))
+            except ValueError:
+                continue
+        if not parsed_class_ids:
+            parsed_class_ids = None
+
     envelope = get_student_report_envelope(
         db=db,
         user_id=user_id,
@@ -644,6 +659,7 @@ def get_student_report_data(
         date_from=window_from,
         date_to=window_to,
         class_id=class_id,
+        class_ids=parsed_class_ids,
         skip=max(skip, 0),
         limit=min(limit, 100),
     )

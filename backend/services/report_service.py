@@ -135,7 +135,7 @@ def _make_student_report_cache_key(
     report_code: str,
     date_from: datetime,
     date_to: datetime,
-    class_id: int,
+    class_scope: str,
     skip: int,
     limit: int,
 ) -> str:
@@ -145,7 +145,7 @@ def _make_student_report_cache_key(
             report_code,
             date_from.isoformat() if date_from else "",
             date_to.isoformat() if date_to else "",
-            str(class_id) if class_id else "ALL",
+            class_scope,
             str(skip),
             str(limit),
         ]
@@ -2952,6 +2952,17 @@ def _build_student_rows(logs):
         status = log.action.value if log.action else "UNKNOWN"
         if log.action == AttendanceAction.ENTRY and log.is_late:
             status = "LATE"
+
+        subject = cls.subject if cls else None
+        faculty = cls.faculty if cls else None
+        subject_code = subject.code if subject else None
+        subject_title = subject.title if subject else None
+        faculty_name = (
+            f"{faculty.first_name} {faculty.last_name}".strip()
+            if faculty and (faculty.first_name or faculty.last_name)
+            else "—"
+        )
+        timestamp_iso = log.timestamp.isoformat() if log.timestamp else None
         
         rows.append({
             "id": i,
@@ -2960,6 +2971,14 @@ def _build_student_rows(logs):
             "status": status,
             "col3": log.timestamp.strftime("%I:%M %p") if log.timestamp else "—",
             "remarks": log.remarks or "",
+            "timestamp": timestamp_iso,
+            "action": log.action.value if log.action else None,
+            "is_late": bool(log.is_late) if log.is_late is not None else False,
+            "room": cls.room if cls else None,
+            "subject_code": subject_code,
+            "subject_title": subject_title,
+            "faculty_name": faculty_name,
+            "class_id": cls.id if cls else None,
         })
     return rows
 def _build_student_absent_rows(
@@ -3128,6 +3147,7 @@ def get_student_report_envelope(
     date_from: datetime,
     date_to: datetime,
     class_id: int = None,
+    class_ids: list = None,
     skip: int = 0,
     limit: int = 50,
 ):
@@ -3139,12 +3159,18 @@ def get_student_report_envelope(
     """
     start_perf = datetime.now(timezone.utc)
     report_code = (report_type or "DAILY_REPORT").upper()
+    normalized_class_ids = sorted(set(class_ids)) if class_ids else []
+    if normalized_class_ids:
+        class_scope = ",".join(str(cid) for cid in normalized_class_ids)
+    else:
+        class_scope = str(class_id) if class_id else "ALL"
+
     cache_key = _make_student_report_cache_key(
         user_id=user_id,
         report_code=report_code,
         date_from=date_from,
         date_to=date_to,
-        class_id=class_id,
+        class_scope=class_scope,
         skip=max(skip, 0),
         limit=min(limit, 100),
     )
@@ -3152,7 +3178,7 @@ def get_student_report_envelope(
     if cached_envelope:
         return cached_envelope
 
-    scoped_class_ids = resolve_student_scoped_class_ids(db, user_id, class_id)
+    scoped_class_ids = resolve_student_scoped_class_ids(db, user_id, class_id, normalized_class_ids)
     scoped_classes = (
         db.query(Class)
         .filter(Class.id.in_(scoped_class_ids))
@@ -3174,7 +3200,9 @@ def get_student_report_envelope(
         )
     )
 
-    if class_id:
+    if normalized_class_ids:
+        base_query = base_query.filter(AttendanceLog.class_id.in_(normalized_class_ids))
+    elif class_id:
         base_query = base_query.filter(AttendanceLog.class_id == class_id)
 
     if report_code == "LATE_REPORT":
