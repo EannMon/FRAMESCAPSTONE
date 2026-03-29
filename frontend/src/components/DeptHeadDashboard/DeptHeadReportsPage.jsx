@@ -167,6 +167,70 @@ const DeptHeadReportsPage = () => {
     const [sessionCountReference, setSessionCountReference] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('1ST');
+    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [selectedWeekNumber, setSelectedWeekNumber] = useState(String(Math.floor((new Date().getDate() - 1) / 7) + 1));
+
+    const getReportMode = (reportId) => {
+        if (!reportId) return 'DAILY';
+        if (reportId.includes('DAILY') || reportId === 'UNRECOGNIZED_LOGS') return 'DAILY';
+        if (reportId.includes('WEEKLY')) return 'WEEKLY';
+        if (reportId.includes('MONTHLY')) return 'MONTHLY';
+        return 'SEMESTRAL';
+    };
+
+    const getWeekRangesForMonth = () => {
+        if (!weeklyMonth) return [];
+        const [yearText, monthText] = weeklyMonth.split('-');
+        const year = Number(yearText);
+        const month = Number(monthText);
+        if (!year || !month) return [];
+
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0);
+        const ranges = [];
+
+        let cursor = new Date(startOfMonth);
+        let week = 1;
+        while (cursor <= endOfMonth) {
+            const weekStart = new Date(cursor);
+            const weekEnd = new Date(cursor);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            if (weekEnd > endOfMonth) {
+                weekEnd.setTime(endOfMonth.getTime());
+            }
+
+            ranges.push({
+                value: String(week),
+                start: weekStart,
+                end: weekEnd,
+                label: `Week ${week}: ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            });
+
+            cursor.setDate(cursor.getDate() + 7);
+            week += 1;
+        }
+        return ranges;
+    };
+
+    const getSemesterWindow = () => {
+        const year = parseInt(academicYear, 10) || new Date().getFullYear();
+        if (selectedSemester === '1ST') {
+            return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
+        }
+        if (selectedSemester === '2ND') {
+            return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
+        }
+        return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
+    };
+
+    const formatDateLocal = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
@@ -214,7 +278,12 @@ const DeptHeadReportsPage = () => {
         if (user?.department_id) {
             api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
-                    if (res.data?.academic_year) setAcademicYear(res.data.academic_year);
+                    if (res.data?.academic_year) {
+                        const yearStr = String(res.data.academic_year);
+                        const match = yearStr.match(/^\d{4}/);
+                        if (match) setAcademicYear(match[0]);
+                        else setAcademicYear(yearStr);
+                    }
                     if (res.data?.semester_start_date) setDateFrom(res.data.semester_start_date);
                     if (res.data?.semester_end_date) setDateTo(res.data.semester_end_date);
                 }).catch((err) => {
@@ -226,12 +295,12 @@ const DeptHeadReportsPage = () => {
         return () => controller.abort();
     }, [user]);
 
-    // Auto-fetch when default report + dates + filters are ready
+    // Auto-fetch when any relevant filter changes
     useEffect(() => {
-        if (selectedReport && dateFrom && dateTo) {
+        if (selectedReport) {
             fetchReportData(selectedReport.id);
         }
-    }, [dateFrom, dateTo, room, selectedClass, selectedReport]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedReport, room, selectedClass, filterDate, weeklyMonth, selectedWeekNumber, academicYear, selectedSemester]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const groupedReports = useMemo(() => {
         const groups = {};
@@ -246,11 +315,39 @@ const DeptHeadReportsPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const report = reportOptions.find(r => r.id === reportId);
             if (!report) {
                 setLoading(false);
                 return;
             }
+
+            const mode = getReportMode(reportId);
+            let localFrom = dateFrom;
+            let localTo = dateTo;
+
+            if (mode === 'DAILY') {
+                localFrom = filterDate;
+                localTo = filterDate;
+            } else if (mode === 'WEEKLY') {
+                const weekOptions = getWeekRangesForMonth();
+                const selectedWeek = weekOptions.find(w => w.value === selectedWeekNumber);
+                if (selectedWeek) {
+                    localFrom = formatDateLocal(selectedWeek.start);
+                    localTo = formatDateLocal(selectedWeek.end);
+                }
+            } else if (mode === 'MONTHLY') {
+                const [year, month] = weeklyMonth.split('-');
+                const lastDay = new Date(year, month, 0).getDate();
+                localFrom = `${year}-${month}-01`;
+                localTo = `${year}-${month}-${lastDay}`;
+            } else {
+                const window = getSemesterWindow();
+                localFrom = window.dateFrom;
+                localTo = window.dateTo;
+            }
+
+            // Sync the internal dateFrom/dateTo state
+            setDateFrom(localFrom);
+            setDateTo(localTo);
 
             if (report.type === 'CLASS' || report.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
@@ -292,8 +389,8 @@ const DeptHeadReportsPage = () => {
 
                 const params = { report_type: reportId, legacy: false };
                 if (targetId) params.class_id = targetId;
-                if (dateFrom) params.date_from = dateFrom;
-                if (dateTo) params.date_to = dateTo;
+                params.date_from = localFrom;
+                params.date_to = localTo;
                 params.limit = 200;
 
                 const res = await api.get(`/api/faculty/reports/data/${user.id}`, { params });
@@ -306,8 +403,8 @@ const DeptHeadReportsPage = () => {
             } else {
                 // Use the dept reports endpoint for department-wide reports
                 const params = { report_type: reportId };
-                if (dateFrom) params.date_from = dateFrom;
-                if (dateTo) params.date_to = dateTo;
+                params.date_from = localFrom;
+                params.date_to = localTo;
                 if (room) params.room = room;
                 if (user?.department_id) params.dept_id = user.department_id;
                 params.limit = 200;
@@ -821,15 +918,87 @@ const DeptHeadReportsPage = () => {
                         </div>
                     )}
 
-                    <div className="filter-item">
-                        <label>From:</label>
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="app-select big-select" />
-                    </div>
-                    
-                    <div className="filter-item">
-                        <label>To:</label>
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="app-select big-select" />
-                    </div>
+                    {getReportMode(selectedReport?.id) === 'DAILY' && (
+                        <div className="filter-item">
+                            <label>Select Date:</label>
+                            <input 
+                                type="date"
+                                value={filterDate}
+                                onChange={e => setFilterDate(e.target.value)}
+                                className="app-select big-select"
+                            />
+                        </div>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'WEEKLY' && (
+                        <>
+                            <div className="filter-item">
+                                <label>Select Month:</label>
+                                <input 
+                                    type="month"
+                                    value={weeklyMonth}
+                                    onChange={e => {
+                                        setWeeklyMonth(e.target.value);
+                                        setSelectedWeekNumber('1');
+                                    }}
+                                    className="app-select big-select"
+                                />
+                            </div>
+                            <div className="filter-item">
+                                <label>Select Week:</label>
+                                <select 
+                                    value={selectedWeekNumber}
+                                    onChange={e => setSelectedWeekNumber(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    {getWeekRangesForMonth().map(w => (
+                                        <option key={w.value} value={w.value}>{w.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'MONTHLY' && (
+                        <div className="filter-item">
+                            <label>Select Month:</label>
+                            <input 
+                                type="month"
+                                value={weeklyMonth}
+                                onChange={e => setWeeklyMonth(e.target.value)}
+                                className="app-select big-select"
+                            />
+                        </div>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'SEMESTRAL' && (
+                        <>
+                            <div className="filter-item">
+                                <label>Academic Year:</label>
+                                <select 
+                                    value={academicYear}
+                                    onChange={e => setAcademicYear(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    {[2023, 2024, 2025, 2026].map(y => (
+                                        <option key={y} value={y}>{y} - {y+1}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-item">
+                                <label>Semester:</label>
+                                <select 
+                                    value={selectedSemester}
+                                    onChange={e => setSelectedSemester(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    <option value="1ST">1st Semester</option>
+                                    <option value="2ND">2nd Semester</option>
+                                    <option value="SUMMER">Summer</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Description Box */}

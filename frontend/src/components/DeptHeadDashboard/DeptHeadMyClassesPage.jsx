@@ -52,6 +52,8 @@ const DeptHeadMyClassesPage = () => {
     const [studentSearchQuery, setStudentSearchQuery] = useState('');
     const [studentSearchResults, setStudentSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [editingStudent, setEditingStudent] = useState(null);
+    const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '' });
 
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
@@ -688,7 +690,7 @@ const DeptHeadMyClassesPage = () => {
 
                             <div className="action-area">
                                 <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
-                                    <i className="fas fa-user-check"></i> View Attendance
+                                    <i className="fas fa-user-check"></i> View Class
                                 </button>
                                 <button 
                                     className="faculty-delete-class-btn" 
@@ -736,7 +738,7 @@ const DeptHeadMyClassesPage = () => {
             </div>
             <div className="students-list-wrapper">
                 <table className="styled-table">
-                    <thead><tr><th>Student Info</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Student Info</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
                     <tbody>
                         {studentList
                             .filter(s =>
@@ -748,14 +750,38 @@ const DeptHeadMyClassesPage = () => {
                                 <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
                                     <td className="student-name-cell" style={{ minWidth: '300px' }}>
                                         <div className="avatar-placeholder">{(s.firstName || '?').charAt(0)}</div>
-                                        <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
+                                        {editingStudent === s.user_id ? (
+                                            <div className="edit-student-inline-form" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={editFormData.lastName}
+                                                    onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                                                    placeholder="Last Name"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={editFormData.firstName}
+                                                    onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                                                    placeholder="First Name"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
+                                        )}
                                     </td>
-                                    <td>
-                                        <div className="student-row-actions">
-                                            <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student">
-                                                <i className="fas fa-trash-alt"></i> Delete
-                                            </button>
-                                        </div>
+                                    <td style={{ textAlign: 'right' }}>
+                                        {editingStudent === s.user_id ? (
+                                            <div className="edit-actions" onClick={e => e.stopPropagation()}>
+                                                <button className="save-icon-btn" onClick={(e) => handleSaveStudentEdit(e, s.user_id)} title="Save"><i className="fas fa-check"></i></button>
+                                                <button className="cancel-icon-btn" onClick={handleCancelEdit} title="Cancel"><i className="fas fa-times"></i></button>
+                                            </div>
+                                        ) : (
+                                            <div className="student-row-actions">
+                                                <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
+                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
+                                                <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -775,13 +801,34 @@ const DeptHeadMyClassesPage = () => {
                     <div className="big-avatar">{(selectedStudent.firstName || '?').charAt(0)}</div>
                     <div className="profile-info">
                         <h2>{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
-                        <p>{selectedStudent.tupm_id}</p>
+                        <span className="profile-student-id">{selectedStudent.tupm_id}</span>
+                        <div className="profile-badge-row">
+                            <span className="profile-type-badge">Student</span>
+                            <span className="profile-dept-badge">{selectedClass.section}</span>
+                        </div>
                     </div>
-                    <button className="export-pdf-btn outline" onClick={generateStudentPDF}>Download Report</button>
                 </div>
-                <div className="profile-stats-grid">
-                    <div className="p-stat-box"><label>Status Today</label><div className={`stat-number ${selectedStudent.statusColor}`}>{selectedStudent.status}</div></div>
-                    <div className="p-stat-box"><label>Time In</label><div className="stat-number">{selectedStudent.timeIn}</div></div>
+                
+                <div className="profile-details-section">
+                    <h4>Student Information</h4>
+                    <div className="profile-details-grid">
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-user"></i> Full Name</label>
+                            <div className="p-detail-value">{selectedStudent.firstName} {selectedStudent.lastName}</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-id-card"></i> Student ID</label>
+                            <div className="p-detail-value">{selectedStudent.tupm_id}</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-book"></i> Enrolled Class</label>
+                            <div className="p-detail-value">{selectedClass.subject_title} ({selectedClass.subject_code})</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-users"></i> Section</label>
+                            <div className="p-detail-value">{selectedClass.section}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
