@@ -309,8 +309,10 @@ def compute_student_session_count_reference(
     if not semester_end_date:
         semester_end_date = date_to.date()
 
-    today = datetime.now(timezone.utc).date()
-    conducted_cutoff_date = min(semester_end_date, today)
+    # Use full configured semester window. Test datasets intentionally include
+    # seeded future dates inside semester bounds; truncating at "today" can make
+    # whole_semester counts incorrectly lower than report_window counts.
+    conducted_cutoff_date = semester_end_date
 
     tz = date_from.tzinfo
     sem_start_dt = datetime.combine(semester_start_date, time.min, tzinfo=tz)
@@ -606,6 +608,7 @@ def build_student_summary_metrics(
     date_from: datetime,
     date_to: datetime,
     is_all_subject_scope: bool = True,
+    scope_label: str = None,
 ) -> List[Dict]:
     confidence = compute_confidence_label(
         int(metrics.get("session_count_for_confidence", 0)),
@@ -614,7 +617,10 @@ def build_student_summary_metrics(
 
     window = f"{date_from.date()}..{date_to.date()}"
 
-    scope_prefix = "all " if is_all_subject_scope else ""
+    if scope_label:
+        scope_prefix = f"[{scope_label}] "
+    else:
+        scope_prefix = "all " if is_all_subject_scope else ""
 
     return [
         {
@@ -625,7 +631,7 @@ def build_student_summary_metrics(
             "denominator": metrics["sessions_conducted"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Measures attendance against sessions that actually occurred.",
+            "explanation": f"Measures attendance against sessions that actually occurred. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "semester_progress_attendance_rate",
@@ -635,7 +641,7 @@ def build_student_summary_metrics(
             "denominator": metrics["expected_sessions"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Measures progress against full schedule expectation.",
+            "explanation": f"Measures progress against full schedule expectation. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "punctuality_rate",
@@ -645,7 +651,7 @@ def build_student_summary_metrics(
             "denominator": metrics["total_entries"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Share of attended sessions where the student was on time.",
+            "explanation": f"Share of attended sessions where the student was on time. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "consistency_index",
@@ -655,6 +661,6 @@ def build_student_summary_metrics(
             "denominator": 0,
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Weighted behavior stability score combining attendance and punctuality.",
+            "explanation": f"Weighted behavior stability score combining attendance and punctuality. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
     ]

@@ -14,9 +14,9 @@ Semester window source:
 - Pulled dynamically from `departments.semester_start_date` and `departments.semester_end_date` for `departments.id = 1`.
 - Uses full semester boundaries directly (future dates inside semester are included for manual validation).
 
-Duplicate and overlap protections included in every SQL file:
-1. Skip any session date where Charlie already has any attendance log.
-2. Skip exact duplicate timestamps (`ENTRY`/`EXIT`) if migration is re-run.
+Duplicate protections included in every SQL file:
+1. Skip exact duplicate timestamps per class/action (`ENTRY`/`BREAK_OUT`/`BREAK_IN`/`EXIT`) if migration is re-run.
+2. Do not block other classes on the same date; each subject migration can seed its full semester schedule.
 
 Files (one subject per migration):
 - `001_seed_charlie_it3.sql`   : Subject `IT3` (`classes.id = 16`)

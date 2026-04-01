@@ -3160,10 +3160,35 @@ def get_student_report_envelope(
     start_perf = datetime.now(timezone.utc)
     report_code = (report_type or "DAILY_REPORT").upper()
     normalized_class_ids = sorted(set(class_ids)) if class_ids else []
-    if normalized_class_ids:
-        class_scope = ",".join(str(cid) for cid in normalized_class_ids)
+    enrolled_class_ids = resolve_student_scoped_class_ids(db, user_id, None, None)
+    scoped_class_ids = resolve_student_scoped_class_ids(db, user_id, class_id, normalized_class_ids)
+    scoped_classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject))
+        .filter(Class.id.in_(scoped_class_ids))
+        .all()
+        if scoped_class_ids
+        else []
+    )
+
+    class_scope = ",".join(str(cid) for cid in sorted(scoped_class_ids)) if scoped_class_ids else "ALL"
+
+    enrolled_set = set(enrolled_class_ids)
+    scoped_set = set(scoped_class_ids)
+    is_all_subject_scope = bool(enrolled_set) and scoped_set == enrolled_set
+
+    if not scoped_class_ids:
+        scope_label = "All Enrolled Subjects"
+    elif is_all_subject_scope:
+        scope_label = "All Enrolled Subjects"
     else:
-        class_scope = str(class_id) if class_id else "ALL"
+        subject_codes = sorted({cls.subject.code for cls in scoped_classes if cls.subject and cls.subject.code})
+        if len(subject_codes) == 1:
+            scope_label = subject_codes[0]
+        elif subject_codes:
+            scope_label = ", ".join(subject_codes)
+        else:
+            scope_label = f"{len(scoped_class_ids)} Selected Classes"
 
     cache_key = _make_student_report_cache_key(
         user_id=user_id,
@@ -3178,15 +3203,6 @@ def get_student_report_envelope(
     if cached_envelope:
         return cached_envelope
 
-    scoped_class_ids = resolve_student_scoped_class_ids(db, user_id, class_id, normalized_class_ids)
-    scoped_classes = (
-        db.query(Class)
-        .filter(Class.id.in_(scoped_class_ids))
-        .all()
-        if scoped_class_ids
-        else []
-    )
-
     base_query = (
         db.query(AttendanceLog)
         .options(
@@ -3195,15 +3211,14 @@ def get_student_report_envelope(
         )
         .filter(
             AttendanceLog.user_id == user_id,
-            AttendanceLog.timestamp >= str(date_from),
+            AttendanceLog.timestamp >= date_from,
             AttendanceLog.timestamp <= date_to,
         )
     )
-
-    if normalized_class_ids:
-        base_query = base_query.filter(AttendanceLog.class_id.in_(normalized_class_ids))
-    elif class_id:
-        base_query = base_query.filter(AttendanceLog.class_id == class_id)
+    if scoped_class_ids:
+        base_query = base_query.filter(AttendanceLog.class_id.in_(scoped_class_ids))
+    else:
+        base_query = base_query.filter(False)
 
     if report_code == "LATE_REPORT":
         base_query = base_query.filter(
@@ -3216,8 +3231,12 @@ def get_student_report_envelope(
         )
 
     page_limit = min(limit, 100)
+    visual_rows = []
 
-    if report_code in {"DAILY_REPORT", "ABSENT_LOG"}:
+    # Always include simulated absents for all report types that drive status distribution/activity trend
+    # (e.g., DAILY_REPORT, SEM_REPORT, MONTHLY_TRENDS, CONSISTENCY, etc.)
+    report_types_with_absent = {"DAILY_REPORT", "ABSENT_LOG", "SEM_REPORT", "MONTHLY_TRENDS", "CONSISTENCY", "WEEKLY_SUMMARY"}
+    if report_code in report_types_with_absent:
         absent_rows = _build_student_absent_rows(
             db=db,
             user_id=user_id,
@@ -3238,10 +3257,17 @@ def get_student_report_envelope(
             all_rows = present_rows + absent_rows
 
         all_rows.sort(key=lambda row: row.get("timestamp") or "", reverse=True)
+        visual_rows = all_rows
         total_rows = len(all_rows)
         rows = all_rows[max(skip, 0): max(skip, 0) + page_limit]
     else:
         total_rows = base_query.count()
+        all_logs_for_visual = (
+            base_query
+            .order_by(AttendanceLog.timestamp.desc())
+            .all()
+        )
+        visual_rows = _build_student_rows(all_logs_for_visual)
         logs = (
             base_query
             .order_by(AttendanceLog.timestamp.desc())
@@ -3282,12 +3308,14 @@ def get_student_report_envelope(
         core_metrics,
         date_from,
         date_to,
-        is_all_subject_scope=(class_id is None),
+        is_all_subject_scope=is_all_subject_scope,
+        scope_label=scope_label,
     )
     insights = generate_student_role_insights(
         core_metrics,
         report_code=report_code,
         previous_window_metrics=prev_metrics,
+        scope_label=scope_label,
     )
     session_count_reference = compute_student_session_count_reference(
         db=db,
@@ -3319,6 +3347,8 @@ def get_student_report_envelope(
                 "module": "STUDENT",
                 "user_id": user_id,
                 "class_id": class_id,
+                "scope_label": scope_label,
+                "is_all_subject_scope": is_all_subject_scope,
             },
             "pagination": {
                 "skip": skip,
@@ -3333,6 +3363,7 @@ def get_student_report_envelope(
         "summary_metrics": summary_metrics,
         "insights": insights,
         "session_count_reference": session_count_reference,
+        "visual_rows": visual_rows,
         "rows": rows,
     }
 

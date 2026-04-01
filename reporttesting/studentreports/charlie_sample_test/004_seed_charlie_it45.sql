@@ -87,13 +87,7 @@ filtered_sessions AS (
         (cs.session_date + cs.start_time)::timestamp AS start_ts,
         (cs.session_date + cs.end_time)::timestamp AS end_ts,
         GREATEST(10, EXTRACT(EPOCH FROM ((cs.session_date + cs.end_time)::timestamp - (cs.session_date + cs.start_time)::timestamp)) / 60)::int AS duration_minutes
-    FROM candidate_sessions cs
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM attendance_logs existing_day
-        WHERE existing_day.user_id = 149
-          AND DATE(existing_day."timestamp") = cs.session_date
-    )
+  FROM candidate_sessions cs
 ),
 session_plan AS (
     SELECT
@@ -219,3 +213,23 @@ WHERE sp.scenario <> 'ABSENT_SIMULATION'
                               THEN sp.end_ts - make_interval(mins => sp.early_exit_mins)
                               ELSE sp.end_ts END
 );
+
+-- ======================
+-- DIAGNOSTIC: Verify seeded sessions for Charlie IT45 (user_id=149, class_ids=20,21)
+-- ======================
+SELECT
+  al.user_id,
+  al.class_id,
+  s.code AS subject_code,
+  al.action,
+  al.is_late,
+  al."timestamp",
+  al.verified_by,
+  al.remarks
+FROM attendance_logs al
+JOIN classes c ON c.id = al.class_id
+JOIN subjects s ON s.id = c.subject_id
+WHERE al.user_id = 149
+  AND al.class_id IN (20,21)
+  AND al."timestamp" >= (SELECT COALESCE(semester_start_date, DATE '2026-01-01') FROM departments WHERE id=1)
+ORDER BY al.class_id, al."timestamp", al.action;
