@@ -692,7 +692,7 @@ const FacultyMyClassesPage = () => {
 
                             <div className="action-area">
                                 <button className="faculty-take-attendance-btn" onClick={() => handleTakeAttendance(cls)}>
-                                    <i className="fas fa-user-check"></i> View Attendance
+                                    <i className="fas fa-user-check"></i> View Class
                                 </button>
                                 <button 
                                     className="faculty-delete-class-btn" 
@@ -740,7 +740,7 @@ const FacultyMyClassesPage = () => {
             </div>
             <div className="students-list-wrapper">
                 <table className="styled-table">
-                    <thead><tr><th>Student Info</th><th>Time In</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Student Info</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
                     <tbody>
                         {studentList
                             .filter(s =>
@@ -766,20 +766,12 @@ const FacultyMyClassesPage = () => {
                                                     onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
                                                     placeholder="First Name"
                                                 />
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.tupm_id}
-                                                    onChange={e => setEditFormData({ ...editFormData, tupm_id: e.target.value })}
-                                                    placeholder="TUPM ID"
-                                                />
                                             </div>
                                         ) : (
                                             <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
                                         )}
                                     </td>
-                                    <td>{s.timeIn}</td>
-                                    <td><span className={`status-badge ${s.statusColor}`}>{s.status}</span></td>
-                                    <td>
+                                    <td style={{ textAlign: 'right' }}>
                                         {editingStudent === s.user_id ? (
                                             <div className="edit-actions" onClick={e => e.stopPropagation()}>
                                                 <button className="save-icon-btn" onClick={(e) => handleSaveStudentEdit(e, s.user_id)} title="Save"><i className="fas fa-check"></i></button>
@@ -811,13 +803,34 @@ const FacultyMyClassesPage = () => {
                     <div className="big-avatar">{(selectedStudent.firstName || '?').charAt(0)}</div>
                     <div className="profile-info">
                         <h2>{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
-                        <p>{selectedStudent.tupm_id}</p>
+                        <span className="profile-student-id">{selectedStudent.tupm_id}</span>
+                        <div className="profile-badge-row">
+                            <span className="profile-type-badge">Student</span>
+                            <span className="profile-dept-badge">{selectedClass.section}</span>
+                        </div>
                     </div>
-                    <button className="export-pdf-btn outline" onClick={generateStudentPDF}>Download Report</button>
                 </div>
-                <div className="profile-stats-grid">
-                    <div className="p-stat-box"><label>Status Today</label><div className={`stat-number ${selectedStudent.statusColor}`}>{selectedStudent.status}</div></div>
-                    <div className="p-stat-box"><label>Time In</label><div className="stat-number">{selectedStudent.timeIn}</div></div>
+                
+                <div className="profile-details-section">
+                    <h4>Student Information</h4>
+                    <div className="profile-details-grid">
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-user"></i> Full Name</label>
+                            <div className="p-detail-value">{selectedStudent.firstName} {selectedStudent.lastName}</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-id-card"></i> Student ID</label>
+                            <div className="p-detail-value">{selectedStudent.tupm_id}</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-book"></i> Enrolled Class</label>
+                            <div className="p-detail-value">{selectedClass.subject_title} ({selectedClass.subject_code})</div>
+                        </div>
+                        <div className="p-detail-item">
+                            <label><i className="fas fa-users"></i> Section</label>
+                            <div className="p-detail-value">{selectedClass.section}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -264,7 +264,7 @@ const FacultyAttendancePage = () => {
                     <span>
                         {selectedClass
                             ? `Viewing attendance for ${selectedClass.subject_title} (${selectedClass.section}) on ${new Date(filterDate + 'T00:00:00').toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`
-                            : 'Select a class from the dropdown and choose a date to view attendance records.'}
+                            : 'Select a class and date above to view and manage attendance records.'}
                     </span>
                 </div>
             </div>
@@ -363,12 +363,6 @@ const FacultyAttendancePage = () => {
             )}
 
             {/* Empty state */}
-            {!selectedClass && myClasses.length > 0 && !loading && (
-                <div className="empty-state-container">
-                    <i className="fas fa-chalkboard-teacher empty-state-icon" />
-                    <p>Select a class above and a session date to view attendance.</p>
-                </div>
-            )}
             {myClasses.length === 0 && !loading && (
                 <div className="empty-state-container">
                     <i className="fas fa-calendar-plus empty-state-icon" />
