@@ -303,3 +303,23 @@ WHERE sp.scenario <> 'ABSENT_SIMULATION'
                               THEN sp.end_ts - make_interval(mins => sp.early_exit_mins)
                               ELSE sp.end_ts END
 );
+
+-- ======================
+-- DIAGNOSTIC: Verify seeded sessions for Charlie IT3 (user_id=149, class_ids=15,16)
+-- ======================
+SELECT
+  al.user_id,
+  al.class_id,
+  s.code AS subject_code,
+  al.action,
+  al.is_late,
+  al."timestamp",
+  al.verified_by,
+  al.remarks
+FROM attendance_logs al
+JOIN classes c ON c.id = al.class_id
+JOIN subjects s ON s.id = c.subject_id
+WHERE al.user_id = 149
+  AND al.class_id IN (15,16)
+  AND al."timestamp" >= (SELECT COALESCE(semester_start_date, DATE '2026-01-01') FROM departments WHERE id=1)
+ORDER BY al.class_id, al."timestamp", al.action;

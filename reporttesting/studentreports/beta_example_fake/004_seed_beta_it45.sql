@@ -1,9 +1,9 @@
--- Charlie Sample Test seed: IT4 (Subject ID 11, Class ID 18)
+-- Beta Example Fake seed: IT45 (Subject ID 13, Class IDs 20 and 21)
 -- Seeds only attendance_logs table.
 --
 -- Existing data note (snapshot: databasedatafornow0329.txt):
---   - For Charlie (user_id=149), class_id=18 currently has 0 logs.
---   - Charlie has existing logs in class_id=24 (ENTRY=1, BREAK_OUT=1), not part of IT4.
+--   - For Beta (user_id=178), class_ids=20/21 currently have 0 logs.
+--   - Beta has existing logs in class_id=24 (ENTRY=1, BREAK_OUT=1), not part of IT45.
 --
 -- Status pattern applied to generated sessions (rotating by session sequence):
 --   seq%8=1 ON_TIME_FULL      -> ENTRY + EXIT
@@ -16,11 +16,11 @@
 --   seq%8=0 ON_TIME_FULL      -> ENTRY + EXIT
 --
 -- Quick weekly verification (run manually after seeding):
--- SELECT date_trunc('week', "timestamp")::date AS week_start, action, is_late, COUNT(*)
+-- SELECT date_trunc('week', "timestamp")::date AS week_start, class_id, action, is_late, COUNT(*)
 -- FROM attendance_logs
--- WHERE user_id=149 AND class_id=18
--- GROUP BY 1,2,3
--- ORDER BY 1,2,3;
+-- WHERE user_id=178 AND class_id IN (20,21)
+-- GROUP BY 1,2,3,4
+-- ORDER BY 1,2,3,4;
 --
 -- Full verification query (exact counts + context):
 -- SELECT
@@ -47,8 +47,8 @@
 -- JOIN classes c ON c.id = al.class_id
 -- JOIN subjects s ON s.id = c.subject_id
 -- LEFT JOIN users f ON f.id = c.faculty_id
--- WHERE al.user_id = 149
---   AND al.class_id = 18
+-- WHERE al.user_id = 178
+--   AND al.class_id IN (20,21)
 -- GROUP BY u.id, u.first_name, u.last_name, c.id, s.code, s.title, f.first_name, f.last_name, c.day_of_week, c.start_time, c.end_time, c.room
 -- ORDER BY s.code, c.day_of_week, c.start_time;
 
@@ -74,8 +74,8 @@ candidate_sessions AS (
     FROM classes c
     JOIN calendar_days cd
       ON LOWER(TRIM(c.day_of_week)) = LOWER(TRIM(TO_CHAR(cd.session_date, 'FMDay')))
-    WHERE c.id = 18
-      AND c.subject_id = 11
+    WHERE c.id IN (20, 21)
+      AND c.subject_id = 13
       AND c.section = 'BSIT-3A-M'
       AND c.academic_year = '2025-2026'
       AND c.semester = '2nd Semester'
@@ -87,7 +87,13 @@ filtered_sessions AS (
         (cs.session_date + cs.start_time)::timestamp AS start_ts,
         (cs.session_date + cs.end_time)::timestamp AS end_ts,
         GREATEST(10, EXTRACT(EPOCH FROM ((cs.session_date + cs.end_time)::timestamp - (cs.session_date + cs.start_time)::timestamp)) / 60)::int AS duration_minutes
-  FROM candidate_sessions cs
+    FROM candidate_sessions cs
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM attendance_logs existing_day
+        WHERE existing_day.user_id = 178
+          AND DATE(existing_day."timestamp") = cs.session_date
+    )
 ),
 session_plan AS (
     SELECT
@@ -121,23 +127,23 @@ INSERT INTO attendance_logs (
     is_late
 )
 SELECT
-    149,
+    178,
     sp.class_id,
     1,
     'ENTRY'::public."attendanceaction",
     'FACE'::public."verifiedby",
-    0.842,
+    0.843,
     NULL,
     CASE WHEN sp.scenario IN ('LATE_FULL', 'LATE_WITH_BREAK')
          THEN sp.start_ts + make_interval(mins => sp.late_mins)
          ELSE sp.start_ts END,
-    '[SEED-CHARLIE-REPORTS]',
+    '[SEED-BETA-REPORTS]',
     CASE WHEN sp.scenario IN ('LATE_FULL', 'LATE_WITH_BREAK') THEN TRUE ELSE FALSE END
 FROM session_plan sp
 WHERE sp.scenario <> 'ABSENT_SIMULATION'
   AND NOT EXISTS (
     SELECT 1 FROM attendance_logs dup
-    WHERE dup.user_id = 149
+    WHERE dup.user_id = 178
       AND dup.class_id = sp.class_id
       AND dup.action = 'ENTRY'
       AND dup."timestamp" = CASE WHEN sp.scenario IN ('LATE_FULL', 'LATE_WITH_BREAK')
@@ -146,90 +152,70 @@ WHERE sp.scenario <> 'ABSENT_SIMULATION'
 )
 UNION ALL
 SELECT
-    149,
+    178,
     sp.class_id,
     1,
     'BREAK_OUT'::public."attendanceaction",
     'FACE+GESTURE'::public."verifiedby",
-    0.812,
+    0.814,
     'PEACE_SIGN',
     sp.start_ts + make_interval(mins => sp.break_out_mins),
-    '[SEED-CHARLIE-REPORTS]',
+    '[SEED-BETA-REPORTS]',
     FALSE
 FROM session_plan sp
 WHERE sp.scenario IN ('MULTI_BREAK', 'LATE_WITH_BREAK')
   AND NOT EXISTS (
     SELECT 1 FROM attendance_logs dup
-    WHERE dup.user_id = 149
+    WHERE dup.user_id = 178
       AND dup.class_id = sp.class_id
       AND dup.action = 'BREAK_OUT'
       AND dup."timestamp" = sp.start_ts + make_interval(mins => sp.break_out_mins)
 )
 UNION ALL
 SELECT
-    149,
+    178,
     sp.class_id,
     1,
     'BREAK_IN'::public."attendanceaction",
     'FACE+GESTURE'::public."verifiedby",
-    0.821,
+    0.824,
     'THUMBS_UP',
     sp.start_ts + make_interval(mins => sp.break_in_mins),
-    '[SEED-CHARLIE-REPORTS]',
+    '[SEED-BETA-REPORTS]',
     FALSE
 FROM session_plan sp
 WHERE sp.scenario IN ('MULTI_BREAK', 'LATE_WITH_BREAK')
   AND NOT EXISTS (
     SELECT 1 FROM attendance_logs dup
-    WHERE dup.user_id = 149
+    WHERE dup.user_id = 178
       AND dup.class_id = sp.class_id
       AND dup.action = 'BREAK_IN'
       AND dup."timestamp" = sp.start_ts + make_interval(mins => sp.break_in_mins)
 )
 UNION ALL
 SELECT
-    149,
+    178,
     sp.class_id,
     1,
     'EXIT'::public."attendanceaction",
     CASE WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN 'AUTO_TIMEOUT'::public."verifiedby" ELSE 'FACE+GESTURE'::public."verifiedby" END,
-    CASE WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN 0.0 ELSE 0.878 END,
+    CASE WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN 0.0 ELSE 0.879 END,
     CASE WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN NULL ELSE 'OPEN_PALM' END,
     CASE WHEN sp.scenario = 'EARLY_EXIT'
          THEN sp.end_ts - make_interval(mins => sp.early_exit_mins)
          ELSE sp.end_ts END,
-    CASE WHEN sp.scenario = 'EARLY_EXIT' THEN '[SEED-CHARLIE-REPORTS] Early exit'
-         WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN '[SEED-CHARLIE-REPORTS] [AUTO_EXIT] System auto-exit simulation'
-         ELSE '[SEED-CHARLIE-REPORTS]' END,
+    CASE WHEN sp.scenario = 'EARLY_EXIT' THEN '[SEED-BETA-REPORTS] Early exit'
+         WHEN sp.scenario = 'AUTO_EXIT_CASE' THEN '[SEED-BETA-REPORTS] [AUTO_EXIT] System auto-exit simulation'
+         ELSE '[SEED-BETA-REPORTS]' END,
     FALSE
 FROM session_plan sp
 WHERE sp.scenario <> 'ABSENT_SIMULATION'
   AND NOT EXISTS (
     SELECT 1 FROM attendance_logs dup
-    WHERE dup.user_id = 149
+    WHERE dup.user_id = 178
       AND dup.class_id = sp.class_id
       AND dup.action = 'EXIT'
       AND dup."timestamp" = CASE WHEN sp.scenario = 'EARLY_EXIT'
                               THEN sp.end_ts - make_interval(mins => sp.early_exit_mins)
                               ELSE sp.end_ts END
 );
-
--- ======================
--- DIAGNOSTIC: Verify seeded sessions for Charlie IT4 (user_id=149, class_id=18)
--- ======================
-SELECT
-  al.user_id,
-  al.class_id,
-  s.code AS subject_code,
-  al.action,
-  al.is_late,
-  al."timestamp",
-  al.verified_by,
-  al.remarks
-FROM attendance_logs al
-JOIN classes c ON c.id = al.class_id
-JOIN subjects s ON s.id = c.subject_id
-WHERE al.user_id = 149
-  AND al.class_id = 18
-  AND al."timestamp" >= (SELECT COALESCE(semester_start_date, DATE '2026-01-01') FROM departments WHERE id=1)
-ORDER BY al.class_id, al."timestamp", al.action;
