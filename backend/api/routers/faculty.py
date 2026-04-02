@@ -1350,15 +1350,20 @@ def update_attendance_time(
     log.timestamp = new_timestamp
 
     # Auto-recompute is_late for ENTRY logs
+    # late_threshold_minutes == 0 or None means late marking is DISABLED.
     if log.action == AttendanceAction.ENTRY and cls.start_time:
-        try:
-            class_start = datetime.strptime(cls.start_time, "%H:%M").time()
-            threshold = cls.late_threshold_minutes or 0
-            from datetime import timedelta as td
-            grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
-            log.is_late = new_time > grace_limit
-        except (ValueError, TypeError):
-            logger.warning("Could not parse class start_time '%s' for late computation", cls.start_time)
+        threshold = cls.late_threshold_minutes
+        if not threshold:
+            # Late marking disabled for this class — always on-time
+            log.is_late = False
+        else:
+            try:
+                class_start = datetime.strptime(cls.start_time, "%H:%M").time()
+                from datetime import timedelta as td
+                grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
+                log.is_late = new_time > grace_limit
+            except (ValueError, TypeError):
+                logger.warning("Could not parse class start_time '%s' for late computation", cls.start_time)
 
     # Update remarks if provided
     if data.remarks is not None:
@@ -1543,11 +1548,11 @@ def update_class_late_threshold(
     if not cls:
         raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
 
-    if data.late_threshold_minutes < 1 or data.late_threshold_minutes > 120:
+    if data.late_threshold_minutes < 0 or data.late_threshold_minutes > 120:
         raise api_error(
             status_code=400,
             code="INVALID_THRESHOLD",
-            message="Late threshold must be between 1 and 120 minutes"
+            message="Late threshold must be between 0 and 120 minutes"
         )
 
     cls.late_threshold_minutes = data.late_threshold_minutes
@@ -1570,7 +1575,7 @@ def get_class_late_threshold(class_id: int, db: Session = Depends(get_db)):
 
     return {
         "class_id": class_id,
-        "late_threshold_minutes": cls.late_threshold_minutes or 15
+        "late_threshold_minutes": cls.late_threshold_minutes if cls.late_threshold_minutes is not None else 0
     }
 
 

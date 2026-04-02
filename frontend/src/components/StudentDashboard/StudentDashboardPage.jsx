@@ -211,7 +211,7 @@ const StudentRecentActivity = ({ logs }) => {
 
 
 // --- ATTENDANCE TREND CHART ---
-const AttendanceTrendChart = ({ logs }) => {
+const AttendanceTrendChart = ({ logs, semesterWindow }) => {
     const [timeFilter, setTimeFilter] = useState('MONTHLY');
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -220,26 +220,31 @@ const AttendanceTrendChart = ({ logs }) => {
         const safeLogs = logs || [];
         const now = new Date();
         const dataPoints = [];
+        const semesterStart = semesterWindow?.start ? new Date(`${semesterWindow.start}T00:00:00`) : null;
+        const semesterEnd = semesterWindow?.end ? new Date(`${semesterWindow.end}T23:59:59`) : null;
+        const effectiveEnd = semesterEnd && now > semesterEnd ? semesterEnd : now;
 
         if (timeFilter === 'WEEKLY') {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             for (let i = 6; i >= 0; i--) {
-                const d = new Date(now);
+                const d = new Date(effectiveEnd);
                 d.setDate(d.getDate() - i);
+                if (semesterStart && d < semesterStart) continue;
                 const dayStr = days[d.getDay()];
                 const dateStr = d.toLocaleDateString();
                 const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
+                const presentCount = dayLogs.filter(l => (l.action || '').toUpperCase() === 'ENTRY').length;
                 dataPoints.push({
                     label: dayStr,
-                    present: dayLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: dayLogs.filter(l => (l.action || '').toUpperCase() === 'ABSENT').length,
                     break: dayLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: dayLogs.length
                 });
             }
         } else if (timeFilter === 'MONTHLY') {
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
+            const currentMonth = effectiveEnd.getMonth();
+            const currentYear = effectiveEnd.getFullYear();
             const quarters = [
                 { label: 'Week 1', start: 1, end: 7 },
                 { label: 'Week 2', start: 8, end: 14 },
@@ -251,33 +256,63 @@ const AttendanceTrendChart = ({ logs }) => {
                     const d = new Date(l.timestamp);
                     return d.getFullYear() === currentYear && d.getMonth() === currentMonth && d.getDate() >= q.start && d.getDate() <= q.end;
                 });
+                const presentCount = qLogs.filter(l => (l.action || '').toUpperCase() === 'ENTRY').length;
                 dataPoints.push({
                     label: q.label,
-                    present: qLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: qLogs.filter(l => (l.action || '').toUpperCase() === 'ABSENT').length,
                     break: qLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: qLogs.length
                 });
             });
         } else if (timeFilter === 'SEMESTRAL') {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const currentYear = now.getFullYear();
+            const startMonth = semesterStart ? semesterStart.getMonth() : 0;
+            const endMonth = semesterEnd ? semesterEnd.getMonth() : 11;
+            const yearForSemester = semesterStart ? semesterStart.getFullYear() : now.getFullYear();
             months.forEach((m, idx) => {
+                if (idx < startMonth || idx > endMonth) return;
                 const mLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
-                    return d.getFullYear() === currentYear && d.getMonth() === idx;
+                    return d.getFullYear() === yearForSemester && d.getMonth() === idx;
                 });
+                const presentCount = mLogs.filter(l => (l.action || '').toUpperCase() === 'ENTRY').length;
                 dataPoints.push({
                     label: m,
-                    present: mLogs.filter(l => l.action === 'ENTRY' || l.action === 'BREAK_IN').length,
-                    absent: 0,
+                    present: presentCount,
+                    absent: mLogs.filter(l => (l.action || '').toUpperCase() === 'ABSENT').length,
                     break: mLogs.filter(l => (l.action || '').includes('BREAK')).length,
                     total: mLogs.length
                 });
             });
         }
+
+        // Return real data (zeros if no logs exist — never show fake data)
         return dataPoints;
-    }, [logs, timeFilter]);
+    }, [logs, timeFilter, semesterWindow]);
+
+    const periodLabel = useMemo(() => {
+        if (!chartData.length) return 'No period data available';
+        const semesterStart = semesterWindow?.start;
+        const semesterEnd = semesterWindow?.end;
+        const now = new Date();
+
+        if (timeFilter === 'WEEKLY') {
+            const end = semesterEnd ? new Date(`${semesterEnd}T23:59:59`) : now;
+            const effectiveEnd = now > end ? end : now;
+            const start = new Date(effectiveEnd);
+            start.setDate(start.getDate() - 6);
+            return `Period: ${start.toLocaleDateString()} - ${effectiveEnd.toLocaleDateString()}`;
+        }
+        if (timeFilter === 'MONTHLY') {
+            const end = semesterEnd ? new Date(`${semesterEnd}T23:59:59`) : now;
+            const effectiveEnd = now > end ? end : now;
+            const start = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
+            const monthEnd = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth() + 1, 0);
+            return `Period: ${start.toLocaleDateString()} - ${monthEnd.toLocaleDateString()}`;
+        }
+        return `Period: ${semesterStart || 'N/A'} - ${semesterEnd || 'N/A'}`;
+    }, [chartData, timeFilter, semesterWindow]);
 
     const insightText = useMemo(() => {
         const total = chartData.reduce((acc, curr) => acc + curr.present, 0);
@@ -407,6 +442,7 @@ const AttendanceTrendChart = ({ logs }) => {
             </div>
 
             <div className="fd-chart-footer">
+                <div className="fd-chart-insight" style={{ fontSize: '0.8rem', color: '#64748b' }}>{periodLabel}</div>
                 <div className="fd-chart-insight">{insightText}</div>
                 <div className="fd-chart-legends">
                     <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.present }}></span> Present</div>
@@ -433,6 +469,20 @@ const StudentDashboardPage = () => {
     const [userData, setUserData] = useState({ firstName: "Student", tupm_id: "..." });
     const [allLogs, setAllLogs] = useState([]);
     const [metrics, setMetrics] = useState(null);
+    const [semesterWindow, setSemesterWindow] = useState({ start: null, end: null });
+
+    const getFallbackSemesterWindow = () => {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        if (month >= 1 && month <= 6) {
+            return { start: `${year}-01-01`, end: `${year}-06-30` };
+        }
+        if (month >= 8 && month <= 12) {
+            return { start: `${year}-08-01`, end: `${year}-12-31` };
+        }
+        return { start: `${year}-06-01`, end: `${year}-07-31` };
+    };
 
     useEffect(() => {
         const controller = new AbortController();
@@ -444,11 +494,44 @@ const StudentDashboardPage = () => {
                 setUserData(storedUser);
 
                 const userId = storedUser.id || storedUser.user_id;
+                const departmentId = storedUser.department_id;
 
-                const [dashRes, histRes, metricsRes] = await Promise.all([
+                let semStart = null;
+                let semEnd = null;
+                if (departmentId) {
+                    try {
+                        const acadRes = await api.get('/api/dept/academic-year', {
+                            signal: controller.signal,
+                            params: { dept_id: departmentId },
+                        });
+                        semStart = acadRes.data?.semester_start_date || null;
+                        semEnd = acadRes.data?.semester_end_date || null;
+                    } catch (err) {
+                        if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                            console.warn('Failed to fetch department semester window for trend chart.', err);
+                        }
+                    }
+                }
+
+                if (!semStart || !semEnd) {
+                    const fallback = getFallbackSemesterWindow();
+                    semStart = semStart || fallback.start;
+                    semEnd = semEnd || fallback.end;
+                }
+
+                const [dashRes, histRes, metricsRes, semReportRes] = await Promise.all([
                     api.get(`/api/student/dashboard/${userId}`, { signal: controller.signal }),
                     api.get(`/api/student/history/${userId}`, { signal: controller.signal }),
                     api.get(`/api/student/metrics/${userId}`, { signal: controller.signal }).catch(() => null),
+                    api.get(`/api/student/reports/data/${userId}`, {
+                        signal: controller.signal,
+                        params: {
+                            report_type: 'SEM_REPORT',
+                            date_from: semStart,
+                            date_to: semEnd,
+                            limit: 100,
+                        },
+                    }).catch(() => null),
                 ]);
 
                 setDashboardData(prev => ({
@@ -458,7 +541,9 @@ const StudentDashboardPage = () => {
                     notifications: dashRes.data.notifications || []
                 }));
 
-                setAllLogs(histRes.data || []);
+                const semRows = semReportRes?.data?.visual_rows || [];
+                setAllLogs(semRows.length ? semRows : (histRes.data || []));
+                setSemesterWindow({ start: semStart, end: semEnd });
                 if (metricsRes && metricsRes.data) {
                     setMetrics(metricsRes.data);
                 }
@@ -534,7 +619,7 @@ const StudentDashboardPage = () => {
 
             {/* ===== MAIN CONTENT ===== */}
             <div className="sd-main-grid">
-                <AttendanceTrendChart logs={allLogs} />
+                <AttendanceTrendChart logs={allLogs} semesterWindow={semesterWindow} />
                 <LiveClassStatus recentLog={latestLog} />
                 <SessionBreakdown metrics={metrics} />
                 <StudentRecentActivity logs={dashboardData.recent_attendance} />

@@ -12,6 +12,7 @@ import logging
 
 from db.database import get_db
 from core.errors import api_error
+from core.auth import get_current_user
 from models.user import User, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -21,6 +22,29 @@ from services.report_service import get_student_report_envelope
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _verify_ownership(current_user, user_id: int):
+    """
+    Verify the authenticated user owns the requested resource.
+    Raises 401 if not authenticated, 403 if accessing another user's data.
+    """
+    if current_user is None:
+        raise api_error(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="NOT_AUTHENTICATED",
+            message="Authentication required",
+        )
+    if current_user.id != user_id:
+        logger.warning(
+            "AUTHZ | user=%d attempted to access user=%d data",
+            current_user.id, user_id,
+        )
+        raise api_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="OWNERSHIP_VIOLATION",
+            message="You can only access your own data",
+        )
 
 _DAY_ORDER = {
     "monday": 1,
@@ -164,7 +188,8 @@ def _classify_tier(rate: float) -> tuple:
 # ============================================
 
 @router.get("/live-status/{user_id}", response_model=LiveStatusResponse)
-def get_live_status(user_id: int, db: Session = Depends(get_db)):
+def get_live_status(user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _verify_ownership(current_user, user_id)
     """
     Get real-time attendance status for a student.
     Returns current state (PRESENT/BREAK/EXITED/IDLE) with room and class info.
@@ -228,7 +253,8 @@ def get_live_status(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/metrics/{user_id}", response_model=StudentMetricsResponse)
-def get_student_metrics(user_id: int, db: Session = Depends(get_db)):
+def get_student_metrics(user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _verify_ownership(current_user, user_id)
     """
     Calculate Attendance Rate and Punctuality Rate for a student.
     
@@ -353,7 +379,8 @@ def get_student_metrics(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/dashboard/{user_id}", response_model=StudentDashboard)
-def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
+def get_student_dashboard(user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _verify_ownership(current_user, user_id)
     """
     Get dashboard statistics for a student.
     Uses eager loading to avoid N+1 queries.
@@ -475,7 +502,8 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/schedule/{user_id}", response_model=List[ScheduleItem])
-def get_student_schedule(user_id: int, db: Session = Depends(get_db)):
+def get_student_schedule(user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _verify_ownership(current_user, user_id)
     """
     Get class schedule for a student based on enrollments.
     Uses eager loading to avoid N+1 queries.
@@ -533,7 +561,9 @@ def get_attendance_history(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
+    _verify_ownership(current_user, user_id)
     """
     Get paginated attendance history for a student.
     Uses eager loading — no N+1 queries.
@@ -586,12 +616,15 @@ def get_student_report_data(
     user_id: int,
     report_type: str,
     class_id: Optional[int] = None,
+    class_ids: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
+    _verify_ownership(current_user, user_id)
     """
     Phase 1 server-driven student report endpoint.
     Returns rows plus summary metrics and explainable insights.
@@ -605,6 +638,20 @@ def get_student_report_data(
 
     window_from, window_to = _parse_report_window(report_type, date_from, date_to)
 
+    parsed_class_ids = None
+    if class_ids:
+        parsed_class_ids = []
+        for token in class_ids.split(','):
+            token = token.strip()
+            if not token:
+                continue
+            try:
+                parsed_class_ids.append(int(token))
+            except ValueError:
+                continue
+        if not parsed_class_ids:
+            parsed_class_ids = None
+
     envelope = get_student_report_envelope(
         db=db,
         user_id=user_id,
@@ -612,6 +659,7 @@ def get_student_report_data(
         date_from=window_from,
         date_to=window_to,
         class_id=class_id,
+        class_ids=parsed_class_ids,
         skip=max(skip, 0),
         limit=min(limit, 100),
     )

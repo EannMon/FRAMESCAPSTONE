@@ -56,8 +56,10 @@ def generate_student_role_insights(
     metrics: Dict[str, float],
     report_code: Optional[str] = None,
     previous_window_metrics: Optional[Dict[str, float]] = None,
+    scope_label: str = None,
 ) -> List[Dict]:
     insights: List[Dict] = []
+    scope_phrase = f"[{scope_label}] " if scope_label else ""
 
     attendance_rate = float(metrics.get("real_time_attendance_rate", 0.0))
     punctuality_rate = float(metrics.get("punctuality_rate", 0.0))
@@ -72,15 +74,126 @@ def generate_student_role_insights(
 
     confidence = "HIGH" if session_count >= 20 and completeness >= 95 else ("MEDIUM" if session_count >= 8 and completeness >= 85 else "LOW")
     confidence_msg = _confidence_reason(confidence, completeness, session_count)
+    report_code_upper = (report_code or "").upper()
+
+    if report_code_upper == "LATE_REPORT":
+        return [
+            _make_insight(
+                "STUDENT_LATE_REPORT_FREQUENCY",
+                f"Late Arrival Frequency ({scope_label})" if scope_label else "Late Arrival Frequency",
+                (
+                    f"{scope_phrase}Late entries account for {late_frequency:.1f}% of recorded entries in this window "
+                    f"({int(metrics.get('late_entries', 0))} late out of {int(metrics.get('total_entries', 0))} entries)."
+                ),
+                {
+                    "late_entries": int(metrics.get("late_entries", 0)),
+                    "total_entries": int(metrics.get("total_entries", 0)),
+                    "late_frequency": late_frequency,
+                },
+                "This report isolates punctuality risk and should be read independently from attendance volume.",
+                confidence,
+                confidence_msg,
+            ),
+            _make_insight(
+                "STUDENT_LATE_REPORT_IMPACT",
+                "Late Arrival Risk Impact",
+                (
+                    f"Punctuality rate is {punctuality_rate:.1f}%, indicating "
+                    f"{'controlled lateness risk' if punctuality_rate >= 85 else 'noticeable start-of-class disruption risk'} in this selected scope."
+                ),
+                {
+                    "punctuality_rate": punctuality_rate,
+                    "on_time_entries": int(metrics.get("on_time_entries", 0)),
+                    "late_entries": int(metrics.get("late_entries", 0)),
+                },
+                "Use this to prioritize arrival-discipline interventions per subject or overall scope.",
+                confidence,
+                confidence_msg,
+            ),
+        ]
+
+    if report_code_upper == "BREAK_LOG":
+        return [
+            _make_insight(
+                "STUDENT_BREAK_REPORT_DURATION",
+                f"Break Duration Pattern ({scope_label})" if scope_label else "Break Duration Pattern",
+                (
+                    f"{scope_phrase}Average break duration is {average_break_minutes:.1f} minutes with "
+                    f"{extended_break_count} extended-break events in the selected window."
+                ),
+                {
+                    "average_break_minutes": average_break_minutes,
+                    "extended_break_count": extended_break_count,
+                    "total_break_minutes": float(metrics.get("total_break_minutes", 0.0)),
+                },
+                "This report focuses on in-session break discipline and return behavior.",
+                confidence,
+                confidence_msg,
+            ),
+            _make_insight(
+                "STUDENT_BREAK_REPORT_COMPLIANCE",
+                "Break Compliance Risk",
+                (
+                    f"Break compliance is {break_compliance_rate:.1f}% which indicates "
+                    f"{'stable break behavior' if break_compliance_rate >= 85 else 'possible break-overrun risk'} for monitored sessions."
+                ),
+                {
+                    "break_compliance_rate": break_compliance_rate,
+                    "extended_break_count": extended_break_count,
+                },
+                "Use this report to distinguish break behavior issues from attendance/punctuality issues.",
+                confidence,
+                confidence_msg,
+            ),
+        ]
+
+    if report_code_upper == "ABSENT_LOG":
+        attended_sessions = int(metrics.get("sessions_attended", 0))
+        conducted_sessions = int(metrics.get("sessions_conducted", 0))
+        expected_sessions = int(metrics.get("expected_sessions", 0))
+        derived_absences = max(conducted_sessions - attended_sessions, 0)
+        return [
+            _make_insight(
+                "STUDENT_ABSENT_REPORT_VOLUME",
+                f"Absence Volume ({scope_label})" if scope_label else "Absence Volume",
+                (
+                    f"{scope_phrase}Derived absences are {derived_absences} based on conducted vs attended sessions "
+                    f"({conducted_sessions} conducted, {attended_sessions} attended)."
+                ),
+                {
+                    "derived_absences": derived_absences,
+                    "sessions_conducted": conducted_sessions,
+                    "sessions_attended": attended_sessions,
+                },
+                "This report isolates missed conducted sessions only, independent of late/break behavior.",
+                confidence,
+                confidence_msg,
+            ),
+            _make_insight(
+                "STUDENT_ABSENT_REPORT_EXPOSURE",
+                "Schedule Exposure Gap",
+                (
+                    f"Expected sessions are {expected_sessions}; attendance covered {attended_sessions}. "
+                    f"This reflects semester coverage pressure in the selected scope."
+                ),
+                {
+                    "expected_sessions": expected_sessions,
+                    "sessions_attended": attended_sessions,
+                },
+                "Use absence logs to target continuity risk, not punctuality or break timing.",
+                confidence,
+                confidence_msg,
+            ),
+        ]
 
     reliability_band = "strong" if attendance_rate >= 95 else ("moderate" if attendance_rate >= 85 else "weak")
     missed_pct = max(0.0, 100.0 - attendance_rate)
     insights.append(
         _make_insight(
             "STUDENT_ATTENDANCE_RELIABILITY",
-            "Attendance Reliability Profile",
+            f"Attendance Reliability Profile ({scope_label})" if scope_label else "Attendance Reliability Profile",
             (
-                f"Attendance reliability is {reliability_band} in this window. "
+                f"{scope_phrase}Attendance reliability is {reliability_band} in this window. "
                 f"At current behavior, { _to_behavior_ratio(missed_pct) } are being missed, which indicates {'stable engagement' if attendance_rate >= 90 else 'visible continuity risk'} over scheduled participation."
             ),
             {
@@ -88,7 +201,7 @@ def generate_student_role_insights(
                 "sessions_attended": metrics.get("sessions_attended", 0),
                 "sessions_conducted": metrics.get("sessions_conducted", 0),
             },
-            "This reflects whether the student can sustain regular participation without intervention.",
+            f"This reflects whether the student can sustain regular participation without intervention. Scope: {scope_label or 'All Subjects'}.",
             confidence,
             confidence_msg,
         )
@@ -98,9 +211,9 @@ def generate_student_role_insights(
     insights.append(
         _make_insight(
             "STUDENT_PUNCTUALITY_PATTERN",
-            "Punctuality Habit Pattern",
+            f"Punctuality Habit Pattern ({scope_label})" if scope_label else "Punctuality Habit Pattern",
             (
-                f"Punctuality behavior is currently {punctuality_state}. "
+                f"{scope_phrase}Punctuality behavior is currently {punctuality_state}. "
                 f"Late arrivals represent { _to_behavior_ratio(late_frequency) } of attended entries, suggesting {'good time discipline' if punctuality_state == 'healthy' else 'repeated time-friction before class start'} even when attendance is present."
             ),
             {
@@ -109,7 +222,7 @@ def generate_student_role_insights(
                 "late_entries": metrics.get("late_entries", 0),
                 "on_time_entries": metrics.get("on_time_entries", 0),
             },
-            "Persistent lateness can erode instructional continuity despite acceptable attendance totals.",
+            f"Persistent lateness can erode instructional continuity despite acceptable attendance totals. Scope: {scope_label or 'All Subjects'}.",
             confidence,
             confidence_msg,
         )
@@ -119,9 +232,9 @@ def generate_student_role_insights(
     insights.append(
         _make_insight(
             "STUDENT_CONSISTENCY_SIGNAL",
-            "Consistency and Behavioral Stability",
+            f"Consistency and Behavioral Stability ({scope_label})" if scope_label else "Consistency and Behavioral Stability",
             (
-                f"Consistency is {consistency_state} across the selected window. "
+                f"{scope_phrase}Consistency is {consistency_state} across the selected window. "
                 f"The attendance-punctuality blend suggests {'repeatable habits' if consistency >= 75 else 'uneven attendance timing and participation rhythm'} that can impact long-term reliability."
             ),
             {
@@ -129,7 +242,7 @@ def generate_student_role_insights(
                 "real_time_attendance_rate": attendance_rate,
                 "punctuality_rate": punctuality_rate,
             },
-            "Lower consistency increases forecasting risk for future absences and punctuality drift.",
+            f"Lower consistency increases forecasting risk for future absences and punctuality drift. Scope: {scope_label or 'All Subjects'}.",
             confidence,
             confidence_msg,
         )
@@ -196,6 +309,37 @@ def generate_student_role_insights(
                     "previous_window_punctuality_rate": prev_punc,
                 },
                 "Trend direction is the strongest short-term indicator of whether interventions are needed now.",
+                confidence,
+                confidence_msg,
+            )
+        )
+
+    # Recognition quality insight (uses confidence_score + verified_by from metrics)
+    avg_conf = float(metrics.get("avg_confidence_score", 0.0))
+    high_conf_pct = float(metrics.get("high_confidence_pct", 0.0))
+    face_verified = int(metrics.get("face_verified_count", 0))
+    manual_overrides = int(metrics.get("manual_override_count", 0))
+    recognition_quality = float(metrics.get("recognition_quality_rate", 0.0))
+
+    if avg_conf > 0 or face_verified > 0:
+        quality_state = "high" if high_conf_pct >= 85 else ("moderate" if high_conf_pct >= 60 else "low")
+        insights.append(
+            _make_insight(
+                "STUDENT_RECOGNITION_QUALITY",
+                "Facial Recognition Quality",
+                (
+                    f"Recognition quality is {quality_state} with a {avg_conf:.0%} average confidence score. "
+                    f"{high_conf_pct:.0f}% of entries achieved high-confidence face matching (≥85%). "
+                    f"{'All entries used automated face verification.' if manual_overrides == 0 else f'{manual_overrides} entries required manual override, which may indicate lighting or positioning issues.'}"
+                ),
+                {
+                    "avg_confidence_score": avg_conf,
+                    "high_confidence_pct": high_conf_pct,
+                    "face_verified_count": face_verified,
+                    "manual_override_count": manual_overrides,
+                    "recognition_quality_rate": recognition_quality,
+                },
+                "Low recognition quality can indicate enrollment photo issues or environmental interference at the kiosk.",
                 confidence,
                 confidence_msg,
             )

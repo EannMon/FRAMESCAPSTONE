@@ -4,6 +4,21 @@ import './FacultyReportsPage.css';
 import FacultyReportModal from './FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
 
+const LogStatusTag = ({ text, isPresent, type }) => {
+    let statusClass = 'neutral';
+    if (isPresent) statusClass = 'success';
+    else if (type === 'ABSENT') statusClass = 'danger';
+    else if (type === 'BREAK_OUT') statusClass = 'warning';
+    else if (type === 'EXIT') statusClass = 'neutral';
+    else statusClass = 'neutral';
+
+    return (
+        <span className={`log-status-tag ${statusClass}`}>
+            {text}
+        </span>
+    );
+};
+
 // ============================================
 // REPORT OPTIONS — All required report types
 // ============================================
@@ -74,8 +89,73 @@ const FacultyReportsPage = () => {
     const [activeMetricName, setActiveMetricName] = useState(null);
     const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
     const [showInsightsModal, setShowInsightsModal] = useState(false);
+    const [sessionCountReference, setSessionCountReference] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('1ST');
+    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [selectedWeekNumber, setSelectedWeekNumber] = useState(String(Math.floor((new Date().getDate() - 1) / 7) + 1));
+
+    const getReportMode = (reportId) => {
+        if (!reportId) return 'DAILY';
+        if (reportId.includes('DAILY') || reportId === 'UNRECOGNIZED_LOGS') return 'DAILY';
+        if (reportId.includes('WEEKLY')) return 'WEEKLY';
+        if (reportId.includes('MONTHLY') || reportId === 'HISTORY_30D') return 'MONTHLY';
+        return 'SEMESTRAL';
+    };
+
+    const getWeekRangesForMonth = () => {
+        if (!weeklyMonth) return [];
+        const [yearText, monthText] = weeklyMonth.split('-');
+        const year = Number(yearText);
+        const month = Number(monthText);
+        if (!year || !month) return [];
+
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0);
+        const ranges = [];
+
+        let cursor = new Date(startOfMonth);
+        let week = 1;
+        while (cursor <= endOfMonth) {
+            const weekStart = new Date(cursor);
+            const weekEnd = new Date(cursor);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            if (weekEnd > endOfMonth) {
+                weekEnd.setTime(endOfMonth.getTime());
+            }
+
+            ranges.push({
+                value: String(week),
+                start: weekStart,
+                end: weekEnd,
+                label: `Week ${week}: ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            });
+
+            cursor.setDate(cursor.getDate() + 7);
+            week += 1;
+        }
+        return ranges;
+    };
+
+    const getSemesterWindow = () => {
+        const year = parseInt(academicYear, 10) || new Date().getFullYear();
+        if (selectedSemester === '1ST') {
+            return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
+        }
+        if (selectedSemester === '2ND') {
+            return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
+        }
+        return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
+    };
+
+    const formatDateLocal = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
@@ -115,9 +195,14 @@ const FacultyReportsPage = () => {
         if (user.department_id) {
             api.get(`/api/dept/academic-year?dept_id=${user.department_id}`, { signal: controller.signal })
                 .then(res => {
-                    if (res.data.academic_year) setAcademicYear(res.data.academic_year);
-                    if (res.data.semester_start_date) setDateFrom(res.data.semester_start_date);
-                    if (res.data.semester_end_date) setDateTo(res.data.semester_end_date);
+                    if (res.data?.academic_year) {
+                        const yearStr = String(res.data.academic_year);
+                        const match = yearStr.match(/^\d{4}/);
+                        if (match) setAcademicYear(match[0]);
+                        else setAcademicYear(yearStr);
+                    }
+                    if (res.data?.semester_start_date) setDateFrom(res.data.semester_start_date);
+                    if (res.data?.semester_end_date) setDateTo(res.data.semester_end_date);
                 }).catch((err) => {
                     if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                         console.error('Failed to fetch academic year:', err);
@@ -138,12 +223,12 @@ const FacultyReportsPage = () => {
         return groups;
     }, []);
 
-    // Auto-fetch when default report + dates are ready
+    // Auto-fetch when any relevant filter changes
     useEffect(() => {
-        if (selectedReport && dateFrom && dateTo) {
+        if (selectedReport) {
             fetchReportData(selectedReport.id);
         }
-    }, [dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedReport, selectedClass, filterDate, weeklyMonth, selectedWeekNumber, academicYear, selectedSemester]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchReportData = async (reportId) => {
         if (!user?.id) return;
@@ -157,22 +242,83 @@ const FacultyReportsPage = () => {
 
             const params = { report_type: reportId };
             if (resolvedClassId) params.class_id = resolvedClassId;
-            if (dateFrom) params.date_from = dateFrom;
-            if (dateTo) params.date_to = dateTo;
+
+            const mode = getReportMode(reportId);
+            let localFrom = dateFrom;
+            let localTo = dateTo;
+
+            if (mode === 'DAILY') {
+                localFrom = filterDate;
+                localTo = filterDate;
+            } else if (mode === 'WEEKLY') {
+                const weekOptions = getWeekRangesForMonth();
+                const selectedWeek = weekOptions.find(w => w.value === selectedWeekNumber);
+                if (selectedWeek) {
+                    localFrom = formatDateLocal(selectedWeek.start);
+                    localTo = formatDateLocal(selectedWeek.end);
+                }
+            } else if (mode === 'MONTHLY') {
+                const [year, month] = weeklyMonth.split('-');
+                const lastDay = new Date(year, month, 0).getDate();
+                localFrom = `${year}-${month}-01`;
+                localTo = `${year}-${month}-${lastDay}`;
+            } else {
+                const window = getSemesterWindow();
+                localFrom = window.dateFrom;
+                localTo = window.dateTo;
+            }
+
+            params.date_from = localFrom;
+            params.date_to = localTo;
+            
+            // Sync the internal dateFrom/dateTo state for Modal and other components
+            setDateFrom(localFrom);
+            setDateTo(localTo);
             params.limit = 200;
 
             const res = await api.get(`/api/faculty/reports/data/${user.id}`, { params });
             const payload = res.data || {};
             const rows = Array.isArray(payload) ? payload : (payload.rows || []);
-            setReportData(rows);
+            
+            // --- MAP DATA TO MATCH STUDENT STRUCTURE FOR TRENDS ---
+            const mapped = rows.map(row => {
+                const col1Text = String(row.col1 || '').trim();
+                const col3Text = String(row.col3 || '').trim();
+                let timestamp = row.timestamp;
+                
+                if (!timestamp && col1Text) {
+                    const datePart = col1Text;
+                    const timePart = col3Text;
+                    if (timePart && timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)) {
+                        let [_, h, m, meridiem] = timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+                        let hours = Number(h);
+                        if (meridiem === 'PM' && hours !== 12) hours += 12;
+                        if (meridiem === 'AM' && hours === 12) hours = 0;
+                        timestamp = `${datePart}T${String(hours).padStart(2, '0')}:${m}:00`;
+                    } else {
+                        timestamp = `${datePart}T00:00:00`;
+                    }
+                }
+
+                return {
+                    ...row,
+                    timestamp: timestamp,
+                    action: row.action || row.status,
+                    is_late: row.is_late || String(row.status || '').toUpperCase() === 'LATE'
+                };
+            });
+
+            setReportData(mapped);
             setSummaryMetrics(Array.isArray(payload.summary_metrics) ? payload.summary_metrics : []);
             setInsights(Array.isArray(payload.insights) ? payload.insights : []);
+            setSessionCountReference(payload.session_count_reference || null);
         } catch (err) {
             console.error('Report fetch error:', err);
             setError('Failed to load report data. Please try again.');
             setReportData([]);
             setSummaryMetrics([]);
             setInsights([]);
+            setSessionCountReference(null);
         } finally {
             setLoading(false);
         }
@@ -217,7 +363,23 @@ const FacultyReportsPage = () => {
                 ? { name: `${user.first_name} ${user.last_name}`, id: user.tupm_id }
                 : { classCode: selectedClass || 'All Classes', section: 'All' }
         };
-        await generateFramesPDF(reportInfo, tableData, 'download');
+        const enrichment = {
+            summaryMetrics,
+            insights,
+            sessionCountReference,
+            statusDistribution: reportData.reduce((acc, row) => {
+                const status = row.status || 'Unknown';
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {}),
+            filters: {
+                reportType: selectedReport.label,
+                subject: selectedClass || 'All Classes',
+                semester: academicYear || 'Current'
+            }
+        };
+
+        await generateFramesPDF(reportInfo, tableData, 'download', enrichment);
     };
 
     const handleDownloadCSV = () => {
@@ -229,8 +391,28 @@ const FacultyReportsPage = () => {
             return obj;
         });
 
-        const reportInfo = { title: selectedReport.label };
-        generateCSV(reportInfo, tableData);
+        const reportInfo = { 
+            title: selectedReport.label,
+            dateRange: `${dateFrom || 'Start'} — ${dateTo || 'Present'}`
+        };
+
+        const enrichment = {
+            summaryMetrics,
+            insights,
+            sessionCountReference,
+            statusDistribution: reportData.reduce((acc, row) => {
+                const status = row.status || 'Unknown';
+                acc[status] = (acc[status] || 0) + 1;
+                return acc;
+            }, {}),
+            filters: {
+                reportType: selectedReport.label,
+                subject: selectedClass || 'All Classes',
+                semester: academicYear || 'Current'
+            }
+        };
+
+        generateCSV(reportInfo, tableData, enrichment);
     };
 
     const handlePreviewPDF = async () => {
@@ -256,7 +438,201 @@ const FacultyReportsPage = () => {
         setModalOpen(true);
     };
 
-    const config = selectedReport ? getColumnConfig(selectedReport.id) : null;
+    const config = selectedReport ? getColumnConfig(selectedReport.id) : getColumnConfig(null);
+
+    const statusDistribution = useMemo(() => {
+        const buckets = {
+            ENTERED: 0,
+            LATE: 0,
+            ABSENT: 0,
+            BREAK_OUT: 0,
+            BREAK_IN: 0,
+            EXITED: 0,
+        };
+
+        reportData.forEach((row) => {
+            const status = String(row.status || '').toUpperCase();
+            if (status === 'ENTERED' || status === 'ON TIME' || status === 'PRESENT') {
+                if (row.is_late) buckets.LATE += 1;
+                else buckets.ENTERED += 1;
+            } else if (status === 'ABSENT') {
+                buckets.ABSENT += 1;
+            } else if (status === 'BREAK_OUT') {
+                buckets.BREAK_OUT += 1;
+            } else if (status === 'BREAK_IN') {
+                buckets.BREAK_IN += 1;
+            } else if (status === 'EXITED') {
+                buckets.EXITED += 1;
+            }
+        });
+
+        if (buckets.ABSENT === 0 && sessionCountReference?.report_window) {
+            const { attended, conducted } = sessionCountReference.report_window;
+            buckets.ABSENT = Math.max((conducted || 0) - (attended || 0), 0);
+        }
+
+        return buckets;
+    }, [reportData, sessionCountReference]);
+
+    const dailyTrend = useMemo(() => {
+        const byDate = {};
+        reportData.forEach((row) => {
+            const dateStr = row.display_date || row.col1 || (row.timestamp ? row.timestamp.split('T')[0] : null);
+            if (!dateStr) return;
+
+            if (!byDate[dateStr]) {
+                byDate[dateStr] = {
+                    day: dateStr,
+                    entered: 0,
+                    late: 0,
+                    absent: 0,
+                    breakOut: 0,
+                    breakIn: 0,
+                    exited: 0,
+                    total: 0
+                };
+            }
+
+            const status = String(row.status || '').toUpperCase();
+            if (status === 'ENTERED' || status === 'ON TIME' || status === 'PRESENT') {
+                if (row.is_late) byDate[dateStr].late += 1;
+                else byDate[dateStr].entered += 1;
+            } else if (status === 'ABSENT') {
+                byDate[dateStr].absent += 1;
+            } else if (status === 'BREAK_OUT') {
+                byDate[dateStr].breakOut += 1;
+            } else if (status === 'BREAK_IN') {
+                byDate[dateStr].breakIn += 1;
+            } else if (status === 'EXITED') {
+                byDate[dateStr].exited += 1;
+            }
+            byDate[dateStr].total += 1;
+        });
+
+        return Object.values(byDate).sort((a, b) => a.day.localeCompare(b.day));
+    }, [reportData]);
+
+    const renderSessionCountReference = () => {
+        if (!sessionCountReference) return null;
+        const reportWindow = sessionCountReference.report_window || {};
+        const wholeSemester = sessionCountReference.whole_semester || {};
+
+        return (
+            <div className="insight-panel" style={{ marginTop: '16px' }}>
+                <div className="insight-section-title" style={{ marginBottom: '12px' }}>Session Count Reference</div>
+                <div className="session-reference-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Report Window</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{reportWindow.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{reportWindow.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{reportWindow.expected ?? 0}</strong></div>
+                        </div>
+                    </div>
+                    <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                        <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Whole Semester</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                            <div>Attended: <strong>{wholeSemester.attended ?? 0}</strong></div>
+                            <div>Conducted: <strong>{wholeSemester.conducted ?? 0}</strong></div>
+                            <div>Expected: <strong>{wholeSemester.expected ?? 0}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderVisualSummary = () => {
+        if (!reportData.length) return null;
+
+        const statusItems = [
+            { label: 'Entered', value: statusDistribution.ENTERED, color: '#2e7d32' },
+            { label: 'Late', value: statusDistribution.LATE, color: '#e65100' },
+            { label: 'Absent', value: statusDistribution.ABSENT, color: '#c62828' },
+            { label: 'On Break (Out)', value: statusDistribution.BREAK_OUT, color: '#1565c0' },
+            { label: 'From Break (In)', value: statusDistribution.BREAK_IN, color: '#00897b' },
+            { label: 'Exited', value: statusDistribution.EXITED, color: '#6c757d' },
+        ];
+
+        const maxStatus = Math.max(...statusItems.map((item) => item.value), 1);
+        const maxTrend = Math.max(...dailyTrend.map((item) => item.total), 1);
+
+        const statusStyle = {
+            ENTERED: '#2e7d32',
+            LATE: '#e65100',
+            ABSENT: '#c62828',
+            BREAK_OUT: '#1565c0',
+            BREAK_IN: '#00897b',
+            EXITED: '#6c757d',
+        };
+
+        return (
+            <div className="insight-panel">
+                <div className="insight-section-title">Visual Summary</div>
+                <div className="visual-grid">
+                    <div className="visual-card">
+                        <div className="visual-title">Status Distribution</div>
+                        {statusItems.map((item) => (
+                            <div key={item.label} className="visual-bar-row">
+                                <span className="visual-label">{item.label}</span>
+                                <div className="visual-bar-track">
+                                    <div
+                                        className="visual-bar-fill"
+                                        style={{ width: `${(item.value / maxStatus) * 100}%`, backgroundColor: item.color }}
+                                    />
+                                </div>
+                                <span className="visual-value">{item.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="visual-card">
+                        <div className="visual-title">Activity Trend</div>
+                        <div className="grouped-cluster-scroll-wrap">
+                            <div className="grouped-cluster-chart">
+                                {dailyTrend.filter(item => item.total > 0).map((item) => (
+                                    <div key={item.day} className="grouped-cluster-item">
+                                        <div className="grouped-cluster-track">
+                                            {['entered', 'late', 'absent', 'breakOut', 'breakIn', 'exited'].map(actionKey => {
+                                                const value = item[actionKey] || 0;
+                                                if (value === 0) return null;
+                                                const styleKey = actionKey.toUpperCase().replace('BREAKOUT', 'BREAK_OUT').replace('BREAKIN', 'BREAK_IN');
+                                                const finalStyleKey = styleKey === 'BREAKOUT' ? 'BREAK_OUT' : (styleKey === 'BREAKIN' ? 'BREAK_IN' : styleKey);
+                                                
+                                                return (
+                                                    <div
+                                                        key={`${item.day}-${actionKey}`}
+                                                        className="grouped-cluster-bar"
+                                                        style={{
+                                                            height: `${(value / maxTrend) * 100}%`,
+                                                            backgroundColor: statusStyle[finalStyleKey] || '#ccc',
+                                                        }}
+                                                        title={`${item.day} • ${actionKey.replace(/([A-Z])/g, ' $1')}: ${value}`}
+                                                    >
+                                                        <span className="grouped-cluster-value">{value}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="grouped-cluster-label">
+                                            {new Date(item.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="trend-legend-row" style={{ marginTop: '15px' }}>
+                            {Object.entries(statusStyle).map(([key, color]) => (
+                                <span key={key} className="trend-legend-item">
+                                    <span className="trend-legend-dot" style={{ background: color }} />
+                                    {key.replace('_', ' ')}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     const renderInsightPanel = () => {
         if (!summaryMetrics.length && !insights.length) return null;
@@ -310,18 +686,15 @@ const FacultyReportsPage = () => {
                 </div>
             </div>
 
-            {/* Filters Bar */}
             {/* MATCHING STUDENT FILTERS HEADER SECTION */}
-            <div className="reports-header-section" style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', alignItems: 'flex-end', justifyContent: 'flex-start', marginBottom: '20px', background: 'white', padding: '20px 25px', borderRadius: '12px', border: '1px solid rgba(0, 0, 0, 0.04)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
-                    
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Select Report Type:</label>
+            <div className="reports-header-section">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', marginBottom: '10px' }}>
+                    <div className="report-selector-group">
+                        <label>Select Report Type:</label>
                         <select
                             value={selectedReport?.id || ''}
                             onChange={e => handleSelectReport(reportOptions.find(opt => opt.id === e.target.value))}
                             className="app-select big-select"
-                            style={{ minWidth: '240px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
                         >
                             {Object.entries(groupedReports).map(([category, options]) => (
                                 <optgroup key={category} label={category}>
@@ -333,9 +706,13 @@ const FacultyReportsPage = () => {
                         </select>
                     </div>
 
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
-                        <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="app-select big-select" style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}>
+                    <div className="filter-item" style={{ minWidth: '220px' }}>
+                        <label>Subject / Class:</label>
+                        <select 
+                            value={selectedClass} 
+                            onChange={e => setSelectedClass(e.target.value)} 
+                            className="app-select big-select"
+                        >
                             <option value="">All Classes</option>
                             {classes.map(c => (
                                 <option key={c.class_id} value={c.class_id}>{c.subject_code} - {c.section || 'N/A'}</option>
@@ -343,20 +720,92 @@ const FacultyReportsPage = () => {
                         </select>
                     </div>
 
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>From:</label>
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="filter-input" style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }} />
-                    </div>
-                    
-                    <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>To:</label>
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="filter-input" style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }} />
-                    </div>
+                    {getReportMode(selectedReport?.id) === 'DAILY' && (
+                        <div className="filter-item">
+                            <label>Select Date:</label>
+                            <input 
+                                type="date"
+                                value={filterDate}
+                                onChange={e => setFilterDate(e.target.value)}
+                                className="app-select big-select"
+                            />
+                        </div>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'WEEKLY' && (
+                        <>
+                            <div className="filter-item">
+                                <label>Select Month:</label>
+                                <input 
+                                    type="month"
+                                    value={weeklyMonth}
+                                    onChange={e => {
+                                        setWeeklyMonth(e.target.value);
+                                        // Default to week 1 when month changes
+                                        setSelectedWeekNumber('1');
+                                    }}
+                                    className="app-select big-select"
+                                />
+                            </div>
+                            <div className="filter-item">
+                                <label>Select Week:</label>
+                                <select 
+                                    value={selectedWeekNumber}
+                                    onChange={e => setSelectedWeekNumber(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    {getWeekRangesForMonth().map(w => (
+                                        <option key={w.value} value={w.value}>{w.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'MONTHLY' && (
+                        <div className="filter-item">
+                            <label>Select Month:</label>
+                            <input 
+                                type="month"
+                                value={weeklyMonth}
+                                onChange={e => setWeeklyMonth(e.target.value)}
+                                className="app-select big-select"
+                            />
+                        </div>
+                    )}
+
+                    {getReportMode(selectedReport?.id) === 'SEMESTRAL' && (
+                        <>
+                            <div className="filter-item">
+                                <label>Academic Year:</label>
+                                <select 
+                                    value={academicYear}
+                                    onChange={e => setAcademicYear(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    {[2023, 2024, 2025, 2026].map(y => (
+                                        <option key={y} value={y}>{y} - {y+1}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="filter-item">
+                                <label>Semester:</label>
+                                <select 
+                                    value={selectedSemester}
+                                    onChange={e => setSelectedSemester(e.target.value)}
+                                    className="app-select big-select"
+                                >
+                                    <option value="1ST">1st Semester</option>
+                                    <option value="2ND">2nd Semester</option>
+                                    <option value="SUMMER">Summer</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
                 </div>
 
-                {/* Description Box MOVED INSIDE */}
                 {selectedReport && selectedReport.desc && (
-                    <div className="report-description-box" style={{ marginTop: '0px', flexGrow: 1, minWidth: '300px' }}>
+                    <div className="report-description-box" style={{ marginTop: '0px' }}>
                         <i className="fas fa-info-circle"></i>
                         <span>{selectedReport.desc}</span>
                     </div>
@@ -370,15 +819,15 @@ const FacultyReportsPage = () => {
                     <p>Choose a report type to view attendance data.</p>
                 </div>
             ) : (
-                <>
-                    {/* Analytics panels stacked above Table CARD */}
+                <div className="reports-content-full">
                     {!loading && reportData.length > 0 && renderInsightPanel()}
+                    {!loading && reportData.length > 0 && renderVisualSummary()}
+                    {!loading && reportData.length > 0 && renderSessionCountReference()}
 
-                    {/* Table Card (Replicating Attendance) */}
-                    <div className="card recent-reports-card" style={{ marginTop: '20px' }}>
+                    <div className="recent-reports-card" style={{ marginTop: '20px' }}>
                         <div className="recent-reports-header">
                             <h3 style={{ margin: 0 }}>Generated Records</h3>
-                            <div className="recent-reports-filters">
+                            <div className="report-actions">
                                 <button className="export-all-button" onClick={() => setModalOpen(true)} disabled={reportData.length === 0}>
                                     <i className="fas fa-file-pdf"></i> Generate Official Report
                                 </button>
@@ -414,7 +863,6 @@ const FacultyReportsPage = () => {
                                                     const value = row[key] || 'N/A';
                                                     let cellContent = value;
                                                     
-                                                    // Subline formatting for Date columns if text contains spaced timestamp
                                                     if ((key === 'col1' || key === 'Detail') && typeof value === 'string' && value.indexOf('/') > -1) {
                                                         const parts = value.split(' ');
                                                         if (parts.length > 1) { 
@@ -428,13 +876,22 @@ const FacultyReportsPage = () => {
                                                     }
                                                     
                                                     if (key === 'col2' || key === 'status') {
-                                                        cellContent = <span style={{ fontWeight: '600', color: '#334155' }}>{value}</span>;
+                                                        if (key === 'status') {
+                                                            const isPresent = ['ENTERED', 'ON TIME', 'PRESENT', 'BREAK_IN'].includes(String(value).toUpperCase());
+                                                            cellContent = (
+                                                                <LogStatusTag 
+                                                                    text={String(value).toUpperCase()} 
+                                                                    isPresent={isPresent}
+                                                                    type={String(value).toUpperCase()}
+                                                                />
+                                                            );
+                                                        } else {
+                                                            cellContent = <span style={{ fontWeight: '600', color: '#334155' }}>{value}</span>;
+                                                        }
                                                     }
                                                     
                                                     return (
-                                                         <td key={key} className={key === 'status' ? `status-cell status-${(row[key] || '').toLowerCase().replace(/\s+/g, '-')}` : ''}>
-                                                             {cellContent}
-                                                         </td>
+                                                         <td key={key}>{cellContent}</td>
                                                     );
                                                 })}
                                             </tr>
@@ -447,7 +904,7 @@ const FacultyReportsPage = () => {
                             <div className="report-footer" style={{ marginTop: '10px' }}><span>{reportData.length} record(s) found</span></div>
                         )}
                     </div>
-                </>
+                </div>
             )}
 
             {/* Metric Detailed Modal */}
@@ -495,9 +952,15 @@ const FacultyReportsPage = () => {
                 </div>
             )}
 
-            {/* PDF Preview Modal */}
             {modalOpen && (
-                <FacultyReportModal previewUrl={previewUrl} onClose={() => setModalOpen(false)} />
+                <FacultyReportModal 
+                    isOpen={modalOpen}
+                    onClose={() => setModalOpen(false)} 
+                    onGenerate={handleGenerateReport}
+                    reportTitle={selectedReport?.label}
+                    scope={selectedClass || 'All Classes'}
+                    dateRange={`${dateFrom || '---'} to ${dateTo || '---'}`}
+                />
             )}
         </div>
     );

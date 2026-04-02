@@ -36,7 +36,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                 return l.class_id === parseInt(selectedClassId);
             }
             if (trendView === 'faculty') {
-                return true; 
+                return true;
             }
             return true;
         });
@@ -140,9 +140,9 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                         <option value="classroom">Classroom</option>
                     </select>
                     {trendView === 'classroom' && (
-                        <select 
-                            value={selectedClassId} 
-                            onChange={(e) => setSelectedClassId(e.target.value)} 
+                        <select
+                            value={selectedClassId}
+                            onChange={(e) => setSelectedClassId(e.target.value)}
                             className="fd-select"
                         >
                             <option value="">All Rooms</option>

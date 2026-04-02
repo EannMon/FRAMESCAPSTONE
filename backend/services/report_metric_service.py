@@ -114,19 +114,32 @@ def _pair_breaks_and_compute(user_logs: List[AttendanceLog], limit_minutes: int 
     return round(total_break_minutes, 1), extended_break_count
 
 
-def _resolve_scoped_class_ids(db: Session, user_id: int, class_id: Optional[int]) -> List[int]:
+def _resolve_scoped_class_ids(
+    db: Session,
+    user_id: int,
+    class_id: Optional[int],
+    class_ids: Optional[List[int]] = None,
+) -> List[int]:
     enrolled_class_ids = [
         cid
         for (cid,) in db.query(Enrollment.class_id).filter(Enrollment.student_id == user_id).all()
     ]
+    if class_ids:
+        enrolled_set = set(enrolled_class_ids)
+        return [cid for cid in class_ids if cid in enrolled_set]
     if class_id:
         return [class_id] if class_id in enrolled_class_ids else []
     return enrolled_class_ids
 
 
-def resolve_student_scoped_class_ids(db: Session, user_id: int, class_id: Optional[int] = None) -> List[int]:
+def resolve_student_scoped_class_ids(
+    db: Session,
+    user_id: int,
+    class_id: Optional[int] = None,
+    class_ids: Optional[List[int]] = None,
+) -> List[int]:
     """Public wrapper for report service orchestration to avoid duplicate enrollment queries."""
-    return _resolve_scoped_class_ids(db, user_id, class_id)
+    return _resolve_scoped_class_ids(db, user_id, class_id, class_ids)
 
 
 def _compute_counts_for_range(
@@ -296,8 +309,10 @@ def compute_student_session_count_reference(
     if not semester_end_date:
         semester_end_date = date_to.date()
 
-    today = datetime.now(timezone.utc).date()
-    conducted_cutoff_date = min(semester_end_date, today)
+    # Use full configured semester window. Test datasets intentionally include
+    # seeded future dates inside semester bounds; truncating at "today" can make
+    # whole_semester counts incorrectly lower than report_window counts.
+    conducted_cutoff_date = semester_end_date
 
     tz = date_from.tzinfo
     sem_start_dt = datetime.combine(semester_start_date, time.min, tzinfo=tz)
@@ -593,6 +608,7 @@ def build_student_summary_metrics(
     date_from: datetime,
     date_to: datetime,
     is_all_subject_scope: bool = True,
+    scope_label: str = None,
 ) -> List[Dict]:
     confidence = compute_confidence_label(
         int(metrics.get("session_count_for_confidence", 0)),
@@ -601,7 +617,10 @@ def build_student_summary_metrics(
 
     window = f"{date_from.date()}..{date_to.date()}"
 
-    scope_prefix = "all " if is_all_subject_scope else ""
+    if scope_label:
+        scope_prefix = f"[{scope_label}] "
+    else:
+        scope_prefix = "all " if is_all_subject_scope else ""
 
     return [
         {
@@ -612,7 +631,7 @@ def build_student_summary_metrics(
             "denominator": metrics["sessions_conducted"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Measures attendance against sessions that actually occurred.",
+            "explanation": f"Measures attendance against sessions that actually occurred. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "semester_progress_attendance_rate",
@@ -622,7 +641,7 @@ def build_student_summary_metrics(
             "denominator": metrics["expected_sessions"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Measures progress against full schedule expectation.",
+            "explanation": f"Measures progress against full schedule expectation. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "punctuality_rate",
@@ -632,7 +651,7 @@ def build_student_summary_metrics(
             "denominator": metrics["total_entries"],
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Share of attended sessions where the student was on time.",
+            "explanation": f"Share of attended sessions where the student was on time. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
         {
             "metric_name": "consistency_index",
@@ -642,6 +661,6 @@ def build_student_summary_metrics(
             "denominator": 0,
             "data_window": window,
             "confidence": confidence,
-            "explanation": "Weighted behavior stability score combining attendance and punctuality.",
+            "explanation": f"Weighted behavior stability score combining attendance and punctuality. Scope: {scope_label or ('All Subjects' if is_all_subject_scope else 'Single Subject')}",
         },
     ]
