@@ -1000,3 +1000,90 @@
         border-radius: 12px;
     }
 }
+
+/* =========================================== */
+/* SESSION BREAKDOWN BARS                      */
+/* =========================================== */
+.fd-metrics-card {
+    grid-column: 1 / -1;
+}
+
+.fd-bars-container {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 8px 0;
+}
+
+.fd-bar-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fd-bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fd-bar-label {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #0F172A;
+}
+
+.fd-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fd-bar-count {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #334155;
+}
+
+.fd-bar-sub-tag {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.fd-bar-track {
+    position: relative;
+    width: 100%;
+    height: 26px;
+    background: #f1f5f9;
+    border-radius: 13px;
+    overflow: hidden;
+}
+
+.fd-bar-fill {
+    height: 100%;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    transition: width 0.6s ease;
+}
+
+.fd-bar-pct {
+    color: white;
+    font-weight: 700;
+    font-size: 0.78rem;
+}
+
+.fd-bar-pct-outside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 10px;
+    font-weight: 700;
+    font-size: 0.78rem;
+}

@@ -384,8 +384,8 @@ def _select_faculty_insights_for_report(insights: List[Dict], report_code: Optio
 
     code = report_code.upper()
     keep_map = {
-        "CLASS_LATE": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
-        "PUNCTUALITY_INDEX": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
+        "CLASS_LATE": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY", "FACULTY_STUDENT_RANKING_SUMMARY"},
+        "PUNCTUALITY_INDEX": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_DATA_SUFFICIENCY", "FACULTY_SECTION_COMPARISON", "FACULTY_STUDENT_RANKING_SUMMARY", "FACULTY_SECTION_RANKING_DEPTH"},
         "BREAK_DURATION": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_ENGAGEMENT_COMPLETION", "FACULTY_DATA_SUFFICIENCY"},
         "BREAK_ABUSE": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_ENGAGEMENT_COMPLETION", "FACULTY_DATA_SUFFICIENCY"},
         "ATTENDANCE_INCONSISTENCY": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
@@ -393,6 +393,10 @@ def _select_faculty_insights_for_report(insights: List[Dict], report_code: Optio
         "PERSONAL_CONSISTENCY": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_RISK_CONCENTRATION_SIGNAL", "FACULTY_DATA_SUFFICIENCY"},
         "INSTRUCTOR_DELAY": {"FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
         "UNRECOGNIZED_LOGS": {"FACULTY_ANOMALY_RISK_CLUSTER", "FACULTY_DATA_SUFFICIENCY"},
+        "CLASS_WEEKLY": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_SECTION_COMPARISON", "FACULTY_STUDENT_RANKING_SUMMARY", "FACULTY_SECTION_RANKING_DEPTH", "FACULTY_DATA_SUFFICIENCY"},
+        "CLASS_MONTHLY": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_SECTION_COMPARISON", "FACULTY_STUDENT_RANKING_SUMMARY", "FACULTY_SECTION_RANKING_DEPTH", "FACULTY_DATA_SUFFICIENCY"},
+        "CLASS_SEMESTER": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_PUNCTUALITY_CLUSTER", "FACULTY_SECTION_COMPARISON", "FACULTY_STUDENT_RANKING_SUMMARY", "FACULTY_SECTION_RANKING_DEPTH", "FACULTY_DATA_SUFFICIENCY"},
+        "PARTICIPATION_INSIGHT": {"FACULTY_PARTICIPATION_DISTRIBUTION", "FACULTY_SECTION_COMPARISON", "FACULTY_STUDENT_RANKING_SUMMARY", "FACULTY_SECTION_RANKING_DEPTH", "FACULTY_DATA_SUFFICIENCY"},
     }
 
     keep = keep_map.get(code)
@@ -439,6 +443,7 @@ def generate_faculty_role_insights(
     rows: List[Dict],
     summary_metrics: Optional[List[Dict]] = None,
     report_code: Optional[str] = None,
+    faculty_metrics: Optional[Dict] = None,
 ) -> List[Dict]:
     summary_metrics = summary_metrics or []
     total_rows = len(rows)
@@ -446,7 +451,18 @@ def generate_faculty_role_insights(
     risk_rate = _row_status_rate(rows, ["risk", "warning", "inconsistent", "no return", "overcrowd"])
     positive_rate = _row_status_rate(rows, ["good", "excellent", "present", "active", "on time"])
 
-    confidence = "HIGH" if total_rows >= 40 else ("MEDIUM" if total_rows >= 15 else "LOW")
+    # Use computed metrics for confidence when available
+    if faculty_metrics:
+        session_count = faculty_metrics.get("session_count_for_confidence", total_rows)
+        completeness = faculty_metrics.get("data_completeness_score", 0.0)
+        if session_count >= 20 and completeness >= 95:
+            confidence = "HIGH"
+        elif session_count >= 8 and completeness >= 85:
+            confidence = "MEDIUM"
+        else:
+            confidence = "LOW"
+    else:
+        confidence = "HIGH" if total_rows >= 40 else ("MEDIUM" if total_rows >= 15 else "LOW")
     confidence_msg = _confidence_reason(confidence, None, total_rows)
 
     insights: List[Dict] = [
@@ -524,7 +540,161 @@ def generate_faculty_role_insights(
         ),
     ]
 
-    return _select_faculty_insights_for_report(insights, report_code)
+    scored_rows = []
+    for row in rows:
+        score_value = row.get("score_numeric")
+        if score_value is None:
+            continue
+        try:
+            numeric_score = float(score_value)
+        except (TypeError, ValueError):
+            continue
+
+        section_name = str(row.get("section") or "UNASSIGNED").strip() or "UNASSIGNED"
+        student_name = str(row.get("student_name") or row.get("col1") or "Unknown Student").strip() or "Unknown Student"
+        scored_rows.append(
+            {
+                "student_name": student_name,
+                "section": section_name,
+                "score": numeric_score,
+                "rank_overall": row.get("rank_overall"),
+                "rank_in_section": row.get("rank_in_section"),
+            }
+        )
+
+    if scored_rows:
+        section_totals: Dict[str, Dict[str, float]] = {}
+        for item in scored_rows:
+            bucket = section_totals.setdefault(item["section"], {"sum": 0.0, "count": 0})
+            bucket["sum"] += item["score"]
+            bucket["count"] += 1
+
+        section_rows = []
+        for section_name, values in section_totals.items():
+            avg_score = round(values["sum"] / max(values["count"], 1), 1)
+            section_rows.append(
+                {
+                    "section": section_name,
+                    "avg_score": avg_score,
+                    "count": int(values["count"]),
+                }
+            )
+
+        section_rows.sort(key=lambda item: item["avg_score"], reverse=True)
+
+        previous_avg = None
+        dense_rank = 0
+        tied_sections = 0
+        for item in section_rows:
+            if previous_avg is None or item["avg_score"] != previous_avg:
+                dense_rank += 1
+            else:
+                tied_sections += 1
+            item["dense_rank"] = dense_rank
+            previous_avg = item["avg_score"]
+
+        top_section = section_rows[0]
+        low_section = section_rows[-1]
+        gap = round(top_section["avg_score"] - low_section["avg_score"], 1)
+
+        insights.append(
+            _make_insight(
+                "FACULTY_SECTION_COMPARISON",
+                "Section Comparison and Ranking",
+                (
+                    f"Section comparison shows {len(section_rows)} section groups with dense ranking applied for tie handling. "
+                    f"Top section is {top_section['section']} ({top_section['avg_score']:.1f}) and lowest is {low_section['section']} ({low_section['avg_score']:.1f}), "
+                    f"with a spread of {gap:.1f} points{'; ties detected across section ranks' if tied_sections > 0 else ''}."
+                ),
+                {
+                    "section_count": len(section_rows),
+                    "top_section": top_section,
+                    "lowest_section": low_section,
+                    "score_gap": gap,
+                    "tied_section_ranks": tied_sections,
+                },
+                "Use this to prioritize section-level coaching and identify where support should be concentrated first.",
+                confidence,
+                confidence_msg,
+            )
+        )
+
+        scored_rows.sort(key=lambda item: item["score"], reverse=True)
+        top_students = scored_rows[:3]
+        if top_students:
+            tied_top = sum(1 for student in scored_rows if student["score"] == top_students[0]["score"]) - 1
+            top_student_labels = [
+                f"{student['student_name']} ({student['section']}) {student['score']:.1f}"
+                for student in top_students
+            ]
+            insights.append(
+                _make_insight(
+                    "FACULTY_STUDENT_RANKING_SUMMARY",
+                    "Student Ranking Snapshot",
+                    (
+                        f"Top-ranked students by score are {', '.join(top_student_labels)}. "
+                        f"Ranking uses dense tie rules so students with equal scores share the same rank{'; tie at the top is present' if tied_top > 0 else ''}."
+                    ),
+                    {
+                        "top_students": top_students,
+                        "top_rank_tie_count": max(tied_top, 0),
+                        "scored_student_count": len(scored_rows),
+                    },
+                    "Use this as a high-level rank board, then validate with section-level ranking details for fairness and intervention planning.",
+                    confidence,
+                    confidence_msg,
+                )
+            )
+
+        section_top_samples = []
+        for section_name in sorted(section_totals.keys()):
+            section_students = [student for student in scored_rows if student["section"] == section_name]
+            section_students.sort(key=lambda item: item["score"], reverse=True)
+            if not section_students:
+                continue
+            top_score = section_students[0]["score"]
+            tied_students = [student for student in section_students if student["score"] == top_score]
+            section_top_samples.append(
+                {
+                    "section": section_name,
+                    "top_score": top_score,
+                    "top_students": [student["student_name"] for student in tied_students],
+                    "student_count": len(section_students),
+                }
+            )
+
+        if section_top_samples:
+            summarized_sections = ", ".join(
+                [
+                    f"{sample['section']}: {sample['top_students'][0]} ({sample['top_score']:.1f})"
+                    for sample in section_top_samples[:3]
+                ]
+            )
+            tie_sections = sum(1 for sample in section_top_samples if len(sample["top_students"]) > 1)
+            insights.append(
+                _make_insight(
+                    "FACULTY_SECTION_RANKING_DEPTH",
+                    "Within-Section Student Ranking",
+                    (
+                        f"Within-section ranking leaders include {summarized_sections}. "
+                        f"Dense ranking keeps ties at equal rank and {'multiple sections currently show tied top students' if tie_sections > 0 else 'current top positions are mostly distinct'}."
+                    ),
+                    {
+                        "section_top_samples": section_top_samples,
+                        "sections_with_top_ties": tie_sections,
+                    },
+                    "Use this to compare students inside each section before applying cross-section interventions.",
+                    confidence,
+                    confidence_msg,
+                )
+            )
+
+    # Filter to only medium-high confidence insights
+    filtered_insights = [
+        ins for ins in _select_faculty_insights_for_report(insights, report_code)
+        if ins.get("confidence", "LOW") in ("HIGH", "MEDIUM")
+    ]
+    return filtered_insights
 
 
 def generate_department_role_insights(

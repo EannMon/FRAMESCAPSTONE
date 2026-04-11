@@ -48,6 +48,41 @@
     font-size: 0.9rem;
 }
 
+/* --- Tab Navigation --- */
+.faculty-reports-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.faculty-reports-tab {
+    padding: 12px 28px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    margin-bottom: -2px;
+}
+
+.faculty-reports-tab:hover {
+    color: #163269;
+    background: #f8fafe;
+}
+
+.faculty-reports-tab.active {
+    color: #163269;
+    border-bottom-color: #163269;
+    background: #f0f4ff;
+    border-radius: 8px 8px 0 0;
+}
+
 .reports-header-section {
     background: #ffffff;
     border-radius: 12px;

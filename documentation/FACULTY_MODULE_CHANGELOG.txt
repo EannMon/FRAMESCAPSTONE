@@ -1,0 +1,357 @@
+================================================================================
+FACULTY MODULE REPORTS & DASHBOARD — COMPREHENSIVE CHANGE LOG
+================================================================================
+Date: April 2026
+Purpose: Foundation for class-specific reports adopted by the Department Head module.
+
+TABLE OF CONTENTS
+-----------------
+1. Backend: 500 Error Fix (joinedload)
+2. Backend: Faculty Core Metrics Engine
+3. Backend: Faculty Report Envelope Update
+4. Backend: Medium-High Confidence Insight Filter
+5. Backend: Real Average Attendance Computation (Dashboard)
+6. Backend: Faculty Metrics & Semester Window (Dashboard API)
+7. Frontend: Faculty Reports Page — Tab Restructure
+8. Frontend: Faculty Dashboard — Semester-Aware Trends + Session Breakdown
+9. Architecture Notes for Department Head Module Adoption
+
+
+================================================================================
+1. BACKEND: 500 ERROR FIX (joinedload)
+================================================================================
+File: backend/services/report_service.py
+Functions: _personal_attendance_report(), _instructor_delay_report()
+
+ROOT CAUSE:
+  Both functions call _build_student_rows() which accesses cls.faculty
+  (the Class.faculty relationship) to display faculty names. However,
+  the SQLAlchemy query only had joinedload(Class.subject), causing a
+  lazy-load attempt on an expired session = 500 Internal Server Error.
+
+FIX:
+  Added joinedload(AttendanceLog.class_).joinedload(Class.faculty) to:
+  - _personal_attendance_report() query (~line 1525)
+  - _instructor_delay_report() query (~line 1640)
+
+PATTERN FOR DEPT HEAD MODULE:
+  Any report handler that uses _build_student_rows() MUST eager-load
+  both Class.subject AND Class.faculty. The dept module should follow
+  this same pattern when accessing cross-faculty reports.
+
+
+================================================================================
+2. BACKEND: FACULTY CORE METRICS ENGINE
+================================================================================
+File: backend/services/report_metric_service.py
+Added functions (appended after line 667):
+
+  _resolve_faculty_class_ids(db, user_id, class_id=None)
+      Returns list of class IDs taught by the faculty member.
+      If class_id is provided: returns [class_id] if faculty owns it.
+      If class_id is None: returns ALL class IDs for Classes with
+      faculty_id == user_id.
+
+  compute_faculty_core_metrics(db, user_id, date_from, date_to, class_id=None)
+      Full attendance computation for a faculty member.
+      Returns dict with 20+ fields:
+        sessions_attended, sessions_conducted, sessions_expected,
+        on_time_entries, late_entries, punctuality_rate,
+        real_time_attendance_rate, semester_progress_attendance_rate,
+        early_exits, break_count, avg_break_minutes,
+        total_break_minutes, consistency_index, data_completeness_score,
+        session_count_for_confidence
+
+      Logic mirrors student metrics but scoped to faculty:
+      - Queries AttendanceLog where user_id = faculty AND class_id in taught classes
+      - ENTRY action = attendance, is_late flag = late detection
+      - Pairs BREAK_OUT/BREAK_IN for break duration computation
+      - Uses _compute_expected_sessions() with SessionException exclusions
+        (CANCELLED/HOLIDAY excluded, ONLINE excluded, ONSITE forced valid)
+      - consistency_index = real_time_attendance_rate * 0.7 + punctuality_rate * 0.3
+
+  compute_faculty_session_count_reference(db, user_id, date_from, date_to, ...)
+      Returns {"report_window": {...}, "whole_semester": {...}} where each has
+      attended, conducted, expected counts.
+      Uses department semester dates when available.
+      Calls _compute_counts_for_range() (shared student helper).
+
+  build_faculty_summary_metrics(metrics, date_from, date_to, class_id=None)
+      Builds 4 metric cards from computed metrics:
+        1. real_time_attendance_rate — Numerator: sessions_attended / Denominator: sessions_conducted
+        2. semester_progress_attendance_rate — Numerator: sessions_attended / Denominator: sessions_expected
+        3. punctuality_rate — Numerator: on_time_entries / Denominator: sessions_attended
+        4. consistency_index — Formula: 0.7 * attendance_rate + 0.3 * punctuality_rate
+      Each card includes: metric_name, value, formula, explanation,
+      confidence (via compute_confidence_label), numerator, denominator, data_window
+
+CONFIDENCE SCORING:
+  compute_confidence_label(session_count, data_completeness_score):
+    HIGH: session_count >= 20 AND completeness >= 0.95
+    MEDIUM: session_count >= 8 AND completeness >= 0.85
+    LOW: anything below
+
+PATTERN FOR DEPT HEAD MODULE:
+  The dept head module can call compute_faculty_core_metrics() for any
+  faculty member under their department. The function accepts user_id +
+  date range + optional class_id filter. Department-level aggregation
+  should loop over department faculty and aggregate metrics.
+
+
+================================================================================
+3. BACKEND: FACULTY REPORT ENVELOPE UPDATE
+================================================================================
+File: backend/services/report_service.py
+Function: get_faculty_report_envelope()
+
+CHANGES:
+  - Added imports: compute_faculty_core_metrics, build_faculty_summary_metrics,
+    compute_faculty_session_count_reference, compute_confidence_label
+  - Added FACULTY_PERSONAL_REPORT_ALIASES set to detect personal reports:
+    {"PERSONAL_DAILY", "PERSONAL_WEEKLY", "PERSONAL_MONTHLY",
+     "PERSONAL_SEMESTER", "PERSONAL_CONSISTENCY", "INSTRUCTOR_DELAY",
+     "BREAK_LOG", "ABSENT_LOG"}
+  - When report_type is in FACULTY_PERSONAL_REPORTS or FACULTY_PERSONAL_REPORT_ALIASES:
+    1. Calls compute_faculty_core_metrics() for the faculty user
+    2. Calls build_faculty_summary_metrics() to produce 4 metric cards
+    3. Calls compute_faculty_session_count_reference() for session counts
+    4. Passes faculty_metrics to generate_faculty_role_insights()
+  - Falls back to old _build_summary_metrics_from_rows() on error
+
+ENVELOPE STRUCTURE:
+  {
+    "success": true,
+    "meta": {...},
+    "summary_metrics": [4 metric card objects],
+    "insights": [medium-high confidence insight objects],
+    "session_count_reference": {"report_window": {...}, "whole_semester": {...}},
+    "visual_rows": [...],
+    "rows": [...]
+  }
+
+PATTERN FOR DEPT HEAD MODULE:
+  The dept head envelope should follow the same structure. It can reuse
+  compute_faculty_core_metrics() per-faculty and aggregate. The dispatch
+  dictionary pattern (FACULTY_CLASS_REPORTS, FACULTY_PERSONAL_REPORTS)
+  should be mirrored for DEPT_REPORTS with department-scoped queries.
+
+
+================================================================================
+4. BACKEND: MEDIUM-HIGH CONFIDENCE INSIGHT FILTER
+================================================================================
+File: backend/services/role_based_analytics_service.py
+Function: generate_faculty_role_insights()
+
+CHANGES:
+  - Added parameter: faculty_metrics: Optional[Dict] = None
+  - When faculty_metrics is provided, computes confidence per insight:
+      session_count = faculty_metrics.get("session_count_for_confidence", 0)
+      completeness = faculty_metrics.get("data_completeness_score", 0)
+      Thresholds: HIGH (>=20 sessions + >=0.95 complete),
+                  MEDIUM (>=8 sessions + >=0.85 complete), else LOW
+  - Filter at return: only insights with confidence in ("HIGH", "MEDIUM")
+  - When faculty_metrics not provided: defaults to LOW confidence (filtered out)
+
+INSIGHT TYPES GENERATED:
+  FACULTY_PARTICIPATION_DISTRIBUTION, FACULTY_PUNCTUALITY_CLUSTER,
+  FACULTY_ANOMALY_RISK_CLUSTER, FACULTY_ENGAGEMENT_COMPLETION,
+  FACULTY_RISK_CONCENTRATION_SIGNAL, FACULTY_DATA_SUFFICIENCY,
+  FACULTY_SECTION_COMPARISON, FACULTY_STUDENT_RANKING_SUMMARY,
+  FACULTY_SECTION_RANKING_DEPTH
+
+PATTERN FOR DEPT HEAD MODULE:
+  Department insights should use generate_department_role_insights() and
+  apply the same confidence filter. Pass aggregated department metrics
+  for proper confidence scoring.
+
+
+================================================================================
+5. BACKEND: REAL AVERAGE ATTENDANCE COMPUTATION (DASHBOARD)
+================================================================================
+File: backend/api/routers/faculty.py
+Function: get_faculty_dashboard_stats()
+
+CHANGE:
+  Replaced hardcoded `average_attendance = 85.0` with actual computation:
+  - Gets department semester dates (semester_start_date, semester_end_date)
+  - Falls back to 120 days ago if no semester dates
+  - Calls _compute_expected_sessions() from report_metric_service
+  - Counts distinct (class_id, date) ENTRY logs for the faculty user
+  - average_attendance = (attended / expected) * 100, rounded to 1 decimal
+
+DEPENDENCIES:
+  - _compute_expected_sessions from services.report_metric_service
+  - SessionException model for exception filtering
+
+
+================================================================================
+6. BACKEND: FACULTY METRICS & SEMESTER WINDOW (DASHBOARD API)
+================================================================================
+File: backend/api/routers/faculty.py
+
+CHANGES:
+  - Added fields to DashboardStats model:
+      faculty_metrics: Optional[dict] = None
+      semester_window: Optional[dict] = None
+
+  - Before returning DashboardStats, calls compute_faculty_core_metrics()
+    to get lightweight session breakdown data:
+      faculty_metrics = {
+        "sessions_attended": ...,
+        "total_sessions": ...,
+        "on_time_arrivals": ...,
+        "late_arrivals": ...,
+        "attendance_rate": ...,
+        "punctuality_rate": ...
+      }
+      semester_window = {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
+
+  - Wrapped in try/except to not break dashboard if metrics fail
+
+
+================================================================================
+7. FRONTEND: FACULTY REPORTS PAGE — TAB RESTRUCTURE
+================================================================================
+File: frontend/src/components/FacultyDashboard/FacultyReportsPage.jsx
+File: frontend/src/components/FacultyDashboard/FacultyReportsPage.css
+
+COMPLETE RESTRUCTURE:
+  Old: Single flat list of 20 report types, no distinction between personal/class.
+  New: Two-tab navigation — "Personal Records" (8 reports) and "Class Reports" (12 reports).
+
+TAB: PERSONAL RECORDS (8 reports)
+  1. DAILY_REPORT       -> maps to PERSONAL_DAILY
+  2. WEEKLY_SUMMARY     -> maps to PERSONAL_WEEKLY
+  3. MONTHLY_TRENDS     -> maps to PERSONAL_MONTHLY
+  4. SEM_REPORT         -> maps to PERSONAL_SEMESTER
+  5. LATE_REPORT        -> maps to INSTRUCTOR_DELAY
+  6. BREAK_LOG          -> maps to BREAK_LOG (alias, filtered BREAK_OUT/BREAK_IN)
+  7. ABSENT_LOG         -> maps to ABSENT_LOG (alias, filtered ABSENT)
+  8. CONSISTENCY        -> maps to PERSONAL_CONSISTENCY
+
+TAB: CLASS REPORTS (12 reports)
+  1. CLASS_DAILY                12. PARTICIPATION_INSIGHT
+  2. CLASS_WEEKLY               (sent as-is to backend)
+  3. CLASS_MONTHLY
+  4. CLASS_SEMESTER
+  5. CLASS_ABSENCE
+  6. CLASS_LATE
+  7. PUNCTUALITY_INDEX
+  8. BREAK_DURATION
+  9. UNRECOGNIZED_LOGS
+  10. EARLY_EXITS
+  11. ATTENDANCE_INCONSISTENCY
+
+KEY BEHAVIORS:
+  - Tab switch resets to first report of new tab, clears data
+  - Personal tab: WEEKLY_SUMMARY hides class filter (not filterable by subject)
+  - Class tab: Requires class selection (shows error if none selected)
+  - Auto-fetch triggers on filter change (date, week, month, semester, class)
+  - Report type mapping via PERSONAL_REPORT_TO_FACULTY_REPORT dictionary
+  - Column headers differ by tab (Personal: Date/Subject/Room vs Class: StudentID/Name/Section)
+  - useRef for report cache
+
+MODALS:
+  - Metric Detail Modal: Shows value, formula, explanation, confidence,
+    numerator, denominator, data_window
+  - Insights Modal: Shows title, narrative, confidence badge (green HIGH / orange MEDIUM)
+    Empty state: "No medium or high confidence insights available for this window."
+  - Report Generation Modal: PDF/CSV export with enrichment data
+
+CSS ADDITIONS:
+  .faculty-reports-tabs — flex layout, border-bottom nav, gap: 0, margin-bottom: 20px
+  .faculty-reports-tab — padding 12px 28px, border-bottom highlight on active,
+    active: navy #163269, background #f0f4ff, rounded top corners
+
+PATTERN FOR DEPT HEAD MODULE:
+  Follow the same tab pattern. Dept head would have:
+  - "Department Overview" tab (aggregated across all faculty)
+  - "Faculty Reports" tab (per-faculty drill-down)
+  - "Class Reports" tab (per-class drill-down)
+  Reuse the same column configs, filter logic, and modal components.
+
+
+================================================================================
+8. FRONTEND: FACULTY DASHBOARD — SEMESTER-AWARE TRENDS + SESSION BREAKDOWN
+================================================================================
+File: frontend/src/components/FacultyDashboard/FacultyDashboardPage.jsx
+File: frontend/src/components/FacultyDashboard/FacultyDashboardPage.css
+
+CHANGES:
+  1. Added SessionBreakdown component (BreakdownBar + SessionBreakdown)
+     - Two progress bars: "Sessions Attended" (green) and "On-Time Arrivals" (blue)
+     - Shows X / Y counts with sub-labels ("3 missed", "All on time", etc)
+     - Animated fill with linear-gradient
+
+  2. Made AttendanceTrendChart semester-aware:
+     - Accepts semesterWindow prop {start, end}
+     - Weekly: skips days before semester start, uses effective end
+     - Semestral: only shows months within semester range (startMonth to endMonth)
+     - Monthly: uses effectiveEnd for current month computation
+     - Added period label display below insight text
+
+  3. Added state: facultyMetrics, semesterWindow
+     - Extracted from dashboard-stats API response
+
+  4. Updated ribbon stats:
+     - "Avg Attendance" now uses facultyMetrics.attendance_rate (computed, not hardcoded)
+     - Added "Punctuality" stat with tier coloring (>=90% green, else orange)
+
+  5. Layout: SessionBreakdown added to fd-bottom-grid before RecentActivity
+
+CSS ADDITIONS:
+  .fd-metrics-card — grid-column: 1 / -1
+  .fd-bars-container — flex column, gap 18px
+  .fd-bar-track — 26px height, #f1f5f9 background, rounded
+  .fd-bar-fill — gradient fill, animated width transition
+  .fd-bar-pct / .fd-bar-pct-outside — percentage label positioning
+
+
+================================================================================
+9. ARCHITECTURE NOTES FOR DEPARTMENT HEAD MODULE ADOPTION
+================================================================================
+
+REPORT ENVELOPE PATTERN:
+  All roles (student, faculty, dept head) should return the same envelope:
+  {success, meta, summary_metrics, insights, session_count_reference, visual_rows, rows}
+
+METRICS REUSE:
+  - Student: compute_student_core_metrics() (exists)
+  - Faculty: compute_faculty_core_metrics() (new)
+  - Dept Head: Should aggregate faculty metrics across department
+
+INSIGHTS REUSE:
+  - Student: generate_student_role_insights() (exists)
+  - Faculty: generate_faculty_role_insights() (updated with confidence)
+  - Dept Head: generate_department_role_insights() (exists, needs confidence filter)
+
+CONFIDENCE PATTERN:
+  All insights should go through confidence scoring before display.
+  Minimum display threshold: MEDIUM.
+  Pass computed metrics to insight generators for proper confidence.
+
+REPORT TYPE DISPATCH:
+  Each role has a dispatch dictionary mapping report_type strings to handler functions.
+  Dept head reports should be defined in DEPT_REPORTS dict following the same pattern.
+
+FRONTEND TAB PATTERN:
+  - Define report arrays at module level (const REPORTS = [...])
+  - Tab state controls which array is active
+  - resolveFacultyReportType() maps frontend IDs to backend codes
+  - Column configs are tab-aware: getColumnConfig(reportType, tab)
+  - Auto-fetch on filter change via useEffect dependency array
+
+SESSION COUNT REFERENCE:
+  Shows users how many sessions were attended vs conducted vs expected.
+  Split into "Report Window" (date range of current report) and "Whole Semester".
+  Dept head should show department-aggregated counts.
+
+FILES MODIFIED (SUMMARY):
+  backend/services/report_service.py      — joinedload fix, envelope update
+  backend/services/report_metric_service.py — faculty metrics engine (+300 lines)
+  backend/services/role_based_analytics_service.py — confidence filter
+  backend/api/routers/faculty.py          — real avg attendance, dashboard metrics
+  frontend/.../FacultyReportsPage.jsx     — tab restructure
+  frontend/.../FacultyReportsPage.css     — tab styles
+  frontend/.../FacultyDashboardPage.jsx   — breakdown + semester-aware chart
+  frontend/.../FacultyDashboardPage.css   — breakdown bar styles

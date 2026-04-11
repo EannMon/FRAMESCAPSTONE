@@ -62,6 +62,8 @@ class DashboardStats(BaseModel):
     total_teaching_students: Optional[int] = None
     all_logs: Optional[list] = None
     recent_attendance: Optional[list] = None
+    faculty_metrics: Optional[dict] = None
+    semester_window: Optional[dict] = None
 
 
 class SubjectCreate(BaseModel):
@@ -218,8 +220,53 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
         Enrollment.class_id.in_(class_ids)
     ).distinct(Enrollment.student_id).count() if class_ids else 0
     
-    # Average attendance (simplified calculation)
-    average_attendance = 85.0  # TODO: Calculate from actual logs
+    # Average attendance — compute from actual ENTRY logs vs expected sessions
+    from datetime import timedelta
+    average_attendance = 0.0
+    if class_ids:
+        from services.report_metric_service import _compute_expected_sessions
+        now_dt = datetime.now()
+        taught_classes = db.query(Class).filter(Class.id.in_(class_ids)).all()
+        semester_start = None
+        semester_end = None
+        if user.department_id:
+            dept = db.query(Department).filter(Department.id == user.department_id).first()
+            if dept:
+                semester_start = getattr(dept, 'semester_start_date', None)
+                semester_end = getattr(dept, 'semester_end_date', None)
+        if not semester_start:
+            semester_start = (now_dt - timedelta(days=120)).date()
+        if not semester_end:
+            semester_end = now_dt.date()
+        if isinstance(semester_start, str):
+            semester_start = datetime.strptime(semester_start, "%Y-%m-%d").date()
+        if isinstance(semester_end, str):
+            semester_end = datetime.strptime(semester_end, "%Y-%m-%d").date()
+
+        exceptions = db.query(SessionException).filter(
+            SessionException.class_id.in_(class_ids),
+            SessionException.session_date >= semester_start,
+            SessionException.session_date <= semester_end,
+        ).all()
+        expected_sessions = _compute_expected_sessions(taught_classes, exceptions, semester_start, min(semester_end, now_dt.date()))
+
+        # Count distinct (class_id, date) ENTRY logs for this faculty
+        attended_sessions = 0
+        if expected_sessions > 0:
+            attended_sessions = (
+                db.query(
+                    func.count(func.distinct(func.concat(AttendanceLog.class_id, '-', func.date(AttendanceLog.timestamp))))
+                )
+                .filter(
+                    AttendanceLog.user_id == user_id,
+                    AttendanceLog.class_id.in_(class_ids),
+                    AttendanceLog.action == AttendanceAction.ENTRY,
+                    AttendanceLog.timestamp >= datetime.combine(semester_start, datetime.min.time()),
+                    AttendanceLog.timestamp <= datetime.combine(min(semester_end, now_dt.date()), datetime.max.time()),
+                )
+                .scalar() or 0
+            )
+            average_attendance = round((attended_sessions / expected_sessions) * 100, 1) if expected_sessions > 0 else 0.0
 
     default_total_students = total_teaching_students
     
@@ -294,7 +341,35 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
                 "time": log.timestamp.strftime("%I:%M %p"),
                 "is_late": log.is_late
             })
-    
+
+    # Build lightweight faculty metrics for session breakdown panel
+    faculty_metrics_data = None
+    semester_window_data = None
+    try:
+        from services.report_metric_service import compute_faculty_core_metrics
+        dept = db.query(Department).filter(Department.id == user.department_id).first() if user.department_id else None
+        sem_start = getattr(dept, 'semester_start_date', None) if dept else None
+        sem_end = getattr(dept, 'semester_end_date', None) if dept else None
+
+        if sem_start and sem_end:
+            semester_window_data = {"start": str(sem_start), "end": str(sem_end)}
+            # Convert date objects to datetime for compute_faculty_core_metrics
+            from datetime import time as dt_time
+            d_from = datetime.combine(sem_start, dt_time.min)
+            d_to = datetime.combine(sem_end, dt_time(23, 59, 59))
+            core = compute_faculty_core_metrics(db, user_id, d_from, d_to)
+            faculty_metrics_data = {
+                "sessions_attended": core.get("sessions_attended", 0),
+                "total_sessions": core.get("expected_sessions", 0),
+                "on_time_arrivals": core.get("on_time_entries", 0),
+                "late_arrivals": core.get("late_entries", 0),
+                "attendance_rate": core.get("real_time_attendance_rate", 0),
+                "punctuality_rate": core.get("punctuality_rate", 0),
+                "consistency_index": core.get("consistency_index", 0),
+            }
+    except Exception as e:
+        logger.warning("Failed to compute faculty dashboard metrics: %s", e)
+
     return DashboardStats(
         total_classes=total_classes,
         total_students=default_total_students,
@@ -303,7 +378,9 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
         total_faculty=total_faculty,
         total_teaching_students=total_teaching_students,
         all_logs=all_logs_formatted,
-        recent_attendance=recent_attendance_formatted
+        recent_attendance=recent_attendance_formatted,
+        faculty_metrics=faculty_metrics_data,
+        semester_window=semester_window_data,
     )
 
 

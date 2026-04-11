@@ -39,8 +39,51 @@ const FacultyStatItem = ({ title, value, subValue, subValueColor }) => (
     </div>
 );
 
+// --- SESSION BREAKDOWN BARS ---
+const BreakdownBar = ({ label, current, total, color, subLabel }) => {
+    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    return (
+        <div className="fd-bar-metric">
+            <div className="fd-bar-top">
+                <span className="fd-bar-label">{label}</span>
+                <div className="fd-bar-right">
+                    <span className="fd-bar-count">{current} / {total}</span>
+                    {subLabel && <span className="fd-bar-sub-tag">{subLabel}</span>}
+                </div>
+            </div>
+            <div className="fd-bar-track">
+                <div className="fd-bar-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})` }}>
+                    {pct > 8 && <span className="fd-bar-pct">{pct}%</span>}
+                </div>
+                {pct <= 8 && <span className="fd-bar-pct-outside" style={{ color }}>{pct}%</span>}
+            </div>
+        </div>
+    );
+};
+
+const SessionBreakdown = ({ metrics }) => {
+    if (!metrics) return null;
+    const attended = metrics.sessions_attended || 0;
+    const total = metrics.total_sessions || 0;
+    const missed = total - attended;
+    const onTime = metrics.on_time_arrivals || 0;
+    const late = metrics.late_arrivals || 0;
+
+    return (
+        <div className="fd-card fd-metrics-card">
+            <div className="fd-card-header">
+                <h3>Session Breakdown</h3>
+            </div>
+            <div className="fd-bars-container">
+                <BreakdownBar label="Sessions Attended" current={attended} total={total} color="#00A859" subLabel={missed > 0 ? `${missed} missed` : 'Perfect'} />
+                <BreakdownBar label="On-Time Arrivals" current={onTime} total={attended} color="#3b82f6" subLabel={late > 0 ? `${late} late` : 'All on time'} />
+            </div>
+        </div>
+    );
+};
+
 // --- SVG LINE CHART ---
-const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView }) => {
+const AttendanceTrendChart = ({ logs, filter, setFilter, semesterWindow }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [typeFilter, setTypeFilter] = useState('ALL');
 
@@ -48,12 +91,16 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
         const safeLogs = logs || [];
         const now = new Date();
         const dataPoints = [];
+        const semStart = semesterWindow?.start ? new Date(`${semesterWindow.start}T00:00:00`) : null;
+        const semEnd = semesterWindow?.end ? new Date(`${semesterWindow.end}T23:59:59`) : null;
+        const effectiveEnd = semEnd && now > semEnd ? semEnd : now;
 
         if (filter === 'weekly') {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             for (let i = 6; i >= 0; i--) {
-                const d = new Date(now);
+                const d = new Date(effectiveEnd);
                 d.setDate(d.getDate() - i);
+                if (semStart && d < semStart) continue;
                 const dayStr = days[d.getDay()];
                 const dateStr = d.toLocaleDateString();
                 const dayLogs = safeLogs.filter(l => new Date(l.timestamp).toLocaleDateString() === dateStr);
@@ -66,8 +113,8 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
                 });
             }
         } else if (filter === 'monthly') {
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
+            const currentMonth = effectiveEnd.getMonth();
+            const currentYear = effectiveEnd.getFullYear();
             const quarters = [
                 { label: 'Week 1', start: 1, end: 7 },
                 { label: 'Week 2', start: 8, end: 14 },
@@ -89,11 +136,14 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
             });
         } else {
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const currentYear = now.getFullYear();
+            const startMonth = semStart ? semStart.getMonth() : 0;
+            const endMonth = semEnd ? semEnd.getMonth() : 11;
+            const yearForSemester = semStart ? semStart.getFullYear() : now.getFullYear();
             months.forEach((m, idx) => {
+                if (idx < startMonth || idx > endMonth) return;
                 const mLogs = safeLogs.filter(l => {
                     const d = new Date(l.timestamp);
-                    return d.getFullYear() === currentYear && d.getMonth() === idx;
+                    return d.getFullYear() === yearForSemester && d.getMonth() === idx;
                 });
                 dataPoints.push({
                     label: m,
@@ -106,16 +156,37 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
         }
 
         return dataPoints;
-    }, [logs, filter]);
+    }, [logs, filter, semesterWindow]);
 
-    const trendLabel = trendView === 'personal' ? 'Personal' : 'Classroom';
+    const trendLabel = 'Personal';
 
     const insightText = useMemo(() => {
         const total = chartData.reduce((acc, curr) => acc + curr.present, 0);
         if (filter === 'semestral') return `${trendLabel}: ${total} attendances this semester.`;
         if (filter === 'monthly') return `${trendLabel}: ${total} attendance records this month.`;
         return `${trendLabel}: Last 7 days — ${total} present records.`;
-    }, [chartData, filter, trendLabel]);
+    }, [chartData, filter]);
+
+    const periodLabel = useMemo(() => {
+        const now = new Date();
+        const semStart = semesterWindow?.start;
+        const semEnd = semesterWindow?.end;
+        if (filter === 'weekly') {
+            const end = semEnd ? new Date(`${semEnd}T23:59:59`) : now;
+            const effectiveEnd = now > end ? end : now;
+            const start = new Date(effectiveEnd);
+            start.setDate(start.getDate() - 6);
+            return `Period: ${start.toLocaleDateString()} – ${effectiveEnd.toLocaleDateString()}`;
+        }
+        if (filter === 'monthly') {
+            const end = semEnd ? new Date(`${semEnd}T23:59:59`) : now;
+            const effectiveEnd = now > end ? end : now;
+            const start = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
+            const monthEnd = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth() + 1, 0);
+            return `Period: ${start.toLocaleDateString()} – ${monthEnd.toLocaleDateString()}`;
+        }
+        return `Period: ${semStart || 'N/A'} – ${semEnd || 'N/A'}`;
+    }, [filter, semesterWindow]);
 
     const height = 300;
     const width = 800;
@@ -141,14 +212,6 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
             <div className="fd-card-header">
                 <h3>Attendance Trends</h3>
                 <div className="fd-chart-controls">
-                    <select
-                        value={trendView}
-                        onChange={(e) => setTrendView(e.target.value)}
-                        className="fd-select"
-                    >
-                        <option value="personal">Personal</option>
-                        <option value="classroom">Classroom</option>
-                    </select>
                     <div className="fd-pill-group">
                         {['weekly', 'monthly', 'semestral'].map(t => (
                             <button key={t} className={`fd-pill ${filter === t ? 'active' : ''}`} onClick={() => setFilter(t)}>
@@ -248,6 +311,7 @@ const AttendanceTrendChart = ({ logs, filter, setFilter, trendView, setTrendView
 
             <div className="fd-chart-footer">
                 <div className="fd-chart-insight">{insightText}</div>
+                <div className="fd-chart-period" style={{ fontSize: '0.8em', color: '#64748b', textAlign: 'center', marginTop: '2px' }}>{periodLabel}</div>
                 <div className="fd-chart-legends">
                     <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.present }}></span> Present</div>
                     <div className="fd-legend-item"><span className="fd-legend-dot" style={{ background: colors.late }}></span> Late</div>
@@ -512,7 +576,8 @@ const FacultyDashboardPage = () => {
     const [personalStatus, setPersonalStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [chartFilter, setChartFilter] = useState('weekly');
-    const [trendView, setTrendView] = useState('classroom');
+    const [facultyMetrics, setFacultyMetrics] = useState(null);
+    const [semesterWindow, setSemesterWindow] = useState(null);
 
     const user = useMemo(() => {
         const stored = localStorage.getItem('currentUser');
@@ -549,6 +614,8 @@ const FacultyDashboardPage = () => {
                 ]);
                 setStats(statsRes.data);
                 setSchedule(schedRes.data || []);
+                if (statsRes.data?.faculty_metrics) setFacultyMetrics(statsRes.data.faculty_metrics);
+                if (statsRes.data?.semester_window) setSemesterWindow(statsRes.data.semester_window);
             } catch (err) {
                 if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                     console.error('Dashboard fetch error:', err);
@@ -620,9 +687,16 @@ const FacultyDashboardPage = () => {
                     <div className="fd-ribbon-divider"></div>
                     <FacultyStatItem
                         title="Avg Attendance"
-                        value={`${stats?.average_attendance ?? 0}%`}
-                        subValue={stats?.average_attendance >= 80 ? '↑ Good' : stats?.average_attendance > 0 ? '↓ Needs Improvement' : 'No Data'}
-                        subValueColor={stats?.average_attendance >= 80 ? '#00A859' : '#ef4444'}
+                        value={`${facultyMetrics?.attendance_rate ?? stats?.average_attendance ?? 0}%`}
+                        subValue={(facultyMetrics?.attendance_rate ?? stats?.average_attendance ?? 0) >= 80 ? '↑ Good' : (facultyMetrics?.attendance_rate ?? stats?.average_attendance ?? 0) > 0 ? '↓ Needs Improvement' : 'No Data'}
+                        subValueColor={(facultyMetrics?.attendance_rate ?? stats?.average_attendance ?? 0) >= 80 ? '#00A859' : '#ef4444'}
+                    />
+                    <div className="fd-ribbon-divider"></div>
+                    <FacultyStatItem
+                        title="Punctuality"
+                        value={facultyMetrics ? `${facultyMetrics.punctuality_rate}%` : '--'}
+                        subValue={facultyMetrics?.punctuality_rate >= 90 ? '↑ On Time' : facultyMetrics?.punctuality_rate > 0 ? '↓ Late Entries' : 'No Data'}
+                        subValueColor={facultyMetrics?.punctuality_rate >= 90 ? '#00A859' : '#e65100'}
                     />
                     <div className="fd-ribbon-divider"></div>
                     <FacultyStatItem
@@ -641,17 +715,17 @@ const FacultyDashboardPage = () => {
 
             {/* ===== MAIN CONTENT ===== */}
             <div className="fd-main-grid">
-                <LiveRoomStatus rooms={liveRooms} personalStatus={personalStatus} />
                 <AttendanceTrendChart
                     logs={stats?.all_logs || []}
                     filter={chartFilter}
                     setFilter={setChartFilter}
-                    trendView={trendView}
-                    setTrendView={setTrendView}
+                    semesterWindow={semesterWindow}
                 />
+                <LiveRoomStatus rooms={liveRooms} personalStatus={personalStatus} />
             </div>
 
             <div className="fd-bottom-grid">
+                <SessionBreakdown metrics={facultyMetrics} />
                 <RecentActivity activities={stats?.recent_attendance || []} />
                 <QuickActions navigate={navigate} />
             </div>
