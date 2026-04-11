@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import '../FacultyDashboard/FacultyReportsPage.css';
 import './DeptHeadReportsPage.css'; // Will create this or ensure it exists
-import FacultyReportModal from '../FacultyDashboard/FacultyReportModal';
+import DeptHeadReportModal from './DeptHeadReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
 
 const LogStatusTag = ({ text, isPresent, type }) => {
@@ -397,7 +397,7 @@ const DeptHeadReportsPage = () => {
             setDateFrom(localFrom);
             setDateTo(localTo);
 
-            if (report.type === 'CLASS' || report.type === 'PERSONAL') {
+            if (selectedReport.type === 'CLASS' || selectedReport.type === 'PERSONAL') {
                 // Use the faculty reports endpoint for class-specific & personal reports
                 if (!user?.id) {
                     setLoading(false);
@@ -1220,13 +1220,13 @@ const DeptHeadReportsPage = () => {
             )}
 
             {modalOpen && (
-                <FacultyReportModal 
+                <DeptHeadReportModal 
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)} 
                     onGenerate={handleGenerateReport}
                     reportTitle={selectedReport?.label}
-                    scope={selectedReport?.type === 'CLASS' ? 'Class Specific' : selectedReport?.type === 'PERSONAL' ? 'Personal' : 'Department Wide'}
-                    dateRange={`${dateFrom} to ${dateTo}`}
+                    scope={selectedClass || 'Dept-Wide'}
+                    dateRange={`${dateFrom || '---'} to ${dateTo || '---'}`}
                 />
             )}
         </div>

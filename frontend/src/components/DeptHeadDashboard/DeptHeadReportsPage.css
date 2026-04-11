@@ -9,10 +9,11 @@
     margin-bottom: 20px;
 }
 
+/* Report Selector Styling */
 .report-selector-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .report-selector-group label {
