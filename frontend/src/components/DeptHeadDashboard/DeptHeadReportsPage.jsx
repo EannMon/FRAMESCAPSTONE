@@ -26,12 +26,14 @@ const LogStatusTag = ({ text, isPresent, type }) => {
 // ============================================
 const reportOptions = [
     // --- Personal Records (own attendance as dept head) ---
-    { id: 'PERSONAL_DAILY', label: 'My Daily Attendance', desc: 'Your own attendance logs by day.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_WEEKLY', label: 'My Weekly Attendance', desc: 'Your own attendance logs by week.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_MONTHLY', label: 'My Monthly Attendance', desc: 'Your own attendance logs by month.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_SEMESTER', label: 'My Semester Summary', desc: 'Summary of your attendance across all classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'INSTRUCTOR_DELAY', label: 'My Late Arrivals', desc: 'Times you arrived late to classes.', type: 'PERSONAL', category: 'Personal Records' },
-    { id: 'PERSONAL_CONSISTENCY', label: 'My Consistency Index', desc: 'AI-computed consistency score from attendance and punctuality behavior.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'DAILY_REPORT', label: 'Daily Attendance', desc: 'Tracks attendance behavior for selected date and subjects, including absences for conducted sessions.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'WEEKLY_SUMMARY', label: 'Weekly Attendance Summary', desc: 'Summarizes attendance behavior across the selected weekly window.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'MONTHLY_TRENDS', label: 'Monthly Attendance Trends', desc: 'Shows monthly attendance and punctuality trend movement.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'SEM_REPORT', label: 'Semestral Report', desc: 'Provides cumulative data and can be filtered per taught subject or all taught subjects.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'LATE_REPORT', label: 'Personal Late Arrival Report', desc: 'Semestral view of your late arrivals across all taught subjects or a selected class.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'BREAK_LOG', label: 'Break Duration Log', desc: 'Semestral view of your break-out and break-in behavior across taught classes.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'ABSENT_LOG', label: 'Absent Logs', desc: 'Shows conducted sessions where you were marked absent in the selected period.', type: 'PERSONAL', category: 'Personal Records' },
+    { id: 'CONSISTENCY', label: 'Personal Consistency Index', desc: 'Explains your stability score, trend direction, and confidence for this report window.', type: 'PERSONAL', category: 'Personal Records' },
 
     // --- Class-Specific Reports ---
     { id: 'CLASS_DAILY', label: 'Class Daily Attendance', desc: 'Daily attendance entries for a specific class.', type: 'CLASS', category: 'Class-Specific Reports' },
@@ -167,16 +169,44 @@ const DeptHeadReportsPage = () => {
     const [sessionCountReference, setSessionCountReference] = useState(null);
 
     const [academicYear, setAcademicYear] = useState('');
+    const [academicYearLabel, setAcademicYearLabel] = useState('');
     const [selectedSemester, setSelectedSemester] = useState('1ST');
+    const [departmentSemesterWindow, setDepartmentSemesterWindow] = useState({ dateFrom: '', dateTo: '' });
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
     const [selectedWeekNumber, setSelectedWeekNumber] = useState(String(Math.floor((new Date().getDate() - 1) / 7) + 1));
+
+    const PERSONAL_REPORT_TO_FACULTY_REPORT = {
+        DAILY_REPORT: 'PERSONAL_DAILY',
+        WEEKLY_SUMMARY: 'PERSONAL_WEEKLY',
+        MONTHLY_TRENDS: 'PERSONAL_MONTHLY',
+        SEM_REPORT: 'PERSONAL_SEMESTER',
+        LATE_REPORT: 'INSTRUCTOR_DELAY',
+        BREAK_LOG: 'BREAK_LOG',
+        ABSENT_LOG: 'ABSENT_LOG',
+        CONSISTENCY: 'PERSONAL_CONSISTENCY',
+    };
+
+    const normalizeSemesterCode = (semesterValue) => {
+        const normalized = String(semesterValue || '').trim().toUpperCase();
+        if (normalized.includes('1ST') || normalized.includes('FIRST')) return '1ST';
+        if (normalized.includes('2ND') || normalized.includes('SECOND')) return '2ND';
+        if (normalized.includes('SUMMER')) return 'SUMMER';
+        return '1ST';
+    };
+
+    const resolveFacultyReportType = (reportId, reportCategory) => {
+        if (reportCategory !== 'PERSONAL') return reportId;
+        return PERSONAL_REPORT_TO_FACULTY_REPORT[reportId] || reportId;
+    };
 
     const getReportMode = (reportId) => {
         if (!reportId) return 'DAILY';
         if (reportId.includes('DAILY') || reportId === 'UNRECOGNIZED_LOGS') return 'DAILY';
         if (reportId.includes('WEEKLY')) return 'WEEKLY';
         if (reportId.includes('MONTHLY')) return 'MONTHLY';
+        if (reportId === 'WEEKLY_SUMMARY') return 'WEEKLY';
+        if (reportId === 'MONTHLY_TRENDS') return 'MONTHLY';
         return 'SEMESTRAL';
     };
 
@@ -215,12 +245,19 @@ const DeptHeadReportsPage = () => {
     };
 
     const getSemesterWindow = () => {
+        if (departmentSemesterWindow.dateFrom && departmentSemesterWindow.dateTo) {
+            return {
+                dateFrom: departmentSemesterWindow.dateFrom,
+                dateTo: departmentSemesterWindow.dateTo,
+            };
+        }
+
         const year = parseInt(academicYear, 10) || new Date().getFullYear();
         if (selectedSemester === '1ST') {
             return { dateFrom: `${year}-08-01`, dateTo: `${year}-12-31` };
         }
         if (selectedSemester === '2ND') {
-            return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-05-31` };
+            return { dateFrom: `${year + 1}-01-01`, dateTo: `${year + 1}-06-30` };
         }
         return { dateFrom: `${year + 1}-06-01`, dateTo: `${year + 1}-07-31` };
     };
@@ -280,12 +317,22 @@ const DeptHeadReportsPage = () => {
                 .then(res => {
                     if (res.data?.academic_year) {
                         const yearStr = String(res.data.academic_year);
+                        setAcademicYearLabel(yearStr);
                         const match = yearStr.match(/^\d{4}/);
                         if (match) setAcademicYear(match[0]);
                         else setAcademicYear(yearStr);
                     }
-                    if (res.data?.semester_start_date) setDateFrom(res.data.semester_start_date);
-                    if (res.data?.semester_end_date) setDateTo(res.data.semester_end_date);
+                    if (res.data?.semester) {
+                        setSelectedSemester(normalizeSemesterCode(res.data.semester));
+                    }
+                    if (res.data?.semester_start_date && res.data?.semester_end_date) {
+                        setDepartmentSemesterWindow({
+                            dateFrom: res.data.semester_start_date,
+                            dateTo: res.data.semester_end_date,
+                        });
+                        setDateFrom(res.data.semester_start_date);
+                        setDateTo(res.data.semester_end_date);
+                    }
                 }).catch((err) => {
                     if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
                         // silently ignore
@@ -315,14 +362,13 @@ const DeptHeadReportsPage = () => {
         setLoading(true);
         setError(null);
         try {
-            if (!selectedReport) return; 
-            setLoading(true);
-            setError(null);
-            
-            const mode = getReportMode(selectedReport.id);
-            const academic_year = academicYear;
-            const semester = selectedSemester;
-            const class_id = selectedClass;
+            const report = reportOptions.find((option) => option.id === reportId);
+            if (!report) {
+                setLoading(false);
+                return;
+            }
+
+            const mode = getReportMode(reportId);
             let localFrom = dateFrom;
             let localTo = dateTo;
 
@@ -360,36 +406,43 @@ const DeptHeadReportsPage = () => {
                 
                 // For CLASS reports, we must have a class_id
                 let targetId = null;
-                if (selectedReport.type === 'CLASS') {
+                if (report.type === 'CLASS' || report.type === 'PERSONAL') {
                     // Normalize the selected value or default to first class
-                    const rawValue = selectedClass || (classes.length > 0 ? (classes[0].class_id || classes[0].id) : null);
-                    if (!rawValue) {
+                    const rawValue = selectedClass || null;
+                    if (!rawValue && report.type === 'CLASS') {
                         setReportData([]);
                         setLoading(false);
                         return;
                     }
 
-                    const stringVal = String(rawValue);
-                    // Match against the classes list to get the numeric primary key
-                    const found = classes.find(c => 
-                        String(c.class_id) === stringVal || 
-                        String(c.id) === stringVal ||
-                        c.subject_code === stringVal ||
-                        `${c.subject_code} - ${c.section}` === stringVal ||
-                        stringVal.startsWith(c.subject_code)
-                    );
-                    
-                    targetId = found ? (found.class_id || found.id) : (parseInt(stringVal.split(' ')[0]) || null);
-                    
-                    if (!targetId) {
-                        console.error('Could not resolve class_id for:', stringVal);
+                    if (!rawValue) {
+                        targetId = null;
+                    } else {
+                        const stringVal = String(rawValue);
+                        // Match against the classes list to get the numeric primary key
+                        const found = classes.find(c => 
+                            String(c.class_id) === stringVal || 
+                            String(c.id) === stringVal ||
+                            c.subject_code === stringVal ||
+                            `${c.subject_code} - ${c.section}` === stringVal ||
+                            stringVal.startsWith(c.subject_code)
+                        );
+                        
+                        targetId = found ? (found.class_id || found.id) : (parseInt(stringVal.split(' ')[0], 10) || null);
+                    }
+
+                    if (!targetId && report.type === 'CLASS') {
+                        console.error('Could not resolve class_id for:', selectedClass);
                         setReportData([]);
                         setLoading(false);
                         return;
                     }
                 }
 
-                const params = { report_type: reportId, legacy: false };
+                const params = {
+                    report_type: resolveFacultyReportType(reportId, report.type),
+                    legacy: false,
+                };
                 if (targetId) params.class_id = targetId;
                 params.date_from = localFrom;
                 params.date_to = localTo;
@@ -849,7 +902,7 @@ const DeptHeadReportsPage = () => {
         <div className="faculty-reports-page">
             <div className="reports-header" style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '15px' }}>
                 <div className="academic-year-badge">
-                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYear || 'Not Set'}
+                    <i className="fas fa-calendar-alt"></i> A.Y. {academicYearLabel || (academicYear ? `${academicYear}-${Number(academicYear) + 1}` : 'Not Set')}
                 </div>
             </div>
 
@@ -878,19 +931,18 @@ const DeptHeadReportsPage = () => {
                     </div>
 
                     {/* Show Class selector for class-specific reports */}
-                    {selectedReport?.type === 'CLASS' && (
+                    {(selectedReport?.type === 'CLASS' || selectedReport?.type === 'PERSONAL') && (
                         <div className="report-selector-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Subject / Class:</label>
+                            <label style={{ display: 'block', fontWeight: '600', fontSize: '0.85rem', color: '#475569', marginBottom: '6px' }}>Filter Subject:</label>
                             <select 
                             value={selectedClass} 
                             onChange={e => {
-                                console.log("[Debug] User selected class dropdown value:", e.target.value);
                                 setSelectedClass(e.target.value);
                             }} 
                             className="app-select big-select" 
                             style={{ minWidth: '220px', padding: '10px', fontSize: '1rem', height: '42px', boxSizing: 'border-box' }}
                         >
-                            <option value="">Select a Class</option>
+                            <option value="">All Taught Subjects</option>
                             {classes.map((c, idx) => {
                                 const idToUse = c.class_id || c.id || "";
                                 return (
@@ -982,9 +1034,13 @@ const DeptHeadReportsPage = () => {
                                     onChange={e => setAcademicYear(e.target.value)}
                                     className="app-select big-select"
                                 >
-                                    {[2023, 2024, 2025, 2026].map(y => (
+                                    {(() => {
+                                        const baseYear = parseInt(academicYear, 10) || new Date().getFullYear();
+                                        const years = [baseYear - 1, baseYear, baseYear + 1];
+                                        return years.map((y) => (
                                         <option key={y} value={y}>{y} - {y+1}</option>
-                                    ))}
+                                        ));
+                                    })()}
                                 </select>
                             </div>
                             <div className="filter-item">

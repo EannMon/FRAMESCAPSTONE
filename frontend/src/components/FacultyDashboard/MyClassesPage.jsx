@@ -224,8 +224,12 @@ const FacultyMyClassesPage = () => {
                         date: dateStr,
                         day: d,
                         title: cls.subject_code,
+                        subjectTitle: cls.subject_title || cls.subject_code,
                         time: cls.start_time,
+                        endTime: cls.end_time || null,
+                        formattedTime: formatTo12Hr(cls.start_time) + (cls.end_time ? ` – ${formatTo12Hr(cls.end_time)}` : ''),
                         section: cls.section,
+                        room: cls.room || 'TBA',
                         status: 'normal', // Default status
                         isPast: isPast
                     });
@@ -875,17 +879,26 @@ const FacultyMyClassesPage = () => {
                         {events.map(ev => (
                             <div
                                 key={ev.id}
-                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-green' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
+                                className={`cal-event-pill cal-event-pill-enhanced ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-green' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
                                 onClick={(e) => {
                                     if (ev.isPast) { e.stopPropagation(); return; }
                                     e.stopPropagation();
                                     toggleSessionSelect(ev.id);
                                 }}
-                                title={ev.isPast ? `${ev.title} — Completed` : `${ev.title} — Click to Select`}
+                                title={ev.isPast ? `${ev.subjectTitle || ev.title} — Completed` : `${ev.subjectTitle || ev.title} — Click to Select`}
                             >
-                                {ev.isPast && <i className="fas fa-check pill-check"></i>}
-                                {!ev.isPast && selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
-                                <span>{ev.time} {ev.title}</span>
+                                <div className="cal-pill-main-row">
+                                    {ev.isPast && <i className="fas fa-check pill-check"></i>}
+                                    {!ev.isPast && selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}
+                                    <span className="cal-pill-subject">{ev.subjectTitle || ev.title}</span>
+                                </div>
+                                <div className="cal-pill-details">
+                                    <span>{ev.formattedTime || formatTo12Hr(ev.time)}</span>
+                                    <span className="cal-pill-sep">·</span>
+                                    <span>{ev.section}</span>
+                                    <span className="cal-pill-sep">·</span>
+                                    <span>{ev.room || 'TBA'}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1211,6 +1224,7 @@ const FacultyMyClassesPage = () => {
                                     <tr className="session-summary-header-row">
                                         <th className="session-summary-th">Subject</th>
                                         <th className="session-summary-th">Section</th>
+                                        <th className="session-summary-th">Room</th>
                                         <th className="session-summary-th">Time</th>
                                         <th className="session-summary-th">Status</th>
                                     </tr>
@@ -1218,9 +1232,13 @@ const FacultyMyClassesPage = () => {
                                 <tbody>
                                     {dayModal.events.map((ev, i) => (
                                         <tr key={i} className="session-summary-row">
-                                            <td className="session-summary-td-title">{ev.title}</td>
+                                            <td className="session-summary-td-title">
+                                                <div>{ev.subjectTitle || ev.title}</div>
+                                                <div style={{ fontSize: '0.75em', color: '#64748b', marginTop: '2px' }}>{ev.title}</div>
+                                            </td>
                                             <td className="session-summary-td">{ev.section}</td>
-                                            <td className="session-summary-td">{ev.time}</td>
+                                            <td className="session-summary-td">{ev.room || 'TBA'}</td>
+                                            <td className="session-summary-td">{ev.formattedTime || formatTo12Hr(ev.time)}</td>
                                             <td className="session-summary-td-status">
                                                 <span className={`status-badge ${ev.status === 'cancelled' ? 'status-cancelled' : 'status-completed'}`}>
                                                     {ev.status === 'cancelled' ? 'CANCELLED' : 'COMPLETED'}
