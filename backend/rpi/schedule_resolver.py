@@ -77,6 +77,8 @@ class ScheduleResolver:
         self._device_room: Optional[str] = None
         self._last_sync: Optional[datetime] = None
         self._last_api_failure: Optional[datetime] = None
+        self._cache_loaded: bool = False
+        self._no_schedule_warned: bool = False
     
     def get_active_class(self) -> Optional[ActiveClass]:
         """
@@ -191,6 +193,8 @@ class ScheduleResolver:
                     ))
                 
                 self._last_sync = datetime.now()
+                self._cache_loaded = True
+                self._no_schedule_warned = False
                 self._save_cache()
                 
                 logger.info("Synced %d schedule entries", len(self._schedule_cache))
@@ -203,11 +207,14 @@ class ScheduleResolver:
     
     def _resolve_from_cache(self) -> Optional[ActiveClass]:
         """Resolve active class from local cache."""
-        if not self._schedule_cache:
+        if not self._schedule_cache and not self._cache_loaded:
             self._load_cache()
+            self._cache_loaded = True
         
         if not self._schedule_cache:
-            logger.warning("No cached schedule available")
+            if not self._no_schedule_warned:
+                logger.warning("No cached schedule available")
+                self._no_schedule_warned = True
             return None
         
         now = datetime.now()
@@ -296,7 +303,10 @@ class ScheduleResolver:
             if cache_data.get('synced_at'):
                 self._last_sync = datetime.fromisoformat(cache_data['synced_at'])
             
-            logger.info("Loaded %d cached schedule entries", len(self._schedule_cache))
+            if len(self._schedule_cache) > 0:
+                logger.info("Loaded %d cached schedule entries", len(self._schedule_cache))
+            else:
+                logger.debug("Schedule cache file exists but has 0 entries")
             
         except Exception as e:
             logger.error("Failed to load cache: %s", str(e))
