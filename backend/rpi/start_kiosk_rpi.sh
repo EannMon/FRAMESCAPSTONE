@@ -16,9 +16,22 @@ echo "=== FRAMES Kiosk Startup ==="
 echo "    Platform:  Raspberry Pi (USB webcam)"
 echo "    Repo root: $REPO_ROOT"
 
+# ── Helper: kill whatever process holds a TCP port ───────────
+# Uses ss (iproute2, always installed) with lsof/fuser as fallbacks.
+kill_port() {
+    local PORT=$1
+    # Method 1: ss — parses 'pid=NNNN' from socket owner info
+    local PIDS
+    PIDS=$(ss -tlnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+')
+    for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
+    # Method 2: lsof fallback
+    PIDS=$(lsof -ti:"$PORT" 2>/dev/null)
+    for pid in $PIDS; do kill -9 "$pid" 2>/dev/null || true; done
+    # Method 3: fuser fallback (psmisc package — may not be installed)
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+}
+
 # ── 0. Kill any leftover processes from a previous run ───────
-# This releases the camera (/dev/video0) and frees port 3000/8000
-# before we try to start fresh.  Always safe to run.
 echo "[cleanup] Stopping any previous kiosk processes..."
 pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
 pkill -9 -f "kiosk_server"     2>/dev/null || true
@@ -26,9 +39,10 @@ pkill -f  "SPAHandler"         2>/dev/null || true
 pkill -f  "http.server"        2>/dev/null || true
 pkill -9 chromium-browser      2>/dev/null || true
 pkill -9 chromium              2>/dev/null || true
-# Force-release port 8000 and /dev/video0 regardless of process name
-fuser -k 8000/tcp      2>/dev/null || true
-fuser -k /dev/video0   2>/dev/null || true
+# Force-release ports and camera device regardless of process name
+kill_port 8000
+kill_port 3000
+fuser -k /dev/video0 2>/dev/null || true
 sleep 3   # Give kernel time to release /dev/video0 and TCP sockets
 echo "[cleanup] Done."
 
@@ -228,7 +242,7 @@ while true; do
     echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 3s..."
     # Kill anything still holding port 8000 or the camera before restarting
     pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
-    fuser -k 8000/tcp    2>/dev/null || true
+    kill_port 8000
     fuser -k /dev/video0 2>/dev/null || true
     sleep 3
     cd "$REPO_ROOT/backend"
