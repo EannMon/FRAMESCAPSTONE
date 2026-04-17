@@ -89,26 +89,24 @@ class ScheduleResolver:
         if not self._use_api:
             return self._resolve_from_cache()
 
-        # If API has been failing recently, skip network call and rely on cache only
-        now = datetime.now()
-        if (
-            self._last_api_failure is not None
-            and (now - self._last_api_failure).total_seconds() < self._failure_backoff_sec
-        ):
-            logger.debug(
-                "Skipping active-class API (backoff %.0fs since last failure); using cache",
-                self._failure_backoff_sec,
-            )
-            return self._resolve_from_cache()
+        # Strategy: Use local cache as the primary source for active-class resolution.
+        # The cache is synced from the API on boot and periodically. This avoids
+        # blocking the recognition thread on every frame with an API round-trip.
+        # The API is only used for sync_schedule() which runs periodically.
+        cached = self._resolve_from_cache()
+        if cached:
+            return cached
 
-        # Try API first
-        active = self._query_api_active_class()
-        if active:
-            return active
-        
-        # Fallback to local cache
-        logger.info("Using cached schedule (offline fallback)")
-        return self._resolve_from_cache()
+        # If cache had nothing, try API as fallback (e.g. newly added class)
+        if self._use_api and (
+            self._last_api_failure is None
+            or (datetime.now() - self._last_api_failure).total_seconds() >= self._failure_backoff_sec
+        ):
+            active = self._query_api_active_class()
+            if active:
+                return active
+
+        return None
     
     def _query_api_active_class(self) -> Optional[ActiveClass]:
         """Query backend API for active class."""

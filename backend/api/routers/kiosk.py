@@ -22,6 +22,10 @@ from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
 from models.enrollment import Enrollment
 from core.errors import api_error
 from core.limiter import limiter
+from core.room_utils import normalize_room_name
+from models.session_exception import SessionException, ExceptionType
+from models.system_metric import SystemMetric
+from models.security_log import SecurityLog, SecurityEventType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
@@ -190,14 +194,14 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
     # Find active class in this room — single query with eager loading
     active_class = None
 
-    # Query classes in this room on current day, eagerly load subject + faculty
-    normalized_room = device.room.strip().lower()
+    # Normalize device room for consistent matching
+    normalized_room = normalize_room_name(device.room)
 
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(
-            func.lower(func.trim(Class.room)) == normalized_room,
+            func.upper(func.trim(Class.room)) == normalized_room,
             Class.day_of_week == current_day
         )
         .all()
@@ -222,6 +226,24 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
             early_start = (start_dt - timedelta(minutes=early_entry_minutes)).time()
 
             if early_start <= current_time <= end:
+                # Check for session exception (cancelled/online/holiday)
+                today = now.date()
+                exception = db.query(SessionException).filter(
+                    SessionException.class_id == cls.id,
+                    SessionException.session_date == today,
+                    SessionException.exception_type.in_([
+                        ExceptionType.CANCELLED,
+                        ExceptionType.ONLINE,
+                        ExceptionType.HOLIDAY,
+                    ])
+                ).first()
+                if exception:
+                    logger.info(
+                        "SCHEDULE | Class %d skipped: %s for %s",
+                        cls.id, exception.exception_type.value, today
+                    )
+                    continue
+
                 # Access eagerly-loaded relationships — no extra queries
                 subject = cls.subject
                 faculty = cls.faculty
@@ -274,12 +296,12 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
-    normalized_room = device.room.strip().lower()
+    normalized_room = normalize_room_name(device.room)
 
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
-        .filter(func.lower(func.trim(Class.room)) == normalized_room)
+        .filter(func.upper(func.trim(Class.room)) == normalized_room)
         .all()
     )
 
@@ -491,6 +513,33 @@ def log_attendance(request: Request, body: AttendanceLogRequest, db: Session = D
             "ATTENDANCE | logged: user=%d class=%d action=%s%s",
             body.user_id, body.class_id, action_label, late_label
         )
+
+        # Create notifications for ENTRY (and LATE) events
+        if action_enum == AttendanceAction.ENTRY:
+            try:
+                from models.notification import Notification, NotificationType
+                subject_name = class_.subject.name if class_.subject else f"Class #{class_.id}"
+                if is_late:
+                    db.add(Notification(
+                        user_id=body.user_id,
+                        notification_type=NotificationType.LATE_ALERT,
+                        title="Late Arrival",
+                        message=f"You were marked late for {subject_name}.",
+                        reference_id=log.id,
+                        reference_type="attendance",
+                    ))
+                else:
+                    db.add(Notification(
+                        user_id=body.user_id,
+                        notification_type=NotificationType.ATTENDANCE_ENTRY,
+                        title="Attendance Recorded",
+                        message=f"Entry recorded for {subject_name}.",
+                        reference_id=log.id,
+                        reference_type="attendance",
+                    ))
+                db.commit()
+            except Exception:
+                logger.debug("Non-critical: failed to create attendance notification")
 
         # Overcrowding check: after ENTRY, count present users in this room
         if action_enum == AttendanceAction.ENTRY and device and device.room_capacity:
@@ -965,3 +1014,71 @@ def _check_overcrowding(db: Session, class_obj, device, timestamp):
     except Exception as e:
         logger.error("Failed to check overcrowding: %s", str(e))
         # Non-critical — don't disrupt attendance logging
+
+
+# ============================================
+# System Metrics & Security Log Endpoints
+# ============================================
+
+class MetricBatchItem(BaseModel):
+    metric_type: str
+    value: float
+    unit: Optional[str] = None
+
+class MetricBatchRequest(BaseModel):
+    device_id: Optional[int] = None
+    metrics: List[MetricBatchItem]
+
+class SecurityLogRequest(BaseModel):
+    device_id: Optional[int] = None
+    event_type: str
+    confidence_score: Optional[float] = None
+    room: Optional[str] = None
+    details: Optional[str] = None
+
+
+@router.post("/metrics")
+def post_kiosk_metrics(data: MetricBatchRequest, db: Session = Depends(get_db)):
+    """
+    Receive a batch of performance metrics from a kiosk device.
+    Called periodically by the kiosk metrics collector.
+    """
+    now = _local_now()
+    for item in data.metrics:
+        db.add(SystemMetric(
+            device_id=data.device_id,
+            metric_type=item.metric_type,
+            value=item.value,
+            unit=item.unit,
+            timestamp=now,
+        ))
+    db.commit()
+    return {"success": True, "count": len(data.metrics)}
+
+
+@router.post("/security-log")
+def post_security_log(data: SecurityLogRequest, db: Session = Depends(get_db)):
+    """
+    Record a security event from the kiosk (unrecognized face, gesture failure, etc.).
+    Rate-limited to prevent excessive DB writes from rapid unrecognized detections.
+    """
+    event_map = {
+        "UNRECOGNIZED_FACE": SecurityEventType.UNRECOGNIZED_FACE,
+        "GESTURE_FAILURE": SecurityEventType.GESTURE_FAILURE,
+        "SPOOF_ATTEMPT": SecurityEventType.SPOOF_ATTEMPT,
+        "UNAUTHORIZED_ACCESS": SecurityEventType.UNAUTHORIZED_ACCESS,
+    }
+    event_type = event_map.get(data.event_type)
+    if not event_type:
+        raise api_error(400, "INVALID_EVENT_TYPE", f"Unknown event type: {data.event_type}")
+
+    db.add(SecurityLog(
+        device_id=data.device_id,
+        event_type=event_type,
+        confidence_score=data.confidence_score,
+        room=data.room,
+        details=data.details,
+        timestamp=_local_now(),
+    ))
+    db.commit()
+    return {"success": True}

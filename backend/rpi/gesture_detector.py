@@ -221,8 +221,10 @@ class GestureDetector:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
-        # Thumb UP, all other fingers DOWN
-        if thumb_up and index_curled and middle_curled and ring_curled and pinky_curled:
+        # Thumb UP, at least 3 of 4 other fingers curled.
+        # Relaxed from all-4-curled — many users keep index slightly out.
+        curled_count = sum([index_curled, middle_curled, ring_curled, pinky_curled])
+        if thumb_up and curled_count >= 3:
             return Gesture.THUMBS_UP
 
         return Gesture.NONE

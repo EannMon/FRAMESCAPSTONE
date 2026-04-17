@@ -202,9 +202,21 @@ class AttendanceKiosk:
             self._enrollment_loaded = False
 
     def _fetch_attendance_state(self, user_id: int, class_id: int) -> dict:
-        """Query backend for current attendance state of a user in a class today."""
+        """
+        Get attendance state for a user in a class.
+
+        Uses local cache first (updated after each successful attendance action).
+        Falls back to API only when no local state exists (first recognition in
+        this class session).
+        """
         cache_key = f"{user_id}_{class_id}"
 
+        # Return cached state if available
+        cached = self._user_attendance_state.get(cache_key)
+        if cached is not None:
+            return cached
+
+        # No cached state — fetch from API for first-time lookup
         try:
             url = f"{self.config.BACKEND_URL}/api/kiosk/attendance-state"
             response = requests.get(
@@ -222,13 +234,13 @@ class AttendanceKiosk:
             logger.warning("State fetch failed: %s", str(e))
 
         # Return default state if fetch fails
-        return self._user_attendance_state.get(cache_key, {
+        return {
             "has_entered": False,
             "is_on_break": False,
             "has_exited": False,
             "last_action": None,
             "allowed_actions": ["ENTRY"]
-        })
+        }
 
     def _is_user_in_class(self, user_id: int) -> bool:
         """Check if user is enrolled in current class or is the faculty."""
@@ -519,10 +531,28 @@ class AttendanceKiosk:
                 if (
                     self._last_cache_refresh is None
                     or (now_sec - self._last_cache_refresh) >= self.config.CACHE_REFRESH_MINUTES * 60
-                ) and os.path.exists(cache_path):
-                    if self.embedding_cache.load_from_json(cache_path):
-                        self._last_cache_refresh = now_sec
-                        logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
+                ):
+                    # Try to download fresh embeddings from backend API first
+                    backend_url = os.getenv("BACKEND_URL", "")
+                    if backend_url:
+                        try:
+                            import requests
+                            resp = requests.get(
+                                f"{backend_url}/api/kiosk/embeddings",
+                                timeout=15,
+                            )
+                            if resp.status_code == 200:
+                                import json
+                                with open(cache_path, "w") as f:
+                                    json.dump(resp.json(), f)
+                                logger.info("CACHE | Downloaded fresh embeddings from API")
+                        except Exception as e:
+                            logger.warning("CACHE | API download failed, using local file: %s", str(e))
+
+                    if os.path.exists(cache_path):
+                        if self.embedding_cache.load_from_json(cache_path):
+                            self._last_cache_refresh = now_sec
+                            logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
 
                 # Periodic offline queue flush (every 5 minutes)
                 now_sec = time.time()
@@ -604,6 +634,17 @@ class AttendanceKiosk:
                         cv2.putText(display, f"Unknown ({confidence:.1%})", (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                         logger.debug("Unknown face detected (best: %.1f%%)", confidence * 100)
+                        # Rate-limited security log: max once per 30 seconds
+                        now_sec_log = time.time()
+                        if now_sec_log - getattr(self, '_last_security_log_ts', 0) > 30:
+                            self._last_security_log_ts = now_sec_log
+                            room = getattr(active_class, 'room', os.getenv("DEVICE_ROOM", ""))
+                            KioskMetricsCollector.post_security_event(
+                                event_type="UNRECOGNIZED_FACE",
+                                confidence_score=round(confidence, 3) if confidence else None,
+                                room=room,
+                                details=f"class_id={active_class.class_id}",
+                            )
 
                     cv2.imshow("FRAMES Attendance Kiosk", display)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -705,11 +746,11 @@ class AttendanceKiosk:
                     # Already entered — require gesture for BREAK_OUT, BREAK_IN, EXIT
                     prompt_actions = []
                     if "BREAK_OUT" in allowed:
-                        prompt_actions.append("✌️ Peace=Break")
+                        prompt_actions.append("[PEACE] Break Out")
                     if "BREAK_IN" in allowed:
-                        prompt_actions.append("👍 ThumbsUp=Return")
+                        prompt_actions.append("[THUMBS UP] Break In")
                     if "EXIT" in allowed:
-                        prompt_actions.append("🖐 Palm=Exit")
+                        prompt_actions.append("[PALM] Exit")
 
                     prompt_text = " | ".join(prompt_actions)
                     logger.info("%s -- show gesture: %s", match.name, prompt_text)

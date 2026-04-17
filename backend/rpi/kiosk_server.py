@@ -175,7 +175,24 @@ class StreamingAttendanceKiosk:
             self._enrollment_loaded = False
 
     def _fetch_attendance_state(self, user_id: int, class_id: int) -> dict:
+        """
+        Get attendance state for a user in a class.
+
+        Uses local cache first (updated after each successful attendance action).
+        Falls back to API only when no local state exists (first recognition in
+        this class session), which avoids blocking the recognition thread on every
+        frame with a network round-trip.
+        """
         cache_key = f"{user_id}_{class_id}"
+
+        # Return cached state if available — this covers 90%+ of cases after
+        # the first recognition, because log_attendance success updates the cache.
+        cached = self._user_attendance_state.get(cache_key)
+        if cached is not None:
+            return cached
+
+        # No cached state → first time seeing this user in this class session.
+        # Fetch from API to pick up any state from a previous kiosk session.
         try:
             response = requests.get(
                 f"{self.config.BACKEND_URL}/api/kiosk/attendance-state",
@@ -188,7 +205,7 @@ class StreamingAttendanceKiosk:
                 return state
         except requests.exceptions.RequestException:
             pass
-        return self._user_attendance_state.get(cache_key, {"has_entered": False, "is_on_break": False, "has_exited": False, "last_action": None, "allowed_actions": ["ENTRY"]})
+        return {"has_entered": False, "is_on_break": False, "has_exited": False, "last_action": None, "allowed_actions": ["ENTRY"]}
 
     def _is_user_in_class(self, user_id: int) -> bool:
         return user_id in self._class_enrolled_ids or user_id == self._class_faculty_id
@@ -317,7 +334,18 @@ class StreamingAttendanceKiosk:
             pending_active_class = None  # Cached active_class for gesture success handler
             last_recognition_ts = 0.0
 
-            logger.info("RECOGNITION | thread started ✅")
+            # Broadcast initializing state so the React UI shows a loading message
+            # while the recognition thread warms up (model may already be pre-warmed
+            # in startup_event, but this covers the gap before the first real broadcast).
+            self.broadcast_state({
+                "status": "initializing",
+                "message": "Recognition engine starting...",
+                "active_class": None,
+                "recognized_user": None,
+                "required_gestures": [],
+            })
+
+            logger.info("RECOGNITION | thread started")
 
             while self.running:
               try:
@@ -519,7 +547,7 @@ class StreamingAttendanceKiosk:
                     time.sleep(0.01)
                     continue
 
-                # Periodic embedding cache refresh
+                # Periodic embedding cache refresh — download from API then reload local file
                 now_sec = time.time()
                 cache_path_local = os.path.join(
                     os.path.dirname(os.path.dirname(__file__)),
@@ -528,10 +556,28 @@ class StreamingAttendanceKiosk:
                 if (
                     self._last_cache_refresh is None
                     or (now_sec - self._last_cache_refresh) >= self.config.CACHE_REFRESH_MINUTES * 60
-                ) and os.path.exists(cache_path_local):
-                    if self.embedding_cache.load_from_json(cache_path_local):
-                        self._last_cache_refresh = now_sec
-                        logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
+                ):
+                    # Try to download fresh embeddings from backend API first
+                    backend_url = os.getenv("BACKEND_URL", "")
+                    if backend_url:
+                        try:
+                            import requests
+                            resp = requests.get(
+                                f"{backend_url}/api/kiosk/embeddings",
+                                timeout=15,
+                            )
+                            if resp.status_code == 200:
+                                import json
+                                with open(cache_path_local, "w") as f:
+                                    json.dump(resp.json(), f)
+                                logger.info("CACHE | Downloaded fresh embeddings from API")
+                        except Exception as e:
+                            logger.warning("CACHE | API download failed, using local file: %s", str(e))
+
+                    if os.path.exists(cache_path_local):
+                        if self.embedding_cache.load_from_json(cache_path_local):
+                            self._last_cache_refresh = now_sec
+                            logger.info("CACHE | Refreshed embeddings: %d faces", self.embedding_cache.count)
 
                 # Process frame for Face Recognition (with timing for observability)
                 recognition_ms = None
@@ -613,6 +659,17 @@ class StreamingAttendanceKiosk:
                                 "color": (0, 0, 255),
                                 "expires_at": time.time() + 1.5,
                             }
+                    # Rate-limited security log: max once per 30 seconds
+                    now_sec_log = time.time()
+                    if now_sec_log - getattr(self, '_last_security_log_ts', 0) > 30:
+                        self._last_security_log_ts = now_sec_log
+                        room = getattr(active_class, 'room', os.getenv("DEVICE_ROOM", ""))
+                        KioskMetricsCollector.post_security_event(
+                            event_type="UNRECOGNIZED_FACE",
+                            confidence_score=round(confidence, 3) if confidence else None,
+                            room=room,
+                            details=f"class_id={active_class.class_id}",
+                        )
                     continue
 
                 # Check Cooldown
@@ -833,6 +890,17 @@ async def startup_event():
     config.DEVICE_ID = int(os.getenv("DEVICE_ID", "1")) # Assuming local test DEVICE_ID 1
     
     kiosk_instance = StreamingAttendanceKiosk(config)
+
+    # Pre-warm InsightFace model BEFORE starting threads.
+    # Without this, the recognition thread blocks for 10-30s on first frame
+    # while the model loads, causing a perceived UI freeze.
+    try:
+        logger.info("STARTUP | Pre-warming InsightFace model...")
+        kiosk_instance.face_recognizer.initialize()
+        logger.info("STARTUP | InsightFace model ready")
+    except Exception as e:
+        logger.critical("STARTUP | InsightFace pre-warm failed: %s", str(e))
+
     kiosk_thread = threading.Thread(target=kiosk_instance.run, daemon=True)
     kiosk_thread.start()
 
