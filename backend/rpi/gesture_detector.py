@@ -55,7 +55,7 @@ class GestureDetector:
         
         # Temporal smoothing buffer
         self._consecutive_frames = consecutive_frames
-        self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 2, 8))
+        self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 3, 10))
         
         # Diagnostic counters (reset on each gesture session via reset_buffer)
         self._diag_frames = 0
@@ -190,11 +190,13 @@ class GestureDetector:
         pinky_ratio = self._finger_ratio(landmarks, 20, 18, 17)
         thumb_up = self._is_thumb_extended(landmarks, handedness)
 
-        # Boolean states using thresholds
+        # "Up" = finger clearly extended
         index_up = idx_ratio > 1.3
         middle_up = mid_ratio > 1.3
-        ring_up = ring_ratio > 1.3
-        pinky_up = pinky_ratio > 1.3
+        # Higher threshold for ring/pinky to count as OPEN_PALM —
+        # prevents a sloppy peace sign from triggering EXIT.
+        ring_clearly_up = ring_ratio > 1.6
+        pinky_clearly_up = pinky_ratio > 1.6
 
         index_curled = idx_ratio < 1.5
         middle_curled = mid_ratio < 1.5
@@ -204,25 +206,24 @@ class GestureDetector:
         logger.debug("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
                      idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
 
-        # ---- PEACE SIGN ----
-        # Index + middle must be clearly more extended than ring + pinky.
-        # Uses relative comparison so lowered thresholds don't cause
-        # a peace sign to be mis-detected as open palm.
-        if index_up and middle_up:
+        # ---- PEACE SIGN (checked FIRST to prevent open-palm false positives) ----
+        # Index + middle extended. Ring + pinky must NOT both be clearly up.
+        # Uses lenient relative check: raised pair only needs to be 5% more
+        # extended than the lower pair, so partial ring/pinky curl is fine.
+        if index_up and middle_up and not (ring_clearly_up and pinky_clearly_up):
             avg_up = (idx_ratio + mid_ratio) / 2
             avg_down = (ring_ratio + pinky_ratio) / 2
-            # The two raised fingers should be at least 15% more extended
-            if avg_up > avg_down * 1.15:
+            if avg_down < 1e-6 or avg_up > avg_down * 1.05:
                 return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # All 4 fingers clearly extended (thumb can be relaxed)
-        if index_up and middle_up and ring_up and pinky_up:
+        # ALL 4 fingers clearly extended — ring + pinky must be well above
+        # the borderline threshold so a loose peace sign can't trigger this.
+        if index_up and middle_up and ring_clearly_up and pinky_clearly_up:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
         # Thumb UP, at least 3 of 4 other fingers curled.
-        # Relaxed from all-4-curled — many users keep index slightly out.
         curled_count = sum([index_curled, middle_curled, ring_curled, pinky_curled])
         if thumb_up and curled_count >= 3:
             return Gesture.THUMBS_UP
@@ -232,15 +233,15 @@ class GestureDetector:
     def _get_smoothed_gesture(self) -> Gesture:
         """
         Get temporally smoothed gesture.
-        Requires N non-NONE matching gestures out of the last M frames.
-        This tolerates MediaPipe dropping hand detection on some frames,
-        which previously caused consecutive-frame checks to always fail.
+        Requires N non-NONE matching gestures out of the last M frames,
+        AND the winning gesture must be the dominant one (most common).
+        This prevents brief misclassifications from triggering the wrong action.
         """
         if len(self._gesture_buffer) < self._consecutive_frames:
             return Gesture.NONE
         
         # Look at a wider window (last M frames) and count occurrences
-        window = list(self._gesture_buffer)  # up to maxlen (8)
+        window = list(self._gesture_buffer)  # up to maxlen
         
         # Count each non-NONE gesture in the window
         counts = {}
@@ -248,11 +249,16 @@ class GestureDetector:
             if g != Gesture.NONE:
                 counts[g] = counts.get(g, 0) + 1
         
-        # Find the most common gesture that meets the threshold
-        for gesture, count in counts.items():
-            if count >= self._consecutive_frames:
-                logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", gesture.value, count, len(window))
-                return gesture
+        if not counts:
+            return Gesture.NONE
+        
+        # The winning gesture must meet the threshold AND be the most common
+        best_gesture = max(counts, key=counts.get)
+        best_count = counts[best_gesture]
+        
+        if best_count >= self._consecutive_frames:
+            logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", best_gesture.value, best_count, len(window))
+            return best_gesture
         
         return Gesture.NONE
     

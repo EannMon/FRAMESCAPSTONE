@@ -132,7 +132,7 @@ class KioskConfig:
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
     REQUIRE_GESTURE_FOR_EXIT: bool = True
     GESTURE_TIMEOUT_SECONDS: float = 15.0  # Increased from 8s — RPi runs ~3-4 FPS in gesture mode (270ms/frame)
-    GESTURE_CONSECUTIVE_FRAMES: int = 2   # Lowered from 3 — at RPi speed only ~45 frames in 15s window
+    GESTURE_CONSECUTIVE_FRAMES: int = 4   # Require 4 of last 10 matching frames — reduces false triggers
     
     # ===========================================
     # Attendance Rules
