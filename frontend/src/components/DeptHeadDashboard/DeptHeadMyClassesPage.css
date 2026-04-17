@@ -500,20 +500,33 @@
     border-left-color: #163269;
 }
 
-/* Online */
+/* Online (Orange) */
+.cal-event-orange {
+    background: #FFF3E0;
+    color: #7c3300;
+    border-left-color: #E65100;
+}
+
+/* Online (legacy purple — kept for compat) */
 .cal-event-purple {
     background: #f3e8fd;
     color: #490560;
     border-left-color: #6a1b9a;
 }
 
+/* Cancelled (Red) */
 .cal-event-red {
     background: #FFEBEE;
     color: #7f1d1d;
     border-left-color: #C62828;
 }
 
-/* Cancelled */
+/* Holiday (Violet) */
+.cal-event-violet {
+    background: #F3E5F5;
+    color: #4a0072;
+    border-left-color: #7B1FA2;
+}
 
 .selected-pill {
     box-shadow: 0 0 0 2px #163269;
@@ -1644,4 +1657,16 @@ body.dark-mode .cal-event-red {
     background-color: rgba(198, 40, 40, 0.2) !important;
     color: #EF9A9A !important;
     border-left-color: #E53935 !important;
+}
+
+body.dark-mode .cal-event-orange {
+    background-color: rgba(230, 81, 0, 0.2) !important;
+    color: #FFCC80 !important;
+    border-left-color: #FF9800 !important;
+}
+
+body.dark-mode .cal-event-violet {
+    background-color: rgba(123, 31, 162, 0.2) !important;
+    color: #E1BEE7 !important;
+    border-left-color: #9C27B0 !important;
 }

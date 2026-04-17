@@ -40,6 +40,7 @@ import DeptHeadReportsPage from './components/DeptHeadDashboard/DeptHeadReportsP
 import DeptHeadUserManagementPage from './components/DeptHeadDashboard/DeptHeadUserManagementPage';
 import DeptHeadSystemLogsPage from './components/DeptHeadDashboard/DeptHeadSystemLogsPage';
 import DeptHeadMyClassesPage from './components/DeptHeadDashboard/DeptHeadMyClassesPage';
+import DeptHeadAttendancePage from './components/DeptHeadDashboard/DeptHeadAttendancePage';
 
 // --- Import Student Pages ---
 import StudentDashboardPage from './components/StudentDashboard/StudentDashboardPage';
@@ -90,6 +91,7 @@ function App() {
                             <Route element={<ProtectedRoute allowedRoles={['head', 'dept_head']}><ErrorBoundary><DeptHeadLayout /></ErrorBoundary></ProtectedRoute>}>
                                 <Route path="/dept-head-dashboard" element={<ErrorBoundary><DeptHeadDashboardPage /></ErrorBoundary>} />
                                 <Route path="/dept-head-classes" element={<ErrorBoundary><DeptHeadMyClassesPage /></ErrorBoundary>} />
+                                <Route path="/dept-head-attendance" element={<ErrorBoundary><DeptHeadAttendancePage /></ErrorBoundary>} />
                                 <Route path="/dept-head-management" element={<ErrorBoundary><DeptHeadManagePage /></ErrorBoundary>} />
                                 <Route path="/dept-head-reports" element={<ErrorBoundary><DeptHeadReportsPage /></ErrorBoundary>} />
                                 <Route path="/dept-head-users" element={<ErrorBoundary><DeptHeadUserManagementPage /></ErrorBoundary>} />

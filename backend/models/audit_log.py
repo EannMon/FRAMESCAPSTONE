@@ -76,3 +76,6 @@ class AuditActions:
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
     LOGIN_FAILED = "LOGIN_FAILED"
     LOGOUT = "LOGOUT"
+
+    # Attendance time edits (Faculty / Dept Head)
+    ATTENDANCE_TIME_EDIT = "ATTENDANCE_TIME_EDIT"

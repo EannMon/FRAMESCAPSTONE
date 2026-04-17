@@ -30,6 +30,8 @@ const FacultyMyClassesPage = () => {
     const [selectedSessions, setSelectedSessions] = useState([]);
     const [showManageModal, setShowManageModal] = useState(false);
     const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
+    // Session exceptions loaded from DB — keyed by "YYYY-MM-DD" for instant lookup
+    const [sessionExceptionMap, setSessionExceptionMap] = useState({});
 
     // Day Summary Modal (past dates)
     const [dayModal, setDayModal] = useState(null); // { date, dateStr, events }
@@ -104,7 +106,26 @@ const FacultyMyClassesPage = () => {
         if (myClasses.length > 0) {
             generateCalendarEvents(myClasses, currentMonth);
         }
-    }, [myClasses, currentMonth, ayStart, ayEnd]);
+    }, [myClasses, currentMonth, ayStart, ayEnd, sessionExceptionMap]);
+
+    // Load session exceptions from DB whenever the month changes
+    useEffect(() => {
+        if (!user) return;
+        const uid = user.user_id || user.id;
+        const yr = currentMonth.getFullYear();
+        const mo = currentMonth.getMonth() + 1;
+        api.get(`/api/faculty/session-exceptions-by-faculty/${uid}?month=${mo}&year=${yr}&limit=100`)
+            .then(res => {
+                // Build lookup: classId+date -> exception_type
+                const map = {};
+                (res.data || []).forEach(ex => {
+                    const key = `${ex.class_id}-${ex.session_date}`;
+                    map[key] = ex.exception_type;
+                });
+                setSessionExceptionMap(map);
+            })
+            .catch(() => { /* non-fatal */ });
+    }, [user, currentMonth]);
 
     // --- HELPER: Calculate class status based on schedule ---
     const getClassStatus = (classData) => {
@@ -196,6 +217,14 @@ const FacultyMyClassesPage = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // Exception type -> color class mapping
+        const exTypeToColorClass = {
+            online: 'cal-event-orange',
+            cancelled: 'cal-event-red',
+            holiday: 'cal-event-violet',
+            onsite: null, // use default (green past / blue future)
+        };
+
         // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
@@ -219,6 +248,9 @@ const FacultyMyClassesPage = () => {
             // Find classes that meet on this day name
             classes.forEach(cls => {
                 if (cls.day_of_week === dayName) {
+                    const exceptionType = sessionExceptionMap[`${cls.id}-${dateStr}`] || null;
+                    const exColorClass = exceptionType ? (exTypeToColorClass[exceptionType] || null) : null;
+                    const statusLabel = exceptionType || 'normal';
                     events.push({
                         id: `${cls.id}-${d}`, // Unique ID
                         date: dateStr,
@@ -230,7 +262,9 @@ const FacultyMyClassesPage = () => {
                         formattedTime: formatTo12Hr(cls.start_time) + (cls.end_time ? ` – ${formatTo12Hr(cls.end_time)}` : ''),
                         section: cls.section,
                         room: cls.room || 'TBA',
-                        status: 'normal', // Default status
+                        status: statusLabel,
+                        exceptionType,
+                        colorClass: exColorClass,
                         isPast: isPast
                     });
                 }
@@ -539,9 +573,12 @@ const FacultyMyClassesPage = () => {
             });
 
             // Update visual state
+            const exTypeColorMap = { online: 'cal-event-orange', cancelled: 'cal-event-red', holiday: 'cal-event-violet', onsite: null };
+            const savedType = modalData.type === 'normal' ? 'onsite' : modalData.type === 'online-sync' ? 'online' : modalData.type;
+            const newColorClass = exTypeColorMap[savedType] || null;
             const updatedEvents = calendarEvents.map(ev => {
                 if (selectedSessions.includes(ev.id)) {
-                    return { ...ev, status: modalData.type, reason: modalData.reason };
+                    return { ...ev, status: savedType, exceptionType: savedType, colorClass: newColorClass, reason: modalData.reason };
                 }
                 return ev;
             });
@@ -879,7 +916,11 @@ const FacultyMyClassesPage = () => {
                         {events.map(ev => (
                             <div
                                 key={ev.id}
-                                className={`cal-event-pill cal-event-pill-enhanced ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-green' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
+                                className={`cal-event-pill cal-event-pill-enhanced ${
+                                                ev.colorClass ||
+                                                (ev.status === 'cancelled' ? 'cal-event-red' :
+                                                 ev.isPast ? 'cal-event-green' : 'cal-event-blue')
+                                            } ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
                                 onClick={(e) => {
                                     if (ev.isPast) { e.stopPropagation(); return; }
                                     e.stopPropagation();

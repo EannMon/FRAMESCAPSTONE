@@ -328,6 +328,14 @@ body.dark-mode .report-description-box {
     color: #C62828;
 }
 
+/* No-data yet — dash status, session not started */
+.log-status-tag.muted {
+    background-color: #f0f0f0;
+    color: #999;
+    border: 1px solid #e0e0e0;
+    font-style: italic;
+}
+
 .attendance-history-view .filter-item {
     display: flex;
     flex-direction: column;

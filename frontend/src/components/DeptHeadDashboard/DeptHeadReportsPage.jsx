@@ -210,6 +210,21 @@ const DeptHeadReportsPage = () => {
         return 'SEMESTRAL';
     };
 
+    /**
+     * Gate AI Insights display by report mode:
+     * - DAILY  → never show (insufficient sample)
+     * - WEEKLY → show with "low confidence" badge
+     * - MONTHLY / SEMESTRAL → show normally
+     * - CONSISTENCY → show only summary profile panel, not full insights
+     */
+    const getInsightsConfig = (reportId) => {
+        const mode = getReportMode(reportId);
+        if (mode === 'DAILY') return { show: false, badge: null };
+        if (mode === 'WEEKLY') return { show: true, badge: 'Low Confidence — limited weekly sample' };
+        if (reportId === 'CONSISTENCY') return { show: false, badge: null };
+        return { show: true, badge: null };
+    };
+
     const getWeekRangesForMonth = () => {
         if (!weeklyMonth) return [];
         const [yearText, monthText] = weeklyMonth.split('-');
@@ -531,19 +546,35 @@ const DeptHeadReportsPage = () => {
     const renderInsightPanel = () => {
         if (!summaryMetrics.length && !insights.length) return null;
 
+        const insightsConfig = getInsightsConfig(selectedReport?.id);
+        const showAIInsights = insightsConfig.show && insights.length > 0;
+
         return (
             <div className="insight-panel">
                 <div className="insight-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div className="insight-section-title" style={{ marginBottom: 0 }}>Performance Metrics</div>
-                    {insights.length > 0 && (
-                        <button 
-                            type="button" 
-                            className="insight-action-btn"
-                            onClick={() => setShowInsightsModal(true)}
-                        >
-                            <i className="fas fa-lightbulb" style={{ marginRight: '6px' }}></i> View AI Insights
-                        </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {insightsConfig.badge && (
+                            <span style={{ fontSize: '0.75em', background: '#FFF8E1', color: '#F57F17', padding: '4px 10px', borderRadius: '12px', border: '1px solid #FFCA28', fontWeight: 600 }}>
+                                <i className="fas fa-exclamation-triangle" style={{ marginRight: '4px' }} />
+                                {insightsConfig.badge}
+                            </span>
+                        )}
+                        {!insightsConfig.show && insights.length > 0 && (
+                            <span style={{ fontSize: '0.75em', background: '#f5f5f5', color: '#888', padding: '4px 10px', borderRadius: '12px', border: '1px solid #e0e0e0' }}>
+                                AI Insights unavailable for daily reports
+                            </span>
+                        )}
+                        {showAIInsights && (
+                            <button 
+                                type="button" 
+                                className="insight-action-btn"
+                                onClick={() => setShowInsightsModal(true)}
+                            >
+                                <i className="fas fa-lightbulb" style={{ marginRight: '6px' }}></i> View AI Insights
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {summaryMetrics.length > 0 && (

@@ -43,6 +43,7 @@ const DeptHeadSidebar = ({ user, isCollapsed, isMobileOpen, toggleMobile }) => {
         { name: 'Dashboard', icon: 'fas fa-th-large', to: '/dept-head-dashboard' },
         { name: 'My Profile', icon: 'fas fa-user', to: '/dept-head-profile' },
         { name: 'My Classes', icon: 'fas fa-book-reader', to: '/dept-head-classes' },
+        { name: 'Attendance', icon: 'fas fa-user-check', to: '/dept-head-attendance' },
         { name: 'Department Mgmt', icon: 'fas fa-university', to: '/dept-head-management' },
         { name: 'User Management', icon: 'fas fa-users-cog', to: '/dept-head-users' },
         { name: 'Reports', icon: 'fas fa-chart-line', to: '/dept-head-reports' },
