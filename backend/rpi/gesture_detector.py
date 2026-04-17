@@ -190,13 +190,8 @@ class GestureDetector:
         pinky_ratio = self._finger_ratio(landmarks, 20, 18, 17)
         thumb_up = self._is_thumb_extended(landmarks, handedness)
 
-        # "Up" = finger clearly extended
         index_up = idx_ratio > 1.3
         middle_up = mid_ratio > 1.3
-        # Higher threshold for ring/pinky to count as OPEN_PALM —
-        # prevents a sloppy peace sign from triggering EXIT.
-        ring_clearly_up = ring_ratio > 1.6
-        pinky_clearly_up = pinky_ratio > 1.6
 
         index_curled = idx_ratio < 1.5
         middle_curled = mid_ratio < 1.5
@@ -206,20 +201,25 @@ class GestureDetector:
         logger.debug("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
                      idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
 
-        # ---- PEACE SIGN (checked FIRST to prevent open-palm false positives) ----
-        # Index + middle extended. Ring + pinky must NOT both be clearly up.
-        # Uses lenient relative check: raised pair only needs to be 5% more
-        # extended than the lower pair, so partial ring/pinky curl is fine.
-        if index_up and middle_up and not (ring_clearly_up and pinky_clearly_up):
+        # ---- PEACE SIGN (checked FIRST — highest priority) ----
+        # Index + middle must be extended. Two cases accepted:
+        #   Case 1: index/middle at least 15% more extended than ring/pinky
+        #           (clear peace sign, any lighting)
+        #   Case 2: ring/pinky both below 1.5 absolute — they're not up, so
+        #           even if the relative gap is small due to noisy landmarks
+        #           in poor lighting, this is still a peace sign.
+        if index_up and middle_up:
             avg_up = (idx_ratio + mid_ratio) / 2
             avg_down = (ring_ratio + pinky_ratio) / 2
-            if avg_down < 1e-6 or avg_up > avg_down * 1.05:
+            relative_ok = (avg_down < 1e-6 or avg_up >= avg_down * 1.15)
+            absolute_ok = (ring_ratio < 1.5 and pinky_ratio < 1.5)
+            if relative_ok or absolute_ok:
                 return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # ALL 4 fingers clearly extended — ring + pinky must be well above
-        # the borderline threshold so a loose peace sign can't trigger this.
-        if index_up and middle_up and ring_clearly_up and pinky_clearly_up:
+        # ALL 4 fingers clearly extended — ring + pinky must be well above 1.55
+        # so a sloppy peace sign cannot fall through here.
+        if index_up and middle_up and ring_ratio > 1.55 and pinky_ratio > 1.55:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
