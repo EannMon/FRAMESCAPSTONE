@@ -10,7 +10,10 @@ const FaceEnrollmentPage = () => {
     const { user, updateUser } = useAuth();
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+    const overlayCanvasRef = useRef(null);
     const streamRef = useRef(null);
+    const detectorRef = useRef(null);
+    const detectLoopRef = useRef(null);
 
     const [isCapturing, setIsCapturing] = useState(false);
     const [capturedFrames, setCapturedFrames] = useState([]);
@@ -19,9 +22,104 @@ const FaceEnrollmentPage = () => {
     const [status, setStatus] = useState('Initializing camera...');
     const [cameraReady, setCameraReady] = useState(false);
     const [lastAttemptFailed, setLastAttemptFailed] = useState(false);
+    const [faceDetected, setFaceDetected] = useState(false);
 
     const REQUIRED_FRAMES = 15;
     const CAPTURE_INTERVAL = 500; // ms between captures
+
+    // Draw face bounding box on overlay canvas
+    const drawFaceOverlay = useCallback((faces) => {
+        const overlay = overlayCanvasRef.current;
+        const video = videoRef.current;
+        if (!overlay || !video) return;
+
+        const ctx = overlay.getContext('2d');
+        overlay.width = video.videoWidth || 640;
+        overlay.height = video.videoHeight || 480;
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+        if (faces.length > 0) {
+            setFaceDetected(true);
+            faces.forEach((face) => {
+                const box = face.boundingBox;
+                // Mirror the x coordinate since the video is flipped
+                const mirroredX = overlay.width - box.x - box.width;
+
+                // Green bounding box
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = 8;
+                ctx.strokeRect(mirroredX, box.y, box.width, box.height);
+
+                // Corner accents for a modern look
+                ctx.shadowBlur = 0;
+                const cornerLen = 18;
+                const corners = [
+                    [mirroredX, box.y], // top-left
+                    [mirroredX + box.width, box.y], // top-right
+                    [mirroredX, box.y + box.height], // bottom-left
+                    [mirroredX + box.width, box.y + box.height], // bottom-right
+                ];
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 4;
+                corners.forEach(([cx, cy], i) => {
+                    ctx.beginPath();
+                    const dx = (i % 2 === 0) ? cornerLen : -cornerLen;
+                    const dy = (i < 2) ? cornerLen : -cornerLen;
+                    ctx.moveTo(cx + dx, cy);
+                    ctx.lineTo(cx, cy);
+                    ctx.lineTo(cx, cy + dy);
+                    ctx.stroke();
+                });
+
+                // "Face Detected" label
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.85)';
+                const labelH = 26;
+                const labelW = 120;
+                ctx.fillRect(mirroredX, box.y - labelH - 4, labelW, labelH);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.fillText('Face Detected', mirroredX + 8, box.y - 10);
+            });
+        } else {
+            setFaceDetected(false);
+        }
+    }, []);
+
+    // Run face detection loop using browser's FaceDetector API
+    const startFaceDetectionLoop = useCallback(async () => {
+        // Check browser support for FaceDetector API
+        if (typeof window.FaceDetector === 'undefined') {
+            // Fallback: no real-time face box, but don't break anything
+            return;
+        }
+
+        try {
+            detectorRef.current = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+        } catch {
+            return; // Browser doesn't support it
+        }
+
+        const detect = async () => {
+            const video = videoRef.current;
+            if (!video || video.readyState < 2 || !detectorRef.current) {
+                detectLoopRef.current = requestAnimationFrame(detect);
+                return;
+            }
+
+            try {
+                const faces = await detectorRef.current.detect(video);
+                drawFaceOverlay(faces);
+            } catch {
+                // Detection can fail on some frames — ignore and retry
+            }
+
+            detectLoopRef.current = requestAnimationFrame(detect);
+        };
+
+        detectLoopRef.current = requestAnimationFrame(detect);
+    }, [drawFaceOverlay]);
 
     // Start webcam
     useEffect(() => {
@@ -40,6 +138,7 @@ const FaceEnrollmentPage = () => {
                     streamRef.current = stream;
                     setCameraReady(true);
                     setStatus('Camera ready. Click "Start Capture" to begin.');
+                    startFaceDetectionLoop();
                 }
             } catch (err) {
                 console.error('Camera error:', err);
@@ -55,8 +154,11 @@ const FaceEnrollmentPage = () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
+            if (detectLoopRef.current) {
+                cancelAnimationFrame(detectLoopRef.current);
+            }
         };
-    }, []);
+    }, [startFaceDetectionLoop]);
 
     // Capture a single frame
     const captureFrame = useCallback(() => {
@@ -310,7 +412,19 @@ const FaceEnrollmentPage = () => {
                             muted
                             className="camera-feed"
                         />
+                        <canvas
+                            ref={overlayCanvasRef}
+                            className="face-overlay-canvas"
+                        />
                         <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+                        {/* Face detection indicator */}
+                        {cameraReady && !isCapturing && !isEnrolling && (
+                            <div className={`face-detect-badge ${faceDetected ? 'detected' : 'not-detected'}`}>
+                                <i className={`fas ${faceDetected ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
+                                {faceDetected ? 'Face Detected' : 'No Face Detected'}
+                            </div>
+                        )}
 
                         {isCapturing && (
                             <div className="capture-overlay">
