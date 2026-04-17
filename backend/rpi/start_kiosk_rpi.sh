@@ -20,13 +20,16 @@ echo "    Repo root: $REPO_ROOT"
 # This releases the camera (/dev/video0) and frees port 3000/8000
 # before we try to start fresh.  Always safe to run.
 echo "[cleanup] Stopping any previous kiosk processes..."
-pkill -f "rpi.kiosk_server" 2>/dev/null || true
-pkill -f "kiosk_server"     2>/dev/null || true
-pkill -f "SPAHandler"       2>/dev/null || true
-pkill -f "http.server"      2>/dev/null || true
-pkill -9 chromium-browser   2>/dev/null || true
-pkill -9 chromium           2>/dev/null || true
-sleep 2   # Give kernel time to release /dev/video0 and TCP sockets
+pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+pkill -9 -f "kiosk_server"     2>/dev/null || true
+pkill -f  "SPAHandler"         2>/dev/null || true
+pkill -f  "http.server"        2>/dev/null || true
+pkill -9 chromium-browser      2>/dev/null || true
+pkill -9 chromium              2>/dev/null || true
+# Force-release port 8000 and /dev/video0 regardless of process name
+fuser -k 8000/tcp      2>/dev/null || true
+fuser -k /dev/video0   2>/dev/null || true
+sleep 3   # Give kernel time to release /dev/video0 and TCP sockets
 echo "[cleanup] Done."
 
 # ── 1. Load environment variables ────────────────────────────
@@ -223,6 +226,10 @@ while true; do
     fi
     # Non-zero = crash — restart the kiosk server
     echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 3s..."
+    # Kill anything still holding port 8000 or the camera before restarting
+    pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+    fuser -k 8000/tcp    2>/dev/null || true
+    fuser -k /dev/video0 2>/dev/null || true
     sleep 3
     cd "$REPO_ROOT/backend"
     setsid python -m rpi.kiosk_server &

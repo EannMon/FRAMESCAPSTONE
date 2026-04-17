@@ -20,6 +20,7 @@ INTERFACE:
 import cv2
 import numpy as np
 import time
+import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -108,9 +109,26 @@ class Camera:
                 self._cap = None
 
         # Fallback to OpenCV — retry up to 5 times (camera may still be releasing from a previous process)
+        # Use cv2.CAP_V4L2 explicitly to skip the obsensor (Intel RealSense) plugin,
+        # which calls std::terminate() on its second open attempt for a non-existent device.
         if self._cap is None:
+            device_path = f"/dev/video{index}"
             for attempt in range(5):
-                self._cap = cv2.VideoCapture(index)
+                # Check device node existence before calling OpenCV — prevents C++ crash
+                # in obsensor_uvc_stream_channel when the device is unavailable.
+                if not os.path.exists(device_path):
+                    if attempt < 4:
+                        logger.warning(
+                            "OpenCV failed to open camera (attempt %d/5), /dev/video%d not found, retrying in 2s...",
+                            attempt + 1, index
+                        )
+                        time.sleep(2)
+                    else:
+                        logger.error("Failed to open camera via OpenCV after 5 attempts")
+                        self._opened = False
+                    continue
+
+                self._cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
                 if self._cap.isOpened():
                     self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
                     self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
