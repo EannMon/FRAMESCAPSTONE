@@ -197,7 +197,7 @@ DISPLAY=:0 chromium-browser \
     --high-dpi-support=1 \
     --check-for-update-interval=604800 \
     --disable-features=Translate \
-    --use-gl=egl \
+    --disable-gpu \
     --disable-gpu-vsync \
     --num-raster-threads=2 \
     "$KIOSK_URL" &
@@ -239,12 +239,15 @@ while true; do
         break
     fi
     # Non-zero = crash — restart the kiosk server
-    echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 3s..."
-    # Kill anything still holding port 8000 or the camera before restarting
+    echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 5s..."
+    # Kill the old process group (setsid gave it a new pgid == its own pid)
+    kill -- -$KIOSK_PID 2>/dev/null || true
     pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
-    kill_port 8000
-    fuser -k /dev/video0 2>/dev/null || true
+    pkill -9 -f "uvicorn" 2>/dev/null || true
+    # Wait for port 8000 to be freed, then force-kill anything still holding it
     sleep 3
+    kill_port 8000
+    sleep 2   # Give kernel time to fully release the socket
     cd "$REPO_ROOT/backend"
     setsid python -m rpi.kiosk_server &
     KIOSK_PID=$!
