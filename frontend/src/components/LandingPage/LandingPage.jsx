@@ -472,126 +472,78 @@ const FeaturesSection = ({ aboutRef }) => (
 );
 
 // ==========================================
-// WATCH DEMO MODAL (New Feature)
+// WATCH DEMO MODAL
+// Embeds the FRAMES demo video via Google Drive preview (no download needed).
 // ==========================================
+const DEMO_VIDEO_EMBED_URL = 'https://drive.google.com/file/d/1oKM-sy2aMLf6Sdwmetv69WJxTtR3zcUJ/preview';
+
 const WatchDemoModal = ({ isOpen, onClose }) => {
-    const [demoRole, setDemoRole] = useState(null); // 'faculty' | 'student' | null
-
-    // Reset role when modal closes
-    useEffect(() => {
-        if (!isOpen) {
-            setDemoRole(null);
-        }
-    }, [isOpen]);
-
     if (!isOpen) return null;
-
-    // Role selection screen
-    if (!demoRole) {
-        return (
-            <div className="role-modal-overlay" onClick={onClose}>
-                <div className="role-modal-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                    {/* Close button */}
-                    <button
-                        className="modal-close-btn"
-                        onClick={onClose}
-                    >
-                        <i className="fas fa-times"></i>
-                    </button>
-
-                    <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', color: '#0F172A' }}>Watch Demo</h3>
-                        <p className="role-modal-subtitle">Choose your role to see a personalized walkthrough</p>
-                    </div>
-
-                    <div className="role-modal-grid" style={{ marginTop: '30px' }}>
-                        {/* Faculty Demo Card */}
-                        <div
-                            className="role-modal-item faculty"
-                            onClick={() => setDemoRole('faculty')}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <i className="fas fa-chalkboard-teacher"></i>
-                            <h3>Faculty / Head</h3>
-                            <p>See how to manage classes and attendance</p>
-                        </div>
-                        {/* Student Demo Card */}
-                        <div
-                            className="role-modal-item student"
-                            onClick={() => setDemoRole('student')}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <i className="fas fa-user-graduate"></i>
-                            <h3>Student</h3>
-                            <p>Explore the student dashboard features</p>
-                        </div>
-                    </div>
-
-                    {/* Removed bottom close button as top-right is added */}
-                </div>
-            </div>
-        );
-    }
-
-    // Video demo screen
-    const demoTitle = demoRole === 'faculty'
-        ? 'Faculty / Department Head Demo'
-        : 'Student Portal Demo';
 
     return (
         <div className="role-modal-overlay" onClick={onClose}>
-            <div className="login-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', padding: 0 }}>
-                {/* Close button */}
-                <button
-                    className="modal-close-btn light"
-                    onClick={onClose}
-                >
-                    <i className="fas fa-times"></i>
-                </button>
-
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                    position: 'relative',
+                    backgroundColor: '#0F172A',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    width: '90vw',
+                    maxWidth: '960px',
+                    boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+                }}
+            >
                 {/* Header */}
-                <div style={{ backgroundColor: '#0F172A', padding: '20px 25px', textAlign: 'center', borderBottom: '1px solid #1e293b' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#FFFFFF', letterSpacing: '0.5px' }}>{demoTitle}</h3>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 24px',
+                    borderBottom: '1px solid #1e293b',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className="fas fa-play-circle" style={{ color: '#38bdf8', fontSize: '1.2rem' }}></i>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#FFFFFF', letterSpacing: '0.4px' }}>
+                            FRAMES — System Demo
+                        </h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            fontSize: '1.2rem',
+                            cursor: 'pointer',
+                            lineHeight: 1,
+                            padding: '4px',
+                            transition: 'color 0.2s',
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.color = '#FFFFFF'}
+                        onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                        aria-label="Close demo"
+                    >
+                        <i className="fas fa-times"></i>
+                    </button>
                 </div>
 
-                {/* Video Placeholder */}
-                <div style={{ padding: '60px 40px', textAlign: 'center', backgroundColor: '#f8fafc' }}>
-                    <div style={{
-                        width: '100%',
-                        height: '400px',
-                        backgroundColor: '#e2e8f0',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px dashed #94a3b8'
-                    }}>
-                        <h4 style={{ color: '#475569', margin: '0 0 10px 0', fontSize: '1.2rem' }}>Video Coming Soon</h4>
-                        <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem', maxWidth: '500px' }}>
-                            We're preparing a comprehensive walkthrough tutorial demonstrating all features for the {demoRole === 'faculty' ? 'Faculty' : 'Student'} portal. Stay tuned!
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={() => setDemoRole(null)}
+                {/* 16:9 responsive video container */}
+                <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, backgroundColor: '#000' }}>
+                    <iframe
+                        src={DEMO_VIDEO_EMBED_URL}
+                        title="FRAMES System Demo"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
                         style={{
-                            marginTop: '25px',
-                            backgroundColor: '#0F172A',
-                            color: 'white',
-                            padding: '12px 28px',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
                             border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '1rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
                         }}
-                        onMouseOver={(e) => e.target.style.backgroundColor = '#1e293b'}
-                        onMouseOut={(e) => e.target.style.backgroundColor = '#0F172A'}
-                    >
-                        <i className="fas fa-arrow-left" style={{ marginRight: '8px' }}></i>Back to Role Selection
-                    </button>
+                    />
                 </div>
             </div>
         </div>
