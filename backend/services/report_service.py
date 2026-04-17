@@ -85,12 +85,19 @@ def _department_faculty_ids(db: Session, dept_id: int):
     return [row[0] for row in rows]
 
 
+# Statuses that mean "no data yet" — not absent, not present, just no info
+_NO_DATA_STATUSES = {"—", "--", "-", ""}
+
+
 def _build_row_session_reference(rows, window_from: str, window_to: str):
     """
     Build session counts and activity references directly from the filtered report rows.
     Ensures that Session Count Reference and trends update every time the report filter changes.
+    Rows with status '—' (no data yet) are excluded from all calculations.
     """
-    total_rows = len(rows)
+    # Exclude no-data rows from all metric calculations
+    valid_rows = [r for r in rows if str(r.get("status", "")).strip() not in _NO_DATA_STATUSES]
+    total_rows = len(valid_rows)
     # Define success tokens for consistent calculation across all report types
     success_tokens = [
         "present", "entered", "entry", "on time", "good", "excellent", 
@@ -99,7 +106,7 @@ def _build_row_session_reference(rows, window_from: str, window_to: str):
     
     attended = 0
     late_count = 0
-    for row in rows:
+    for row in valid_rows:
         status = str(row.get("status", "")).strip().lower()
         if any(token in status for token in success_tokens):
             attended += 1
@@ -253,7 +260,15 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
             "timestamp": log.timestamp.isoformat() if log.timestamp else None,
         })
 
-    # Append ABSENT rows for enrolled students who have no ENTRY log
+    # Check if ANY log exists for this class in the date window (session-conducted gate)
+    # If no logs at all exist, the session hasn't started — mark students as "—" not "ABSENT"
+    session_conducted = db.query(AttendanceLog.id).filter(
+        AttendanceLog.class_id == class_id,
+        AttendanceLog.timestamp >= str(d_from),
+        AttendanceLog.timestamp <= str(d_to) + " 23:59:59",
+    ).first() is not None
+
+    # Append rows for enrolled students who have no ENTRY log
     enrolled = (
         db.query(User)
         .join(Enrollment, Enrollment.student_id == User.id)
@@ -262,16 +277,28 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
     )
     for student in enrolled:
         if student.id not in students_with_entry:
-            rows.append({
-                "id": len(rows) + 1,
-                "col1": student.full_name,
-                "col2": student.tupm_id or "—",
-                "status": "ABSENT",
-                "col3": "—",
-                "remarks": "[No attendance recorded]",
-                "display_date": str(d_from) if d_from == d_to else str(d_from),
-                "timestamp": None,
-            })
+            if session_conducted:
+                rows.append({
+                    "id": len(rows) + 1,
+                    "col1": student.full_name,
+                    "col2": student.tupm_id or "—",
+                    "status": "ABSENT",
+                    "col3": "—",
+                    "remarks": "[No attendance recorded]",
+                    "display_date": str(d_from) if d_from == d_to else str(d_from),
+                    "timestamp": None,
+                })
+            else:
+                rows.append({
+                    "id": len(rows) + 1,
+                    "col1": student.full_name,
+                    "col2": student.tupm_id or "—",
+                    "status": "—",
+                    "col3": "—",
+                    "remarks": "",
+                    "display_date": str(d_from) if d_from == d_to else str(d_from),
+                    "timestamp": None,
+                })
 
     # Re-index all rows
     for i, row in enumerate(rows, 1):
@@ -463,7 +490,7 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
         score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
         avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
         
-        status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+        status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else ("Absent" if entries == 0 else "Present"))
         
         # Check for any 'not in class' remarks in logs for this student
         not_in_class_flag = False
@@ -488,8 +515,8 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
             "col1": user.full_name,
             "col2": user.tupm_id or "—",
             "status": status,
-            "col3": f"Score: {score}/100 | Entries: {entries}",
-            "remarks": final_remarks,
+            "col3": f"Score: {score}/100 | Entries: {entries}" if entries > 0 else "No attendance recorded",
+            "remarks": final_remarks if entries > 0 else "[No attendance recorded]",
             "student_id": user.id,
             "student_name": user.full_name,
             "section": user.section or cls_obj.section or "UNASSIGNED",
@@ -602,21 +629,26 @@ def _class_weekly_report(db: Session, class_id: int, date_from: str, date_to: st
 
         for _, user in enrolled:
             entries = weekly_entry_lookup.get((user.id, week_start), 0)
-            if entries == 0:
-                continue
 
             lates = weekly_late_lookup.get((user.id, week_start), 0)
             on_time = entries - lates
-            score = round((on_time / max(entries, 1)) * 100, 1)
-            status = "Good" if lates == 0 else ("Warning" if lates > 2 else "Present")
+            score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
+            if entries == 0:
+                status = "Absent"
+            elif lates == 0:
+                status = "Good"
+            elif lates > 2:
+                status = "Warning"
+            else:
+                status = "Present"
 
             rows.append({
                 "id": row_id,
                 "col1": user.full_name,
                 "col2": user.tupm_id or "—",
                 "status": status,
-                "col3": f"{period_label} | Score: {score}/100 | Entries: {entries}",
-                "remarks": f"Late: {lates} | {week_start.isoformat()} to {week_end.isoformat()}",
+                "col3": f"{period_label} | Score: {score}/100 | Entries: {entries}" if entries > 0 else f"{period_label} | No attendance",
+                "remarks": f"Late: {lates} | {week_start.isoformat()} to {week_end.isoformat()}" if entries > 0 else f"{week_start.isoformat()} to {week_end.isoformat()}",
                 "student_id": user.id,
                 "student_name": user.full_name,
                 "section": user.section or cls_obj.section or "UNASSIGNED",
@@ -753,15 +785,20 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
         month_label = f"{MONTH_NAMES[mo]} {yr}"
         for enrl, user in enrolled:
             entries = entry_lookup.get((user.id, yr, mo), 0)
-            if entries == 0:
-                continue  # Skip students with no entries in this month
             lates = late_lookup.get((user.id, yr, mo), 0)
             on_time = entries - lates
             
             score = round((on_time / max(entries, 1)) * 100, 1) if entries > 0 else 0
             avg_offset = "+7.5 min" if lates > 0 else "0.0 min"
             
-            status = "Good" if entries > 0 and lates == 0 else ("Warning" if lates > 2 else "Present")
+            if entries == 0:
+                status = "Absent"
+            elif lates == 0:
+                status = "Good"
+            elif lates > 2:
+                status = "Warning"
+            else:
+                status = "Present"
             
             # Check for any 'not in class' remarks in logs for this student/month
             not_in_class_flag = False
@@ -782,8 +819,8 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
                 "col1": user.full_name,
                 "col2": user.tupm_id or "—",
                 "status": status,
-                "col3": f"Score: {score}/100 | Entries: {entries}",
-                "remarks": final_remarks,
+                "col3": f"Score: {score}/100 | Entries: {entries}" if entries > 0 else "No attendance recorded",
+                "remarks": final_remarks if entries > 0 else "[No attendance recorded]",
                 "student_id": user.id,
                 "student_name": user.full_name,
                 "section": user.section or cls_obj.section or "UNASSIGNED",
@@ -3249,6 +3286,207 @@ def _build_insights_from_rows(rows, report_code: str):
     return insights
 
 
+# ──────────────────────────────────────────────
+# Class-level Student Metrics (for CLASS tab)
+# ──────────────────────────────────────────────
+
+def _build_class_student_session_reference(db: Session, class_id: int, date_from_dt, date_to_dt):
+    """
+    Build session count reference oriented around students in a class,
+    not the faculty.  Shows: total_enrolled, attended (students with ≥1 ENTRY),
+    absent, late, on_time, expected_sessions (scheduled class dates in window).
+    """
+    cls_obj = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.id == class_id)
+        .first()
+    )
+    if not cls_obj:
+        return {"report_window": {}, "whole_semester": {}}
+
+    d_from = date_from_dt.date() if hasattr(date_from_dt, 'date') else date_from_dt
+    d_to = date_to_dt.date() if hasattr(date_to_dt, 'date') else date_to_dt
+    today = datetime.now(timezone.utc).date()
+    log_d_to = min(d_to, today)
+
+    # Total enrolled students
+    enrolled_students = (
+        db.query(User)
+        .join(Enrollment, Enrollment.student_id == User.id)
+        .filter(Enrollment.class_id == class_id)
+        .all()
+    )
+    total_enrolled = len(enrolled_students)
+    enrolled_ids = {s.id for s in enrolled_students}
+
+    # Count expected sessions (scheduled class days in the window)
+    day_name_map = {
+        "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+        "friday": 4, "saturday": 5, "sunday": 6,
+    }
+    target_day = day_name_map.get((cls_obj.day_of_week or "").strip().lower())
+
+    # Load session exceptions for this class in the window
+    exceptions = (
+        db.query(SessionException)
+        .filter(
+            SessionException.class_id == class_id,
+            SessionException.session_date >= d_from,
+            SessionException.session_date <= d_to,
+        )
+        .all()
+    )
+    cancelled_dates = {
+        ex.session_date for ex in exceptions
+        if ex.exception_type in {ExceptionType.CANCELLED, ExceptionType.HOLIDAY}
+    }
+
+    expected_sessions = 0
+    conducted_sessions = 0
+    if target_day is not None:
+        current = d_from
+        while current <= d_to:
+            if current.weekday() == target_day and current not in cancelled_dates:
+                expected_sessions += 1
+                if current <= log_d_to:
+                    conducted_sessions += 1
+            current += timedelta(days=1)
+
+    # Distinct student ENTRY logs in the window (deduplicated by student+date)
+    entry_data = (
+        db.query(
+            AttendanceLog.user_id,
+            func.date(AttendanceLog.timestamp).label("log_date"),
+            AttendanceLog.is_late,
+        )
+        .filter(
+            AttendanceLog.class_id == class_id,
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            AttendanceLog.timestamp >= str(d_from),
+            AttendanceLog.timestamp <= str(log_d_to) + " 23:59:59",
+        )
+        .all()
+    )
+
+    # Deduplicate: one entry per student per date
+    seen_entries = set()
+    students_with_any_entry = set()
+    total_student_entries = 0
+    total_late = 0
+    total_on_time = 0
+    for uid, log_date, is_late in entry_data:
+        if uid not in enrolled_ids:
+            continue
+        key = (uid, str(log_date))
+        if key in seen_entries:
+            continue
+        seen_entries.add(key)
+        students_with_any_entry.add(uid)
+        total_student_entries += 1
+        if is_late:
+            total_late += 1
+        else:
+            total_on_time += 1
+
+    students_attended = len(students_with_any_entry)
+    students_absent = total_enrolled - students_attended
+
+    # Attendance rate: total student entries / (total_enrolled * conducted_sessions)
+    max_possible = total_enrolled * conducted_sessions if conducted_sessions > 0 else 0
+    attendance_rate = round((total_student_entries / max_possible) * 100, 1) if max_possible > 0 else 0.0
+    punctuality_rate = round((total_on_time / max(total_student_entries, 1)) * 100, 1) if total_student_entries > 0 else 0.0
+
+    window_data = {
+        "total_enrolled": total_enrolled,
+        "students_attended": students_attended,
+        "students_absent": students_absent,
+        "total_student_entries": total_student_entries,
+        "late_entries": total_late,
+        "on_time_entries": total_on_time,
+        "expected_sessions": expected_sessions,
+        "conducted_sessions": conducted_sessions,
+        "attendance_rate": attendance_rate,
+        "punctuality_rate": punctuality_rate,
+        "date_from": str(d_from),
+        "date_to": str(d_to),
+    }
+
+    # Also provide legacy keys the frontend expects
+    window_data["attended"] = total_student_entries
+    window_data["conducted"] = conducted_sessions
+    window_data["expected"] = expected_sessions
+
+    return {
+        "report_window": window_data,
+        "whole_semester": window_data,  # For class reports, same data
+    }
+
+
+def _build_class_student_summary_metrics(db: Session, class_id: int, date_from_dt, date_to_dt, scope_label=None):
+    """
+    Build summary metric cards oriented around STUDENT attendance in a class.
+    """
+    ref = _build_class_student_session_reference(db, class_id, date_from_dt, date_to_dt)
+    w = ref.get("report_window", {})
+
+    total_enrolled = w.get("total_enrolled", 0)
+    total_entries = w.get("total_student_entries", 0)
+    conducted = w.get("conducted_sessions", 0)
+    late = w.get("late_entries", 0)
+    on_time = w.get("on_time_entries", 0)
+    attendance_rate = w.get("attendance_rate", 0.0)
+    punctuality_rate = w.get("punctuality_rate", 0.0)
+
+    max_possible = total_enrolled * conducted if conducted > 0 else 0
+    confidence = "HIGH" if total_entries >= 20 else ("MEDIUM" if total_entries >= 5 else "LOW")
+    window = f"{w.get('date_from', '')}..{w.get('date_to', '')}"
+    prefix = f"[{scope_label}] " if scope_label else ""
+
+    return [
+        {
+            "metric_name": "class_attendance_rate",
+            "value": attendance_rate,
+            "formula": f"{prefix}total_student_entries / (total_enrolled * conducted_sessions) * 100",
+            "numerator": total_entries,
+            "denominator": max_possible,
+            "data_window": window,
+            "confidence": confidence,
+            "explanation": f"Percentage of student-session slots filled with actual attendance. {total_enrolled} enrolled students across {conducted} conducted sessions.",
+        },
+        {
+            "metric_name": "punctuality_rate",
+            "value": punctuality_rate,
+            "formula": f"{prefix}on_time_entries / total_entries * 100",
+            "numerator": on_time,
+            "denominator": total_entries,
+            "data_window": window,
+            "confidence": confidence,
+            "explanation": f"Share of student entries that were on time. {on_time} on-time out of {total_entries} total entries.",
+        },
+        {
+            "metric_name": "students_present",
+            "value": w.get("students_attended", 0),
+            "formula": f"{prefix}count(distinct students with ENTRY)",
+            "numerator": w.get("students_attended", 0),
+            "denominator": total_enrolled,
+            "data_window": window,
+            "confidence": confidence,
+            "explanation": f"{w.get('students_attended', 0)} out of {total_enrolled} enrolled students had at least one entry in this period.",
+        },
+        {
+            "metric_name": "students_absent",
+            "value": w.get("students_absent", 0),
+            "formula": f"{prefix}total_enrolled - students_with_entry",
+            "numerator": w.get("students_absent", 0),
+            "denominator": total_enrolled,
+            "data_window": window,
+            "confidence": confidence,
+            "explanation": f"{w.get('students_absent', 0)} enrolled students had zero attendance entries in this period.",
+        },
+    ]
+
+
 def get_faculty_report_envelope(
     db: Session,
     user_id: int,
@@ -3340,36 +3578,31 @@ def get_faculty_report_envelope(
                 report_code=report_type,
             )
     else:
-        # CLASS reports — use proper metric computation when class_id is available
+        # CLASS reports — use student-oriented class metrics when class_id is available
         if class_id:
             try:
                 date_from_dt = datetime.strptime(window_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 date_to_dt = datetime.strptime(window_to, "%Y-%m-%d").replace(
                     hour=23, minute=59, second=59, tzinfo=timezone.utc
                 )
-                faculty_metrics = compute_faculty_core_metrics(
-                    db, user_id, date_from_dt, date_to_dt, class_id=class_id,
-                )
                 cls_obj = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == class_id).first()
                 scope_label = None
                 if cls_obj and cls_obj.subject:
                     scope_label = f"{cls_obj.subject.code} - {cls_obj.section or 'N/A'}"
-                summary_metrics = build_faculty_summary_metrics(
-                    faculty_metrics, date_from_dt, date_to_dt,
-                    is_all_class_scope=False,
-                    scope_label=scope_label,
+
+                summary_metrics = _build_class_student_summary_metrics(
+                    db, class_id, date_from_dt, date_to_dt, scope_label=scope_label,
                 )
-                session_count_ref = compute_faculty_session_count_reference(
-                    db, user_id, date_from_dt, date_to_dt, class_id=class_id,
+                session_count_ref = _build_class_student_session_reference(
+                    db, class_id, date_from_dt, date_to_dt,
                 )
                 insights = generate_faculty_role_insights(
                     rows=all_rows,
                     summary_metrics=summary_metrics,
                     report_code=report_type,
-                    faculty_metrics=faculty_metrics,
                 )
             except Exception:
-                logger.exception("Failed to compute class metrics for class %d", class_id)
+                logger.exception("Failed to compute class student metrics for class %d", class_id)
                 summary_metrics = _build_summary_metrics_from_rows(all_rows, report_type, window_from, window_to)
                 session_count_ref = _build_row_session_reference(all_rows, window_from, window_to)
                 insights = generate_faculty_role_insights(

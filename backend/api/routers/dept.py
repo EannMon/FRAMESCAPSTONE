@@ -870,3 +870,249 @@ def get_system_metrics(
         "skip": skip,
         "limit": limit,
     }
+
+
+# ──────────────────────────────────────────────
+# Department Head — Attendance Management
+# ──────────────────────────────────────────────
+
+@router.get("/department-classes")
+def get_department_classes(dept_id: int = Query(...), db: Session = Depends(get_db)):
+    """
+    Returns all classes where the faculty belongs to the given department.
+    Used by the Dept Head Attendance tab scope toggle (All Department Classes).
+    """
+    faculty_ids = [
+        row[0] for row in db.query(User.id)
+        .filter(
+            User.department_id == dept_id,
+            User.role.in_([UserRole.FACULTY, UserRole.HEAD]),
+        )
+        .all()
+    ]
+    if not faculty_ids:
+        return []
+
+    classes = (
+        db.query(Class)
+        .options(joinedload(Class.subject), joinedload(Class.faculty))
+        .filter(Class.faculty_id.in_(faculty_ids))
+        .all()
+    )
+
+    from sqlalchemy import func as sqlfunc
+    enrollment_counts = dict(
+        db.query(Enrollment.class_id, sqlfunc.count(Enrollment.id))
+        .filter(Enrollment.class_id.in_([c.id for c in classes]))
+        .group_by(Enrollment.class_id)
+        .all()
+    ) if classes else {}
+
+    return [
+        {
+            "id": cls.id,
+            "subject_code": cls.subject.code if cls.subject else None,
+            "subject_title": cls.subject.title if cls.subject else None,
+            "section": cls.section,
+            "room": cls.room,
+            "day_of_week": cls.day_of_week,
+            "start_time": str(cls.start_time) if cls.start_time else None,
+            "end_time": str(cls.end_time) if cls.end_time else None,
+            "faculty_name": cls.faculty.full_name if cls.faculty else None,
+            "faculty_id": cls.faculty_id,
+            "total_students": enrollment_counts.get(cls.id, 0),
+            "semester": cls.semester,
+            "academic_year": cls.academic_year,
+        }
+        for cls in classes
+    ]
+
+
+class DeptAttendanceEditRequest(BaseModel):
+    student_id: int
+    class_id: int
+    date: str            # "YYYY-MM-DD"
+    new_time: str        # "HH:MM" 24-hour
+    remarks: Optional[str] = None
+    editor_id: int       # Dept Head user ID performing the edit
+
+
+@router.put("/attendance/edit-time-in")
+def dept_edit_student_time_in(data: DeptAttendanceEditRequest, db: Session = Depends(get_db)):
+    """
+    Department Head edits (or creates) a student's ENTRY time for a specific class+date.
+    - If an ENTRY log exists: update its timestamp and recompute is_late.
+    - If no ENTRY log exists: create a new one (student forgot to log in).
+    - Always writes an audit_log entry for accountability.
+    """
+    from datetime import datetime as dt_type, date as date_type, time as time_type, timezone as tz
+    from models.audit_log import AuditLog, AuditActions
+    from models.attendance_log import AttendanceLog, AttendanceAction, VerifiedBy
+
+    # Validate class exists and belongs to this department
+    cls = db.query(Class).filter(Class.id == data.class_id).first()
+    if not cls:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    # Validate student exists
+    student = db.query(User).filter(User.id == data.student_id).first()
+    if not student:
+        raise api_error(404, "STUDENT_NOT_FOUND", "Student not found")
+
+    # Parse date and time
+    try:
+        target_date = date_type.fromisoformat(data.date)
+    except ValueError:
+        raise api_error(400, "INVALID_DATE", "Date must be YYYY-MM-DD")
+
+    try:
+        parts = data.new_time.strip().split(":")
+        new_hour, new_minute = int(parts[0]), int(parts[1])
+        new_time = time_type(new_hour, new_minute)
+    except (ValueError, IndexError):
+        raise api_error(400, "INVALID_TIME", "Time must be HH:MM (24-hour)")
+
+    new_timestamp = dt_type.combine(target_date, new_time)
+
+    # Auto-compute is_late
+    is_late = False
+    if cls.start_time and cls.late_threshold_minutes:
+        from datetime import timedelta
+        try:
+            class_start = dt_type.combine(target_date, cls.start_time)
+            grace_limit = class_start + timedelta(minutes=cls.late_threshold_minutes)
+            is_late = new_timestamp > grace_limit
+        except Exception:
+            pass
+
+    # Find existing ENTRY log for this student+class+date
+    existing_log = (
+        db.query(AttendanceLog)
+        .filter(
+            AttendanceLog.user_id == data.student_id,
+            AttendanceLog.class_id == data.class_id,
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            func.date(AttendanceLog.timestamp) == target_date,
+        )
+        .first()
+    )
+
+    old_value = None
+    if existing_log:
+        old_value = {
+            "old_time": existing_log.timestamp.strftime("%H:%M"),
+            "old_is_late": existing_log.is_late,
+        }
+        existing_log.timestamp = new_timestamp
+        existing_log.is_late = is_late
+        if data.remarks is not None:
+            existing_log.remarks = data.remarks
+        log_id = existing_log.id
+        action_label = "EDIT"
+    else:
+        # Create new ENTRY log — student forgot to log in
+        new_log = AttendanceLog(
+            user_id=data.student_id,
+            class_id=data.class_id,
+            action=AttendanceAction.ENTRY,
+            verified_by=VerifiedBy.FACE,
+            is_late=is_late,
+            timestamp=new_timestamp,
+            remarks=data.remarks or "Manual entry by Department Head",
+        )
+        db.add(new_log)
+        db.flush()
+        log_id = new_log.id
+        action_label = "CREATE"
+
+    # Write audit log
+    audit_entry = AuditLog(
+        user_id=data.editor_id,
+        action_type=AuditActions.ATTENDANCE_TIME_EDIT,
+        target_table="attendance_logs",
+        target_id=log_id,
+        old_value=old_value,
+        new_value={
+            "student_id": data.student_id,
+            "class_id": data.class_id,
+            "date": data.date,
+            "new_time": data.new_time,
+            "is_late": is_late,
+            "remarks": data.remarks,
+            "action": action_label,
+        },
+        timestamp=dt_type.now(tz.utc),
+    )
+    db.add(audit_entry)
+    db.commit()
+
+    logger.info(
+        "DEPT ATTENDANCE | %s log for student_id=%d class_id=%d date=%s new_time=%s by editor=%d",
+        action_label, data.student_id, data.class_id, data.date, data.new_time, data.editor_id
+    )
+
+    return {
+        "success": True,
+        "action": action_label,
+        "log_id": log_id,
+        "new_timestamp": new_timestamp.strftime("%I:%M %p"),
+        "is_late": is_late,
+    }
+
+
+@router.get("/attendance/edit-history")
+def get_dept_attendance_edit_history(
+    class_id: Optional[int] = Query(None),
+    student_id: Optional[int] = Query(None),
+    skip: int = Query(0),
+    limit: int = Query(50),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns ATTENDANCE_TIME_EDIT audit log entries.
+    Filterable by class_id and/or student_id.
+    Returns who edited, when, what changed (old time → new time).
+    """
+    from datetime import datetime as dt_type
+    from models.audit_log import AuditLog, AuditActions
+
+    limit = min(limit, 100)
+    query = (
+        db.query(AuditLog)
+        .options(joinedload(AuditLog.user))
+        .filter(AuditLog.action_type == AuditActions.ATTENDANCE_TIME_EDIT)
+    )
+
+    if class_id:
+        # Filter by class_id stored in new_value JSON
+        query = query.filter(AuditLog.new_value["class_id"].as_integer() == class_id)
+    if student_id:
+        query = query.filter(AuditLog.new_value["student_id"].as_integer() == student_id)
+
+    entries = query.order_by(AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
+
+    results = []
+    for entry in entries:
+        nv = entry.new_value or {}
+        ov = entry.old_value or {}
+
+        # Resolve student name
+        student = db.query(User).filter(User.id == nv.get("student_id")).first() if nv.get("student_id") else None
+        # Resolve class info
+        cls = db.query(Class).options(joinedload(Class.subject)).filter(Class.id == nv.get("class_id")).first() if nv.get("class_id") else None
+
+        results.append({
+            "id": entry.id,
+            "editor_name": entry.user.full_name if entry.user else "Unknown",
+            "student_name": student.full_name if student else f"Student #{nv.get('student_id', '?')}",
+            "class_name": (cls.subject.title if cls and cls.subject else "Unknown Class") + (f" — {cls.section}" if cls else ""),
+            "date": nv.get("date"),
+            "old_time": ov.get("old_time", "—"),
+            "new_time": nv.get("new_time"),
+            "action": nv.get("action", "EDIT"),
+            "remarks": nv.get("remarks") or "",
+            "edited_at": entry.timestamp.isoformat() if entry.timestamp else None,
+        })
+
+    return results
+

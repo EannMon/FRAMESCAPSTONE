@@ -28,6 +28,8 @@ const DeptHeadMyClassesPage = () => {
     const [selectedSessions, setSelectedSessions] = useState([]);
     const [showManageModal, setShowManageModal] = useState(false);
     const [modalData, setModalData] = useState({ type: 'normal', reason: '' });
+    // Session exceptions loaded from DB — keyed by "classId-YYYY-MM-DD" for instant lookup
+    const [sessionExceptionMap, setSessionExceptionMap] = useState({});
 
     // Day Summary Modal (past dates)
     const [dayModal, setDayModal] = useState(null); // { date, dateStr, events }
@@ -104,7 +106,25 @@ const DeptHeadMyClassesPage = () => {
         if (myClasses.length > 0) {
             generateCalendarEvents(myClasses, currentMonth);
         }
-    }, [myClasses, currentMonth, ayStart, ayEnd]);
+    }, [myClasses, currentMonth, ayStart, ayEnd, sessionExceptionMap]);
+
+    // Load session exceptions from DB whenever the month changes
+    useEffect(() => {
+        if (!user) return;
+        const uid = user.user_id || user.id;
+        const yr = currentMonth.getFullYear();
+        const mo = currentMonth.getMonth() + 1;
+        api.get(`/api/faculty/session-exceptions-by-faculty/${uid}?month=${mo}&year=${yr}&limit=100`)
+            .then(res => {
+                const map = {};
+                (res.data || []).forEach(ex => {
+                    const key = `${ex.class_id}-${ex.session_date}`;
+                    map[key] = ex.exception_type;
+                });
+                setSessionExceptionMap(map);
+            })
+            .catch(() => { /* non-fatal */ });
+    }, [user, currentMonth]);
 
     const fetchUploadHistory = async (userId, signal) => {
         try {
@@ -196,6 +216,13 @@ const DeptHeadMyClassesPage = () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        const exTypeToColorClass = {
+            online: 'cal-event-orange',
+            cancelled: 'cal-event-red',
+            holiday: 'cal-event-violet',
+            onsite: null,
+        };
+
         // Loop through every day of the month
         for (let d = 1; d <= daysInMonth; d++) {
             const currentDate = new Date(year, month, d);
@@ -219,6 +246,8 @@ const DeptHeadMyClassesPage = () => {
             // Find classes that meet on this day name
             classes.forEach(cls => {
                 if (cls.day_of_week === dayName) {
+                    const exceptionType = sessionExceptionMap[`${cls.id}-${dateStr}`] || null;
+                    const exColorClass = exceptionType ? (exTypeToColorClass[exceptionType] || null) : null;
                     events.push({
                         id: `${cls.id}-${d}`, // Unique ID
                         date: dateStr,
@@ -226,7 +255,9 @@ const DeptHeadMyClassesPage = () => {
                         title: cls.subject_code,
                         time: cls.start_time,
                         section: cls.section,
-                        status: 'normal', // Default status
+                        status: exceptionType || 'normal',
+                        exceptionType,
+                        colorClass: exColorClass,
                         isPast: isPast
                     });
                 }
@@ -535,9 +566,12 @@ const DeptHeadMyClassesPage = () => {
             });
 
             // Update visual state
+            const exTypeColorMap = { online: 'cal-event-orange', cancelled: 'cal-event-red', holiday: 'cal-event-violet', onsite: null };
+            const savedType = modalData.type === 'normal' ? 'onsite' : modalData.type === 'online-sync' ? 'online' : modalData.type;
+            const newColorClass = exTypeColorMap[savedType] || null;
             const updatedEvents = calendarEvents.map(ev => {
                 if (selectedSessions.includes(ev.id)) {
-                    return { ...ev, status: modalData.type, reason: modalData.reason };
+                    return { ...ev, status: savedType, exceptionType: savedType, colorClass: newColorClass, reason: modalData.reason };
                 }
                 return ev;
             });
@@ -567,7 +601,7 @@ const DeptHeadMyClassesPage = () => {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
         const reportInfo = {
-            title: `Daily Session Summary — ${dateLabel}`,
+            title: `Daily Session Summary \u2014 ${dateLabel}`,
             type: 'FACULTY DAILY SUMMARY',
             category: 'schedule',
             context: {
@@ -750,38 +784,13 @@ const DeptHeadMyClassesPage = () => {
                                 <tr key={s.user_id} onClick={() => handleViewStudent(s)} className="clickable-row">
                                     <td className="student-name-cell" style={{ minWidth: '300px' }}>
                                         <div className="avatar-placeholder">{(s.firstName || '?').charAt(0)}</div>
-                                        {editingStudent === s.user_id ? (
-                                            <div className="edit-student-inline-form" onClick={e => e.stopPropagation()}>
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.lastName}
-                                                    onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
-                                                    placeholder="Last Name"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.firstName}
-                                                    onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
-                                                    placeholder="First Name"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
-                                        )}
+                                        <div><div className="s-name">{s.lastName}, {s.firstName}</div><div className="s-id">{s.tupm_id}</div></div>
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
-                                        {editingStudent === s.user_id ? (
-                                            <div className="edit-actions" onClick={e => e.stopPropagation()}>
-                                                <button className="save-icon-btn" onClick={(e) => handleSaveStudentEdit(e, s.user_id)} title="Save"><i className="fas fa-check"></i></button>
-                                                <button className="cancel-icon-btn" onClick={handleCancelEdit} title="Cancel"><i className="fas fa-times"></i></button>
-                                            </div>
-                                        ) : (
-                                            <div className="student-row-actions">
-                                                <button className="icon-btn-edit" onClick={(e) => handleEditStudentClick(e, s)} title="Edit Student"><i className="fas fa-edit"></i></button>
-                                                <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
-                                                <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
-                                            </div>
-                                        )}
+                                        <div className="student-row-actions">
+                                            <button className="icon-btn-remove" onClick={(e) => { e.stopPropagation(); handleRemoveStudentFromClass(s.user_id); }} title="Remove Student"><i className="fas fa-trash-alt"></i></button>
+                                            <button className="icon-btn-view" title="View Profile"><i className="fas fa-chevron-right"></i></button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -873,13 +882,17 @@ const DeptHeadMyClassesPage = () => {
                         {events.map(ev => (
                             <div
                                 key={ev.id}
-                                className={`cal-event-pill ${ev.status === 'cancelled' ? 'cal-event-red' : (ev.isPast ? 'cal-event-green' : 'cal-event-blue')} ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
+                                className={`cal-event-pill ${
+                                                ev.colorClass ||
+                                                (ev.status === 'cancelled' ? 'cal-event-red' :
+                                                 ev.isPast ? 'cal-event-green' : 'cal-event-blue')
+                                            } ${selectedSessions.includes(ev.id) ? 'selected-pill' : ''}`}
                                 onClick={(e) => {
                                     if (ev.isPast) { e.stopPropagation(); return; }
                                     e.stopPropagation();
                                     toggleSessionSelect(ev.id);
                                 }}
-                                title={ev.isPast ? `${ev.title} — Completed` : `${ev.title} — Click to Select`}
+                                title={ev.isPast ? `${ev.title} \u2014 Completed` : `${ev.title} \u2014 Click to Select`}
                             >
                                 {ev.isPast && <i className="fas fa-check pill-check"></i>}
                                 {!ev.isPast && selectedSessions.includes(ev.id) && <i className="fas fa-check-circle pill-check"></i>}

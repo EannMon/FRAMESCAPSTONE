@@ -3,17 +3,19 @@ import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
 import '../StudentDashboard/AttendanceHistoryPage.css'; // Inheriting Student style
+import './FacultyAttendancePage.css'; // Edit modal + faculty-specific styles
 
 const StatusBadge = ({ status }) => {
     let cls = 'neutral';
-    if (status === 'Present') cls = 'success';
+    if (!status || status === '—' || status === '--') cls = 'muted';
+    else if (status === 'Present') cls = 'success';
     else if (status === 'On Break') cls = 'warning';
     else if (status === 'Late') cls = 'warning';
     else if (status === 'Absent') cls = 'danger';
     else if (status === 'Left') cls = 'neutral';
     return (
         <span className={`log-status-tag ${cls}`}>
-            {status?.toUpperCase() || 'ABSENT'}
+            {(!status || status === '—' || status === '--') ? '—' : status.toUpperCase()}
         </span>
     );
 };
@@ -181,10 +183,6 @@ const FacultyAttendancePage = () => {
     };
 
     const handleSaveEdit = async () => {
-        if (!editingStudent?.entry_log_id) {
-            toast.error('No attendance entry to edit. Student may be absent.');
-            return;
-        }
         if (!editTime) {
             toast.error('Please enter a valid time.');
             return;
@@ -192,16 +190,28 @@ const FacultyAttendancePage = () => {
         if (saving) return;
         setSaving(true);
         try {
-            await api.put(`/api/faculty/attendance/${editingStudent.entry_log_id}`, {
-                new_time: editTime,
-                remarks: editRemarks || null,
-            });
-            toast.success('Attendance updated successfully.');
+            if (editingStudent?.entry_log_id) {
+                // Student has an existing ENTRY log — edit it
+                await api.put(`/api/faculty/attendance/${editingStudent.entry_log_id}`, {
+                    new_time: editTime,
+                    remarks: editRemarks || null,
+                });
+                toast.success('Attendance updated successfully.');
+            } else {
+                // Student has NO entry log (absent/no data) — create a new ENTRY
+                await api.post(`/api/faculty/attendance/create-entry`, {
+                    student_id: editingStudent.id,
+                    class_id: Number(selectedClassId),
+                    date: filterDate,
+                    new_time: editTime,
+                    remarks: editRemarks || 'Manual entry by Faculty',
+                });
+                toast.success('Attendance entry created successfully.');
+            }
             setEditModalOpen(false);
-            // Refresh data
             await fetchClassDetails(selectedClassId, filterDate);
         } catch (error) {
-            toast.error('Failed to update: ' + (error.response?.data?.detail?.error?.message || error.message));
+            toast.error('Failed to save: ' + (error.response?.data?.detail?.error?.message || error.message));
         } finally {
             setSaving(false);
         }
@@ -238,11 +248,13 @@ const FacultyAttendancePage = () => {
     // --- SUMMARY COUNTS ---
     const summaryCounts = () => {
         const filtered = getFilteredStudents();
+        const noDataStatuses = ['—', '--', '-', ''];
         return {
             present: filtered.filter(s => s.status === 'Present' || s.status === 'Left').length,
             late: filtered.filter(s => s.status === 'Late').length,
             onBreak: filtered.filter(s => s.status === 'On Break').length,
-            absent: filtered.filter(s => s.status === 'Absent' || !s.status || s.status === 'No Record').length,
+            absent: filtered.filter(s => s.status === 'Absent').length,
+            noData: filtered.filter(s => noDataStatuses.includes(s.status || '')).length,
             total: studentList.length,
         };
     };
@@ -329,6 +341,11 @@ const FacultyAttendancePage = () => {
                     <div style={statChip('#FFEBEE', '#C62828')}>
                         <strong>{counts.absent}</strong> <span>Absent</span>
                     </div>
+                    {counts.noData > 0 && (
+                        <div style={statChip('#f0f0f0', '#999')}>
+                            <strong>{counts.noData}</strong> <span>No Data Yet</span>
+                        </div>
+                    )}
                     <div style={statChip('#f1f5f9', '#475569')}>
                         <strong>{counts.total}</strong> <span>Total Enrolled</span>
                     </div>
@@ -488,17 +505,13 @@ const FacultyAttendancePage = () => {
                                                 {student.remarks || '-'}
                                             </td>
                                             <td className="td-actions">
-                                                {student.entry_log_id ? (
-                                                    <button
-                                                        onClick={() => openEditModal(student)}
-                                                        className="edit-btn"
-                                                        title="Edit time-in"
-                                                    >
-                                                        <i className="fas fa-pen" />
-                                                    </button>
-                                                ) : (
-                                                    <span className="no-action">—</span>
-                                                )}
+                                                <button
+                                                    onClick={() => openEditModal(student)}
+                                                    className="edit-btn"
+                                                    title={student.entry_log_id ? 'Edit time-in' : 'Add time-in entry'}
+                                                >
+                                                    <i className={`fas ${student.entry_log_id ? 'fa-pen' : 'fa-plus'}`} />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -529,7 +542,8 @@ const FacultyAttendancePage = () => {
                 <div className="modal-overlay edit-attendance-overlay">
                     <div className="edit-modal-content">
                         <h3 className="edit-modal-title">
-                            <i className="fas fa-pen btn-icon" />Edit Attendance
+                            <i className={`fas ${editingStudent.entry_log_id ? 'fa-pen' : 'fa-plus'} btn-icon`} />
+                            {editingStudent.entry_log_id ? 'Edit Attendance' : 'Add Attendance Entry'}
                         </h3>
 
                         {/* Non-editable fields */}
@@ -579,7 +593,7 @@ const FacultyAttendancePage = () => {
                                 disabled={saving}
                                 className={`edit-modal-save-btn ${saving ? 'saving' : ''}`}
                             >
-                                {saving ? 'Saving...' : 'Save Changes'}
+                                {saving ? 'Saving...' : (editingStudent.entry_log_id ? 'Save Changes' : 'Create Entry')}
                             </button>
                         </div>
                     </div>

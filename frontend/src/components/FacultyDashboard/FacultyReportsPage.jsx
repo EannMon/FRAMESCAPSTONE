@@ -158,6 +158,21 @@ const FacultyReportsPage = () => {
         return 'SEMESTRAL';
     };
 
+    /**
+     * Gate AI Insights display by report mode:
+     * - DAILY  → never show (insufficient sample)
+     * - WEEKLY → show with "low confidence" badge
+     * - MONTHLY / SEMESTRAL → show normally
+     * - CONSISTENCY → show only summary profile panel, not full insights
+     */
+    const getInsightsConfig = (reportId) => {
+        const mode = getReportMode(reportId);
+        if (mode === 'DAILY') return { show: false, badge: null };
+        if (mode === 'WEEKLY') return { show: true, badge: 'Low Confidence — limited weekly sample' };
+        if (reportId === 'CONSISTENCY') return { show: false, badge: null }; // consistency has its own panel
+        return { show: true, badge: null }; // MONTHLY / SEMESTRAL — full insights
+    };
+
     const getWeekRangesForMonth = () => {
         if (!weeklyMonth) return [];
         const [yearText, monthText] = weeklyMonth.split('-');
@@ -541,8 +556,13 @@ const FacultyReportsPage = () => {
         });
 
         if (buckets.ABSENT === 0 && sessionCountReference?.report_window) {
-            const { attended, conducted } = sessionCountReference.report_window;
-            buckets.ABSENT = Math.max((conducted || 0) - (attended || 0), 0);
+            const { attended, conducted, expected } = sessionCountReference.report_window;
+            if (activeTab === 'PERSONAL') {
+                // Personal: show sessions the faculty missed out of ALL expected scheduled sessions
+                buckets.ABSENT = Math.max((expected || conducted || 0) - (attended || 0), 0);
+            } else {
+                buckets.ABSENT = Math.max((conducted || 0) - (attended || 0), 0);
+            }
         }
 
         return buckets;
@@ -613,6 +633,39 @@ const FacultyReportsPage = () => {
         if (!sessionCountReference) return null;
         const reportWindow = sessionCountReference.report_window || {};
         const wholeSemester = sessionCountReference.whole_semester || {};
+        const isClassTab = activeTab === 'CLASS';
+
+        if (isClassTab) {
+            // Student-centric view for class reports
+            const totalEnrolled = reportWindow.total_enrolled ?? 0;
+            const studentsAttended = reportWindow.students_attended ?? 0;
+            const studentsAbsent = reportWindow.students_absent ?? (totalEnrolled - studentsAttended);
+            const conductedSessions = reportWindow.conducted_sessions ?? reportWindow.conducted ?? 0;
+            const expectedSessions = reportWindow.expected_sessions ?? reportWindow.expected ?? 0;
+            return (
+                <div className="insight-panel" style={{ marginTop: '16px' }}>
+                    <div className="insight-section-title" style={{ marginBottom: '12px' }}>Class Attendance Reference</div>
+                    <div className="session-reference-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                        <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                            <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Enrollment</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                                <div>Total Students: <strong>{totalEnrolled}</strong></div>
+                                <div>Attended (unique): <strong>{studentsAttended}</strong></div>
+                                <div>Absent (unique): <strong>{studentsAbsent}</strong></div>
+                            </div>
+                        </div>
+                        <div className="session-reference-card" style={{ padding: '14px', background: '#f8fafe', borderRadius: '10px', border: '1px solid #e5ebf7' }}>
+                            <div className="session-reference-title" style={{ fontWeight: 700, color: '#163269', marginBottom: '8px', fontSize: '0.88em' }}>Sessions</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.83em' }}>
+                                <div>Conducted: <strong>{conductedSessions}</strong></div>
+                                <div>Expected: <strong>{expectedSessions}</strong></div>
+                                <div>Attendance Rate: <strong>{reportWindow.attendance_rate ?? 0}%</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="insight-panel" style={{ marginTop: '16px' }}>
@@ -739,22 +792,47 @@ const FacultyReportsPage = () => {
     const renderInsightPanel = () => {
         if (!summaryMetrics.length && !insights.length) return null;
 
+        // Gate: hide performance metrics when data sample is too small OR for daily reports
+        const mode = getReportMode(selectedReport?.id);
+        const minSampleSize = 2;
+        const dataSize = reportData.length;
+        // Daily reports never show performance metrics (too little data for meaningful analysis)
+        const showMetrics = mode !== 'DAILY' && dataSize >= minSampleSize;
+
+        if (!showMetrics && !insights.length) return null;
+        // For daily mode, also suppress AI insights (badge already hidden by getInsightsConfig)
+        const insightsConfig = getInsightsConfig(selectedReport?.id);
+        const showAIInsights = mode !== 'DAILY' && insightsConfig.show && insights.length > 0;
+
         return (
             <div className="insight-panel">
                 <div className="insight-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div className="insight-section-title" style={{ marginBottom: 0 }}>Performance Metrics</div>
-                    {insights.length > 0 && (
-                        <button
-                            type="button"
-                            className="insight-action-btn"
-                            onClick={() => setShowInsightsModal(true)}
-                        >
-                            <i className="fas fa-lightbulb" style={{ marginRight: '6px' }}></i> View AI Insights
-                        </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {insightsConfig.badge && (
+                            <span style={{ fontSize: '0.75em', background: '#FFF8E1', color: '#F57F17', padding: '4px 10px', borderRadius: '12px', border: '1px solid #FFCA28', fontWeight: 600 }}>
+                                <i className="fas fa-exclamation-triangle" style={{ marginRight: '4px' }} />
+                                {insightsConfig.badge}
+                            </span>
+                        )}
+                        {!insightsConfig.show && insights.length > 0 && (
+                            <span style={{ fontSize: '0.75em', background: '#f5f5f5', color: '#888', padding: '4px 10px', borderRadius: '12px', border: '1px solid #e0e0e0' }}>
+                                AI Insights unavailable for daily reports
+                            </span>
+                        )}
+                        {showAIInsights && (
+                            <button
+                                type="button"
+                                className="insight-action-btn"
+                                onClick={() => setShowInsightsModal(true)}
+                            >
+                                <i className="fas fa-lightbulb" style={{ marginRight: '6px' }}></i> View AI Insights
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {summaryMetrics.length > 0 && (
+                {showMetrics && summaryMetrics.length > 0 && (
                     <div className="insight-stats-row">
                         {summaryMetrics.map((metric) => (
                             <button
@@ -773,6 +851,12 @@ const FacultyReportsPage = () => {
                                 {metric.confidence && <div className="insight-stat-sub">Confidence: {metric.confidence}</div>}
                             </button>
                         ))}
+                    </div>
+                )}
+                {!showMetrics && summaryMetrics.length > 0 && (
+                    <div style={{ fontSize: '0.82em', color: '#888', padding: '8px 0', fontStyle: 'italic' }}>
+                        <i className="fas fa-info-circle" style={{ marginRight: '6px' }}></i>
+                        Performance metrics are hidden due to insufficient data ({dataSize} record{dataSize !== 1 ? 's' : ''}). More attendance entries are needed for meaningful analysis.
                     </div>
                 )}
             </div>

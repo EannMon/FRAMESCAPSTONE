@@ -1317,8 +1317,11 @@ def get_class_details_by_schedule_id(
         date_filter
     ).order_by(AttendanceLog.timestamp.asc()).all()
 
-    # Group logs by user_id — keep all actions for state derivation
+    # Check if this session was ever conducted (any log at all for this class+date)
+    # If no logs exist, students should show "—" (no data yet), not "Absent"
     from collections import defaultdict
+    session_conducted = len(all_logs) > 0
+
     logs_by_user = defaultdict(list)
     for log in all_logs:
         logs_by_user[log.user_id].append(log)
@@ -1345,7 +1348,8 @@ def get_class_details_by_schedule_id(
 
         # Derive status from last action in the state machine
         if last_action is None:
-            status = "Absent"
+            # No log for this student: absent only if session was conducted, else no data
+            status = "Absent" if session_conducted else "—"
         elif last_action == AttendanceAction.ENTRY or last_action == AttendanceAction.BREAK_IN:
             status = "Late" if is_late else "Present"
         elif last_action == AttendanceAction.BREAK_OUT:
@@ -1380,7 +1384,7 @@ def get_class_details_by_schedule_id(
 
 
 # ============================================
-# Attendance Edit Endpoint
+# Attendance Edit / Create Endpoints
 # ============================================
 
 class AttendanceEditRequest(BaseModel):
@@ -1398,9 +1402,10 @@ def update_attendance_time(
     """
     Update an attendance log's timestamp (time portion only).
     Auto-recomputes is_late based on the class's start_time and late_threshold_minutes.
-    Only faculty who own the class can edit.
+    Writes an audit_log entry for tracking.
     """
     from datetime import time as time_type, timedelta
+    from models.audit_log import AuditLog, AuditActions
 
     log = db.query(AttendanceLog).filter(AttendanceLog.id == log_id).first()
     if not log:
@@ -1419,8 +1424,12 @@ def update_attendance_time(
     except (ValueError, IndexError):
         raise api_error(400, "INVALID_TIME", "Time must be in HH:MM format (24-hour)")
 
-    # Update timestamp — keep original date, replace time
+    # Store old values for audit
     original_date = log.timestamp.date()
+    old_time_str = log.timestamp.strftime("%H:%M") if log.timestamp else None
+    old_is_late = log.is_late
+
+    # Update timestamp — keep original date, replace time
     new_timestamp = datetime.combine(original_date, new_time)
     if log.timestamp.tzinfo:
         new_timestamp = new_timestamp.replace(tzinfo=log.timestamp.tzinfo)
@@ -1431,11 +1440,10 @@ def update_attendance_time(
     if log.action == AttendanceAction.ENTRY and cls.start_time:
         threshold = cls.late_threshold_minutes
         if not threshold:
-            # Late marking disabled for this class — always on-time
             log.is_late = False
         else:
             try:
-                class_start = datetime.strptime(cls.start_time, "%H:%M").time()
+                class_start = datetime.strptime(str(cls.start_time), "%H:%M:%S").time() if ":" in str(cls.start_time) and str(cls.start_time).count(":") == 2 else datetime.strptime(str(cls.start_time), "%H:%M").time()
                 from datetime import timedelta as td
                 grace_limit = (datetime.combine(original_date, class_start) + td(minutes=threshold)).time()
                 log.is_late = new_time > grace_limit
@@ -1445,6 +1453,27 @@ def update_attendance_time(
     # Update remarks if provided
     if data.remarks is not None:
         log.remarks = data.remarks
+
+    # Write audit log
+    from datetime import timezone as tz
+    audit_entry = AuditLog(
+        user_id=cls.faculty_id,
+        action_type=AuditActions.ATTENDANCE_TIME_EDIT,
+        target_table="attendance_logs",
+        target_id=log.id,
+        old_value={"old_time": old_time_str, "old_is_late": old_is_late},
+        new_value={
+            "student_id": log.user_id,
+            "class_id": log.class_id,
+            "date": str(original_date),
+            "new_time": data.new_time,
+            "is_late": log.is_late,
+            "remarks": data.remarks,
+            "action": "EDIT",
+        },
+        timestamp=datetime.now(tz.utc),
+    )
+    db.add(audit_entry)
 
     db.commit()
     db.refresh(log)
@@ -1460,6 +1489,175 @@ def update_attendance_time(
         "new_timestamp": log.timestamp.strftime("%I:%M %p"),
         "is_late": log.is_late,
     }
+
+
+class AttendanceCreateRequest(BaseModel):
+    """Schema for manually creating an ENTRY for a student who forgot to log in."""
+    student_id: int
+    class_id: int
+    date: str       # "YYYY-MM-DD"
+    new_time: str   # "HH:MM" 24-hour format
+    remarks: Optional[str] = None
+
+
+@router.post("/attendance/create-entry")
+def create_student_entry(
+    data: AttendanceCreateRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Faculty creates an ENTRY log for a student who forgot to log in.
+    Only works if the student has NO existing ENTRY for that class+date.
+    Writes audit log for tracking.
+    """
+    from datetime import date as date_type, time as time_type, timezone as tz
+    from models.audit_log import AuditLog, AuditActions
+
+    # Validate class exists
+    cls = db.query(Class).filter(Class.id == data.class_id).first()
+    if not cls:
+        raise api_error(404, "CLASS_NOT_FOUND", "Class not found")
+
+    # Validate student exists and is enrolled
+    student = db.query(User).filter(User.id == data.student_id).first()
+    if not student:
+        raise api_error(404, "STUDENT_NOT_FOUND", "Student not found")
+
+    # Parse date and time
+    try:
+        target_date = date_type.fromisoformat(data.date)
+    except ValueError:
+        raise api_error(400, "INVALID_DATE", "Date must be YYYY-MM-DD")
+
+    try:
+        parts = data.new_time.strip().split(":")
+        new_hour, new_minute = int(parts[0]), int(parts[1])
+        new_time_obj = time_type(new_hour, new_minute)
+    except (ValueError, IndexError):
+        raise api_error(400, "INVALID_TIME", "Time must be HH:MM (24-hour)")
+
+    # Check if entry already exists — avoid duplicates
+    existing = (
+        db.query(AttendanceLog)
+        .filter(
+            AttendanceLog.user_id == data.student_id,
+            AttendanceLog.class_id == data.class_id,
+            AttendanceLog.action == AttendanceAction.ENTRY,
+            func.date(AttendanceLog.timestamp) == target_date,
+        )
+        .first()
+    )
+    if existing:
+        raise api_error(409, "ENTRY_EXISTS", "An ENTRY log already exists for this student on this date. Use the edit endpoint instead.")
+
+    new_timestamp = datetime.combine(target_date, new_time_obj)
+
+    # Auto-compute is_late
+    is_late = False
+    if cls.start_time and cls.late_threshold_minutes:
+        from datetime import timedelta
+        try:
+            class_start = datetime.combine(target_date, cls.start_time)
+            grace_limit = class_start + timedelta(minutes=cls.late_threshold_minutes)
+            is_late = new_timestamp > grace_limit
+        except Exception:
+            pass
+
+    # Create the new ENTRY log
+    new_log = AttendanceLog(
+        user_id=data.student_id,
+        class_id=data.class_id,
+        action=AttendanceAction.ENTRY,
+        is_late=is_late,
+        timestamp=new_timestamp,
+        remarks=data.remarks or "Manual entry by Faculty",
+    )
+    db.add(new_log)
+    db.flush()
+
+    # Write audit log
+    audit_entry = AuditLog(
+        user_id=cls.faculty_id,
+        action_type=AuditActions.ATTENDANCE_TIME_EDIT,
+        target_table="attendance_logs",
+        target_id=new_log.id,
+        old_value=None,
+        new_value={
+            "student_id": data.student_id,
+            "class_id": data.class_id,
+            "date": data.date,
+            "new_time": data.new_time,
+            "is_late": is_late,
+            "remarks": data.remarks,
+            "action": "CREATE",
+        },
+        timestamp=datetime.now(tz.utc),
+    )
+    db.add(audit_entry)
+    db.commit()
+
+    logger.info(
+        "ATTENDANCE | created entry for student_id=%d class_id=%d date=%s time=%s",
+        data.student_id, data.class_id, data.date, data.new_time
+    )
+
+    return {
+        "success": True,
+        "action": "CREATE",
+        "log_id": new_log.id,
+        "new_timestamp": new_timestamp.strftime("%I:%M %p"),
+        "is_late": is_late,
+    }
+
+
+@router.get("/attendance/edit-history")
+def get_faculty_attendance_edit_history(
+    class_id: int = Query(...),
+    skip: int = Query(0),
+    limit: int = Query(20),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns ATTENDANCE_TIME_EDIT audit log entries for a specific class.
+    Used to show faculty what changes were made to student attendance.
+    """
+    from models.audit_log import AuditLog, AuditActions
+    from sqlalchemy.orm import joinedload
+
+    limit = min(limit, 100)
+    entries = (
+        db.query(AuditLog)
+        .options(joinedload(AuditLog.user))
+        .filter(
+            AuditLog.action_type == AuditActions.ATTENDANCE_TIME_EDIT,
+            AuditLog.new_value["class_id"].as_integer() == class_id,
+        )
+        .order_by(AuditLog.timestamp.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+    for entry in entries:
+        nv = entry.new_value or {}
+        ov = entry.old_value or {}
+        student = db.query(User).filter(User.id == nv.get("student_id")).first() if nv.get("student_id") else None
+        results.append({
+            "id": entry.id,
+            "editor_name": entry.user.full_name if entry.user else "Unknown",
+            "student_name": student.full_name if student else f"Student #{nv.get('student_id', '?')}",
+            "date": nv.get("date"),
+            "old_time": ov.get("old_time", "—"),
+            "new_time": nv.get("new_time"),
+            "action": nv.get("action", "EDIT"),
+            "remarks": nv.get("remarks") or "",
+            "edited_at": entry.timestamp.isoformat() if entry.timestamp else None,
+        })
+
+    return results
+
+
 
 
 # ============================================
