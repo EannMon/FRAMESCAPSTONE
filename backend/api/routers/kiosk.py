@@ -5,7 +5,7 @@ enrolled student verification, and late threshold management.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, time as dt_time, timedelta
@@ -196,12 +196,17 @@ def get_active_class(device_id: int, db: Session = Depends(get_db), x_device_key
 
     # Normalize device room for consistent matching
     normalized_room = normalize_room_name(device.room)
+    room_identifier = normalized_room.replace("ROOM ", "").strip()
 
+    room_col = func.upper(func.trim(Class.room))
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
         .filter(
-            func.upper(func.trim(Class.room)) == normalized_room,
+            or_(
+                room_col == normalized_room,
+                room_col == room_identifier,
+            ),
             Class.day_of_week == current_day
         )
         .all()
@@ -296,14 +301,25 @@ def get_device_schedule(device_id: int, db: Session = Depends(get_db), x_device_
     #     raise api_error(401, "UNAUTHORIZED_DEVICE", "Invalid or missing X-Device-Key")
     
     # Get all classes in this room — single query with eager loading
+    # Use flexible room matching: try normalized form AND raw identifier
+    # e.g., device.room="Room 328" → try "ROOM 328" and also just "328"
     normalized_room = normalize_room_name(device.room)
+    # Extract just the identifier (strip "ROOM " prefix) for fallback matching
+    room_identifier = normalized_room.replace("ROOM ", "").strip()
 
+    room_col = func.upper(func.trim(Class.room))
     classes = (
         db.query(Class)
         .options(joinedload(Class.subject), joinedload(Class.faculty))
-        .filter(func.upper(func.trim(Class.room)) == normalized_room)
+        .filter(or_(
+            room_col == normalized_room,
+            room_col == room_identifier,
+        ))
         .all()
     )
+
+    logger.debug("SCHEDULE | device_room=%s normalized=%s identifier=%s classes_found=%d",
+                 device.room, normalized_room, room_identifier, len(classes))
 
     schedule_entries = []
     for cls in classes:
