@@ -94,35 +94,17 @@ const SessionBreakdown = ({ metrics }) => {
 };
 
 // --- LIVE CLASS STATUS ---
-const LiveClassStatus = ({ recentLog }) => {
-    let status = 'IDLE';
-    let statusColor = 'grey';
-    let statusText = 'Not currently in any class';
-    let roomName = '---';
+const LiveClassStatus = ({ liveStatus }) => {
+    const data = liveStatus || {};
+    const status = data.status || 'IDLE';
+    const statusColor = data.status_color || 'grey';
+    const statusText = data.status_text || 'Not currently in any class';
+    const roomName = data.room || '---';
+    const subjectCode = data.subject_code || '';
 
-    if (recentLog && recentLog.action) {
-        const logTime = new Date(recentLog.timestamp);
-        const now = new Date();
-        const diffHours = (now - logTime) / 1000 / 60 / 60;
-
-        if (diffHours < 4) {
-            roomName = recentLog.room || 'Unknown Room';
-            if (recentLog.action === 'ENTRY' || recentLog.action === 'BREAK_IN') {
-                status = 'ACTIVE';
-                statusColor = '#2E7D32';
-                statusText = `Currently Detected in ${roomName}`;
-            } else if (recentLog.action === 'BREAK_OUT') {
-                status = 'BREAK';
-                statusColor = '#F9A825';
-                statusText = `On Break from ${roomName}`;
-            } else if (recentLog.event_type === 'attendance_out') {
-                status = 'OUT';
-                statusColor = 'grey';
-                statusText = 'Class Session Ended';
-                roomName = '---';
-            }
-        }
-    }
+    const displayText = status === 'PRESENT' || status === 'BREAK'
+        ? `${statusText}${subjectCode ? ` (${subjectCode})` : ''}`
+        : statusText;
 
     return (
         <div className="fd-card sd-live-card">
@@ -135,10 +117,10 @@ const LiveClassStatus = ({ recentLog }) => {
             </div>
             <div className="sd-live-body">
                 <div className={`fd-room-display fd-room-${status.toLowerCase()}`}>
-                    <i className={`fas fa-chalkboard-teacher fd-room-icon ${status === 'ACTIVE' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
+                    <i className={`fas fa-chalkboard-teacher fd-room-icon ${status === 'PRESENT' ? 'active' : 'inactive'}`} style={{ '--active-color': statusColor }}></i>
                     <div className="fd-room-details">
                         <h4>{roomName}</h4>
-                        <p className="fd-room-status-text">{statusText}</p>
+                        <p className="fd-room-status-text">{displayText}</p>
                     </div>
                 </div>
             </div>
@@ -470,6 +452,7 @@ const StudentDashboardPage = () => {
     const [allLogs, setAllLogs] = useState([]);
     const [metrics, setMetrics] = useState(null);
     const [semesterWindow, setSemesterWindow] = useState({ start: null, end: null });
+    const [liveStatus, setLiveStatus] = useState(null);
 
     const getFallbackSemesterWindow = () => {
         const now = new Date();
@@ -557,7 +540,32 @@ const StudentDashboardPage = () => {
         };
         fetchData();
 
-        return () => controller.abort();
+        // Live status polling — refresh every 10 seconds
+        const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+        const userId = storedUser?.id || storedUser?.user_id;
+        let liveInterval = null;
+
+        if (userId) {
+            const fetchLiveStatus = async () => {
+                try {
+                    const res = await api.get(`/api/student/live-status/${userId}`, {
+                        signal: controller.signal,
+                    });
+                    setLiveStatus(res.data);
+                } catch (err) {
+                    if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+                        // Silently degrade — keep last known status
+                    }
+                }
+            };
+            fetchLiveStatus();
+            liveInterval = setInterval(fetchLiveStatus, 10000);
+        }
+
+        return () => {
+            controller.abort();
+            if (liveInterval) clearInterval(liveInterval);
+        };
     }, []);
 
     if (loading) return (
@@ -566,10 +574,6 @@ const StudentDashboardPage = () => {
             <p>Loading dashboard...</p>
         </div>
     );
-
-    const latestLog = dashboardData.recent_attendance && dashboardData.recent_attendance.length > 0
-        ? dashboardData.recent_attendance[0]
-        : null;
 
     const attRate = metrics ? `${metrics.attendance_rate}%` : (dashboardData.attendance_rate || "0%");
     const puncRate = metrics ? `${metrics.punctuality_rate}%` : '--';
@@ -620,7 +624,7 @@ const StudentDashboardPage = () => {
             {/* ===== MAIN CONTENT ===== */}
             <div className="sd-main-grid">
                 <AttendanceTrendChart logs={allLogs} semesterWindow={semesterWindow} />
-                <LiveClassStatus recentLog={latestLog} />
+                <LiveClassStatus liveStatus={liveStatus} />
                 <SessionBreakdown metrics={metrics} />
                 <StudentRecentActivity logs={dashboardData.recent_attendance} />
             </div>

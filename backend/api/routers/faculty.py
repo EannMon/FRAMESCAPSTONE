@@ -14,6 +14,7 @@ import re
 from db.database import get_db
 from core.errors import api_error
 from core.limiter import limiter
+from core.timezone import local_now, local_today_start
 from models.user import User, UserRole, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -146,13 +147,13 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
         .filter(
             AttendanceLog.class_id.in_(class_ids),
             AttendanceLog.action == AttendanceAction.ENTRY,
-            func.date(AttendanceLog.timestamp) == func.current_date()
+            AttendanceLog.timestamp >= local_today_start()
         )
         .group_by(AttendanceLog.class_id)
         .all()
     )
     
-    today = datetime.now().strftime('%A')
+    today = local_now().strftime('%A')
     result = []
     
     for cls in classes:
@@ -203,7 +204,7 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
     if user.verification_status != VerificationStatus.VERIFIED:
         raise api_error(403, "NOT_VERIFIED", "Account not verified")
     
-    today = datetime.now().strftime('%A')
+    today = local_now().strftime('%A')
     
     # Total classes
     total_classes = db.query(Class).filter(Class.faculty_id == user_id).count()
@@ -225,7 +226,7 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
     average_attendance = 0.0
     if class_ids:
         from services.report_metric_service import _compute_expected_sessions
-        now_dt = datetime.now()
+        now_dt = local_now()
         taught_classes = db.query(Class).filter(Class.id.in_(class_ids)).all()
         semester_start = None
         semester_end = None
@@ -287,7 +288,7 @@ def get_faculty_dashboard_stats(user_id: int, db: Session = Depends(get_db)):
         
     # Get all logs for chart
     from datetime import timedelta
-    thirty_days_ago = datetime.now() - timedelta(days=30)
+    thirty_days_ago = local_now() - timedelta(days=30)
     
     # For logs, get logs for classes taught by this user (or all dept classes if head)
     if user.role == UserRole.HEAD and user.department_id:
@@ -1306,11 +1307,9 @@ def get_class_details_by_schedule_id(
     student_ids = [e.student_id for e in enrollments]
 
     # Batch Query: Get ALL attendance logs for enrolled students in this class on target date
-    date_filter = (
-        func.date(AttendanceLog.timestamp) == target_date
-        if target_date
-        else func.date(AttendanceLog.timestamp) == func.current_date()
-    )
+    # Use local date when no target_date is specified
+    effective_date = target_date if target_date else local_now().date()
+    date_filter = func.date(AttendanceLog.timestamp) == effective_date
     all_logs = db.query(AttendanceLog).filter(
         AttendanceLog.user_id.in_(student_ids),
         AttendanceLog.class_id == schedule_id,
@@ -1957,9 +1956,9 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
-    today = datetime.now().strftime('%A')
-    now = datetime.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = local_now().strftime('%A')
+    now = local_now()
+    today_start = local_today_start()
 
     # Get today's classes for this faculty with subject and faculty eagerly loaded
     classes = (
@@ -1971,10 +1970,13 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
 
     # Filter classes that are currently ongoing based on time
     ongoing_classes = []
-    current_time_str = now.strftime("%H:%M:%S")
+    current_time = now.time()
     for c in classes:
         if c.start_time and c.end_time:
-            if c.start_time <= current_time_str <= c.end_time:
+            # Convert to time objects if stored as strings
+            st = c.start_time if hasattr(c.start_time, 'hour') else datetime.strptime(str(c.start_time), "%H:%M:%S").time()
+            et = c.end_time if hasattr(c.end_time, 'hour') else datetime.strptime(str(c.end_time), "%H:%M:%S").time()
+            if st <= current_time <= et:
                 ongoing_classes.append(c)
 
     # Only include classes in rooms that have an active device (camera installed)
@@ -1998,9 +2000,9 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
     """
     from sqlalchemy.orm import joinedload
 
-    today = datetime.now().strftime('%A')
-    now = datetime.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = local_now().strftime('%A')
+    now = local_now()
+    today_start = local_today_start()
 
     # Get all today's classes for faculty in this department
     dept_faculty_ids = [
@@ -2021,11 +2023,13 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
 
     # Filter classes that are currently ongoing based on time
     ongoing_classes = []
-    current_time_str = now.strftime("%H:%M:%S")
+    current_time = now.time()
     for c in all_dept_classes:
         if c.start_time and c.end_time:
-            # Simple string comparison works for HH:MM:SS format
-            if c.start_time <= current_time_str <= c.end_time:
+            # Convert to time objects if stored as strings
+            st = c.start_time if hasattr(c.start_time, 'hour') else datetime.strptime(str(c.start_time), "%H:%M:%S").time()
+            et = c.end_time if hasattr(c.end_time, 'hour') else datetime.strptime(str(c.end_time), "%H:%M:%S").time()
+            if st <= current_time <= et:
                 ongoing_classes.append(c)
 
     # Only include rooms that have an active device
@@ -2054,8 +2058,8 @@ def get_personal_live_status(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
-    now = datetime.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    now = local_now()
+    today_start = local_today_start()
 
     # Get the latest attendance log today
     latest_log = (

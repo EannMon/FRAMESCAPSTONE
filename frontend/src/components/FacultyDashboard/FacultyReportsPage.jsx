@@ -3,6 +3,7 @@ import api from '../../services/api';
 import './FacultyReportsPage.css';
 import FacultyReportModal from './FacultyReportModal';
 import { generateFramesPDF, generateCSV } from '../../utils/ReportGenerator';
+import { getLocalDateString } from '../../utils/timeUtils';
 
 const LogStatusTag = ({ text, isPresent, type }) => {
     let statusClass = 'neutral';
@@ -102,7 +103,7 @@ const FacultyReportsPage = () => {
     const [academicYearLabel, setAcademicYearLabel] = useState('');
     const [selectedSemester, setSelectedSemester] = useState('1ST');
     const [departmentSemesterWindow, setDepartmentSemesterWindow] = useState({ dateFrom: '', dateTo: '' });
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [filterDate, setFilterDate] = useState(getLocalDateString());
     const [weeklyMonth, setWeeklyMonth] = useState(new Date().toISOString().slice(0, 7));
     const [selectedWeekNumber, setSelectedWeekNumber] = useState(String(Math.floor((new Date().getDate() - 1) / 7) + 1));
 

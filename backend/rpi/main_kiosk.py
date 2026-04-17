@@ -347,8 +347,6 @@ class AttendanceKiosk:
             if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
                 return gesture
 
-            time.sleep(0.03)
-
         return None
 
     def is_on_cooldown(self, user_id: int) -> bool:
@@ -479,7 +477,7 @@ class AttendanceKiosk:
                     self._metrics.record_frame(frame_elapsed_ms, num_faces=0, matched=False)
                     self._metrics.maybe_report(cache_size=self.embedding_cache.count)
 
-                    time.sleep(getattr(self.config, "IDLE_NO_CLASS_SLEEP_SECONDS", 0.1))
+                    time.sleep(getattr(self.config, "IDLE_NO_CLASS_SLEEP_SECONDS", 0.03))
 
                     # Auto-exit check: when a class just ended (active_class went from
                     # something to None), trigger auto-exit for the previous class.
@@ -513,13 +511,13 @@ class AttendanceKiosk:
                     else:
                         # Enrollment fetch failed — retry next iteration
                         logger.warning("Enrollment not loaded, will retry")
-                        time.sleep(2)
+                        time.sleep(0.5)
                         continue
                 elif not self._enrollment_loaded:
                     # Same class but enrollment never loaded — retry
                     self._fetch_class_enrollment(active_class.class_id)
                     if not self._enrollment_loaded:
-                        time.sleep(2)
+                        time.sleep(0.5)
                         continue
 
                 # Periodic embedding cache refresh (CACHE_REFRESH_MINUTES)
@@ -682,7 +680,7 @@ class AttendanceKiosk:
                     cv2.putText(display, "NOT IN THIS CLASS", (10, 80),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                     cv2.imshow("FRAMES Attendance Kiosk", display)
-                    cv2.waitKey(2000)  # Show warning for 2 seconds
+                    cv2.waitKey(500)  # Brief warning — avoid freezing video feed
 
                     # Log NOT_IN_CLASS only ONCE per user per class session
                     if match.user_id not in self._not_in_class_logged:
@@ -820,9 +818,9 @@ class AttendanceKiosk:
 
                     self.mark_recognized(match.user_id)
 
-                # Brief pause for display
-                cv2.waitKey(1500)
-                time.sleep(0.1)
+                # Brief pause for display — keep short to avoid freezing video feed
+                cv2.waitKey(500)
+                time.sleep(0.05)
 
         except KeyboardInterrupt:
             logger.info("Shutting down kiosk (KeyboardInterrupt)")

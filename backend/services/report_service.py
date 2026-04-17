@@ -22,6 +22,7 @@ from models.enrollment import Enrollment
 from models.subject import Subject
 from models.device import Device
 from models.session_exception import SessionException, ExceptionType
+from core.timezone import local_now
 from services.report_metric_service import (
     build_student_summary_metrics,
     compute_student_session_count_reference,
@@ -210,7 +211,7 @@ def _class_daily_report(db: Session, class_id: int, date_from: str, date_to: str
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -313,7 +314,7 @@ def _class_absence_report(db: Session, class_id: int, date_from: str, date_to: s
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -362,7 +363,7 @@ def _class_late_report(db: Session, class_id: int, date_from: str, date_to: str)
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -420,7 +421,7 @@ def _class_semester_report(db: Session, class_id: int, date_from: str, date_to: 
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -557,7 +558,7 @@ def _class_weekly_report(db: Session, class_id: int, date_from: str, date_to: st
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -704,7 +705,7 @@ def _class_monthly_report(db: Session, class_id: int, date_from: str, date_to: s
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -874,7 +875,7 @@ def _break_duration_report(db: Session, class_id: int, date_from: str, date_to: 
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -971,7 +972,7 @@ def _early_exits_report(db: Session, class_id: int, date_from: str, date_to: str
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1022,7 +1023,7 @@ def _participation_insight_report(db: Session, class_id: int, date_from: str, da
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1163,7 +1164,7 @@ def _punctuality_index_report(db: Session, class_id: int, date_from: str, date_t
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1288,7 +1289,7 @@ def _unrecognized_logs_report(db: Session, class_id: int, date_from: str, date_t
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1349,7 +1350,7 @@ def _attendance_inconsistency_report(db: Session, class_id: int, date_from: str,
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1434,7 +1435,7 @@ def _personal_consistency_report(db: Session, user_id: int, date_from: str, date
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1568,7 +1569,7 @@ def _personal_attendance_report(db: Session, user_id: int, date_from: str, date_
     dept = db.query(Department).filter(Department.id == user.department_id).first() if user else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1681,7 +1682,7 @@ def _personal_semester_report(db: Session, user_id: int, date_from: str, date_to
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1760,7 +1761,7 @@ def _instructor_delay_report(db: Session, user_id: int, date_from: str, date_to:
     dept = db.query(Department).filter(Department.id == dept_id).first() if dept_id else None
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1824,7 +1825,7 @@ def _faculty_summary_report(db: Session, dept_id: int, date_from: str, date_to: 
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1924,7 +1925,7 @@ def _faculty_late_report(db: Session, dept_id: int, date_from: str, date_to: str
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -1984,7 +1985,7 @@ def _room_occupancy_report(db: Session, dept_id: int, date_from: str, date_to: s
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2029,7 +2030,7 @@ def _room_utilization_report(db: Session, dept_id: int, date_from: str, date_to:
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2144,7 +2145,7 @@ def _peak_usage_report(db: Session, dept_id: int, date_from: str, date_to: str, 
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2210,7 +2211,7 @@ def _overcrowding_report(db: Session, dept_id: int, date_from: str, date_to: str
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2284,7 +2285,7 @@ def _faculty_consistency_report(db: Session, dept_id: int, date_from: str, date_
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2427,7 +2428,7 @@ def _dept_activity_report(db: Session, dept_id: int, date_from: str, date_to: st
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2501,7 +2502,7 @@ def _faculty_attendance_rate_report(db: Session, dept_id: int, date_from: str, d
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2666,7 +2667,7 @@ def _faculty_absence_report(db: Session, dept_id: int, date_from: str, date_to: 
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2790,7 +2791,7 @@ def _faculty_punctuality_report(db: Session, dept_id: int, date_from: str, date_
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -2931,7 +2932,7 @@ def _faculty_teaching_load_report(db: Session, dept_id: int, date_from: str, dat
     dept = db.query(Department).filter(Department.id == dept_id).first()
     dept_start = dept.semester_start_date if dept else None
     dept_end = dept.semester_end_date if dept else None
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     try:
         d_from = dt.strptime(date_from, "%Y-%m-%d").date()
         d_to = dt.strptime(date_to, "%Y-%m-%d").date()
@@ -3307,7 +3308,7 @@ def _build_class_student_session_reference(db: Session, class_id: int, date_from
 
     d_from = date_from_dt.date() if hasattr(date_from_dt, 'date') else date_from_dt
     d_to = date_to_dt.date() if hasattr(date_to_dt, 'date') else date_to_dt
-    today = datetime.now(timezone.utc).date()
+    today = local_now().date()
     log_d_to = min(d_to, today)
 
     # Total enrolled students

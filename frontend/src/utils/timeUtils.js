@@ -4,6 +4,20 @@
  */
 
 /**
+ * Returns the local date as a YYYY-MM-DD string.
+ * Unlike toISOString().split('T')[0], this uses the browser's local timezone
+ * so it won't show "yesterday" between midnight and UTC+8 offset.
+ * @param {Date} [d=new Date()] - Date object to format
+ * @returns {string} Date in YYYY-MM-DD format (local timezone)
+ */
+export const getLocalDateString = (d = new Date()) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+/**
  * Converts 24-hour time string (e.g., "22:45:00" or "08:30") to 12-hour format ("10:45 PM").
  * @param {string} timeStr - Time string in 24hr format
  * @returns {string} Formatted 12hr time string

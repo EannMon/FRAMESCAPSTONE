@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
+import { formatTo12Hr, getLocalDateString } from '../../utils/timeUtils';
 import '../StudentDashboard/AttendanceHistoryPage.css'; // Inheriting Student style
 import './FacultyAttendancePage.css'; // Edit modal + faculty-specific styles
 
@@ -27,7 +28,7 @@ const FacultyAttendancePage = () => {
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedClass, setSelectedClass] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [filterDate, setFilterDate] = useState(getLocalDateString());
     const [loading, setLoading] = useState(true);
 
     // --- DATA STATES ---
@@ -296,7 +297,7 @@ const FacultyAttendancePage = () => {
                             style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '0.95em' }}
                             value={filterDate}
                             onChange={handleDateChange}
-                            max={new Date().toISOString().split('T')[0]}
+                            max={getLocalDateString()}
                         />
                     </div>
 

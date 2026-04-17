@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../../services/api';
 import { useToast } from '../Common/ToastProvider';
+import { getLocalDateString } from '../../utils/timeUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './ReportsPage.css';
@@ -80,8 +81,8 @@ const ReportTypeCard = ({ category, onOpen }) => (
 // GENERATOR MODAL
 // ===========================================
 const ReportGeneratorModal = ({ category, onClose, onGenerate }) => {
-    const today = new Date().toISOString().split('T')[0];
-    const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const today = getLocalDateString();
+    const firstDay = getLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
     const [selectedType, setSelectedType] = useState(category.types[0]);
     const [dateFrom, setDateFrom] = useState(firstDay);

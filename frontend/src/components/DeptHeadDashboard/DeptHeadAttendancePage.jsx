@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Common/ToastProvider';
 import { generateFramesPDF } from '../../utils/ReportGenerator';
+import { getLocalDateString } from '../../utils/timeUtils';
 import '../StudentDashboard/AttendanceHistoryPage.css';
 import './DeptHeadAttendancePage.css';
 
@@ -38,7 +39,7 @@ const DeptHeadAttendancePage = () => {
 
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedClass, setSelectedClass] = useState(null);
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [filterDate, setFilterDate] = useState(getLocalDateString());
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
     const [studentList, setStudentList] = useState([]);
@@ -275,7 +276,7 @@ const DeptHeadAttendancePage = () => {
                             type="date"
                             className="app-select"
                             value={filterDate}
-                            max={new Date().toISOString().split('T')[0]}
+                            max={getLocalDateString()}
                             onChange={e => setFilterDate(e.target.value)}
                         />
                     </div>

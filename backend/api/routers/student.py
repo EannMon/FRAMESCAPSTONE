@@ -13,6 +13,7 @@ import logging
 from db.database import get_db
 from core.errors import api_error
 from core.auth import get_current_user
+from core.timezone import local_now, local_today_start
 from models.user import User, VerificationStatus
 from models.class_ import Class
 from models.subject import Subject
@@ -59,15 +60,16 @@ _DAY_ORDER = {
 
 def _parse_report_window(report_type: str, date_from: Optional[str], date_to: Optional[str]):
     """Parse/resolve report date window with sensible defaults per report type."""
-    now = datetime.now(timezone.utc)
+    now = local_now()
     report_code = (report_type or "DAILY_REPORT").upper()
 
     def _parse_iso_day(value: Optional[str], end_of_day: bool = False) -> Optional[datetime]:
         if not value:
             return None
         parsed = datetime.fromisoformat(value)
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+        # Strip timezone — treat as local naive datetime
+        if parsed.tzinfo is not None:
+            parsed = parsed.replace(tzinfo=None)
         if end_of_day:
             return parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
         return parsed.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -201,9 +203,9 @@ def get_live_status(user_id: int, db: Session = Depends(get_db), current_user=De
     if not user:
         raise api_error(404, "USER_NOT_FOUND", "User not found")
 
-    # Get today's date range
-    now = datetime.utcnow()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Get today's date range (local timezone)
+    now = local_now()
+    today_start = local_today_start()
 
     # Single query: latest attendance log today with class + subject eagerly loaded
     latest_log = (
@@ -233,9 +235,9 @@ def get_live_status(user_id: int, db: Session = Depends(get_db), current_user=De
 
     # Map action → live status
     status_map = {
-        AttendanceAction.ENTRY: ("PRESENT", "green", "In class"),
-        AttendanceAction.BREAK_IN: ("PRESENT", "green", "Returned from break"),
-        AttendanceAction.BREAK_OUT: ("BREAK", "amber", "On break"),
+        AttendanceAction.ENTRY: ("PRESENT", "#2E7D32", "In class"),
+        AttendanceAction.BREAK_IN: ("PRESENT", "#2E7D32", "Returned from break"),
+        AttendanceAction.BREAK_OUT: ("BREAK", "#F9A825", "On break"),
         AttendanceAction.EXIT: ("EXITED", "grey", "Exited class"),
     }
     status_info = status_map.get(action, ("IDLE", "grey", "Unknown"))
@@ -489,7 +491,9 @@ def get_student_dashboard(user_id: int, db: Session = Depends(get_db), current_u
         subject = cls.subject if cls else None
         recent_attendance.append({
             "timestamp": str(log.timestamp),
+            "action": log.action.value if log.action else None,
             "course_name": subject.title if subject else "Unknown",
+            "subject_code": subject.code if subject else None,
             "room": cls.room if cls else "Unknown"
         })
     

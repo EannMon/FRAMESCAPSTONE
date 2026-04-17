@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
+import { getLocalDateString } from '../../utils/timeUtils';
 
 import './AttendanceHistoryPage.css';
 import StudentReportModal from './StudentReportModal';
@@ -50,7 +51,7 @@ const AttendanceHistoryPage = () => {
     // 2. FILTER STATE
     const [selectedReportType, setSelectedReportType] = useState('DAILY_REPORT'); // Default to first valid item
     const [selectedSubject, setSelectedSubject] = useState('ALL');
-    const [filterDate, setFilterDate] = useState(now.toISOString().split('T')[0]); // Default Today
+    const [filterDate, setFilterDate] = useState(getLocalDateString(now)); // Default Today
     const [selectedSemester, setSelectedSemester] = useState(semesterCode); // 1ST, 2ND, SUMMER
     const [academicYear, setAcademicYear] = useState(academicYearStart);
     const [weeklyMonth, setWeeklyMonth] = useState(currentMonthValue);
