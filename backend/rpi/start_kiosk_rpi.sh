@@ -7,7 +7,8 @@
 #   bash backend/rpi/start_kiosk_rpi.sh
 # =============================================================
 
-set -e
+# NOTE: Do NOT use "set -e" — background processes and wait-loops
+# return non-zero on signals which would kill the script prematurely.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -123,10 +124,12 @@ else
     FRONTEND_PID=""
 fi
 
-# ── 5. Launch Kiosk Server (background) ──────────────────────
+# ── 5. Launch Kiosk Server (background, isolated process group) ──
+# setsid gives the kiosk its own process group so Chromium GPU crashes
+# cannot propagate signals (SIGTERM/SIGHUP) to the kiosk server.
 echo "[kiosk] Starting kiosk_server.py on port 8000..."
 cd "$REPO_ROOT/backend"
-python -m rpi.kiosk_server &
+setsid python -m rpi.kiosk_server &
 KIOSK_PID=$!
 echo "[kiosk] PID: $KIOSK_PID"
 
@@ -162,6 +165,7 @@ echo "[display] Keepalive loop PID: $KEEPALIVE_PID"
 # --kiosk removes the browser chrome (URL bar, tabs) for a full-screen look.
 # --no-sandbox is needed on RPi OS for Chromium to run as a non-root user.
 # --noerrdialogs and --disable-infobars suppress crash/update popups.
+# --disable-gpu* flags prevent GPU compositor vsync crashes on RPi 4's VideoCore VI.
 KIOSK_URL="http://localhost:3000/kiosk"
 
 echo "[browser] Launching Chromium kiosk → $KIOSK_URL"
@@ -176,6 +180,10 @@ DISPLAY=:0 chromium-browser \
     --high-dpi-support=1 \
     --check-for-update-interval=604800 \
     --disable-features=Translate \
+    --disable-gpu \
+    --disable-gpu-compositing \
+    --disable-software-rasterizer \
+    --num-raster-threads=2 \
     "$KIOSK_URL" &
 BROWSER_PID=$!
 echo "[browser] PID: $BROWSER_PID"
@@ -190,6 +198,35 @@ echo ""
 echo "    Press Ctrl+C to stop everything."
 echo ""
 
-# ── 7. Wait and clean up on exit ─────────────────────────────
-trap "echo 'Stopping...'; kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} ${KEEPALIVE_PID:-} 2>/dev/null; exit 0" INT TERM
-wait $KIOSK_PID
+# ── 8. Wait and clean up on exit ─────────────────────────────
+cleanup() {
+    echo ""
+    echo "Stopping all kiosk processes..."
+    kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} ${KEEPALIVE_PID:-} 2>/dev/null
+    # Also kill any orphaned children in the kiosk's process group
+    kill -- -$KIOSK_PID 2>/dev/null || true
+    pkill -9 chromium-browser 2>/dev/null || true
+    pkill -9 chromium         2>/dev/null || true
+    echo "Stopped."
+    exit 0
+}
+trap cleanup INT TERM
+
+# Wait for kiosk server — if it dies, restart it automatically
+while true; do
+    wait $KIOSK_PID 2>/dev/null
+    EXIT_CODE=$?
+    # Exit code 0 = clean shutdown (Ctrl+C / SIGTERM) — stop everything
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "[kiosk] Clean shutdown (exit 0). Stopping."
+        cleanup
+        break
+    fi
+    # Non-zero = crash — restart the kiosk server
+    echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 3s..."
+    sleep 3
+    cd "$REPO_ROOT/backend"
+    setsid python -m rpi.kiosk_server &
+    KIOSK_PID=$!
+    echo "[kiosk] Restarted with PID: $KIOSK_PID"
+done

@@ -66,14 +66,23 @@ class ConnectionManager:
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        try:
+            self.active_connections.remove(websocket)
+        except ValueError:
+            pass  # Already removed by broadcast() cleanup
 
     async def broadcast(self, message: dict):
+        dead = []
         for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
             except Exception:
-                self.active_connections.remove(connection)
+                dead.append(connection)
+        for conn in dead:
+            try:
+                self.active_connections.remove(conn)
+            except ValueError:
+                pass
 
 manager = ConnectionManager()
 
@@ -926,12 +935,14 @@ async def broadcast_worker():
 @app.websocket("/ws/status")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
-    if kiosk_instance:
-        await websocket.send_json(kiosk_instance.current_state)
     try:
+        if kiosk_instance:
+            await websocket.send_json(kiosk_instance.current_state)
         while True:
-            await websocket.receive_text() # Keep alive
-    except WebSocketDisconnect:
+            await websocket.receive_text()  # Keep alive
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
         manager.disconnect(websocket)
 
 async def video_generator():
