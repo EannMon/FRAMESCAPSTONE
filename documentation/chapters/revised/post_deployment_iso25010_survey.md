@@ -22,18 +22,17 @@ Because the number of faculty and department head respondents is limited in the 
 Use the following scale for every statement:
 
 - 5 = Strongly Agree
-- 4 = Agree
-- 3 = Neutral
-- 2 = Disagree
-- 1 = Strongly Disagree
+- 4 = Highly Acceptable
+- 3 = Acceptable
+- 2 = Unacceptable
+- 1 = Highly Unacceptable
 
 ## Interpretation Guide
 
-- 4.21 to 5.00 = Highly Acceptable
-- 3.41 to 4.20 = Acceptable
-- 2.61 to 3.40 = Moderately Acceptable
-- 1.81 to 2.60 = Slightly Acceptable
-- 1.00 to 1.80 = Not Acceptable
+- 3.25 – 4.00 = Highly Acceptable
+- 2.50 – 3.24 = Acceptable
+- 1.75 – 2.49 = Unacceptable
+- 1.00 – 1.74 = Highly Unacceptable
 
 ## Section A: Respondent Profile
 

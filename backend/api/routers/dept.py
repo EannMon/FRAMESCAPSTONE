@@ -13,6 +13,8 @@ from db.database import get_db
 from core.errors import api_error
 from models.subject import Subject
 from models.class_ import Class
+from models.system_metric import SystemMetric
+from models.security_log import SecurityLog, SecurityEventType
 from models.user import User, UserRole
 from models.department import Department
 from models.device import Device
@@ -753,3 +755,118 @@ def get_dept_system_logs(
         })
 
     return result
+
+
+@router.get("/security-logs")
+def get_security_logs(
+    event_type: Optional[str] = Query(None),
+    room: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve security logs for the dept head dashboard.
+    Supports filtering by event type, room, and date range.
+    """
+    from datetime import datetime
+    limit = min(limit, 200)
+    query = db.query(SecurityLog)
+
+    if event_type:
+        try:
+            et = SecurityEventType(event_type)
+            query = query.filter(SecurityLog.event_type == et)
+        except ValueError:
+            pass
+    if room:
+        query = query.filter(SecurityLog.room == room)
+    if date_from:
+        try:
+            query = query.filter(SecurityLog.timestamp >= datetime.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59)
+            query = query.filter(SecurityLog.timestamp <= dt)
+        except ValueError:
+            pass
+
+    total = query.count()
+    logs = query.order_by(SecurityLog.timestamp.desc()).offset(skip).limit(limit).all()
+
+    return {
+        "items": [
+            {
+                "id": log.id,
+                "device_id": log.device_id,
+                "event_type": log.event_type.value,
+                "confidence_score": log.confidence_score,
+                "room": log.room,
+                "details": log.details,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            }
+            for log in logs
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get("/system-metrics")
+def get_system_metrics(
+    device_id: Optional[int] = Query(None),
+    metric_type: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieve system performance metrics for the dept head dashboard.
+    Shows kiosk health data (recognition latency, CPU, memory, etc.).
+    """
+    from datetime import datetime
+    limit = min(limit, 200)
+    query = db.query(SystemMetric)
+
+    if device_id:
+        query = query.filter(SystemMetric.device_id == device_id)
+    if metric_type:
+        query = query.filter(SystemMetric.metric_type == metric_type)
+    if date_from:
+        try:
+            query = query.filter(SystemMetric.timestamp >= datetime.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59)
+            query = query.filter(SystemMetric.timestamp <= dt)
+        except ValueError:
+            pass
+
+    total = query.count()
+    metrics = query.order_by(SystemMetric.timestamp.desc()).offset(skip).limit(limit).all()
+
+    return {
+        "items": [
+            {
+                "id": m.id,
+                "device_id": m.device_id,
+                "metric_type": m.metric_type,
+                "value": m.value,
+                "unit": m.unit,
+                "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+            }
+            for m in metrics
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }

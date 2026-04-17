@@ -2,6 +2,7 @@
 Kiosk metrics collection for FRAMES observability.
 Per FRAMES_OBSERVABILITY_RULES §5: frame time, faces, match rate, FPS, cache size, memory.
 """
+import os
 import time
 import logging
 from typing import List, Optional
@@ -138,4 +139,72 @@ class KioskMetricsCollector:
         self.frames_with_face_count = 0
         self.frame_count_since_report = 0
         self.last_report_time = now
+
+        # Post aggregated metrics to backend API (non-blocking, fire-and-forget)
+        self._post_metrics_to_api(avg_frame_ms, p95_frame_ms, fps, match_rate, memory_mb)
+
         return True
+
+    def _post_metrics_to_api(
+        self,
+        avg_frame_ms: float,
+        p95_frame_ms: float,
+        fps: float,
+        match_rate: float,
+        memory_mb: Optional[float],
+    ) -> None:
+        """Post aggregated metrics to backend API for system_metrics table."""
+        backend_url = os.getenv("BACKEND_URL", "")
+        device_id_str = os.getenv("DEVICE_ID", "")
+        if not backend_url:
+            return
+        device_id = int(device_id_str) if device_id_str.isdigit() else None
+
+        metrics = [
+            {"metric_type": "RECOGNITION_LATENCY", "value": round(avg_frame_ms, 1), "unit": "ms"},
+            {"metric_type": "FRAME_P95_LATENCY", "value": round(p95_frame_ms, 1), "unit": "ms"},
+            {"metric_type": "CAMERA_FPS", "value": round(fps, 1), "unit": "fps"},
+            {"metric_type": "RECOGNITION_ACCURACY", "value": round(match_rate, 1), "unit": "percent"},
+        ]
+        if memory_mb is not None:
+            metrics.append({"metric_type": "MEMORY_USAGE", "value": round(memory_mb, 0), "unit": "MB"})
+
+        try:
+            import requests
+            requests.post(
+                f"{backend_url}/api/kiosk/metrics",
+                json={"device_id": device_id, "metrics": metrics},
+                timeout=5,
+            )
+        except Exception as exc:
+            logger.debug("Failed to post metrics to API: %s", str(exc))
+
+    @staticmethod
+    def post_security_event(
+        event_type: str,
+        confidence_score: Optional[float] = None,
+        room: Optional[str] = None,
+        details: Optional[str] = None,
+    ) -> None:
+        """Post a security event to backend API (fire-and-forget)."""
+        backend_url = os.getenv("BACKEND_URL", "")
+        device_id_str = os.getenv("DEVICE_ID", "")
+        if not backend_url:
+            return
+        device_id = int(device_id_str) if device_id_str.isdigit() else None
+
+        try:
+            import requests
+            requests.post(
+                f"{backend_url}/api/kiosk/security-log",
+                json={
+                    "device_id": device_id,
+                    "event_type": event_type,
+                    "confidence_score": confidence_score,
+                    "room": room,
+                    "details": details,
+                },
+                timeout=5,
+            )
+        except Exception as exc:
+            logger.debug("Failed to post security event: %s", str(exc))

@@ -40,6 +40,11 @@ const FacultyAttendancePage = () => {
     const [editRemarks, setEditRemarks] = useState('');
     const [saving, setSaving] = useState(false);
 
+    // --- SESSION EXCEPTION STATES ---
+    const [sessionException, setSessionException] = useState(null); // current exception for selected class+date
+    const [exceptionLoading, setExceptionLoading] = useState(false);
+    const [showExceptionPanel, setShowExceptionPanel] = useState(false);
+
     // --- 1. INITIAL LOAD ---
     useEffect(() => {
         const controller = new AbortController();
@@ -92,6 +97,8 @@ const FacultyAttendancePage = () => {
         const cls = myClasses.find(c => c.id.toString() === clsId) || null;
         setSelectedClass(cls);
         await fetchClassDetails(clsId, filterDate);
+        if (clsId) fetchSessionException(clsId, filterDate);
+        else setSessionException(null);
     };
 
     // Re-fetch when date changes with backend filtering
@@ -100,6 +107,44 @@ const FacultyAttendancePage = () => {
         setFilterDate(newDate);
         if (selectedClassId) {
             fetchClassDetails(selectedClassId, newDate);
+            fetchSessionException(selectedClassId, newDate);
+        }
+    };
+
+    // --- SESSION EXCEPTION MANAGEMENT ---
+    const fetchSessionException = useCallback(async (classId, date) => {
+        if (!classId) return;
+        try {
+            const res = await api.get(`/api/faculty/session-exceptions/${classId}`);
+            const exceptions = res.data || [];
+            const match = exceptions.find(ex => ex.session_date === date);
+            setSessionException(match || null);
+        } catch {
+            setSessionException(null);
+        }
+    }, []);
+
+    const handleSetSessionException = async (exceptionType, reason = '') => {
+        if (!selectedClassId || !filterDate) return;
+        setExceptionLoading(true);
+        try {
+            await api.post('/api/faculty/session-exceptions', {
+                class_id: parseInt(selectedClassId),
+                session_dates: [filterDate],
+                exception_type: exceptionType,
+                reason: reason || null,
+            });
+            await fetchSessionException(selectedClassId, filterDate);
+            if (exceptionType === 'onsite') {
+                toast.success('Session restored to on-site.');
+            } else {
+                toast.success(`Session marked as ${exceptionType}.`);
+            }
+        } catch (err) {
+            toast.error('Failed to update session status.');
+        } finally {
+            setExceptionLoading(false);
+            setShowExceptionPanel(false);
         }
     };
 
@@ -286,6 +331,115 @@ const FacultyAttendancePage = () => {
                     </div>
                     <div style={statChip('#f1f5f9', '#475569')}>
                         <strong>{counts.total}</strong> <span>Total Enrolled</span>
+                    </div>
+                </div>
+            )}
+
+            {/* ── SESSION STATUS MANAGEMENT ── */}
+            {selectedClass && (
+                <div style={{
+                    background: sessionException && sessionException.exception_type !== 'onsite'
+                        ? (sessionException.exception_type === 'cancelled' ? '#FFEBEE'
+                            : sessionException.exception_type === 'online' ? '#E3F2FD'
+                            : sessionException.exception_type === 'holiday' ? '#FFF8E1' : '#f8f9fa')
+                        : '#f8f9fa',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '10px',
+                    padding: '12px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className={
+                            sessionException?.exception_type === 'cancelled' ? 'fas fa-times-circle'
+                            : sessionException?.exception_type === 'online' ? 'fas fa-laptop'
+                            : sessionException?.exception_type === 'holiday' ? 'fas fa-umbrella-beach'
+                            : 'fas fa-check-circle'
+                        } style={{
+                            color: sessionException?.exception_type === 'cancelled' ? '#C62828'
+                                : sessionException?.exception_type === 'online' ? '#1565C0'
+                                : sessionException?.exception_type === 'holiday' ? '#F9A825'
+                                : '#2E7D32',
+                            fontSize: '1.1em',
+                        }} />
+                        <span style={{ fontWeight: 600, fontSize: '0.95em' }}>
+                            Session Status:{' '}
+                            <span style={{
+                                color: sessionException?.exception_type === 'cancelled' ? '#C62828'
+                                    : sessionException?.exception_type === 'online' ? '#1565C0'
+                                    : sessionException?.exception_type === 'holiday' ? '#F9A825'
+                                    : '#2E7D32',
+                            }}>
+                                {sessionException && sessionException.exception_type !== 'onsite'
+                                    ? sessionException.exception_type.charAt(0).toUpperCase() + sessionException.exception_type.slice(1)
+                                    : 'On-site (Normal)'}
+                            </span>
+                            {sessionException?.reason && (
+                                <span style={{ fontWeight: 400, color: '#666', marginLeft: '8px' }}>
+                                    — {sessionException.reason}
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {!showExceptionPanel ? (
+                            <button
+                                onClick={() => setShowExceptionPanel(true)}
+                                style={{
+                                    padding: '6px 14px', borderRadius: '6px', border: '1px solid #bbb',
+                                    background: '#fff', cursor: 'pointer', fontSize: '0.85em', fontWeight: 600,
+                                }}
+                            >
+                                <i className="fas fa-edit" style={{ marginRight: '5px' }} />
+                                Manage Session
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                    disabled={exceptionLoading}
+                                    onClick={() => handleSetSessionException('onsite')}
+                                    style={{
+                                        padding: '6px 12px', borderRadius: '6px', border: '1px solid #2E7D32',
+                                        background: '#E6F4EA', color: '#2E7D32', cursor: 'pointer', fontSize: '0.85em', fontWeight: 600,
+                                    }}
+                                >On-site</button>
+                                <button
+                                    disabled={exceptionLoading}
+                                    onClick={() => handleSetSessionException('online')}
+                                    style={{
+                                        padding: '6px 12px', borderRadius: '6px', border: '1px solid #1565C0',
+                                        background: '#E3F2FD', color: '#1565C0', cursor: 'pointer', fontSize: '0.85em', fontWeight: 600,
+                                    }}
+                                >Online</button>
+                                <button
+                                    disabled={exceptionLoading}
+                                    onClick={() => handleSetSessionException('cancelled')}
+                                    style={{
+                                        padding: '6px 12px', borderRadius: '6px', border: '1px solid #C62828',
+                                        background: '#FFEBEE', color: '#C62828', cursor: 'pointer', fontSize: '0.85em', fontWeight: 600,
+                                    }}
+                                >Cancelled</button>
+                                <button
+                                    disabled={exceptionLoading}
+                                    onClick={() => handleSetSessionException('holiday')}
+                                    style={{
+                                        padding: '6px 12px', borderRadius: '6px', border: '1px solid #F9A825',
+                                        background: '#FFF8E1', color: '#F9A825', cursor: 'pointer', fontSize: '0.85em', fontWeight: 600,
+                                    }}
+                                >Holiday</button>
+                                <button
+                                    onClick={() => setShowExceptionPanel(false)}
+                                    style={{
+                                        padding: '6px 12px', borderRadius: '6px', border: '1px solid #999',
+                                        background: '#f5f5f5', cursor: 'pointer', fontSize: '0.85em',
+                                    }}
+                                >Cancel</button>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,0 +1,222 @@
+@startuml FRAMES_Use_Case_Diagram
+' ═══════════════════════════════════════════════════════════════════════
+'  FRAMES — Use Case Diagram
+'  Facial Recognition and Attendance Monitoring with Embedded System:
+'  A Web-Based, Gesture-Gated Facial Recognition Attendance System
+'  Using Raspberry Pi
+' ═══════════════════════════════════════════════════════════════════════
+
+left to right direction
+
+' ── Global Skin Parameters ────────────────────────────────────────────
+skinparam actorStyle awesome
+skinparam shadowing false
+skinparam handwritten false
+skinparam defaultFontName  "Segoe UI"
+skinparam defaultFontSize  11
+skinparam nodesep  15
+skinparam ranksep  25
+
+skinparam usecase {
+    BackgroundColor  #E8F5E9
+    BorderColor      #2E7D32
+    BorderThickness  1.5
+    FontColor        #1B5E20
+    FontSize         11
+    StereotypeFontSize  9
+}
+
+skinparam rectangle {
+    BackgroundColor  #FAFAFA
+    BorderColor      #37474F
+    BorderThickness  2
+    FontSize         14
+    FontStyle        bold
+    FontColor        #263238
+}
+
+skinparam package {
+    BackgroundColor  #FFFFFF
+    BorderColor      #90A4AE
+    BorderThickness  1
+    FontSize         12
+    FontStyle        bold
+    FontColor        #455A64
+    Style            rectangle
+}
+
+skinparam actor {
+    BackgroundColor  #42A5F5
+    BorderColor      #1565C0
+    FontSize         12
+    FontStyle        bold
+    FontColor        #0D47A1
+}
+
+skinparam node {
+    BackgroundColor  #E3F2FD
+    BorderColor      #0D47A1
+    BorderThickness  2
+    FontSize         12
+    FontStyle        bold
+    FontColor        #0D47A1
+}
+
+skinparam arrow {
+    Color       #546E7A
+    FontSize    10
+    FontColor   #37474F
+}
+
+skinparam note {
+    BackgroundColor  #FFF8E1
+    BorderColor      #FFB300
+    FontSize         10
+}
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  LEFT ACTOR
+' ═════════════════════════════════════════════════════════════════════
+
+actor "Student" as S
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  SYSTEM BOUNDARY
+' ═════════════════════════════════════════════════════════════════════
+
+rectangle "FRAMES\nFacial Recognition and Attendance Monitoring System" {
+
+    ' ── Account & Identity ────────────────────────────────────────────
+    '    Shared by Student, Faculty, and Department Head
+    package "Account & Identity" {
+        usecase "Register Account" as UC_REG
+        usecase "Login / Logout" as UC_LOGIN
+        usecase "Enroll Face" as UC_FACE
+        usecase "Reset Password" as UC_RESET
+    }
+
+    ' ── Attendance ────────────────────────────────────────────────────
+    package "Attendance" {
+        usecase "Perform Check-In\n(Face + Gesture)" as UC_CHECKIN
+        usecase "View Attendance\nStatus" as UC_STATUS
+        usecase "Receive\nNotification" as UC_NOTIFY
+    }
+
+    ' ── Class Management ──────────────────────────────────────────────
+    '    Shared by Faculty (primary) and Department Head (partial)
+    package "Class Management" {
+        usecase "Manage Class\nRoster" as UC_ROSTER
+        usecase "Set Attendance\nRules" as UC_RULES
+        usecase "Generate &\nExport Reports" as UC_REPORTS
+    }
+
+    ' ── Administration ────────────────────────────────────────────────
+    '    Department Head only
+    package "Administration" {
+        usecase "Manage Faculty\nAccounts" as UC_FAC_MGMT
+        usecase "Configure Academic\nSettings" as UC_CONFIG
+        usecase "View Audit Logs" as UC_LOGS
+    }
+
+    ' ── Kiosk Operations ─────────────────────────────────────────────
+    package "Kiosk Operations" {
+        usecase "Capture & Recognize\nFace" as UC_CAPTURE
+        usecase "Detect Gesture" as UC_DETECT_G
+        usecase "Resolve Active\nClass Schedule" as UC_RESOLVE
+        usecase "Flag Unrecognized\nIndividual" as UC_FLAG
+        usecase "Send Device\nHeartbeat" as UC_HEARTBEAT
+    }
+
+    ' ── Layout Hints ──────────────────────────────────────────────────
+    '  Class Management and Administration sit side by side
+    UC_RULES    -[hidden]d- UC_FAC_MGMT
+    UC_REPORTS  -[hidden]d- UC_CONFIG
+    UC_ROSTER   -[hidden]d- UC_LOGS
+}
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  RIGHT ACTORS — declared after rectangle → rendered on the right
+' ═════════════════════════════════════════════════════════════════════
+
+node  "Kiosk\n(Raspberry Pi)" as K
+actor "Department\nHead" as DH
+actor "Faculty" as F
+
+' Stack right-side actors: Kiosk top → DH middle → Faculty bottom
+K  -[hidden]d- DH
+DH -[hidden]d- F
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  ASSOCIATIONS
+' ═════════════════════════════════════════════════════════════════════
+
+' ── Student ───────────────────────────────────────────────────────────
+S -- UC_REG
+S -- UC_LOGIN
+S -- UC_FACE
+S -- UC_RESET
+S -- UC_CHECKIN
+S -- UC_STATUS
+S -- UC_NOTIFY
+
+' ── Faculty ───────────────────────────────────────────────────────────
+F -- UC_LOGIN
+F -- UC_FACE
+F -- UC_CHECKIN
+F -- UC_STATUS
+F -- UC_ROSTER
+F -- UC_RULES
+F -- UC_REPORTS
+
+' ── Department Head ───────────────────────────────────────────────────
+DH -- UC_LOGIN
+DH -- UC_FACE
+DH -- UC_ROSTER
+DH -- UC_REPORTS
+DH -- UC_FAC_MGMT
+DH -- UC_CONFIG
+DH -- UC_LOGS
+
+' ── Kiosk / Raspberry Pi ─────────────────────────────────────────────
+K -- UC_CAPTURE
+K -- UC_DETECT_G
+K -- UC_RESOLVE
+K -- UC_FLAG
+K -- UC_HEARTBEAT
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  RELATIONSHIPS — Include & Extend
+' ═════════════════════════════════════════════════════════════════════
+
+'  Every check-in requires face capture first
+UC_CHECKIN ..> UC_CAPTURE : <<include>>
+
+'  Gesture detection runs as part of every check-in
+UC_CHECKIN ..> UC_DETECT_G : <<include>>
+
+'  A face is flagged only when recognition fails (below threshold)
+UC_FLAG ..> UC_CAPTURE : <<extend>>
+
+
+' ═════════════════════════════════════════════════════════════════════
+'  LEGEND
+' ═════════════════════════════════════════════════════════════════════
+
+legend bottom right
+  **FRAMES Use Case Diagram**
+  ──────────────────────────────
+  ── = Association (actor participates)
+  ··>  <<include>> = Always invoked
+  ··>  <<extend>>  = Conditionally invoked
+  ──────────────────────────────
+  Student: 7  |  Faculty: 7
+  Dept Head: 7  |  Kiosk: 5
+  Total use cases: 18
+end legend
+
+@enduml

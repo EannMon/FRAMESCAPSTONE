@@ -49,7 +49,12 @@ class Camera:
         - Falls back to OpenCV if picamera2 is unavailable or fails
     On Laptop:
         - Uses OpenCV directly (prefer_picamera2 should be False)
+
+    Includes automatic reconnection on camera disconnect (USB unplug).
     """
+
+    # After this many consecutive read failures, attempt a reconnection
+    _MAX_FAILURES_BEFORE_RECONNECT = 30  # ~0.3s at 10ms per retry
 
     def __init__(self, index=0, width=640, height=480, fps=30, prefer_picamera2=False):
         """
@@ -65,6 +70,10 @@ class Camera:
         self._opened = False
         self._width = width
         self._height = height
+        self._fps = fps
+        self._index = index
+        self._prefer_picamera2 = prefer_picamera2
+        self._consecutive_failures = 0
 
         # Try picamera2 first on RPi
         if prefer_picamera2 and _picamera2_available():
@@ -141,14 +150,74 @@ class Camera:
                 rgb_frame = self._cap.capture_array("main")
                 if rgb_frame is None or rgb_frame.size == 0:
                     logger.warning("picamera2 capture_array returned empty")
+                    self._consecutive_failures += 1
+                    if self._consecutive_failures >= self._MAX_FAILURES_BEFORE_RECONNECT:
+                        self._reconnect()
                     return False, None
                 bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+                self._consecutive_failures = 0
                 return True, bgr_frame
             except Exception as e:
-                logger.error(f"picamera2 capture error: {e}")
+                logger.error("picamera2 capture error: %s", e)
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= self._MAX_FAILURES_BEFORE_RECONNECT:
+                    self._reconnect()
                 return False, None
         else:
-            return self._cap.read()
+            ret, frame = self._cap.read()
+            if not ret:
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= self._MAX_FAILURES_BEFORE_RECONNECT:
+                    self._reconnect()
+                return False, None
+            self._consecutive_failures = 0
+            return True, frame
+
+    def _reconnect(self):
+        """
+        Attempt to recover from a camera disconnect (e.g. USB unplug/replug).
+        Releases the old handle and re-opens the camera.
+        """
+        logger.warning(
+            "Camera lost (%d consecutive failures). Attempting reconnection...",
+            self._consecutive_failures,
+        )
+        self._consecutive_failures = 0
+
+        # Release the dead handle
+        try:
+            if self._cap is not None:
+                if self._backend == 'picamera2':
+                    self._cap.stop()
+                    self._cap.close()
+                else:
+                    self._cap.release()
+        except Exception:
+            pass
+        self._cap = None
+        self._opened = False
+
+        # Wait a moment for the OS to re-enumerate the device
+        time.sleep(2)
+
+        # Re-open with original parameters (reuse constructor logic for OpenCV)
+        for attempt in range(5):
+            cap = cv2.VideoCapture(self._index)
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
+                cap.set(cv2.CAP_PROP_FPS, self._fps)
+                self._cap = cap
+                self._backend = 'opencv'
+                self._opened = True
+                logger.info("Camera reconnected via OpenCV after %d attempts", attempt + 1)
+                return
+            cap.release()
+            if attempt < 4:
+                logger.warning("Reconnect attempt %d/5 failed, retrying in 3s...", attempt + 1)
+                time.sleep(3)
+
+        logger.critical("Camera reconnection failed after 5 attempts. Camera offline.")
 
     def set(self, prop, value):
         """Set camera property (OpenCV only — no-op for picamera2)."""
