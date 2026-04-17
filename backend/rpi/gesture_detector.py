@@ -49,9 +49,10 @@ class GestureDetector:
             static_image_mode=False,  # Video mode — fast tracking (~50ms vs ~2000ms)
             max_num_hands=1,
             min_detection_confidence=min_confidence,
-            min_tracking_confidence=0.3
+            min_tracking_confidence=0.2  # Low tracking threshold for poor lighting
         )
         self.mp_draw = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
         
         # Temporal smoothing buffer
         self._consecutive_frames = consecutive_frames
@@ -344,16 +345,72 @@ class GestureDetector:
         self._diag_hand_found = 0
         self._diag_gesture_found = 0
     
-    def draw_landmarks(self, frame_bgr: np.ndarray, hand_landmarks) -> np.ndarray:
-        """Draw hand landmarks on frame for visualization."""
-        if hand_landmarks:
-            self.mp_draw.draw_landmarks(
-                frame_bgr,
-                hand_landmarks,
-                self.mp_hands.HAND_CONNECTIONS
-            )
+    def draw_hand_landmarks(self, frame_bgr: np.ndarray, hand_landmarks) -> np.ndarray:
+        """
+        Draw hand skeleton (connections + landmark dots) on a BGR frame.
+
+        Uses MediaPipe's built-in drawing utility with custom colors:
+        - Green dots for landmark points
+        - Cyan lines for connections between joints
+
+        Args:
+            frame_bgr: The BGR frame to draw on (will be modified in-place).
+            hand_landmarks: MediaPipe NormalizedLandmarkList from detect().
+
+        Returns:
+            The same frame with landmarks drawn.
+        """
+        if hand_landmarks is None:
+            return frame_bgr
+
+        # Custom drawing spec: green dots, cyan connections
+        landmark_style = self.mp_draw.DrawingSpec(
+            color=(0, 255, 0), thickness=2, circle_radius=3
+        )
+        connection_style = self.mp_draw.DrawingSpec(
+            color=(255, 255, 0), thickness=2, circle_radius=1
+        )
+
+        self.mp_draw.draw_landmarks(
+            frame_bgr,
+            hand_landmarks,
+            self.mp_hands.HAND_CONNECTIONS,
+            landmark_drawing_spec=landmark_style,
+            connection_drawing_spec=connection_style,
+        )
         return frame_bgr
-    
+
+    @staticmethod
+    def adaptive_enhance(frame_bgr: np.ndarray) -> np.ndarray:
+        """
+        Adaptively boost brightness for MediaPipe hand detection.
+
+        Instead of a fixed alpha/beta that blows out bright frames and
+        under-boosts dark ones, this measures actual frame brightness and
+        applies just enough gain to reach a target luminance.
+
+        - Very dark frame (mean < 60): strong boost (alpha=2.0, beta=60)
+        - Dim frame (mean 60-100): moderate boost (alpha=1.5, beta=40)
+        - Normal frame (mean 100-160): mild boost (alpha=1.2, beta=20)
+        - Bright frame (mean > 160): no boost (return as-is, already bright)
+
+        Returns:
+            Enhanced BGR frame suitable for MediaPipe processing.
+        """
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        mean_brightness = gray.mean()
+
+        if mean_brightness < 60:
+            alpha, beta = 2.0, 60
+        elif mean_brightness < 100:
+            alpha, beta = 1.5, 40
+        elif mean_brightness < 160:
+            alpha, beta = 1.2, 20
+        else:
+            return frame_bgr  # Already bright enough
+
+        return cv2.convertScaleAbs(frame_bgr, alpha=alpha, beta=beta)
+
     def close(self):
         """Release resources."""
         self.hands.close()

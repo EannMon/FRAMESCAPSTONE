@@ -126,7 +126,7 @@ class KioskConfig:
     # ===========================================
     # Gesture Detection (MediaPipe Hands)
     # ===========================================
-    GESTURE_CONFIDENCE: float = 0.5   # Lowered from 0.65 — RPi camera quality needs more sensitive detection
+    GESTURE_CONFIDENCE: float = 0.35  # Lowered from 0.5 — RPi USB cam in dim rooms needs aggressive detection
     # ENTRY uses face-only verification (no gesture required).
     # BREAK/EXIT still use specific gestures (peace/thumbs/palm).
     REQUIRE_GESTURE_FOR_ENTRY: bool = False
