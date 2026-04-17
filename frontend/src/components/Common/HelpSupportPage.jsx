@@ -15,72 +15,120 @@ const navyTheme = {
 };
 
 // ==========================================
-// 1. ROLE-BASED CONTENT (Business Process)
+// ROLE-BASED FAQ DATA (FRAMES features only)
 // ==========================================
 
 const roleFaqData = {
     student: [
         {
             question: 'How do I register my face for attendance?',
-            answer: "It's a simple one-time setup. Go to your Face Enrollment page, and the camera will guide you to capture 15 frames. Once that's done, you can just walk into class to be marked present!"
+            answer: "After logging in for the first time, you will be redirected to the Face Enrollment page. The system captures 15 frames from your webcam automatically. Make sure you are in a well-lit area and facing the camera directly. Once enrolled, the kiosk will recognize you when you enter the classroom."
         },
         {
-            question: 'I was late. Will it affect my record?',
-            answer: "If you arrive after the class starts, the system marks it as 'Late' automatically. You can check your Attendance History to see exactly when you arrived for each session."
+            question: 'How does the kiosk mark my attendance?',
+            answer: "When you stand in front of the classroom kiosk, the system recognizes your face and automatically logs your Entry. For subsequent actions — Break-out (peace sign), Break-in (thumbs-up), and Exit (open palm) — you need to show the corresponding hand gesture to confirm the action."
         },
         {
-            question: 'My consistency score went down. Why?',
-            answer: "Your score reflects your habits. If you've missed a few classes recently or been arriving late, the score dips to alert you. Attending regularly and on time will bring it back up."
+            question: 'What happens if I arrive late to class?',
+            answer: "The system compares your entry time against the scheduled class start time. If you arrive after the grace period, your attendance is automatically flagged as 'Late'. You can view the exact timestamp in your Attendance History page."
         },
         {
-            question: 'How can I book a room for study?',
-            answer: "You can request facilities directly from your dashboard. Just submit the details at least 24 hours ahead so the admin team has time to approve it."
+            question: 'How do I check my attendance records?',
+            answer: "Go to your Student Dashboard and click on 'Attendance History'. You can view your attendance per class, see your on-time vs. late entries, and check your overall attendance rate for the semester."
+        },
+        {
+            question: 'What does my attendance rate percentage mean?',
+            answer: "Your attendance rate is calculated as the number of classes you attended (on-time or late) divided by the total number of class sessions held. It does not count sessions that were cancelled or not conducted."
+        },
+        {
+            question: 'The kiosk did not recognize me. What should I do?',
+            answer: "This can happen due to poor lighting, a significant change in appearance, or camera angle. Try adjusting your position so your face is clearly visible. If the issue persists, you may need to re-enroll your face from your dashboard under Face Enrollment."
+        },
+        {
+            question: 'How do I change my default password?',
+            answer: "Your initial password is your surname in lowercase. After logging in, go to your Profile and use the Change Password option to set a new secure password."
+        },
+        {
+            question: 'Can I download my attendance records?',
+            answer: "Yes. In your Attendance History page, you can export your records in CSV or PDF format for your personal documentation."
         }
     ],
     faculty: [
         {
-            question: 'How do I check my class attendance?',
-            answer: "Your dashboard shows a real-time summary of your classes. You can click on any specific class to see who is present, late, or absent right now."
-        },
-        {
             question: 'How do I upload my class schedule?',
-            answer: "Simply upload your official COR PDF in the 'My Classes' section. The system handles the rest—parsing the schedule and even creating accounts for your students if they are new."
+            answer: "Go to 'My Classes' and click 'Upload Schedule'. Upload your official Certificate of Registration (COR) PDF exported from the TUP portal. The system will automatically parse the schedule, create class records, and auto-enroll students listed in the document."
         },
         {
-            question: 'can I correct a student\'s attendance?',
-            answer: "Yes. If the system missed someone (maybe due to lighting), you can manually update their status in the daily attendance view for that class."
+            question: 'How are student accounts created?',
+            answer: "When you upload your COR PDF, the system reads the enrolled student list. For students who do not have existing accounts, FRAMES automatically creates their accounts using their TUPM-ID as username and their surname (lowercase) as the default password. Students are auto-verified and can log in immediately."
         },
         {
-            question: 'What is the "Instructor Delay" logging?',
-            answer: "The system logs when classes start. If a session begins later than the scheduled time, it records it for your personal attendance report."
+            question: 'How do I check attendance for a specific class?',
+            answer: "From your Faculty Dashboard, click on any class card to view real-time attendance. You can see which students are present, late, on break, or absent for the current session."
+        },
+        {
+            question: 'Can I view attendance reports across multiple sessions?',
+            answer: "Yes. Go to the Reports section and select the class and date range. You can generate per-class attendance summaries showing trends over time and export them as CSV or PDF."
+        },
+        {
+            question: 'What happens if a student\'s face was not recognized by the kiosk?',
+            answer: "The kiosk flags unrecognized faces as anomalies and displays a notification. The student will not have an attendance record for that session. If this is a recurring issue, advise the student to re-enroll their face from their dashboard."
+        },
+        {
+            question: 'How does the auto-exit mechanism work?',
+            answer: "When a class reaches its scheduled end time, any students still marked as 'present' (who did not scan an Exit gesture) are automatically logged out with an AUTO_TIMEOUT status. This ensures all sessions have a clean close."
+        },
+        {
+            question: 'Can I have multiple class sections?',
+            answer: "Yes. Each section is treated as a separate class in FRAMES. When you upload your COR, the system creates individual records per section, each with its own schedule, room, and enrolled student list."
         }
     ],
     dept_head: [
         {
-            question: 'Where can I see how my faculty is doing?',
-            answer: "Your main dashboard gives you a high-level view of all faculty members. You can see attendance trends and punctuality stats at a glance without digging through records."
+            question: 'How do I invite faculty members to the system?',
+            answer: "Go to Faculty Management and use the 'Invite Faculty' feature. Enter the faculty member's email address and the system sends a unique registration link valid for 48 hours. When they register through that link, their account is automatically verified — no manual approval needed."
         },
         {
-            question: 'How do I optimize room usage?',
-            answer: "Check the Room Utilization Report. It highlights which rooms are empty and which are overcrowded, helping you plan room assignments better for next semester."
+            question: 'How do I monitor department-wide attendance?',
+            answer: "Your Department Head Dashboard shows aggregated attendance data across all faculty and classes in your department. You can view overall attendance rates, faculty punctuality, and class conduct summaries at a glance."
         },
         {
-            question: 'Where do I handle faculty requests?',
-            answer: "Pending requests appear right at the top of your dashboard. You can review the details and approve or reject them with a single click."
+            question: 'Can I see which rooms are being utilized?',
+            answer: "Yes. The Reports section includes room utilization data based on actual attendance logs — showing which rooms have active classes and how many students attended per session."
+        },
+        {
+            question: 'How do I verify or manage user accounts?',
+            answer: "Go to User Management in your dashboard. You can view all users in your department, check their verification status, and manage faculty or student accounts as needed."
+        },
+        {
+            question: 'How do I generate department reports?',
+            answer: "Navigate to Reports and select the type of report you need — attendance summary, faculty compliance, or class-level breakdown. Reports can be filtered by date range and exported as CSV or PDF."
+        },
+        {
+            question: 'What notifications will I receive?',
+            answer: "You will see notifications for anomaly detections (unrecognized faces at the kiosk), pending faculty invitations, and system alerts. These appear on your dashboard and notification panel."
+        },
+        {
+            question: 'Can I view a specific faculty member\'s classes?',
+            answer: "Yes. In Faculty Management, click on any faculty member to see their uploaded schedule, class sections, and per-class attendance statistics."
         }
     ],
     admin: [
         {
-            question: 'How is the system performing right now?',
-            answer: "Your System Logs page shows a real-time health check. You can see camera statuses, server uptime, and any recent errors immediately."
+            question: 'How do I manage user accounts?',
+            answer: "The User Management page lists all registered users. You can filter by role (Student, Faculty, Department Head), check verification status, and take actions like approving or deactivating accounts."
         },
         {
-            question: 'Do I need to verify users manually?',
-            answer: "Rarely. Most users are verified automatically when faculty upload their class schedules. You only need to manually check users who register individually."
+            question: 'Where can I view system activity logs?',
+            answer: "The System Logs page shows recent system events including user registrations, attendance logs, kiosk activity, and any errors or anomalies detected by the system."
         },
         {
-            question: 'How do I spot security threats?',
-            answer: "The Security Dashboard highlights unusual activity, like unrecognized faces or spoofing attempts, so you can address them quickly."
+            question: 'How do I handle user verification requests?',
+            answer: "Pending verification requests appear in the Applications section. Review the user's details and approve or reject their registration. Faculty members invited via the token system are auto-verified and do not appear here."
+        },
+        {
+            question: 'Can I generate system-wide reports?',
+            answer: "Yes. The Reports section allows you to generate attendance reports across all departments, view overall system usage statistics, and export data for administrative review."
         }
     ]
 };
@@ -105,6 +153,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
     const toast = useToast();
     const [openFaq, setOpenFaq] = useState(null);
+    const [activeTab, setActiveTab] = useState('faq'); // 'faq' or 'contact'
 
     // Contact form state
     const [contactSubject, setContactSubject] = useState('');
@@ -207,14 +256,22 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
     };
 
     // Determine Role & Theme
-    const role = user?.role?.toLowerCase() || 'student'; // Default to student if null
+    const role = user?.role?.toLowerCase() || 'student';
     const isFaculty = ['faculty', 'dept_head', 'head', 'admin'].includes(role);
     const themeClass = isFaculty ? 'faculty-theme' : '';
 
     // Get Data based on Role
-    // Map 'head' or 'dept_head' to dept_head data, else use role directly. Fallback to student.
     const dataKey = role === 'head' ? 'dept_head' : (roleFaqData[role] ? role : 'student');
     const currentFaqs = roleFaqData[dataKey] || roleFaqData.student;
+
+    // Role display name for tab header
+    const roleDisplayName = {
+        student: 'Student',
+        faculty: 'Faculty',
+        dept_head: 'Department Head',
+        head: 'Department Head',
+        admin: 'Admin'
+    }[role] || 'Student';
 
     return (
         <>
@@ -222,7 +279,7 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
 
             <div className={`help-page-container ${isEmbedded ? 'embedded' : ''} ${themeClass} fade-in`}>
 
-                {/* Header Section - Only show if NOT embedded (Standalone Mode) */}
+                {/* Header Section - Only show if NOT embedded */}
                 {!isEmbedded && (
                     <div className="help-header-bar">
                         <button onClick={handleBack} className="help-back-button">
@@ -233,171 +290,170 @@ const HelpSupportPage = ({ isEmbedded = false }) => {
                     </div>
                 )}
 
-                {/* Quick Access Grid */}
-                <div className="help-grid-top">
-                    <div className="card help-card">
-                        <div className="help-card-icon">
-                            <i className="fas fa-question-circle"></i>
-                        </div>
-                        <h3>FAQ</h3>
-                        <p>Common questions for {role}</p>
-                    </div>
-                    <div className="card help-card">
-                        <div className="help-card-icon">
-                            <i className="fas fa-headset"></i>
-                        </div>
-                        <h3>Contact Support</h3>
-                        <p>Report technical issues</p>
-                    </div>
-                    {!isEmbedded && (
-                        <div className="card help-card">
-                            <div className="help-card-icon">
-                                <i className="fas fa-video"></i>
-                            </div>
-                            <h3>Video Tutorials</h3>
-                            <p>Watch step-by-step guides</p>
-                        </div>
-                    )}
+                {/* Tab Navigation */}
+                <div className="help-tab-nav">
+                    <button
+                        className={`help-tab-btn ${activeTab === 'faq' ? 'active' : ''}`}
+                        onClick={() => { setActiveTab('faq'); setOpenFaq(null); }}
+                    >
+                        <i className="fas fa-question-circle"></i>
+                        <span>FAQ</span>
+                    </button>
+                    <button
+                        className={`help-tab-btn ${activeTab === 'contact' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('contact')}
+                    >
+                        <i className="fas fa-headset"></i>
+                        <span>Contact Support</span>
+                    </button>
                 </div>
 
-                <div className="faq-section-full">
-                    <div className="section-title">
-                        <i className="fas fa-comments"></i>
-                        <h3>Frequently Asked Questions</h3>
-                    </div>
-                    <div className="card faq-list-card">
-                        {currentFaqs.map((item, index) => (
-                            <FaqItem
-                                key={index}
-                                item={item}
-                                isOpen={openFaq === index}
-                                onClick={() => handleFaqClick(index)}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Contact Support Section — submits to support_tickets table */}
-                <div className="contact-support-section">
-                    <div className="section-title">
-                        <i className="fas fa-paper-plane"></i>
-                        <h3>Submit a Support Ticket</h3>
-                    </div>
-                    <div className="card contact-form-card">
-                        <p className="contact-subtitle">
-                            Describe your issue and our team will get back to you. You may attach evidence (up to 3 JPG/PNG images or 1 PDF).
-                        </p>
-                        <form className="mock-contact-form" onSubmit={handleSubmitTicket}>
-                            {contactError && (
-                                <div style={{ color: '#d63031', background: '#ffe6e6', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px', fontSize: '0.9rem' }}>
-                                    {contactError}
-                                </div>
-                            )}
-                            <div className="form-group">
-                                <label>Subject <span style={{ color: '#d63031' }}>*</span></label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g., Login Issue, Camera Not Working"
-                                    className="form-input"
-                                    value={contactSubject}
-                                    onChange={(e) => setContactSubject(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Message <span style={{ color: '#d63031' }}>*</span></label>
-                                <textarea
-                                    placeholder="Describe your issue in detail..."
-                                    rows="4"
-                                    className="form-input"
-                                    value={contactMessage}
-                                    onChange={(e) => setContactMessage(e.target.value)}
-                                    required
-                                ></textarea>
-                            </div>
-                            <div className="form-group">
-                                <label>Evidence (optional)</label>
-                                <input
-                                    type="file"
-                                    className="form-input"
-                                    accept=".jpg,.jpeg,.png,.pdf"
-                                    multiple
-                                    onChange={handleFileChange}
-                                />
-                                <p style={{ fontSize: '0.78em', color: '#888', marginTop: 4 }}>
-                                    Up to 3 images (JPG/PNG) or 1 PDF. Max 5MB each.
-                                </p>
-                            </div>
-                            <button type="submit" className="btn-submit-support" disabled={submitting}>
-                                <i className="fas fa-paper-plane"></i> {submitting ? 'Submitting...' : 'Submit Ticket'}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                {/* My Tickets Section */}
-                <div className="contact-support-section" style={{ marginTop: 20 }}>
-                    <div className="section-title" style={{ cursor: 'pointer' }} onClick={() => setShowTickets(!showTickets)}>
-                        <i className="fas fa-ticket-alt"></i>
-                        <h3>My Support Tickets ({myTickets.length})</h3>
-                        <i className={`fas fa-chevron-down ${showTickets ? 'open' : ''}`} style={{ marginLeft: 'auto' }}></i>
-                    </div>
-                    {showTickets && (
+                {/* ===== FAQ TAB ===== */}
+                {activeTab === 'faq' && (
+                    <div className="faq-section-full">
+                        <div className="section-title">
+                            <i className="fas fa-comments"></i>
+                            <h3>Frequently Asked Questions — {roleDisplayName} Module</h3>
+                        </div>
                         <div className="card faq-list-card">
-                            {myTickets.length === 0 ? (
-                                <p style={{ padding: 16, color: '#888', textAlign: 'center' }}>No tickets submitted yet.</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {myTickets.map(t => (
-                                        <div 
-                                            key={t.id}
-                                            style={{ 
-                                                padding: '14px 16px', 
-                                                borderBottom: '1px solid #eee',
-                                                cursor: 'pointer',
-                                                borderLeft: '3px solid',
-                                                borderLeftColor: t.status === 'OPEN' ? '#10b981' : t.status === 'IN_PROGRESS' ? '#f59e0b' : t.status === 'RESOLVED' ? '#3b82f6' : '#9ca3af',
-                                                backgroundColor: 'hover' ? '#f9fafb' : 'transparent',
-                                                transition: 'background-color 0.2s'
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}>
-                                                <div style={{flex: 1}}>
-                                                    <strong style={{ fontSize: '0.95em', color: '#0f172a' }}>#{t.id} - {t.subject}</strong>
-                                                    <p style={{ fontSize: '0.85em', color: '#475569', margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                                                        {t.message.length > 100 ? t.message.slice(0, 100) + '...' : t.message}
-                                                    </p>
-                                                    <div style={{ fontSize: '0.75em', color: '#94a3b8', marginTop: '6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <span>{t.created_at ? new Date(t.created_at).toLocaleString() : ''}</span>
-                                                        {t.evidence_files?.length > 0 && (
-                                                            <span><i className="fas fa-paperclip"></i> {t.evidence_files.length} file(s)</span>
-                                                        )}
-                                                        {(t.replies?.length || 0) > 0 && (
-                                                            <span><i className="fas fa-reply"></i> {t.replies.length} reply(ies)</span>
-                                                        )}
+                            {currentFaqs.map((item, index) => (
+                                <FaqItem
+                                    key={index}
+                                    item={item}
+                                    isOpen={openFaq === index}
+                                    onClick={() => handleFaqClick(index)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ===== CONTACT SUPPORT TAB ===== */}
+                {activeTab === 'contact' && (
+                    <>
+                        {/* Submit Ticket Form */}
+                        <div className="contact-support-section">
+                            <div className="section-title">
+                                <i className="fas fa-paper-plane"></i>
+                                <h3>Submit a Support Ticket</h3>
+                            </div>
+                            <div className="card contact-form-card">
+                                <p className="contact-subtitle">
+                                    Describe your issue and our team will get back to you. You may attach evidence (up to 3 JPG/PNG images or 1 PDF).
+                                </p>
+                                <form className="mock-contact-form" onSubmit={handleSubmitTicket}>
+                                    {contactError && (
+                                        <div style={{ color: '#d63031', background: '#ffe6e6', padding: '8px 12px', borderRadius: '6px', marginBottom: '10px', fontSize: '0.9rem' }}>
+                                            {contactError}
+                                        </div>
+                                    )}
+                                    <div className="form-group">
+                                        <label>Subject <span style={{ color: '#d63031' }}>*</span></label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., Login Issue, Camera Not Working"
+                                            className="form-input"
+                                            value={contactSubject}
+                                            onChange={(e) => setContactSubject(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Message <span style={{ color: '#d63031' }}>*</span></label>
+                                        <textarea
+                                            placeholder="Describe your issue in detail..."
+                                            rows="4"
+                                            className="form-input"
+                                            value={contactMessage}
+                                            onChange={(e) => setContactMessage(e.target.value)}
+                                            required
+                                        ></textarea>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Evidence (optional)</label>
+                                        <input
+                                            type="file"
+                                            className="form-input"
+                                            accept=".jpg,.jpeg,.png,.pdf"
+                                            multiple
+                                            onChange={handleFileChange}
+                                        />
+                                        <p style={{ fontSize: '0.78em', color: '#888', marginTop: 4 }}>
+                                            Up to 3 images (JPG/PNG) or 1 PDF. Max 5MB each.
+                                        </p>
+                                    </div>
+                                    <button type="submit" className="btn-submit-support" disabled={submitting}>
+                                        <i className="fas fa-paper-plane"></i> {submitting ? 'Submitting...' : 'Submit Ticket'}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* My Tickets Section */}
+                        <div className="contact-support-section" style={{ marginTop: 20 }}>
+                            <div className="section-title" style={{ cursor: 'pointer' }} onClick={() => setShowTickets(!showTickets)}>
+                                <i className="fas fa-ticket-alt"></i>
+                                <h3>My Support Tickets ({myTickets.length})</h3>
+                                <i className={`fas fa-chevron-down ${showTickets ? 'open' : ''}`} style={{ marginLeft: 'auto' }}></i>
+                            </div>
+                            {showTickets && (
+                                <div className="card faq-list-card">
+                                    {myTickets.length === 0 ? (
+                                        <p style={{ padding: 16, color: '#888', textAlign: 'center' }}>No tickets submitted yet.</p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {myTickets.map(t => (
+                                                <div 
+                                                    key={t.id}
+                                                    style={{ 
+                                                        padding: '14px 16px', 
+                                                        borderBottom: '1px solid #eee',
+                                                        cursor: 'pointer',
+                                                        borderLeft: '3px solid',
+                                                        borderLeftColor: t.status === 'OPEN' ? '#10b981' : t.status === 'IN_PROGRESS' ? '#f59e0b' : t.status === 'RESOLVED' ? '#3b82f6' : '#9ca3af',
+                                                        backgroundColor: 'transparent',
+                                                        transition: 'background-color 0.2s'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}>
+                                                        <div style={{flex: 1}}>
+                                                            <strong style={{ fontSize: '0.95em', color: '#0f172a' }}>#{t.id} - {t.subject}</strong>
+                                                            <p style={{ fontSize: '0.85em', color: '#475569', margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                                                                {t.message.length > 100 ? t.message.slice(0, 100) + '...' : t.message}
+                                                            </p>
+                                                            <div style={{ fontSize: '0.75em', color: '#94a3b8', marginTop: '6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                                <span>{t.created_at ? new Date(t.created_at).toLocaleString() : ''}</span>
+                                                                {t.evidence_files?.length > 0 && (
+                                                                    <span><i className="fas fa-paperclip"></i> {t.evidence_files.length} file(s)</span>
+                                                                )}
+                                                                {(t.replies?.length || 0) > 0 && (
+                                                                    <span><i className="fas fa-reply"></i> {t.replies.length} reply(ies)</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <span style={{
+                                                            fontSize: '0.8em', 
+                                                            padding: '4px 12px', 
+                                                            borderRadius: '14px',
+                                                            fontWeight: '600',
+                                                            whiteSpace: 'nowrap',
+                                                            background: t.status === 'OPEN' ? '#d1fae5' : t.status === 'IN_PROGRESS' ? '#fef3c7' : t.status === 'RESOLVED' ? '#dbeafe' : '#f3f4f6',
+                                                            color: t.status === 'OPEN' ? '#065f46' : t.status === 'IN_PROGRESS' ? '#92400e' : t.status === 'RESOLVED' ? '#0c4a6e' : '#374151',
+                                                        }}>
+                                                            {t.status}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <span style={{
-                                                    fontSize: '0.8em', 
-                                                    padding: '4px 12px', 
-                                                    borderRadius: '14px',
-                                                    fontWeight: '600',
-                                                    whiteSpace: 'nowrap',
-                                                    background: t.status === 'OPEN' ? '#d1fae5' : t.status === 'IN_PROGRESS' ? '#fef3c7' : t.status === 'RESOLVED' ? '#dbeafe' : '#f3f4f6',
-                                                    color: t.status === 'OPEN' ? '#065f46' : t.status === 'IN_PROGRESS' ? '#92400e' : t.status === 'RESOLVED' ? '#0c4a6e' : '#374151',
-                                                }}>
-                                                    {t.status}
-                                                </span>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             )}
                         </div>
-                    )}
-                </div>
+                    </>
+                )}
 
             </div>
 

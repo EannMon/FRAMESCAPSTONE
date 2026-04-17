@@ -150,6 +150,7 @@ class StreamingAttendanceKiosk:
             "label": None,         # text label
             "color": (0, 255, 0),  # BGR tuple for rectangle/text
             "expires_at": 0.0,     # timestamp when overlay should disappear
+            "hand_landmarks": None,  # MediaPipe hand landmarks for skeleton drawing
         }
 
         # State tracking for UI
@@ -316,6 +317,10 @@ class StreamingAttendanceKiosk:
                             color,
                             2,
                         )
+                # Draw hand skeleton when gesture detection found a hand
+                hand_lm = overlay.get("hand_landmarks")
+                if hand_lm is not None and now_ts < expires_at:
+                    self.gesture_detector.draw_hand_landmarks(frame_to_send, hand_lm)
 
                 # Update shared latest frame for recognition thread
                 with self._frame_lock:
@@ -392,6 +397,9 @@ class StreamingAttendanceKiosk:
                         pending_match = None
                         pending_active_class = None
                         gesture_timeout_end = 0
+                        # Clear hand skeleton from video overlay
+                        with self._overlay_lock:
+                            self._overlay["hand_landmarks"] = None
                         self.broadcast_state({
                             "recognized_user": None,
                             "tupm_id": None,
@@ -402,28 +410,26 @@ class StreamingAttendanceKiosk:
                     else:
                         # ── Active gesture detection ──
                         t_gesture = time.perf_counter()
-                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        # Adaptive brightness boost before MediaPipe — measures
+                        # actual frame luminance and applies only the needed gain.
+                        # Bright frames (flashlight) get no boost, dark frames
+                        # get strong boost. Prevents blowout that kills detection.
+                        enhanced_frame = GestureDetector.adaptive_enhance(frame)
+                        frame_rgb = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2RGB)
                         gesture, hand_landmarks = self.gesture_detector.detect(frame_rgb)
                         gesture_ms = (time.perf_counter() - t_gesture) * 1000
 
                         hand_detected = hand_landmarks is not None
+
+                        # Push hand landmarks to overlay so camera thread draws
+                        # the hand skeleton on the MJPEG stream.
+                        with self._overlay_lock:
+                            self._overlay["hand_landmarks"] = hand_landmarks if hand_detected else None
+                            self._overlay["expires_at"] = time.time() + 0.5  # 500ms overlay TTL
                         logger.debug("GESTURE | hand=%s gesture=%s remaining=%.1fs gesture_ms=%.1f allowed=%s",
                                      hand_detected, gesture.value, remaining, gesture_ms, pending_allowed)
 
-                        # Build readable hint for which gesture the user should show
-                        _gesture_hints = {
-                            "BREAK_OUT": "✌️ Peace Sign",
-                            "BREAK_IN": "👍 Thumbs Up",
-                            "EXIT": "✋ Open Palm",
-                        }
-                        needed_hint = " or ".join(
-                            _gesture_hints.get(a, a) for a in pending_allowed
-                        )
-                        if hand_detected:
-                            prompt_msg = f"Show {needed_hint} ({remaining:.0f}s)"
-                        else:
-                            prompt_msg = f"Show hand: {needed_hint} ({remaining:.0f}s)"
-
+                        hand_status = "Hand detected" if hand_detected else "Show hand to camera"
                         tupm_id = getattr(pending_match, 'tupm_id', None)
                         self.broadcast_state({
                             "recognized_user": pending_match.name,
@@ -431,13 +437,12 @@ class StreamingAttendanceKiosk:
                             "greeting_type": None,
                             "device_id": self.config.DEVICE_ID,
                             "required_gestures": expected_gestures,
-                            "message": prompt_msg,
+                            "message": f"Please show gesture ({hand_status}, {remaining:.0f}s)",
                         })
 
                         if gesture in (Gesture.PEACE_SIGN, Gesture.THUMBS_UP, Gesture.OPEN_PALM):
                             action = GESTURE_ACTION_MAP.get(gesture)
                             if action and action.value in pending_allowed:
-                                # Gesture matches an allowed action — log attendance
                                 success = self.attendance_logger.log_attendance(
                                     user_id=pending_match.user_id,
                                     class_id=pending_active_class.class_id,
@@ -481,36 +486,15 @@ class StreamingAttendanceKiosk:
                                 pending_match = None
                                 pending_active_class = None
                                 gesture_timeout_end = 0
+                                # Clear hand skeleton from video overlay
+                                with self._overlay_lock:
+                                    self._overlay["hand_landmarks"] = None
                                 if success and action != AttendanceAction.EXIT:
                                     self.broadcast_state({
                                         "recognized_user": None, "tupm_id": None,
                                         "greeting_type": None, "required_gestures": [],
                                         "message": "",
                                     })
-                            else:
-                                # Gesture detected but not allowed at this state
-                                # Build helpful hint about which gesture the user needs
-                                gesture_hints = {
-                                    "BREAK_OUT": "✌️ Peace Sign",
-                                    "BREAK_IN": "👍 Thumbs Up",
-                                    "EXIT": "✋ Open Palm",
-                                }
-                                needed = " or ".join(
-                                    gesture_hints.get(a, a) for a in pending_allowed
-                                )
-                                logger.info(
-                                    "GESTURE | %s detected -> %s (NOT allowed, need %s)",
-                                    gesture.value, action.value if action else "?", needed,
-                                )
-                                tupm_id = getattr(pending_match, 'tupm_id', None)
-                                self.broadcast_state({
-                                    "recognized_user": pending_match.name,
-                                    "tupm_id": tupm_id,
-                                    "greeting_type": None,
-                                    "device_id": self.config.DEVICE_ID,
-                                    "required_gestures": expected_gestures,
-                                    "message": f"Wrong gesture! Show {needed} ({remaining:.0f}s)",
-                                })
 
                     frame_elapsed = (time.perf_counter() - t_frame_start) * 1000
                     self._metrics.record_frame(frame_elapsed, num_faces=0)

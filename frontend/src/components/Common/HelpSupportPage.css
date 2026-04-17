@@ -55,7 +55,55 @@
     background-color: #e2e6ea;
 }
 
-/* --- Top Cards --- */
+/* --- Tab Navigation --- */
+.help-tab-nav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.help-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+}
+
+.help-tab-btn:hover {
+    color: #0F172A;
+    background-color: #f8fafc;
+}
+
+.help-tab-btn.active {
+    color: #0F172A;
+    border-bottom-color: #0F172A;
+}
+
+.help-tab-btn i {
+    font-size: 1.05em;
+}
+
+/* Faculty theme tab overrides */
+.faculty-theme .help-tab-btn.active {
+    color: #163269;
+    border-bottom-color: #163269;
+}
+
+.faculty-theme .help-tab-btn:hover {
+    color: #163269;
+}
+
+/* --- Top Cards (legacy — kept for non-embedded standalone fallback) --- */
 .help-grid-top {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

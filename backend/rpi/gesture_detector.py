@@ -49,13 +49,14 @@ class GestureDetector:
             static_image_mode=False,  # Video mode — fast tracking (~50ms vs ~2000ms)
             max_num_hands=1,
             min_detection_confidence=min_confidence,
-            min_tracking_confidence=0.3
+            min_tracking_confidence=0.2  # Low tracking threshold for poor lighting
         )
         self.mp_draw = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
         
         # Temporal smoothing buffer
         self._consecutive_frames = consecutive_frames
-        self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 2, 8))
+        self._gesture_buffer: deque = deque(maxlen=max(consecutive_frames * 3, 10))
         
         # Diagnostic counters (reset on each gesture session via reset_buffer)
         self._diag_frames = 0
@@ -190,11 +191,8 @@ class GestureDetector:
         pinky_ratio = self._finger_ratio(landmarks, 20, 18, 17)
         thumb_up = self._is_thumb_extended(landmarks, handedness)
 
-        # Boolean states using thresholds
         index_up = idx_ratio > 1.3
         middle_up = mid_ratio > 1.3
-        ring_up = ring_ratio > 1.3
-        pinky_up = pinky_ratio > 1.3
 
         index_curled = idx_ratio < 1.5
         middle_curled = mid_ratio < 1.5
@@ -204,57 +202,98 @@ class GestureDetector:
         logger.debug("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
                      idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
 
-        # ---- PEACE SIGN ----
-        # Index + middle must be clearly more extended than ring + pinky.
-        # Uses relative comparison so lowered thresholds don't cause
-        # a peace sign to be mis-detected as open palm.
+        # ---- PEACE SIGN (checked FIRST — highest priority) ----
+        # Index + middle must be extended. Two cases accepted:
+        #   Case 1: index/middle at least 15% more extended than ring/pinky
+        #           (clear peace sign, any lighting)
+        #   Case 2: ring/pinky both below 1.5 absolute — they're not up, so
+        #           even if the relative gap is small due to noisy landmarks
+        #           in poor lighting, this is still a peace sign.
         if index_up and middle_up:
             avg_up = (idx_ratio + mid_ratio) / 2
             avg_down = (ring_ratio + pinky_ratio) / 2
-            # The two raised fingers should be at least 15% more extended
-            if avg_up > avg_down * 1.15:
+            relative_ok = (avg_down < 1e-6 or avg_up >= avg_down * 1.15)
+            # absolute_ok: ring/pinky up to 1.65 still treated as curled —
+            # in low light landmarks drift upward, so raise the ceiling.
+            absolute_ok = (ring_ratio < 1.65 and pinky_ratio < 1.65)
+            if relative_ok or absolute_ok:
                 return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # All 4 fingers clearly extended (thumb can be relaxed)
-        if index_up and middle_up and ring_up and pinky_up:
+        # ALL 4 fingers clearly extended — ring + pinky must both be above 1.7
+        # (well-extended). Anything below that is noisy peace sign territory.
+        if index_up and middle_up and ring_ratio > 1.7 and pinky_ratio > 1.7:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
         # Thumb UP, at least 3 of 4 other fingers curled.
-        # Relaxed from all-4-curled — many users keep index slightly out.
         curled_count = sum([index_curled, middle_curled, ring_curled, pinky_curled])
         if thumb_up and curled_count >= 3:
             return Gesture.THUMBS_UP
 
         return Gesture.NONE
     
+    # Per-gesture confirmation thresholds — how many frames in the window
+    # must show that gesture before it triggers.
+    # PEACE_SIGN and THUMBS_UP are structurally specific (2 fingers / thumb-only)
+    # and need fewer confirmations. OPEN_PALM requires more because sloppy peace
+    # sign landmarks can read as all-fingers-extended in low light.
+    _GESTURE_THRESHOLDS = {
+        Gesture.PEACE_SIGN: 3,
+        Gesture.THUMBS_UP: 3,
+        Gesture.OPEN_PALM: 5,
+    }
+
     def _get_smoothed_gesture(self) -> Gesture:
         """
-        Get temporally smoothed gesture.
-        Requires N non-NONE matching gestures out of the last M frames.
-        This tolerates MediaPipe dropping hand detection on some frames,
-        which previously caused consecutive-frame checks to always fail.
+        Get temporally smoothed gesture using per-gesture confirmation thresholds.
+
+        PEACE_SIGN and THUMBS_UP need only 3 frames (they are structurally
+        unambiguous). OPEN_PALM needs 5 frames because in low light its
+        landmarks overlap with a sloppy peace sign (ring/pinky noise).
+
+        If PEACE_SIGN meets its threshold it is returned immediately even
+        when OPEN_PALM also qualifies — a peace sign is a subset of open palm
+        so we always defer to the more specific gesture.
         """
         if len(self._gesture_buffer) < self._consecutive_frames:
             return Gesture.NONE
-        
-        # Look at a wider window (last M frames) and count occurrences
-        window = list(self._gesture_buffer)  # up to maxlen (8)
-        
+
+        window = list(self._gesture_buffer)
+
         # Count each non-NONE gesture in the window
-        counts = {}
+        counts: dict = {}
         for g in window:
             if g != Gesture.NONE:
                 counts[g] = counts.get(g, 0) + 1
-        
-        # Find the most common gesture that meets the threshold
-        for gesture, count in counts.items():
-            if count >= self._consecutive_frames:
-                logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", gesture.value, count, len(window))
-                return gesture
-        
-        return Gesture.NONE
+
+        if not counts:
+            return Gesture.NONE
+
+        # Collect gestures that meet their individual threshold
+        candidates = {
+            g: c
+            for g, c in counts.items()
+            if c >= self._GESTURE_THRESHOLDS.get(g, self._consecutive_frames)
+        }
+
+        if not candidates:
+            return Gesture.NONE
+
+        # Priority tie-break: prefer specific shapes over ambiguous ones.
+        # PEACE_SIGN beats OPEN_PALM because a peace sign always partially
+        # satisfies the OPEN_PALM check when ring/pinky landmarks are noisy.
+        if Gesture.PEACE_SIGN in candidates:
+            logger.debug("GESTURE | smoothed=PEACE_SIGN (count=%d, open_palm=%d)",
+                         counts.get(Gesture.PEACE_SIGN, 0), counts.get(Gesture.OPEN_PALM, 0))
+            return Gesture.PEACE_SIGN
+        if Gesture.THUMBS_UP in candidates:
+            logger.debug("GESTURE | smoothed=THUMBS_UP (count=%d)", counts.get(Gesture.THUMBS_UP, 0))
+            return Gesture.THUMBS_UP
+
+        best = max(candidates, key=candidates.get)
+        logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", best.value, candidates[best], len(window))
+        return best
     
     def count_fingers(self, frame_rgb: np.ndarray) -> Tuple[Optional[int], Optional[object]]:
         """
@@ -306,16 +345,72 @@ class GestureDetector:
         self._diag_hand_found = 0
         self._diag_gesture_found = 0
     
-    def draw_landmarks(self, frame_bgr: np.ndarray, hand_landmarks) -> np.ndarray:
-        """Draw hand landmarks on frame for visualization."""
-        if hand_landmarks:
-            self.mp_draw.draw_landmarks(
-                frame_bgr,
-                hand_landmarks,
-                self.mp_hands.HAND_CONNECTIONS
-            )
+    def draw_hand_landmarks(self, frame_bgr: np.ndarray, hand_landmarks) -> np.ndarray:
+        """
+        Draw hand skeleton (connections + landmark dots) on a BGR frame.
+
+        Uses MediaPipe's built-in drawing utility with custom colors:
+        - Green dots for landmark points
+        - Cyan lines for connections between joints
+
+        Args:
+            frame_bgr: The BGR frame to draw on (will be modified in-place).
+            hand_landmarks: MediaPipe NormalizedLandmarkList from detect().
+
+        Returns:
+            The same frame with landmarks drawn.
+        """
+        if hand_landmarks is None:
+            return frame_bgr
+
+        # Custom drawing spec: green dots, cyan connections
+        landmark_style = self.mp_draw.DrawingSpec(
+            color=(0, 255, 0), thickness=2, circle_radius=3
+        )
+        connection_style = self.mp_draw.DrawingSpec(
+            color=(255, 255, 0), thickness=2, circle_radius=1
+        )
+
+        self.mp_draw.draw_landmarks(
+            frame_bgr,
+            hand_landmarks,
+            self.mp_hands.HAND_CONNECTIONS,
+            landmark_drawing_spec=landmark_style,
+            connection_drawing_spec=connection_style,
+        )
         return frame_bgr
-    
+
+    @staticmethod
+    def adaptive_enhance(frame_bgr: np.ndarray) -> np.ndarray:
+        """
+        Adaptively boost brightness for MediaPipe hand detection.
+
+        Instead of a fixed alpha/beta that blows out bright frames and
+        under-boosts dark ones, this measures actual frame brightness and
+        applies just enough gain to reach a target luminance.
+
+        - Very dark frame (mean < 60): strong boost (alpha=2.0, beta=60)
+        - Dim frame (mean 60-100): moderate boost (alpha=1.5, beta=40)
+        - Normal frame (mean 100-160): mild boost (alpha=1.2, beta=20)
+        - Bright frame (mean > 160): no boost (return as-is, already bright)
+
+        Returns:
+            Enhanced BGR frame suitable for MediaPipe processing.
+        """
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        mean_brightness = gray.mean()
+
+        if mean_brightness < 60:
+            alpha, beta = 2.0, 60
+        elif mean_brightness < 100:
+            alpha, beta = 1.5, 40
+        elif mean_brightness < 160:
+            alpha, beta = 1.2, 20
+        else:
+            return frame_bgr  # Already bright enough
+
+        return cv2.convertScaleAbs(frame_bgr, alpha=alpha, beta=beta)
+
     def close(self):
         """Release resources."""
         self.hands.close()
