@@ -16,17 +16,58 @@ echo "=== FRAMES Kiosk Startup ==="
 echo "    Platform:  Raspberry Pi (USB webcam)"
 echo "    Repo root: $REPO_ROOT"
 
+# ── Helper: kill whatever process holds a TCP port ───────────
+# Uses sudo -n (non-interactive, won't prompt for password) for reliability.
+# On RPi OS, `ss -tlnp` without root may not show pid= info.
+kill_port() {
+    local PORT=$1
+    local PIDS
+    # Method 1: ss with sudo (most reliable on RPi OS)
+    PIDS=$(sudo -n ss -tlnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+')
+    # Method 1b: ss without sudo (fallback if sudo unavailable)
+    if [ -z "$PIDS" ]; then
+        PIDS=$(ss -tlnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+')
+    fi
+    for pid in $PIDS; do
+        kill -9 "$pid" 2>/dev/null || sudo -n kill -9 "$pid" 2>/dev/null || true
+    done
+    # Method 2: lsof fallback
+    PIDS=$(lsof -ti:"$PORT" 2>/dev/null)
+    for pid in $PIDS; do
+        kill -9 "$pid" 2>/dev/null || sudo -n kill -9 "$pid" 2>/dev/null || true
+    done
+    # Method 3: fuser fallback (psmisc package — may not be installed)
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+}
+
 # ── 0. Kill any leftover processes from a previous run ───────
-# This releases the camera (/dev/video0) and frees port 3000/8000
-# before we try to start fresh.  Always safe to run.
 echo "[cleanup] Stopping any previous kiosk processes..."
-pkill -f "rpi.kiosk_server" 2>/dev/null || true
-pkill -f "kiosk_server"     2>/dev/null || true
-pkill -f "SPAHandler"       2>/dev/null || true
-pkill -f "http.server"      2>/dev/null || true
-pkill -9 chromium-browser   2>/dev/null || true
-pkill -9 chromium           2>/dev/null || true
-sleep 2   # Give kernel time to release /dev/video0 and TCP sockets
+# Stop systemd service if running — prevents it from auto-restarting the kiosk
+# while we try to run it manually.  -n = non-interactive (won't prompt for password).
+sudo -n systemctl stop frames-kiosk.service 2>/dev/null || true
+pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+pkill -9 -f "kiosk_server"     2>/dev/null || true
+pkill -9 -f "uvicorn"          2>/dev/null || true
+pkill -f  "SPAHandler"         2>/dev/null || true
+pkill -f  "http.server"        2>/dev/null || true
+pkill -9 chromium-browser      2>/dev/null || true
+pkill -9 chromium              2>/dev/null || true
+# Force-release ports and camera device regardless of process name
+kill_port 8000
+kill_port 3000
+fuser -k /dev/video0 2>/dev/null || true
+sleep 2
+# Verify port 8000 is actually free — retry if still busy
+for _retry in 1 2 3 4 5; do
+    if ! ss -tln 'sport = :8000' 2>/dev/null | grep -q ':8000'; then
+        echo "[cleanup] Port 8000 is free ✅"
+        break
+    fi
+    echo "[cleanup] Port 8000 still busy (attempt $_retry/5) — killing..."
+    kill_port 8000
+    pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+    sleep 2
+done
 echo "[cleanup] Done."
 
 # ── 1. Load environment variables ────────────────────────────
@@ -124,12 +165,13 @@ else
     FRONTEND_PID=""
 fi
 
-# ── 5. Launch Kiosk Server (background, isolated process group) ──
-# setsid gives the kiosk its own process group so Chromium GPU crashes
-# cannot propagate signals (SIGTERM/SIGHUP) to the kiosk server.
+# ── 5. Launch Kiosk Server (background) ──────────────────────
+# Launched as a plain background job so $! gives the correct PID.
+# (setsid was removed — it could fork and give a wrong PID, causing the
+# restart loop to fire immediately while the real kiosk was still starting.)
 echo "[kiosk] Starting kiosk_server.py on port 8000..."
 cd "$REPO_ROOT/backend"
-setsid python -m rpi.kiosk_server &
+python -m rpi.kiosk_server &
 KIOSK_PID=$!
 echo "[kiosk] PID: $KIOSK_PID"
 
@@ -180,7 +222,7 @@ DISPLAY=:0 chromium-browser \
     --high-dpi-support=1 \
     --check-for-update-interval=604800 \
     --disable-features=Translate \
-    --use-gl=egl \
+    --disable-gpu \
     --disable-gpu-vsync \
     --num-raster-threads=2 \
     "$KIOSK_URL" &
@@ -202,10 +244,12 @@ cleanup() {
     echo ""
     echo "Stopping all kiosk processes..."
     kill $KIOSK_PID $BROWSER_PID ${FRONTEND_PID:-} ${KEEPALIVE_PID:-} 2>/dev/null
-    # Also kill any orphaned children in the kiosk's process group
-    kill -- -$KIOSK_PID 2>/dev/null || true
-    pkill -9 chromium-browser 2>/dev/null || true
-    pkill -9 chromium         2>/dev/null || true
+    sleep 1
+    # Force-kill anything still alive
+    pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+    pkill -9 chromium-browser      2>/dev/null || true
+    pkill -9 chromium              2>/dev/null || true
+    kill_port 8000
     echo "Stopped."
     exit 0
 }
@@ -222,10 +266,22 @@ while true; do
         break
     fi
     # Non-zero = crash — restart the kiosk server
-    echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting in 3s..."
-    sleep 3
+    echo "[kiosk] ⚠ Kiosk server exited with code $EXIT_CODE — restarting..."
+    pkill -9 -f "rpi.kiosk_server" 2>/dev/null || true
+    pkill -9 -f "uvicorn"          2>/dev/null || true
+    sleep 2
+    kill_port 8000
+    # Verify port is actually free before restarting
+    for _retry in 1 2 3 4 5; do
+        if ! ss -tln 'sport = :8000' 2>/dev/null | grep -q ':8000'; then
+            break
+        fi
+        echo "[kiosk] Port 8000 still busy — waiting... ($_retry/5)"
+        kill_port 8000
+        sleep 2
+    done
     cd "$REPO_ROOT/backend"
-    setsid python -m rpi.kiosk_server &
+    python -m rpi.kiosk_server &
     KIOSK_PID=$!
     echo "[kiosk] Restarted with PID: $KIOSK_PID"
 done
