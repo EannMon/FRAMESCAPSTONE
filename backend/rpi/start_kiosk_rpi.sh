@@ -180,9 +180,8 @@ DISPLAY=:0 chromium-browser \
     --high-dpi-support=1 \
     --check-for-update-interval=604800 \
     --disable-features=Translate \
-    --disable-gpu \
-    --disable-gpu-compositing \
-    --disable-software-rasterizer \
+    --use-gl=egl \
+    --disable-gpu-vsync \
     --num-raster-threads=2 \
     "$KIOSK_URL" &
 BROWSER_PID=$!
