@@ -979,4 +979,31 @@ async def video_feed():
 
 
 if __name__ == "__main__":
-    uvicorn.run("rpi.kiosk_server:app", host="0.0.0.0", port=8000, reload=False)
+    import socket
+    import time as _time
+
+    port = 8000
+
+    # Wait for port to become available before starting uvicorn.
+    # Handles lingering processes from previous kiosk runs, systemd
+    # auto-restarts, or setsid orphans that haven't released the port yet.
+    for _attempt in range(30):
+        _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            _sock.bind(("0.0.0.0", port))
+            _sock.close()
+            break
+        except OSError:
+            _sock.close()
+            if _attempt == 0:
+                print(f"[kiosk] Port {port} in use — waiting for release...")
+            elif _attempt % 5 == 0:
+                print(f"[kiosk] Still waiting for port {port}... ({_attempt}/30)")
+            _time.sleep(2)
+    else:
+        print(f"[kiosk] WARNING: Port {port} still busy after 60s — trying anyway")
+
+    # Pass app object directly (not string "rpi.kiosk_server:app") to prevent
+    # uvicorn from re-importing the module, which can cause subtle double-bind
+    # or subprocess issues depending on the uvicorn version.
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
