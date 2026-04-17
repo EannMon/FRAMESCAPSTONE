@@ -404,10 +404,10 @@ class StreamingAttendanceKiosk:
                         t_gesture = time.perf_counter()
                         # Boost brightness/contrast before MediaPipe — it struggles
                         # in low light and misreads landmarks, causing gesture mix-ups.
-                        # alpha=1.5 (contrast), beta=50 (brightness lift).
-                        # This only affects gesture detection; face recognition uses
-                        # the unmodified _latest_frame via InsightFace.
-                        enhanced_frame = cv2.convertScaleAbs(frame, alpha=1.5, beta=50)
+                        # alpha=2.0 (contrast), beta=80 (brightness lift) — more
+                        # aggressive than before to help hand detection in dim rooms.
+                        # Face recognition is unaffected (uses raw frame via InsightFace).
+                        enhanced_frame = cv2.convertScaleAbs(frame, alpha=2.0, beta=80)
                         frame_rgb = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2RGB)
                         gesture, hand_landmarks = self.gesture_detector.detect(frame_rgb)
                         gesture_ms = (time.perf_counter() - t_gesture) * 1000

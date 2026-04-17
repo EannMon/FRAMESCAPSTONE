@@ -212,14 +212,16 @@ class GestureDetector:
             avg_up = (idx_ratio + mid_ratio) / 2
             avg_down = (ring_ratio + pinky_ratio) / 2
             relative_ok = (avg_down < 1e-6 or avg_up >= avg_down * 1.15)
-            absolute_ok = (ring_ratio < 1.5 and pinky_ratio < 1.5)
+            # absolute_ok: ring/pinky up to 1.65 still treated as curled —
+            # in low light landmarks drift upward, so raise the ceiling.
+            absolute_ok = (ring_ratio < 1.65 and pinky_ratio < 1.65)
             if relative_ok or absolute_ok:
                 return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # ALL 4 fingers clearly extended — ring + pinky must be well above 1.55
-        # so a sloppy peace sign cannot fall through here.
-        if index_up and middle_up and ring_ratio > 1.55 and pinky_ratio > 1.55:
+        # ALL 4 fingers clearly extended — ring + pinky must both be above 1.7
+        # (well-extended). Anything below that is noisy peace sign territory.
+        if index_up and middle_up and ring_ratio > 1.7 and pinky_ratio > 1.7:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
@@ -230,37 +232,67 @@ class GestureDetector:
 
         return Gesture.NONE
     
+    # Per-gesture confirmation thresholds — how many frames in the window
+    # must show that gesture before it triggers.
+    # PEACE_SIGN and THUMBS_UP are structurally specific (2 fingers / thumb-only)
+    # and need fewer confirmations. OPEN_PALM requires more because sloppy peace
+    # sign landmarks can read as all-fingers-extended in low light.
+    _GESTURE_THRESHOLDS = {
+        Gesture.PEACE_SIGN: 3,
+        Gesture.THUMBS_UP: 3,
+        Gesture.OPEN_PALM: 5,
+    }
+
     def _get_smoothed_gesture(self) -> Gesture:
         """
-        Get temporally smoothed gesture.
-        Requires N non-NONE matching gestures out of the last M frames,
-        AND the winning gesture must be the dominant one (most common).
-        This prevents brief misclassifications from triggering the wrong action.
+        Get temporally smoothed gesture using per-gesture confirmation thresholds.
+
+        PEACE_SIGN and THUMBS_UP need only 3 frames (they are structurally
+        unambiguous). OPEN_PALM needs 5 frames because in low light its
+        landmarks overlap with a sloppy peace sign (ring/pinky noise).
+
+        If PEACE_SIGN meets its threshold it is returned immediately even
+        when OPEN_PALM also qualifies — a peace sign is a subset of open palm
+        so we always defer to the more specific gesture.
         """
         if len(self._gesture_buffer) < self._consecutive_frames:
             return Gesture.NONE
-        
-        # Look at a wider window (last M frames) and count occurrences
-        window = list(self._gesture_buffer)  # up to maxlen
-        
+
+        window = list(self._gesture_buffer)
+
         # Count each non-NONE gesture in the window
-        counts = {}
+        counts: dict = {}
         for g in window:
             if g != Gesture.NONE:
                 counts[g] = counts.get(g, 0) + 1
-        
+
         if not counts:
             return Gesture.NONE
-        
-        # The winning gesture must meet the threshold AND be the most common
-        best_gesture = max(counts, key=counts.get)
-        best_count = counts[best_gesture]
-        
-        if best_count >= self._consecutive_frames:
-            logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", best_gesture.value, best_count, len(window))
-            return best_gesture
-        
-        return Gesture.NONE
+
+        # Collect gestures that meet their individual threshold
+        candidates = {
+            g: c
+            for g, c in counts.items()
+            if c >= self._GESTURE_THRESHOLDS.get(g, self._consecutive_frames)
+        }
+
+        if not candidates:
+            return Gesture.NONE
+
+        # Priority tie-break: prefer specific shapes over ambiguous ones.
+        # PEACE_SIGN beats OPEN_PALM because a peace sign always partially
+        # satisfies the OPEN_PALM check when ring/pinky landmarks are noisy.
+        if Gesture.PEACE_SIGN in candidates:
+            logger.debug("GESTURE | smoothed=PEACE_SIGN (count=%d, open_palm=%d)",
+                         counts.get(Gesture.PEACE_SIGN, 0), counts.get(Gesture.OPEN_PALM, 0))
+            return Gesture.PEACE_SIGN
+        if Gesture.THUMBS_UP in candidates:
+            logger.debug("GESTURE | smoothed=THUMBS_UP (count=%d)", counts.get(Gesture.THUMBS_UP, 0))
+            return Gesture.THUMBS_UP
+
+        best = max(candidates, key=candidates.get)
+        logger.debug("GESTURE | smoothed=%s (count=%d/%d in window)", best.value, candidates[best], len(window))
+        return best
     
     def count_fingers(self, frame_rgb: np.ndarray) -> Tuple[Optional[int], Optional[object]]:
         """
