@@ -222,6 +222,52 @@
     background: #C62828;
 }
 
+/* Late Threshold Row */
+.late-threshold-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    margin-top: 4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.late-threshold-label {
+    font-size: 0.82rem;
+    color: #555;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: default;
+}
+
+.late-threshold-label i {
+    color: #E65100;
+    font-size: 0.78rem;
+}
+
+.late-threshold-select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-size: 0.82rem;
+    background: #fafafa;
+    color: #333;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.late-threshold-select:hover {
+    border-color: #163269;
+}
+
+.late-threshold-select:focus {
+    outline: none;
+    border-color: #163269;
+    box-shadow: 0 0 0 2px rgba(22, 50, 105, 0.15);
+}
+
 /* Action Buttons */
 .action-area {
     margin-top: auto;

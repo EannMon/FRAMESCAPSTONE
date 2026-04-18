@@ -697,6 +697,24 @@ const FacultyMyClassesPage = () => {
         generateFramesPDF(reportInfo, tableData);
     };
 
+    // --- LATE THRESHOLD HANDLER ---
+    const handleLateThresholdChange = async (classId, minutes) => {
+        const value = parseInt(minutes, 10);
+        if (isNaN(value) || value < 0 || value > 120) return;
+        try {
+            await api.put(`/api/faculty/class/${classId}/late-threshold`, {
+                late_threshold_minutes: value
+            });
+            setMyClasses(prev => prev.map(c =>
+                c.id === classId ? { ...c, late_threshold_minutes: value } : c
+            ));
+            toast.success(`Late threshold set to ${value} min`);
+        } catch (err) {
+            console.error('Failed to update late threshold:', err);
+            toast.error('Failed to update late threshold');
+        }
+    };
+
     // --- RENDERERS ---
 
     // A. LIST VIEW (Cards)
@@ -729,6 +747,26 @@ const FacultyMyClassesPage = () => {
                                 <div className="progress-track">
                                     <div className="progress-fill green" style={{ width: `${cls.rate}%` }}></div>
                                 </div>
+                            </div>
+
+                            <div className="late-threshold-row" onClick={(e) => e.stopPropagation()}>
+                                <label className="late-threshold-label">
+                                    <i className="fas fa-hourglass-half"></i> Late After
+                                </label>
+                                <select
+                                    className="late-threshold-select"
+                                    value={cls.late_threshold_minutes || 0}
+                                    onChange={(e) => handleLateThresholdChange(cls.id, e.target.value)}
+                                >
+                                    <option value={0}>Disabled</option>
+                                    <option value={5}>5 min</option>
+                                    <option value={10}>10 min</option>
+                                    <option value={15}>15 min</option>
+                                    <option value={20}>20 min</option>
+                                    <option value={30}>30 min</option>
+                                    <option value={45}>45 min</option>
+                                    <option value={60}>60 min</option>
+                                </select>
                             </div>
 
                             <div className="action-area">

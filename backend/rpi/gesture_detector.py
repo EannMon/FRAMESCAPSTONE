@@ -239,18 +239,31 @@ class GestureDetector:
     # and need fewer confirmations. OPEN_PALM requires more because sloppy peace
     # sign landmarks can read as all-fingers-extended in low light.
     _GESTURE_THRESHOLDS = {
-        Gesture.PEACE_SIGN: 3,
+        Gesture.PEACE_SIGN: 2,   # Lowered: peace sign flickers to OPEN_PALM in noisy frames
         Gesture.THUMBS_UP: 3,
         Gesture.OPEN_PALM: 5,
     }
+
+    # Minimum PEACE_SIGN frames that prove the user is NOT doing an open palm.
+    # A real open palm never produces peace sign readings, so any peace sign
+    # presence in the buffer means ring/pinky noise is causing misclassification.
+    _PEACE_CONTAMINATION_THRESHOLD = 2
 
     def _get_smoothed_gesture(self) -> Gesture:
         """
         Get temporally smoothed gesture using per-gesture confirmation thresholds.
 
-        PEACE_SIGN and THUMBS_UP need only 3 frames (they are structurally
-        unambiguous). OPEN_PALM needs 5 frames because in low light its
-        landmarks overlap with a sloppy peace sign (ring/pinky noise).
+        PEACE_SIGN needs only 2 frames (structurally specific — index+middle only).
+        THUMBS_UP needs 3 (thumb-only, unambiguous).
+        OPEN_PALM needs 5 because in low light its landmarks overlap with a
+        sloppy peace sign (ring/pinky noise).
+
+        Contamination rule: if PEACE_SIGN appears >= 2 times in the buffer,
+        OPEN_PALM is suppressed entirely. Rationale: a real open palm (all 4
+        fingers extended) is NEVER misread as peace sign (index+middle only
+        with ring/pinky curled). But a real peace sign IS frequently misread
+        as open palm when ring/pinky landmarks drift upward in poor lighting.
+        So any PEACE_SIGN presence proves the user intends a peace sign.
 
         If PEACE_SIGN meets its threshold it is returned immediately even
         when OPEN_PALM also qualifies — a peace sign is a subset of open palm
@@ -270,12 +283,30 @@ class GestureDetector:
         if not counts:
             return Gesture.NONE
 
+        peace_count = counts.get(Gesture.PEACE_SIGN, 0)
+
         # Collect gestures that meet their individual threshold
         candidates = {
             g: c
             for g, c in counts.items()
             if c >= self._GESTURE_THRESHOLDS.get(g, self._consecutive_frames)
         }
+
+        # ── Contamination rule ──
+        # If PEACE_SIGN appeared enough times to prove intent, suppress
+        # OPEN_PALM even if it met its own threshold. A genuine open palm
+        # never triggers peace sign readings, so the peace sign frames
+        # prove the user is doing a V-sign with noisy ring/pinky.
+        if peace_count >= self._PEACE_CONTAMINATION_THRESHOLD:
+            if Gesture.OPEN_PALM in candidates:
+                logger.info("GESTURE | suppressing OPEN_PALM (count=%d) — "
+                            "PEACE_SIGN contamination detected (peace=%d in window)",
+                            counts.get(Gesture.OPEN_PALM, 0), peace_count)
+                del candidates[Gesture.OPEN_PALM]
+            # Also ensure PEACE_SIGN is a candidate even if it exactly
+            # meets the lowered threshold (it should, but be explicit).
+            if Gesture.PEACE_SIGN not in candidates and peace_count >= self._GESTURE_THRESHOLDS[Gesture.PEACE_SIGN]:
+                candidates[Gesture.PEACE_SIGN] = peace_count
 
         if not candidates:
             return Gesture.NONE

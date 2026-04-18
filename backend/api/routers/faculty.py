@@ -49,6 +49,7 @@ class ClassResponse(BaseModel):
     status: str = "upcoming"
     semester: Optional[str] = None
     academic_year: Optional[str] = None
+    late_threshold_minutes: int = 0
     
     class Config:
         from_attributes = True
@@ -186,7 +187,8 @@ def get_faculty_schedule(user_id: int, db: Session = Depends(get_db)):
             rate=rate,
             status=status,
             semester=cls.semester,
-            academic_year=cls.academic_year
+            academic_year=cls.academic_year,
+            late_threshold_minutes=cls.late_threshold_minutes or 0
         ))
     
     return result
@@ -1979,16 +1981,11 @@ def get_live_room_status(user_id: int, db: Session = Depends(get_db)):
             if st <= current_time <= et:
                 ongoing_classes.append(c)
 
-    # Only include classes in rooms that have an active device (camera installed)
-    device_rooms = set(
-        r[0] for r in db.query(Device.room)
-        .filter(Device.status == DeviceStatus.ACTIVE)
-        .distinct()
-        .all()
-    )
-    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
-
-    rooms = _build_room_status(db, classes_to_show, today_start)
+    # Show all ongoing classes — no device filter.
+    # Attendance data is logged via API (kiosk or manual), so live status
+    # should reflect any class currently in session regardless of whether
+    # a physical device is registered in that room.
+    rooms = _build_room_status(db, ongoing_classes, today_start)
     return {"rooms": rooms}
 
 
@@ -2032,16 +2029,8 @@ def get_live_room_status_dept(dept_id: int, db: Session = Depends(get_db)):
             if st <= current_time <= et:
                 ongoing_classes.append(c)
 
-    # Only include rooms that have an active device
-    device_rooms = set(
-        r[0] for r in db.query(Device.room)
-        .filter(Device.status == DeviceStatus.ACTIVE)
-        .distinct()
-        .all()
-    )
-    classes_to_show = [c for c in ongoing_classes if c.room in device_rooms]
-
-    rooms = _build_room_status(db, classes_to_show, today_start)
+    # Show all ongoing classes — no device filter.
+    rooms = _build_room_status(db, ongoing_classes, today_start)
     return {"rooms": rooms}
 
 
