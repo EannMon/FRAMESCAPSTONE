@@ -199,30 +199,34 @@ class GestureDetector:
         ring_curled = ring_ratio < 1.5
         pinky_curled = pinky_ratio < 1.5
 
-        logger.debug("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
-                     idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
+        logger.info("FINGERS | idx=%.2f mid=%.2f ring=%.2f pinky=%.2f thumb=%s",
+                    idx_ratio, mid_ratio, ring_ratio, pinky_ratio, thumb_up)
 
         # ---- PEACE SIGN (checked FIRST — highest priority) ----
-        # Index + middle must be extended. Two cases accepted:
-        #   Case 1: index/middle at least 15% more extended than ring/pinky
-        #           (clear peace sign, any lighting)
-        #   Case 2: ring/pinky both below 1.5 absolute — they're not up, so
-        #           even if the relative gap is small due to noisy landmarks
-        #           in poor lighting, this is still a peace sign.
+        # Index + middle must be extended. Three cases accepted:
+        #   Case 1: index/middle at least 5% more extended than ring/pinky
+        #           (clear peace sign, even subtle difference counts)
+        #   Case 2: ring/pinky both below 1.95 absolute — they're not truly
+        #           extended. In real-world testing, peace sign ring/pinky
+        #           ratios regularly land at 1.6–1.9 due to landmark noise,
+        #           while a genuine open palm pushes them well above 2.0.
+        #   Case 3: ring/pinky both below 1.5 — clearly curled.
         if index_up and middle_up:
             avg_up = (idx_ratio + mid_ratio) / 2
             avg_down = (ring_ratio + pinky_ratio) / 2
-            relative_ok = (avg_down < 1e-6 or avg_up >= avg_down * 1.15)
-            # absolute_ok: ring/pinky up to 1.65 still treated as curled —
-            # in low light landmarks drift upward, so raise the ceiling.
-            absolute_ok = (ring_ratio < 1.65 and pinky_ratio < 1.65)
+            relative_ok = (avg_down < 1e-6 or avg_up >= avg_down * 1.05)
+            # absolute_ok: ring/pinky up to 1.95 still treated as curled.
+            # In testing, peace sign ring/pinky drift upward (1.6–1.9) due
+            # to noisy landmarks, but a real open palm pushes them above 2.0.
+            absolute_ok = (ring_ratio < 1.95 and pinky_ratio < 1.95)
             if relative_ok or absolute_ok:
                 return Gesture.PEACE_SIGN
 
         # ---- OPEN PALM ----
-        # ALL 4 fingers clearly extended — ring + pinky must both be above 1.7
-        # (well-extended). Anything below that is noisy peace sign territory.
-        if index_up and middle_up and ring_ratio > 1.7 and pinky_ratio > 1.7:
+        # ALL 4 fingers truly extended — ring + pinky must BOTH be above 2.0.
+        # This high threshold ensures only a fully open hand triggers this,
+        # preventing noisy peace sign landmarks from being misread as palm.
+        if index_up and middle_up and ring_ratio > 2.0 and pinky_ratio > 2.0:
             return Gesture.OPEN_PALM
 
         # ---- THUMBS UP ----
@@ -245,9 +249,9 @@ class GestureDetector:
     }
 
     # Minimum PEACE_SIGN frames that prove the user is NOT doing an open palm.
-    # A real open palm never produces peace sign readings, so any peace sign
-    # presence in the buffer means ring/pinky noise is causing misclassification.
-    _PEACE_CONTAMINATION_THRESHOLD = 2
+    # A real open palm never produces peace sign readings, so even a single
+    # peace sign frame proves ring/pinky noise is causing misclassification.
+    _PEACE_CONTAMINATION_THRESHOLD = 1
 
     def _get_smoothed_gesture(self) -> Gesture:
         """
